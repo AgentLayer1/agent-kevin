@@ -1,0 +1,46 @@
+# compiled
+build/
+dist/
+*.tsbuildinfo
+
+# dependencies
+**/node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+.turbo/
+
+# bun
+bun-debug.log*
+.bun-cache/
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+keys.json
+certificates/
+*.pem
+*.key
+
+# ai
+.claude
+
+# logs
+logs/
+*.log
+
+# editor / os
+.DS_Store
+**/.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/settings.json
+
+# scratch
+*.tmp
+*.bak
+*.orig

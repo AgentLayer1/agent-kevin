@@ -1,0 +1,276 @@
+#!/usr/bin/env bun
+/**
+ * `kevin` CLI — task + knowledge ops from outside Claude Code.
+ *
+ * Subcommands:
+ *   kevin ping
+ *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
+ *   kevin task get <id>
+ *   kevin task create --project=NAME --title=... --description=... [--priority=P2]
+ *   kevin task update <id> [--status=...] [--priority=...] [--title=...] [--due=YYYY-MM-DD]
+ *   kevin task close <id>
+ *   kevin task thread <id> --message=... [--type=quote|info|warning]
+ *   kevin task scan
+ *   kevin task dashboard
+ *
+ *   kevin compile status
+ *   kevin compile next          (prints the next work item JSON — doesn't synthesise)
+ *   kevin compile write <itemId>
+ *
+ *   kevin prune
+ *   kevin links
+ *
+ *   kevin knowledge lint [--fix]
+ */
+import { resolve } from 'node:path';
+
+// Resolve plugin root from this script's location so the CLI works whether
+// you invoke it via bin/kevin, /full/path/to/bin/kevin, or the plugin PATH.
+const PLUGIN_ROOT = resolve(import.meta.dir, '..');
+process.env.KEVIN_PLUGIN_ROOT ??= PLUGIN_ROOT;
+
+const [, , group, command, ...args] = process.argv;
+
+function flag(name: string): string | undefined {
+  const f = args.find((a) => a.startsWith(`--${name}=`));
+  return f?.slice(name.length + 3);
+}
+
+function flagArr(name: string): string[] {
+  const value = flag(name);
+  return value
+    ? value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+}
+
+const HELP = `\
+kevin — Agent-Kevin CLI
+
+Usage:
+  kevin <group> <command> [flags]
+
+Groups:
+  ping                              Print resolved paths + timezone (sanity check)
+  task                              Read + mutate task files under projects/*/tasks/
+  compile                           Knowledge-compile state (synthesis runs in Claude Code, not here)
+  knowledge                         Wiki maintenance (lint)
+  prune                             Delete memory/YYYY-MM-DD*.md older than 14 days
+  links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
+
+Task commands:
+  task query [--status=X] [--priority=P0-P3] [--project=NAME]
+  task get <id>
+  task create --project=NAME --title=... --description=... [--priority=P2] [--type=task|bug|idea|epic] [--due=YYYY-MM-DD] [--labels=a,b] [--depends_on=id1,id2]
+  task update <id> [--status=X] [--priority=X] [--title=X] [--due=YYYY-MM-DD] [--blocked_by=X] [--labels=a,b]
+  task close <id>
+  task thread <id> --message=... [--type=quote|info|warning]
+  task scan                         Resolve dependencies, surface overdue/stale/auto-* changes
+  task dashboard                    Rebuild projects/TASKS.md from frontmatter
+
+Knowledge commands:
+  knowledge lint [--fix]            Structural health check; --fix rewrites stale wikilinks + inserts backlinks
+
+Compile commands:
+  compile status                    Show queue (pending sessions, feedback, specs)
+  compile next                      Print next work item (no synthesis — run /agent-kevin:knowledge-compile for that)
+  compile write <itemId>            Mark item complete (advanced — synthesis writes use this internally)
+
+Environment:
+  KEVIN_HOME=<path>                 Override agent home (default: cwd)
+  KEVIN_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
+  KEVIN_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)
+  KEVIN_TIMEZONE=<tz>               Override timezone (default: system tz)
+
+Examples:
+  kevin task query --status=active
+  kevin task create --project=blog-dev --title="Draft launch post" --description="..." --priority=P1
+  kevin task dashboard
+  kevin knowledge lint --fix
+  kevin compile status
+`;
+
+async function run(): Promise<void> {
+  if (!group || group === 'help' || group === '--help' || group === '-h') {
+    console.log(HELP);
+    process.exit(group ? 0 : 1);
+  }
+
+  if (group === 'ping') {
+    const { FOLDERS, TIMEZONE } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          timezone: TIMEZONE,
+          home: FOLDERS.HOME,
+          knowledge: FOLDERS.KNOWLEDGE,
+          projects: FOLDERS.PROJECTS
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (group === 'task') {
+    const TASKS = 'mcp-server/src/tasks';
+    switch (command) {
+      case 'query': {
+        const { queryTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/scan`));
+        const filters: Record<string, string> = {};
+        for (const k of ['status', 'priority', 'project']) {
+          const v = flag(k);
+          if (v) filters[k] = v;
+        }
+        const result = queryTasks(filters);
+        console.log(
+          JSON.stringify(
+            result.map((t: { frontmatter: unknown }) => t.frontmatter),
+            null,
+            2
+          )
+        );
+        return;
+      }
+      case 'get': {
+        const id = args[0];
+        if (!id) throw new Error('Usage: kevin task get <id>');
+        const { findTaskById } = await import(resolve(PLUGIN_ROOT, `${TASKS}/scan`));
+        const task = findTaskById(id);
+        if (!task) {
+          console.error(`Task not found: ${id}`);
+          process.exit(1);
+        }
+        console.log(JSON.stringify(task, null, 2));
+        return;
+      }
+      case 'create': {
+        const project = flag('project');
+        const title = flag('title');
+        const description = flag('description');
+        if (!project || !title || !description) {
+          throw new Error('Required: --project --title --description');
+        }
+        const { createTask } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
+        const res = createTask({
+          project,
+          title,
+          description,
+          assignee: [],
+          priority: (flag('priority') as 'P0' | 'P1' | 'P2' | 'P3') ?? 'P2',
+          type: (flag('type') as 'task' | 'bug' | 'idea' | 'epic') ?? 'task',
+          labels: flagArr('labels'),
+          due: flag('due') ?? '',
+          depends_on: flagArr('depends_on')
+        });
+        console.log(JSON.stringify(res, null, 2));
+        return;
+      }
+      case 'update': {
+        const id = args[0];
+        if (!id) throw new Error('Usage: kevin task update <id> --field=value ...');
+        const fields: Record<string, string | string[]> = {};
+        for (const k of ['status', 'priority', 'title', 'due', 'blocked_by']) {
+          const v = flag(k);
+          if (v) fields[k] = v;
+        }
+        if (flagArr('labels').length) fields.labels = flagArr('labels');
+        const { updateTask } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
+        updateTask(id, fields);
+        console.log(JSON.stringify({ ok: true }));
+        return;
+      }
+      case 'close': {
+        const id = args[0];
+        if (!id) throw new Error('Usage: kevin task close <id>');
+        const { closeTask } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
+        closeTask(id);
+        console.log(JSON.stringify({ ok: true }));
+        return;
+      }
+      case 'thread': {
+        const id = args[0];
+        const message = flag('message');
+        if (!id || !message) throw new Error('Usage: kevin task thread <id> --message=...');
+        const { appendThread } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
+        appendThread(id, 'me', message, (flag('type') as 'quote' | 'info' | 'warning') ?? 'info');
+        console.log(JSON.stringify({ ok: true }));
+        return;
+      }
+      case 'scan': {
+        const { scanAllTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/scan`));
+        const { resolveTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/resolve`));
+        const all = scanAllTasks();
+        const result = resolveTasks(all);
+        console.log(JSON.stringify({ scanned: all.length, ...result }, null, 2));
+        return;
+      }
+      case 'dashboard': {
+        const { writeDashboard } = await import(resolve(PLUGIN_ROOT, `${TASKS}/dashboard`));
+        console.log(JSON.stringify(writeDashboard(), null, 2));
+        return;
+      }
+      default:
+        throw new Error(`Unknown task subcommand: ${command}`);
+    }
+  }
+
+  if (group === 'compile') {
+    const compile = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/compile'));
+    switch (command) {
+      case 'status':
+        console.log(JSON.stringify(await compile.getStatus(), null, 2));
+        return;
+      case 'next':
+        console.log(JSON.stringify(await compile.pickNext(), null, 2));
+        return;
+      case 'write': {
+        const itemId = args[0];
+        if (!itemId) throw new Error('Usage: kevin compile write <itemId>');
+        console.log(JSON.stringify(await compile.markComplete(itemId), null, 2));
+        return;
+      }
+      default:
+        throw new Error(`Unknown compile subcommand: ${command}`);
+    }
+  }
+
+  if (group === 'knowledge') {
+    switch (command) {
+      case 'lint': {
+        const { run } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/lint'));
+        const summary = await run({ fixMode: args.includes('--fix') });
+        console.log(JSON.stringify(summary, null, 2));
+        if (summary.status === 'error') process.exit(1);
+        return;
+      }
+      default:
+        throw new Error(`Unknown knowledge subcommand: ${command}`);
+    }
+  }
+
+  if (group === 'prune') {
+    const { pruneMemory } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/prune'));
+    await pruneMemory();
+    console.log(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  if (group === 'links') {
+    const { rewriteAllWikilinks } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/links'));
+    const modified = await rewriteAllWikilinks();
+    console.log(JSON.stringify({ modified, count: modified.length }, null, 2));
+    return;
+  }
+
+  throw new Error(`Unknown group: ${group}`);
+}
+
+run().catch((err) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+});

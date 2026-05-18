@@ -1,0 +1,19 @@
+# secrets
+.env
+.env.*
+!.env.example
+keys.json
+certificates/
+*.pem
+*.key
+
+# local overrides
+.claude/settings.local.json
+
+# runtime state (tokens, compile state, logs)
+.kevin/
+
+# os
+.DS_Store
+**/.DS_Store
+Thumbs.db
