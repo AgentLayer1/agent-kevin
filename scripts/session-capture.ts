@@ -5,7 +5,8 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { relative, resolve } from 'node:path';
 import { FOLDERS, isInitialized } from '../mcp-server/src/config';
 import { extractConversationContext } from '../mcp-server/src/knowledge/utils';
 import { nowTime, todayDate } from '../mcp-server/src/shared/utils';
@@ -30,6 +31,18 @@ interface HookInput {
 /** True when this process is Claude Code's plugin hook invocation. */
 function isPluginInvocation(): boolean {
   return Boolean(process.env.CLAUDE_PLUGIN_ROOT);
+}
+
+/**
+ * Render `cwd` as `~/<relative>` when under `$HOME`, otherwise return it
+ * unchanged. Falls back to `unknown` for empty input.
+ */
+function homeRelative(cwd: string): string {
+  if (!cwd) return 'unknown';
+  const home = homedir();
+  if (cwd === home) return '~';
+  if (cwd.startsWith(`${home}/`)) return `~/${relative(home, cwd)}`;
+  return cwd;
 }
 
 /** True when the project at `cwd` enables an `agent-kevin@*` plugin. */
@@ -106,7 +119,8 @@ async function capture(name: string, mode: Mode): Promise<void> {
     await writeFile(logPath, `# Session Log: ${today}\n\n`, 'utf-8');
   }
 
-  const entry = `### ${mode.heading} (${nowTime()}) [${sessionId.slice(0, 8)}]\n\n${context}\n\n---\n\n`;
+  const source = homeRelative(hookInput.cwd ?? '');
+  const entry = `### ${mode.heading} (${nowTime()}) [${sessionId.slice(0, 8)}] · ${source}\n\n${context}\n\n---\n\n`;
   await appendFile(logPath, entry, 'utf-8');
 
   process.stderr.write(`[session-capture] saved ${turnCount} turns -> ${filename}\n`);
