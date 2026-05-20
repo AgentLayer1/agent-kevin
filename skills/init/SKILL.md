@@ -217,7 +217,7 @@ Optionally `AskUserQuestion`:
 > **Any hard preferences / values I should always respect?** (Optional — answer N/A to skip)
 > Examples: "no recommending alcohol", "always halal options", "I work in healthcare — never specific medical actions"
 
-Stage for the `## Values` section.
+Stage for the `## Hard Rules` section.
 
 ---
 
@@ -372,9 +372,13 @@ Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of 
 
 <COMMUNICATION_STYLE_PARAGRAPH>
 
-## Values
+_(Examples to pick from or replace: "Direct and technical, no preamble." / "Plain English, walk me through it." / "Bullet-point summaries first, details on request." / "I push back — expect me to challenge your first answer.")_
+
+## Hard Rules
 
 <VALUES_OR_PLACEHOLDER>
+
+_(Anything Kevin should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
 
 ## Deeper
 
@@ -391,7 +395,55 @@ These files hold my evolving long-form knowledge. Kevin reads them on demand and
 - If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
 - If Step 5b was skipped → omit the line entirely (no empty placeholder).
 
-Write the five `knowledge/user/<facet>.md` files. If Step 5 ran with URLs, populate from the synthesised content with `sources:` populated. Otherwise write empty-with-frontmatter stubs.
+Write the five `knowledge/user/<facet>.md` files. If Step 5 ran with URLs, populate from the synthesised content with `sources:` populated. Otherwise write empty-with-frontmatter stubs — **except for `preferences.md`**, which always ships with the **shipped defaults** below. Rationale: OSS users may not have a `~/.claude/CLAUDE.md` of their own with universal communication / workflow / engineering opinions. The CLAUDE.md template already `@-imports` this file every session, so the defaults flow into context automatically. Users can edit them, delete sections that don't fit, or **promote anything they love to their own `~/.claude/CLAUDE.md`** so it applies across every Claude Code project on their machine.
+
+Shipped `preferences.md` defaults:
+
+````markdown
+---
+title: Preferences
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+---
+
+# Preferences
+
+> **Shipped defaults.** These are sensible, generic defaults so Kevin has opinions out of the box even before you fill in personal preferences. Edit freely. If a section fits how you'd want every Claude Code project to behave, promote it to your own `~/.claude/CLAUDE.md` and delete it here.
+
+## Communication
+
+- Concise by default — skip preamble, get to the answer.
+- Direct over diplomatic. Honest over flattering. Push back when something is wrong instead of agreeing reflexively.
+- When ambiguous, ask one clarifying question rather than guessing broadly.
+- "I don't know" is a valid answer — better than a confident-sounding guess.
+- Don't over-apologize. Own a mistake in one sentence and move on.
+
+## Workflow
+
+- **Plan before non-trivial tasks** (3+ steps or architecture decisions). Surface tradeoffs and assumptions before building.
+- **Verify before claim.** Anything specific — numbers, statuses, page state, library behavior — gets a source check or "I don't know".
+- **Never mark a task complete** without proving it works (tests pass, feature verified, change reviewed).
+- **For UI / frontend changes**, exercise the feature in a browser before reporting done. Type checks verify code correctness, not feature correctness.
+- If something goes sideways mid-task, stop and re-plan instead of pushing through.
+
+## Engineering Defaults
+
+_(Delete this section if you don't write code.)_
+
+- **Simplicity first.** Minimum code that solves the problem. No speculative abstractions, no error handling for impossible scenarios, no features beyond what was asked.
+- **Surgical changes.** Touch only what the task requires. Don't refactor adjacent code or "improve" unrelated formatting.
+- **Comments only when WHY is non-obvious.** Well-named code already explains WHAT. Skip docstring novellas.
+- **Trust framework / SDK signals** over scraping text output. When a library exposes structured errors or status, use them.
+- **Match existing project conventions** over personal preference.
+
+## Hard No
+
+_(Add anything Kevin should never do — sensitive content, off-limits topics, vendor lock-ins, etc. Leave empty if no hard rules apply.)_
+
+- _(empty)_
+````
+
+If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
 Also write `.claude/settings.local.json` so the env keys Kevin's optional packs consume have empty placeholders ready for the user to fill in their editor after relaunch. **Never solicit values via chat** — secrets must not enter the session transcript or the Anthropic API. The session-capture hook redacts known prefixes (`pplx-…`, `sk-…`, `AIza…`, etc.) as defense-in-depth, but the safer move is to keep values off the wire entirely.
 

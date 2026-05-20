@@ -1,6 +1,6 @@
-# User · {{NAME}}
+# About {{NAME}}
 
-_The headline of who Kevin is working with. Kevin reads this every session via @-import. Keep it short — depth lives in `knowledge/user/*.md`._
+Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want Kevin to work with me. Keep it tight — depth lives in `knowledge/user/*.md`.
 
 ## Identity
 
@@ -11,9 +11,13 @@ _The headline of who Kevin is working with. Kevin reads this every session via @
 
 {{COMMUNICATION_PREFS}}
 
-## Values
+_(Examples to pick from or replace: "Direct and technical, no preamble." / "Plain English, walk me through it." / "Bullet-point summaries first, details on request." / "I push back — expect me to challenge your first answer.")_
 
-_(Anything Kevin should respect: ethics, hard preferences, taboos. Optional.)_
+## Hard Rules
+
+_(Anything Kevin should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
+
+- _(empty)_
 
 ## Deeper
 
