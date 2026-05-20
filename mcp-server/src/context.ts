@@ -106,6 +106,7 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     return `    ${STATUS_ICON[e.status]} ${label}  ${size}${note}`;
   });
   const head = [
+    `  🤖 Agent:     Kevin`,
     `  🧠 Knowledge: ${FOLDERS.KNOWLEDGE}`,
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`
