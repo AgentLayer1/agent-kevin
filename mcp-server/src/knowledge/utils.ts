@@ -231,7 +231,14 @@ export function redactSecrets(text: string): string {
     // Google API: AIza...
     .replace(/\bAIza[A-Za-z0-9_-]{30,}/g, '<REDACTED:GOOGLE_API_KEY>')
     // GitHub PAT/OAuth/server/user/app: ghp_, gho_, ghs_, ghu_, gha_
-    .replace(/\bgh[pousa]_[A-Za-z0-9]{30,}/g, '<REDACTED:GITHUB_TOKEN>');
+    .replace(/\bgh[pousa]_[A-Za-z0-9]{30,}/g, '<REDACTED:GITHUB_TOKEN>')
+    // Generic URL-query / form-param secrets — catches any provider whose key
+    // doesn't have a recognisable prefix (e.g. SerpAPI's 64-char hex passed as
+    // `?api_key=...`). Defense-in-depth behind Pass 1's exact-match scrub.
+    .replace(
+      /\b(api[_-]?key|access[_-]?token|token|authorization|bearer)([=:\s]+)([A-Za-z0-9_-]{20,})/gi,
+      '$1$2<REDACTED:VALUE>'
+    );
 
   return out;
 }
