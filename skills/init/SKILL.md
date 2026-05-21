@@ -293,7 +293,7 @@ rm "$CLAUDE_DEST.bak"
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows Kevin wrote to `CLAUDE.local.md`. Claude Code auto-loads `.local.md` files alongside the main `CLAUDE.md`, so the user's existing instructions and Kevin's coexist — Kevin's `@-imports` cascade still pulls in the identity stack.
 
-Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the two Kevin-critical entries (`.claude/settings.local.json` holds API keys, `.kevin/` holds runtime tokens + compile state) if they aren't already covered. Both must be gitignored or the user will leak secrets / churn on every Kevin run.
+Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds API keys, `.kevin/` holds runtime tokens + compile state, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
 
 ```bash
 if [ ! -f "$HOME_DIR/.gitignore" ]; then
@@ -303,6 +303,8 @@ else
   APPEND=""
   grep -qxF ".claude/settings.local.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.claude/settings.local.json"$'\n'
   grep -qxF ".kevin/" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.kevin/"$'\n'
+  grep -qxF ".obsidian/workspace.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/workspace.json"$'\n'
+  grep -qxF ".obsidian/cache/" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/cache/"$'\n'
   if [ -n "$APPEND" ]; then
     printf '\n# agent-kevin\n%s' "$APPEND" >> "$HOME_DIR/.gitignore"
   fi

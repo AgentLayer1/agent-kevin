@@ -13,6 +13,10 @@ certificates/
 # runtime state (tokens, compile state, logs)
 .kevin/
 
+# obsidian (per-device pane layout + cache churn on every save — vault config stays tracked)
+.obsidian/workspace.json
+.obsidian/cache/
+
 # os
 .DS_Store
 **/.DS_Store
