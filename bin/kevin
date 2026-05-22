@@ -50,7 +50,13 @@ function loadProjectEnv(): void {
         // malformed settings file — skip silently; user can run `kevin ping` to see resolved paths
       }
     }
-    if (existsSync(resolve(dir, '.claude'))) return; // first .claude/ wins, mirroring Claude Code
+    if (existsSync(resolve(dir, '.claude'))) {
+      // First .claude/ wins, mirroring Claude Code. Anchor KEVIN_HOME to the
+      // directory that owns this .claude/ so subsequent reads land in the right
+      // tree regardless of which subdirectory the user invoked from.
+      process.env.KEVIN_HOME ??= dir;
+      return;
+    }
     const parent = dirname(dir);
     if (parent === dir) return;
     dir = parent;
