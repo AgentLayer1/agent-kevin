@@ -24,7 +24,21 @@ fi
 
 `SOUL.md` is Kevin's idempotency marker — its filename is unique to the plugin (unlike `CLAUDE.md`, which may pre-exist in any Claude Code project the plugin gets installed into).
 
-If `ALREADY_INITIALIZED`, ask the user whether to re-run setup (overwrites SOUL.md, IDENTITY.md, USER.md, and the operating manual at CLAUDE.md or CLAUDE.local.md; reseeds empty indexes; preserves `knowledge/user/*.md` content + `projects/`) or abort. Default: abort.
+If `ALREADY_INITIALIZED`, `AskUserQuestion` with an explicit enumeration of what re-run does. Surface the full write list so the operator knows what they're agreeing to — Step 0's prior wording understated the destructive surface and operators reasonably trusted it.
+
+> You've already initialized at `<HOME_DIR>`. Re-running will:
+>
+> ✏️  Overwrite SOUL.md, IDENTITY.md, USER.md, CLAUDE.md / CLAUDE.local.md (operator re-supplies tone/role/name)
+> ✓  Preserve `knowledge/memory/index.md` if it has content (compile output safe — Active Threads, Recent Decisions, Learnings)
+> ✓  Preserve `knowledge/index.md` if it has content (operator-curated catalog bullets safe)
+> ✓  Preserve `knowledge/user/<facet>.md` files that have content (operator-curated facets safe; conflict prompt if Step 5 also synthesises content)
+> ✓  Preserve `knowledge/concepts/`, `knowledge/raw/`, `projects/<slug>/` (never touched)
+> ⚠️  Reset `projects/TASKS.md` (auto-rebuilds on next task mutation via `task_dashboard`)
+>
+> - Abort (recommended)
+> - Re-run setup
+
+Default: abort. The preservation guards below in Step 7 are what make these claims true — they must match this prompt verbatim.
 
 ---
 
@@ -515,7 +529,26 @@ These files hold my evolving long-form knowledge. Kevin reads them on demand and
 - If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
 - If Step 5b was skipped → omit the line entirely (no empty placeholder).
 
-Write the five `knowledge/user/<facet>.md` files. If Step 5 ran with URLs, populate from the synthesised content with `sources:` populated. Otherwise write empty-with-frontmatter stubs — **except for `preferences.md`**, which always ships with the **shipped defaults** below. Rationale: OSS users may not have a `~/.claude/CLAUDE.md` of their own with universal communication / workflow / engineering opinions. The CLAUDE.md template already `@-imports` this file every session, so the defaults flow into context automatically. Users can edit them, delete sections that don't fit, or **promote anything they love to their own `~/.claude/CLAUDE.md`** so it applies across every Claude Code project on their machine.
+**Write the five `knowledge/user/<facet>.md` files — preservation-aware.** For each of `profile.md`, `skills.md`, `preferences.md`, `career.md`, `interests.md`:
+
+1. **File missing OR currently the empty-with-frontmatter stub** (frontmatter block only, no body content beyond whitespace): write the staged content.
+   - If Step 5 ran with URLs and synthesised content for this facet → write the synthesised version.
+   - For `preferences.md` specifically, even without Step 5 URLs, write the **shipped defaults** below (not an empty stub).
+   - Otherwise → write the empty-with-frontmatter stub.
+2. **File exists with body content AND Step 5 did NOT synthesise content for this facet**: skip the write entirely. Operator-curated content is preserved — this includes any edits the operator made to the shipped `preferences.md` defaults.
+3. **File exists with body content AND Step 5 DID synthesise content for this facet**: `AskUserQuestion`:
+
+   > `knowledge/user/<facet>.md` already has content. The URLs you pasted in Step 5 synthesised a fresh version. How should Kevin handle this?
+   >
+   > - Keep existing (recommended) — discard the synthesised version, your file stays as-is
+   > - Overwrite — replace with the synthesised version (existing content lost)
+   > - Merge — append synthesised facts under a `## Synthesised from URLs (<DATE>)` heading at the bottom, leaving existing content untouched
+
+   Default: Keep existing. Apply the operator's choice per-facet.
+
+"Empty-with-frontmatter stub" = the file's body (post-frontmatter) is empty or whitespace-only. Treat any non-whitespace body content — bullets, paragraphs, headings — as operator content worth preserving.
+
+**Why `preferences.md` ships with defaults**: OSS users may not have a `~/.claude/CLAUDE.md` of their own with universal communication / workflow / engineering opinions. The CLAUDE.md template already `@-imports` this file every session, so the defaults flow into context automatically. Users can edit them, delete sections that don't fit, or **promote anything they love to their own `~/.claude/CLAUDE.md`** so it applies across every Claude Code project on their machine. On re-run, edits are preserved by the body-content guard above.
 
 Shipped `preferences.md` defaults:
 
@@ -585,7 +618,15 @@ Scaffold:
 
 The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants) but defer all *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
 
-Write `knowledge/index.md` and `knowledge/memory/index.md` as master indexes with empty placeholder sections.
+**Write `knowledge/index.md` — preservation-aware.** Operators add catalog bullets over time (linking to concepts they've authored manually).
+
+- File missing → write the master-index scaffold with empty placeholder sections.
+- File exists with any non-whitespace body content → skip the write entirely.
+
+**Write `knowledge/memory/index.md` — strict preservation.** This is the highest-stakes file in the tree — months of `/agent-kevin:knowledge-compile` output (Active Threads, Recent Decisions, Learnings) live here.
+
+- File missing OR file body is empty/whitespace-only → write the master-index scaffold with empty placeholder sections.
+- File exists with any non-whitespace body content → **never overwrite**. Skip the write entirely, no prompt. The Step 0 prompt already committed to preserving this; honour it unconditionally.
 
 For `projects/TASKS.md`, write this single-line scaffold — the task-list sections render automatically when `task_dashboard` first runs (which the auto-rebuild on the user's first task creation will trigger):
 
@@ -717,7 +758,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 
 ## Notes for you (the orchestrating Claude)
 
-- **Idempotent.** Step 0 catches re-runs.
+- **Idempotent.** Step 0 catches re-runs and surfaces the explicit write list. Step 7's facet + index writes preserve operator-curated content (`knowledge/user/*.md`, `knowledge/index.md`) and never replace existing compile output (`knowledge/memory/index.md`). Re-running on an active HOME is safe.
 - **No secrets in identity files.** API keys go to `<HOME>/.claude/settings.local.json` via the configure-skills flow (Step 8 inline or `/agent-kevin:configure-skills` later), never to CLAUDE/SOUL/IDENTITY/USER.
 - **CLAUDE.md (or CLAUDE.local.md) is never customised.** Copy verbatim. SOUL.md adjusts tone. USER.md gets the user's headline. IDENTITY.md adjusts role.
 - **Stage before write.** Build all content through Steps 2–6. Only Step 7 writes to disk.
