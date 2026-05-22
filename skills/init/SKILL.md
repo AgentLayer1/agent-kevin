@@ -598,25 +598,16 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the env keys Kevin's optional packs consume have empty placeholders ready for the user to fill in their editor after relaunch. **Never solicit values via chat** — secrets must not enter the session transcript or the Anthropic API. The session-capture hook redacts known prefixes (`pplx-…`, `sk-…`, `AIza…`, etc.) as defense-in-depth, but the safer move is to keep values off the wire entirely.
+Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. **Init writes an empty scaffold** — Kevin has no universal-infra env keys, so the file ships as `{}`. Pack-gated env keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`) are planted by `/agent-kevin:configure-skills` when the operator activates the matching pack — Step 8 inline or later standalone — via the §D ensure-placeholder helper (which creates `env` if missing). This keeps `settings.local.json` an accurate audit trail of what the operator opted into — no orphan empty slots for packs they never touched.
 
-- **If the file does not exist:** write the scaffold below.
-- **If the file exists:** never overwrite existing non-empty values. Merge in any missing keys at the JSON level (set them to `""`) so the slots are discoverable in the editor.
+The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin currently has zero universal-infra keys, so init's contribution is just the empty file.
 
-Scaffold:
+- **If the file does not exist:** write `{}`.
+- **If the file exists:** leave it untouched. Never overwrite operator content. configure-skills walks merge in pack-gated keys via §D when activated.
 
-```json
-{
-  "env": {
-    "PERPLEXITY_API_KEY": "",
-    "SERPAPI_KEY": "",
-    "OPENPAGERANK_API_KEY": "",
-    "GSC_SITE_URL": ""
-  }
-}
-```
+**Never solicit values via chat** — secrets must not enter the session transcript or the Anthropic API. The session-capture hook redacts known prefixes (`pplx-…`, `sk-…`, `AIza…`, etc.) as defense-in-depth, but the safer move is to keep values off the wire entirely.
 
-The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants) but defer all *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
+The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants) and plant pack-gated env placeholders, but defer all *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
 
 **Write `knowledge/index.md` — preservation-aware.** Operators add catalog bullets over time (linking to concepts they've authored manually).
 
@@ -712,14 +703,14 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 
 > 🚀 **Next**
 >
-> **Fill the env values.** Open `<HOME_DIR>/.claude/settings.local.json` in your editor. The `env` block holds every secret Kevin's optional packs consume — they're scaffolded as empty strings on purpose so they never pass through a chat transcript. Fill the ones you need:
+> **Fill any env values.** Open `<HOME_DIR>/.claude/settings.local.json` in your editor. Init wrote an empty `{}` — pack-gated keys only appear after you activate the matching pack. If you ticked SEO or Browser at Step 8, the activation walk already planted their empty placeholder slots; fill the values you need:
 >
-> - `PERPLEXITY_API_KEY` — for `perplexity_search` (sign up at https://perplexity.ai/settings/api)
-> - `SERPAPI_KEY` — for SEO pack's `serpapi_search` (https://serpapi.com)
-> - `OPENPAGERANK_API_KEY` — for SEO pack's `open_page_rank` (https://openpagerank.com)
-> - `GSC_SITE_URL` — your Search Console property (set this before running `mcp__plugin_agent-kevin_kevin__google_auth` for GSC/PageSpeed)
+> - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
+> - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
+> - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
+> - `GSC_SITE_URL` — SEO pack: your Search Console property (set this before running `mcp__plugin_agent-kevin_kevin__google_auth` for GSC/PageSpeed)
 >
-> Leave blanks for anything you don't need. Tools whose key is empty stay loaded but return "missing env var" if called — fill the value any time later and the next session picks it up.
+> Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions + plants the matching placeholder slots, then you fill via editor. Tools whose key is empty stay loaded but return "missing env var" if called — fill the value any time later and the next session picks it up.
 >
 > **One-time MCP-server install.** Kevin's MCP server runs from the plugin directory and needs its node_modules. From a separate terminal (or after `/exit`), run:
 >

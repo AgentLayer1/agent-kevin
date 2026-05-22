@@ -121,7 +121,7 @@ Total time: ≈ 5 minutes. Each question's answer becomes the default for later 
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
 - `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `links_rewrite`, `memory_prune`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
-- `.claude/settings.local.json` (gitignored; `env` block scaffolded with empty placeholders for `PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` — you fill the values in your editor after init, never via chat)
+- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. Pack-gated keys like `PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` are planted by `configure-skills` when you activate the matching pack; you fill the values in your editor, never via chat)
 
 If you chose custom `KEVIN_KNOWLEDGE` or `KEVIN_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
 
@@ -527,7 +527,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 `KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. iCloud, an external drive, a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
-API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`, etc.) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. `/init` scaffolds the slots as empty strings; `configure-skills` ensures placeholders for any pack you activate. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API.
+API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated env keys.** Kevin has no universal-infra keys, so `/init` writes an empty `{}` — every API key above is a pack-gated key that `configure-skills` plants as an empty placeholder when you activate the matching pack. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API.
 
 ---
 
