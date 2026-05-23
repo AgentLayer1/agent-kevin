@@ -15,7 +15,8 @@
 
 import { FOLDERS } from '@/config';
 import { createLogger } from '@/shared/log';
-import { nowISO, repoRelative } from '@/shared/utils';
+import { nowISO } from '@/shared/date';
+import { repoRelative } from '@/shared/utils';
 import { readFile, writeFile } from 'fs/promises';
 import { basename, dirname, relative, resolve } from 'path';
 import { loadLinkTargets, rewriteAllWikilinks, type WikilinkMap } from './links';

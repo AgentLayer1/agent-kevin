@@ -1,5 +1,5 @@
 import type { TaskFile } from '@/shared/types';
-import { daysAgoDate, todayDate } from '@/shared/utils';
+import { daysAgoDate, todayDate } from '@/shared/date';
 import { isValidTransition } from './schema';
 
 export interface ScanResult {

@@ -8,7 +8,8 @@ import {
   type TaskStatus,
   type ThreadEntry
 } from '@/shared/types';
-import { todayDate, writeFileAtomic } from '@/shared/utils';
+import { todayDate } from '@/shared/date';
+import { writeFileAtomic } from '@/shared/utils';
 import { existsSync, readFileSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { withDashboardBatch, writeDashboardSafe } from './dashboard';

@@ -19,6 +19,7 @@ import { tools as openPageRankTools } from './tools/open-page-rank';
 import { tools as perplexityTools } from './tools/perplexity';
 import { tools as pingTools } from './tools/ping';
 import { tools as playwrightTools } from './tools/playwright';
+import { tools as reportTools } from './tools/reports';
 import { tools as serpapiTools } from './tools/serpapi';
 import { tools as taskTools } from './tools/tasks';
 
@@ -36,7 +37,8 @@ const TOOLS: ToolDef[] = [
   ...openPageRankTools,
   ...gscTools,
   ...pageSpeedTools,
-  ...playwrightTools
+  ...playwrightTools,
+  ...reportTools
 ];
 
 const server = new McpServer({ name: 'kevin', version: '0.1.0' });

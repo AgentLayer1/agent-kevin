@@ -1,6 +1,6 @@
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import type { TranscriptTurn } from '@/shared/types';
-import { todayDate } from '@/shared/utils';
+import { todayDate } from '@/shared/date';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';

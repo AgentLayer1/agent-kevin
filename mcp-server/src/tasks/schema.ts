@@ -8,7 +8,7 @@ import type {
   TaskType,
   ThreadEntry
 } from '@/shared/types';
-import { todayDate } from '@/shared/utils';
+import { todayDate } from '@/shared/date';
 import { readFileSync } from 'fs';
 
 // ── Valid Status Transitions ──────────────────────────────────────────

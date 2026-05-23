@@ -8,7 +8,7 @@
  */
 import { FOLDERS } from '@/config';
 import type { TaskFile, TaskFrontmatter } from '@/shared/types';
-import { daysAgoDate, todayDate } from '@/shared/utils';
+import { daysAgoDate, todayDate } from '@/shared/date';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { discoverProjects } from './scan';

@@ -10,7 +10,7 @@ import { chunkSessionLog } from '@/knowledge/chunk';
 import { loadState, saveState } from '@/knowledge/state';
 import { hashBuffer, listRawFiles, loadScriptTemplate, readWikiIndex, renderTemplate } from '@/knowledge/utils';
 import type { CompileState } from '@/shared/types';
-import { nowISO } from '@/shared/utils';
+import { nowISO } from '@/shared/date';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
