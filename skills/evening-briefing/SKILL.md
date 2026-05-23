@@ -82,6 +82,26 @@ When all four signals are zero (no closures, no commits, no raw session, no proj
 🍌
 ```
 
+## Persist
+
+After rendering the wrap in chat, **also persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool — the helper writes the
+file and inserts a one-line entry into `<HOME>/reports/index.md` under today's
+date in a single atomic call:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'evening',
+  title: <e.g. 'Evening wrap — Sat May 23'>,
+  skill: 'evening-briefing',
+  body: <the full wrap, no frontmatter — exactly what was shown in chat>,
+  status: <'clean' on the dry-one-liner day, 'findings' if anything material shipped or broke>
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator at the end of the wrap.
+
 ## Anti-patterns
 
 - ❌ Listing every commit message. Group by what they accomplished.

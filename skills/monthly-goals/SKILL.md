@@ -39,6 +39,23 @@ Strategic, not tactical. 2-4 themes max. Each theme has a concrete success crite
 
 Offer to update `<HOME>/projects/TASKS.md` — replace **only** the `## Monthly Goals` block inside the `<!-- GOALS:START -->...<!-- GOALS:END -->` markers with the new month's content. Leave `## Weekly Goals` and the auto-generated task-list sections outside the markers alone. Don't auto-write; confirm first.
 
+After updating `TASKS.md`, **also persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool so this month's themes
++ report card survive when `TASKS.md` is overwritten next month:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'monthly-goals',
+  title: <e.g. 'Monthly goals — May 2026'>,
+  skill: 'monthly-goals',
+  body: <the full themes + report-card-on-prior-month block as shown to the user>,
+  status: 'draft'
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
+
 ## Anti-patterns
 
 - ❌ More than 4 themes. Monthly is for big bets, not a backlog.

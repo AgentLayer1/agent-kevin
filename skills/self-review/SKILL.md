@@ -73,7 +73,23 @@ The coverage audit determines the proposal shape:
 
 **Track B — Code changes.** Never edit code in this skill. Write plans only.
 
-Check `.claude/plans/` — if a plan for the same theme exists, update it. Write to `.claude/plans/self-review-YYYY-MM-DD-<slug>.md`:
+Check `<HOME>/reports/plans/` — if a plan for the same theme exists, update it via the
+`Edit` tool. Otherwise, call the `mcp__plugin_agent-kevin_kevin__report_write` MCP
+tool to create a new self-review plan — it writes the file and inserts a one-line
+entry into `<HOME>/reports/index.md` in a single atomic call:
+
+```
+report_write({
+  category: 'plans',
+  slug: 'self-review-<short-theme-slug>',
+  title: <e.g. 'Self-review — morning briefing missing perplexity fallback'>,
+  skill: 'self-review',
+  status: 'draft',
+  body: <full plan markdown with the sections below, no frontmatter>
+});
+```
+
+Plan body sections:
 - **Motivation** — signals with specifics.
 - **Coverage gap** — what already exists, why it's insufficient.
 - **Files touched** — exact paths.

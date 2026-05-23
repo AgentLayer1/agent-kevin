@@ -86,6 +86,27 @@ To compute Hijri date: prefer a one-shot conversion. Try in order:
 🍌
 ```
 
+## Persist
+
+After rendering the brief in chat, **also persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool — the helper writes the
+file and inserts a one-line entry into `<HOME>/reports/index.md` under today's
+date in a single atomic call, and the SessionStart hook injects today's
+section of the index so later sessions know the brief already ran:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'morning',
+  title: <e.g. 'Morning brief — Sat May 23'>,
+  skill: 'morning-briefing',
+  body: <the full brief, no frontmatter — exactly what was shown in chat>,
+  status: <'clean' on the dry-one-liner day, 'findings' if anything actionable surfaced>
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator at the end of the brief.
+
 ## Anti-patterns
 
 - ❌ Dumping every active task. `🎯 Today` is 3–6 sharpest items, not a backlog.

@@ -10,7 +10,7 @@
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, EXTRA_GIT_REPOS, FOLDERS, TIMEZONE } from '@/config';
+import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, TIMEZONE } from '@/config';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
@@ -88,6 +88,58 @@ async function lastSessionTail(maxBytes: number): Promise<TailResult> {
   return { content: null, entry: { label: 'session tail', status: 'missing', bytes: 0 } };
 }
 
+interface ReportsResult {
+  content: string | null;
+  entry: ManifestEntry;
+}
+
+/**
+ * Slice today's section out of `reports/index.md` and return it verbatim. The
+ * index file is the source of truth — written transactionally by `writeReport`
+ * alongside each report file, so it's always current.
+ */
+async function todaysReports(maxBytes: number): Promise<ReportsResult> {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+  let raw: string;
+  try {
+    raw = await readFile(FILES.REPORTS_INDEX, 'utf-8');
+  } catch {
+    return { content: null, entry: { label: "today's reports", status: 'missing', bytes: 0 } };
+  }
+
+  const lines = raw.split('\n');
+  const headingIdx = lines.findIndex((line) => line.trim() === `## ${today}`);
+  if (headingIdx === -1) {
+    return { content: null, entry: { label: "today's reports", status: 'missing', bytes: 0, note: 'no entries today' } };
+  }
+
+  // Take lines after the heading until the next `## ` heading or EOF.
+  let end = headingIdx + 1;
+  while (end < lines.length && !/^## /.test(lines[end] ?? '')) end++;
+  const sectionLines = lines.slice(headingIdx + 1, end);
+  // Trim leading/trailing blank lines.
+  while (sectionLines.length > 0 && sectionLines[0]?.trim() === '') sectionLines.shift();
+  while (sectionLines.length > 0 && sectionLines[sectionLines.length - 1]?.trim() === '') sectionLines.pop();
+  if (sectionLines.length === 0) {
+    return { content: null, entry: { label: "today's reports", status: 'missing', bytes: 0, note: 'heading empty' } };
+  }
+
+  let body = sectionLines.join('\n');
+  if (body.length > maxBytes) {
+    body = `${body.slice(0, maxBytes).trimEnd()}\n…(see reports/index.md)`;
+  }
+
+  return {
+    content: body,
+    entry: {
+      label: "today's reports",
+      status: 'loaded',
+      bytes: body.length,
+      note: `${sectionLines.filter((line) => line.startsWith('- ')).length} entries`
+    }
+  };
+}
+
 const formatKB = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
 const STATUS_ICON: Record<ManifestEntry['status'], string> = {
@@ -122,6 +174,7 @@ export interface AssembledContext {
 
 export async function assembleContext(): Promise<AssembledContext> {
   const tail = await lastSessionTail(CONTEXT.SESSION_TAIL_BYTES);
+  const reports = await todaysReports(CONTEXT.REPORTS_BYTES);
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -139,6 +192,7 @@ export async function assembleContext(): Promise<AssembledContext> {
 
   const entries: ManifestEntry[] = [
     tail.entry,
+    reports.entry,
     ...gitLogs.map((log) => ({
       label: `git: ${log.label}`,
       status: (log.output ? 'loaded' : 'unavailable') as ManifestEntry['status'],
@@ -149,6 +203,7 @@ export async function assembleContext(): Promise<AssembledContext> {
 
   const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})`];
   if (tail.content) parts.push(`## Last Session Tail\n\n${tail.content}`);
+  if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
 
   const gitSections = gitLogs
     .filter((log) => log.output)

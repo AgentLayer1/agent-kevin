@@ -31,7 +31,8 @@ export const FOLDERS = {
   USER_RAW: resolve(KNOWLEDGE_ROOT, 'raw', 'user'),
   SPECS_RAW: resolve(KNOWLEDGE_ROOT, 'raw', 'specs'),
   SPECS_ARCHIVE: resolve(KNOWLEDGE_ROOT, 'raw', 'archive', 'specs'),
-  PROJECTS: fromEnv('KEVIN_PROJECTS', resolve(KEVIN_HOME, 'projects'))
+  PROJECTS: fromEnv('KEVIN_PROJECTS', resolve(KEVIN_HOME, 'projects')),
+  REPORTS: fromEnv('KEVIN_REPORTS', resolve(KEVIN_HOME, 'reports'))
 } as const;
 
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
@@ -46,6 +47,7 @@ export const EXTRA_GIT_REPOS: readonly string[] = (process.env.KEVIN_GIT_REPOS ?
 export const FILES = {
   CONFIG: resolve(FOLDERS.CONFIG, 'config.json'),
   KNOWLEDGE_STATE: resolve(DATA_ROOT, 'knowledge.json'),
+  REPORTS_INDEX: resolve(FOLDERS.REPORTS, 'index.md'),
   SOUL: resolve(KEVIN_HOME, 'SOUL.md'),
   IDENTITY: resolve(KEVIN_HOME, 'IDENTITY.md'),
   /** Kevin's operating manual. Lives at <HOME>/CLAUDE.md by default. If a
@@ -81,6 +83,8 @@ export const CONTEXT = {
   MAX_CHARS: 9_500,
   /** Tail of yesterday's session log to inject for continuity. */
   SESSION_TAIL_BYTES: 1_500,
+  /** Today's section of `reports/index.md`, injected so Kevin sees what was already produced today. */
+  REPORTS_BYTES: 1_000,
   /** Commits to surface in the recent-git-activity slice. */
   MAX_GIT_LOG_COMMITS: 15
 } as const;

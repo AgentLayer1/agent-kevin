@@ -52,6 +52,23 @@ Replace from `## Weekly Goals` up to (but not including) the next `##` heading o
 _Set <YYYY-MM-DD>. Next review: <next Sunday>._
 ```
 
+After updating `TASKS.md`, **also persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool so this week's goals
+survive when `TASKS.md` is overwritten next Sunday:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'weekly-goals',
+  title: <e.g. 'Weekly goals — Week of 2026-05-25'>,
+  skill: 'weekly-goals',
+  body: <the full goals block + wins/in-flight/defer rationale as shown to the user>,
+  status: 'draft'
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
+
 ## Anti-patterns
 
 - ❌ More than 5 goals. If you can't pick, you're not deciding.

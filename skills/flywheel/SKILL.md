@@ -60,6 +60,25 @@ Briefly summarise to the user:
 
 Keep the summary tight. The thread entries on each task carry the detail. `TASKS.md` already re-rendered itself after every mutation in this session — no manual `task_dashboard` call needed at wrap unless something seems off.
 
+### 6. Persist
+
+After the wrap, **persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool — captures what moved
+across projects in this session so the next morning brief can pick up the trail:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'flywheel',
+  title: <e.g. 'Flywheel session — 4 projects touched, 6 tasks moved'>,
+  skill: 'flywheel',
+  body: <the wrap summary + per-project deltas + concepts drafted, no frontmatter>,
+  status: <'findings' on a normal session, 'clean' if nothing moved>
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator alongside the wrap.
+
 ## Anti-patterns
 
 - ❌ Spending 90% of the session on one project. The whole point is breadth.
