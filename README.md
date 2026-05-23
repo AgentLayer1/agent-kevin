@@ -24,8 +24,8 @@ Kevin is a portable, file-based personal AI assistant that runs inside [Claude C
 
 This isn't a chat wrapper. It's an **operating system for personal AI**:
 
-- A 24-tool MCP server for tasks, knowledge compilation, search, page-speed, Playwright, and Google Search Console.
-- An 18-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, and read-only SEO auditing.
+- A 28-tool MCP server for tasks, knowledge compilation, reports, search, page-speed, Playwright, and Google Search Console.
+- A 19-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
 - All bundled behaviour is `disable-model-invocation: true`. Kevin only acts when you ask, never spontaneously.
@@ -120,7 +120,7 @@ Total time: ≈ 5 minutes. Each question's answer becomes the default for later 
 - `CLAUDE.md` (operating manual + identity @-imports), or `CLAUDE.local.md` if a CLAUDE.md already exists
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
-- `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `links_rewrite`, `memory_prune`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
+- `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `knowledge_lint`, `links_rewrite`, `memory_prune`, `report_write`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
 - `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. Pack-gated keys like `PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` are planted by `configure-skills` when you activate the matching pack; you fill the values in your editor, never via chat)
 
 If you chose custom `KEVIN_KNOWLEDGE` or `KEVIN_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
@@ -147,6 +147,7 @@ $ cd ~/Documents/Agents/Kevin && claude
   📁 Projects:  ~/Documents/Agents/Kevin/projects
   📚 Context  · 4.2KB
     ✓ session tail   1.6KB  (YYYY-MM-DD.md)
+    ✓ today reports  0.2KB  (1 briefing)
     ✓ git activity   0.3KB  (15 commits in the last week)
 
 > /context
@@ -155,22 +156,23 @@ Context loaded from <HOME>/CLAUDE.md and its @-imports:
   CLAUDE.md                                operating manual + @-imports
   └─ @SOUL.md                              Kevin's character
   └─ @IDENTITY.md                          Kevin's role
-  └─ @USER.md                              who you are
+  └─ @USER.md                              your headline + links to deeper user facets
   └─ @knowledge/index.md                   master catalog
   └─ @knowledge/memory/index.md            active threads · decisions · learnings
-  └─ @knowledge/user/profile.md            bio, life context
-  └─ @knowledge/user/skills.md             technical abilities, tools
-  └─ @knowledge/user/preferences.md        workflow, communication patterns
-  └─ @knowledge/user/career.md             professional history
-  └─ @knowledge/user/interests.md          vision, hobbies, signal topics
   └─ @projects/TASKS.md                    cross-project task dashboard
+
+Read on demand (not auto-loaded — Kevin pulls them when relevant):
+  · knowledge/user/{profile,skills,preferences,career,interests}.md
+  · knowledge/concepts/<slug>.md
+  · projects/<slug>/README.md + tasks
 
 Dynamic (per-session, injected by SessionStart hook):
   · today's date (YYYY-MM-DD, <your-timezone>)
   · last session tail (yesterday's conversation)
+  · today's reports (briefings, plans, audits written earlier today)
   · recent git activity in knowledge/
 
-Plugin: agent-kevin@agentlayer · 24 MCP tools loaded
+Plugin: agent-kevin@agentlayer · 28 MCP tools loaded
 
 > /agent-kevin:morning-briefing
 [Kevin reads your active threads, in-flight tasks, anything overdue, and surfaces what
@@ -192,7 +194,7 @@ Plugin: agent-kevin@agentlayer · 24 MCP tools loaded
  long-term memory.]
 ```
 
-The header banner (`🧠 Knowledge / 📁 Projects / 📚 Context`) is what the SessionStart hook injects on every launch — quick proof your brain is wired up. The `/context` slash command (built into Claude Code) shows the full @-imports cascade: every identity file, every knowledge index, the dynamic per-session additions. That whole tree is in Kevin's working memory before you've typed your first real prompt.
+The header banner (`🧠 Knowledge / 📁 Projects / 📚 Context`) is what the SessionStart hook injects on every launch — quick proof your brain is wired up. The `/context` slash command (built into Claude Code) shows the full @-imports cascade: identity stack, knowledge index, memory index, task dashboard, plus the dynamic per-session additions. User facets and concept articles aren't auto-loaded — Kevin reads them on demand via the links in `USER.md` and `knowledge/index.md`. That keeps the static lane lean while keeping the deeper material one read away.
 
 ---
 
@@ -406,19 +408,20 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (24)
+### MCP tools (28)
 
 | Group | Tools |
 |---|---|
-| **Tasks** (7) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan` |
-| **Knowledge** (5) | `memory_prune`, `links_rewrite`, `compile_status`, `compile_next`, `compile_write` |
-| **Dispatch** (12) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_record`, `ping` |
+| **Tasks** (8) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan`, `task_dashboard` |
+| **Knowledge** (6) | `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
+| **Reports** (1) | `report_write` |
+| **Dispatch** (13) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_record`, `perplexity_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `memory_prune`, `links_rewrite`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
-- **SessionStart**: pre-init shows the setup banner. Post-init injects today's date, last session tail, recent git activity (≤10KB).
+- **SessionStart**: pre-init shows the setup banner. Post-init injects today's date, last session tail, today's reports (any briefings or plans written earlier today), and recent git activity (≤10KB total).
 - **SessionEnd + PreCompact**: capture transcript turns to `knowledge/raw/sessions/YYYY-MM-DD.md` with API key redaction. **This is what makes the flywheel work.** Without these hooks, Kevin would have no source material to compile into long-term memory.
 
 ---
@@ -440,7 +443,7 @@ agent-kevin/
 │   ├── src/
 │   └── package.json
 ├── scripts/                 # hook scripts (Bun)
-├── skills/                  # 18 skills (12 core + 6 SEO) auto-load with plugin
+├── skills/                  # 19 skills (13 core + 6 SEO) auto-load with plugin
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
 │   ├── IDENTITY.md          # Kevin's role (includes Kevin's avatar)
@@ -481,6 +484,10 @@ agent-kevin/
 │   │   │   └── <id>-<slug>.md
 │   │   └── README.md
 │   └── TASKS.md
+├── reports/                 # transient skill outputs (briefings, plans)
+│   ├── index.md             # auto-maintained "newest first" log (today's entries injected into SessionStart)
+│   ├── briefings/           # morning/evening briefings, weekly/monthly goals, self-review summaries
+│   └── plans/               # code-change proposals written by self-review (Track B)
 ├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
 ├── CLAUDE.md                # operating manual + @-imports for identity stack
 │                            # (or CLAUDE.local.md if CLAUDE.md pre-existed)
