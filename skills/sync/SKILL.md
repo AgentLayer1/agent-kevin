@@ -111,8 +111,8 @@ Read <HOME>/knowledge/memory/index.md   # for narrative context
 
 If invoked with `morning` or `evening`, inline the matching briefing protocol now:
 
-- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) verbatim. The Active Threads / task queries / scan results are already in context from step 8; skip the re-reads and go straight to the signal-news perplexity call + compose.
-- `evening` → run [evening-briefing](../evening-briefing/SKILL.md) verbatim. Same context-reuse — pull today's git log + closed-today tasks, then compose.
+- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) verbatim. The Active Threads / task queries / scan results are already in context from step 8; skip the re-reads and go straight to the signal-news perplexity call, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Compose-without-persist is the bug — the briefing isn't done until `reports/index.md` shows today's entry.
+- `evening` → run [evening-briefing](../evening-briefing/SKILL.md) verbatim. Same context-reuse — pull today's git log + closed-today tasks, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Same rule: not done until persisted.
 
 If no arg, skip this step.
 
