@@ -11,7 +11,7 @@ import { FOLDERS, isInitialized } from '../mcp-server/src/config';
 import { ENTRY_SEPARATOR } from '../mcp-server/src/knowledge/session-format';
 import { extractConversationContext } from '../mcp-server/src/knowledge/utils';
 import { log as baseLog } from '../mcp-server/src/shared/log';
-import { nowTime, todayDate } from '../mcp-server/src/shared/utils';
+import { nowTime, todayDate } from '../mcp-server/src/shared/date';
 
 const log = baseLog.session.with('capture');
 

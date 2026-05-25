@@ -23,7 +23,7 @@
  */
 import { FILES, FOLDERS } from '@/config';
 import { hashBuffer } from '@/knowledge/utils';
-import { nowISO } from '@/shared/utils';
+import { nowISO } from '@/shared/date';
 import type { CompileState } from '@/shared/types';
 import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
