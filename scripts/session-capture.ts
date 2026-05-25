@@ -66,15 +66,42 @@ function pluginEnabledInCwd(cwd: string): boolean {
   }
 }
 
+/** Expand a leading `~` to the current user's home directory. */
+function expandTilde(path: string): string {
+  if (path === '~') return homedir();
+  if (path.startsWith('~/')) return resolve(homedir(), path.slice(2));
+  return path;
+}
+
 /**
- * True when `cwd` is another agent's home (has SOUL.md and isn't Kevin's
- * own home). SOUL.md is the universal agent-home marker — any agent built
- * on Kevin's init convention writes one. Convention: always launch Claude
- * from the agent home directory, not a subdir.
+ * Parse repeated `--exclude PATH` and `--exclude=PATH` flags from argv,
+ * returning absolute, tilde-expanded paths.
  */
-function isOtherAgentHome(cwd: string): boolean {
-  if (!cwd || cwd === FOLDERS.HOME) return false;
-  return existsSync(resolve(cwd, 'SOUL.md'));
+function parseExcludes(argv: string[]): string[] {
+  const excludes: string[] = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--exclude' && i + 1 < argv.length) {
+      excludes.push(resolve(expandTilde(argv[i + 1])));
+      i += 1;
+    } else if (arg.startsWith('--exclude=')) {
+      excludes.push(resolve(expandTilde(arg.slice('--exclude='.length))));
+    }
+  }
+  return excludes;
+}
+
+/**
+ * True when `cwd` falls under any excluded path (exact match or child).
+ * Prefix match enforces a `/` separator boundary so `/foo/bar` excludes
+ * `/foo/bar/baz` but not `/foo/barbaz`.
+ */
+function isExcludedPath(cwd: string, excludes: string[]): boolean {
+  if (!cwd || excludes.length === 0) return false;
+  const target = resolve(cwd);
+  return excludes.some(
+    (path) => target === path || target.startsWith(`${path}/`),
+  );
 }
 
 async function readStdin(): Promise<string> {
@@ -98,7 +125,7 @@ function parseHookInput(raw: string): HookInput {
   }
 }
 
-async function capture(name: string, mode: Mode): Promise<void> {
+async function capture(name: string, mode: Mode, excludes: string[]): Promise<void> {
   if (!isInitialized()) {
     log.info(`skip (${name}) — /agent-kevin:init not run yet`);
     return;
@@ -114,8 +141,8 @@ async function capture(name: string, mode: Mode): Promise<void> {
       log.info(`skip (${name}) — plugin hook will capture`);
       return;
     }
-    if (isOtherAgentHome(cwd)) {
-      log.info(`skip (${name}) — another agent owns ${cwd}`);
+    if (isExcludedPath(cwd, excludes)) {
+      log.info(`skip (${name}) — ${homeRelative(cwd)} is excluded`);
       return;
     }
   }
@@ -164,7 +191,9 @@ function main(): void {
     process.exit(1);
   }
 
-  capture(name, mode).catch((err) => {
+  const excludes = parseExcludes(process.argv.slice(3));
+
+  capture(name, mode, excludes).catch((err) => {
     log.error('fatal', err);
     process.exit(1);
   });
