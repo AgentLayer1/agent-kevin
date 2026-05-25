@@ -2,7 +2,7 @@
 name: monthly-goals
 description: Set this month's themes and big-rocks goals. Lighter cadence than weekly — focus on themes that span weeks. Run on the 1st of the month or whenever feels right.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, Read, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, AskUserQuestion, Read, Bash
 ---
 
 # Monthly Goals
@@ -15,6 +15,19 @@ Strategic, not tactical. 2-4 themes max. Each theme has a concrete success crite
 2. **What landed in the last month** — task closures, knowledge commits.
 3. **Active projects** — `<HOME>/projects/` directories, each project's README for vision/status.
 4. **Your durable preferences** — `<HOME>/USER.md`.
+
+## Ask
+
+Monthly themes are strategic — they cross weeks and bind multiple projects. Context surfaces the projects and recent closures but not the operator's current strategic intent. After gathering inputs, ask **2-3 targeted questions** via `AskUserQuestion` before drafting themes.
+
+Patterns that work at the monthly cadence:
+
+- **Theme candidates** — derive 3-5 plausible themes from active projects + last month's drops and ask which 2-4 to commit to (`multiSelect: true`). Each option labeled with a one-line outcome, not a project name.
+- **Bet direction** — when projects pull in different directions (e.g. shipping vs. building vs. learning vs. family), ask which gets the month's gravity.
+- **Big external dates** — surface known deadlines/events landing in the month and confirm which actually shape priorities.
+- **Stop-doing** — ask what to consciously NOT pursue this month, especially areas where the operator usually drifts.
+
+Skip questions whose answer is plain from context (e.g. don't ask about a theme that's been the obvious anchor for weeks). One sharp question beats three generic ones.
 
 ## Compose
 
@@ -61,3 +74,5 @@ Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
 - ❌ More than 4 themes. Monthly is for big bets, not a backlog.
 - ❌ Themes that are project names ("My-project this month"). Themes are outcomes, not areas.
 - ❌ Skipping the report card. Closing the loop on last month is the whole point of monthly cadence.
+- ❌ Skipping the Ask step. Monthly is strategic; the operator's head holds context the task system doesn't.
+- ❌ Generic questions ("what's important this month?"). Anchor every question in something context already surfaced.
