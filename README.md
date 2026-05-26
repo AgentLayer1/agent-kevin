@@ -18,7 +18,7 @@ One markdown folder, one plugin, a brain that learns who you are session after s
 
 ---
 
-## What is Kevin?
+## 🤖 What is Kevin?
 
 Kevin is a portable, file-based personal AI assistant that runs inside [Claude Code](https://docs.claude.com/en/docs/claude-code). Everything that makes Kevin *Kevin*, personality, memory, knowledge, projects, tasks, lives in your own directory as plain markdown. Any AI can read it. You can browse it in Obsidian or Finder. If you ever want to leave Claude Code, you take the folder and go.
 
@@ -34,7 +34,7 @@ This isn't a chat wrapper. It's an **operating system for personal AI**:
 
 ---
 
-## Why you'll want one
+## 💡 Why you'll want one
 
 ```mermaid
 graph LR
@@ -56,7 +56,7 @@ graph LR
 
 ---
 
-## Quick start
+## ⚡ Quick start
 
 ### Option A: Install via `/plugin` (recommended once published)
 
@@ -79,27 +79,35 @@ Then enter `claude` again and run `/agent-kevin:init` to scaffold your home (see
 
 ### Option B: Local development install
 
+The plugin ships its own embedded marketplace (`.claude-plugin/marketplace.json`), so a local clone of `agent-kevin` is itself a marketplace you can register.
+
 ```bash
-# Clone the marketplace (contains agent-kevin and any future AgentLayer plugins)
-git clone https://github.com/AgentLayer1/agentlayer-claude-marketplace ~/Developer/agentlayer-claude-marketplace
+# Clone the plugin
+git clone https://github.com/AgentLayer1/agent-kevin ~/Developer/agent-kevin
 
 # One-time MCP-server deps install (~150MB, pulls chromium for Playwright)
-cd ~/Developer/agentlayer-claude-marketplace/agent-kevin/mcp-server && bun install && cd -
+cd ~/Developer/agent-kevin/mcp-server && bun install
 
-# cd to wherever you want Kevin's brain to live
+# cd to wherever you want Kevin's brain to live and launch Claude Code
 mkdir -p ~/Documents/Agents/Kevin && cd ~/Documents/Agents/Kevin
-
-# Launch Claude Code pointing at the local plugin dir
-claude --plugin-dir ~/Developer/agentlayer-claude-marketplace/agent-kevin
+claude
 ```
 
-Then `/agent-kevin:init` as above.
+Inside the session, register the local marketplace and install:
+
+```text
+/plugin marketplace add ~/Developer/agent-kevin
+/plugin install agent-kevin@agentdev-kevin
+/exit
+```
+
+Then `claude` again and `/agent-kevin:init` as above.
 
 > Already have a `CLAUDE.md` in the directory? Kevin writes its operating manual to `CLAUDE.local.md` instead and leaves yours alone. Both files load at session start.
 
 ---
 
-## Onboarding
+## 🎬 Onboarding
 
 ```text
 > /agent-kevin:init
@@ -138,7 +146,7 @@ cd ~/Documents/Agents/Kevin && claude
 
 ---
 
-## What a session looks like
+## 💼 What a session looks like
 
 ```text
 $ cd ~/Documents/Agents/Kevin && claude
@@ -198,7 +206,7 @@ The header banner (`🧠 Knowledge / 📁 Projects / 📚 Context`) is what the 
 
 ---
 
-## How the knowledge pipeline works (the central evolution loop)
+## 🧠 How the knowledge pipeline works (the central evolution loop)
 
 Kevin's long-term memory follows Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern. Raw conversations are source code, an LLM is the compiler, the compiled wiki is your queryable second brain.
 
@@ -231,7 +239,7 @@ graph LR
 
 ---
 
-## Sync: end-to-end maintenance in one pass
+## 🔄 Sync: end-to-end maintenance in one pass
 
 `/agent-kevin:sync` runs the whole maintenance chain — compile → lint → prune → links → **flywheel** → dashboard → scan → status — when you want every derived view brought current at once. Heavier than `quick-pulse`, lighter than running each skill manually.
 
@@ -259,7 +267,7 @@ The status block reads from the **dust-settled artifacts** (`projects/TASKS.md`,
 
 ---
 
-## Self-evolution: Kevin gets better the more you use him
+## 🌱 Self-evolution: Kevin gets better the more you use him
 
 ```mermaid
 graph LR
@@ -299,7 +307,7 @@ Kevin also sweeps `<HOME>/reports/plans/` for aging proposals (>14 days, no foll
 
 ---
 
-## Use cases
+## 🧰 Use cases
 
 ### 1. Personal home base
 Track your projects, plan your weeks, capture decisions, remember context across sessions. Spin up `cd ~/Documents/Agents/Kevin && claude` whenever you want, ask Kevin what you were working on last Tuesday, get a coherent answer because the session tail loaded itself.
@@ -334,7 +342,7 @@ Drop Kevin into a team repo, commit the `<HOME>/{CLAUDE.md, SOUL.md, IDENTITY.md
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 The brain is portable markdown on your disk. Claude Code is the runtime. The plugin is the glue. Obsidian is how a human reads the brain. Terminal-driven scripts read and write the brain directly via `bin/kevin` when you don't want a session.
 
@@ -369,7 +377,7 @@ graph LR
 
 ---
 
-## What you get
+## 🧱 What you get
 
 ### Core skills (13), always loaded
 
@@ -426,7 +434,7 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
 ---
 
-## How it's laid out
+## 🗂️ How it's laid out
 
 ### The plugin (this repo)
 
@@ -500,7 +508,7 @@ Open `<HOME>/` in Obsidian to browse with working wiki-links. `.claude/` and `.k
 
 ---
 
-## Outside Claude Code: `bin/kevin` CLI
+## 💻 Outside Claude Code: `bin/kevin` CLI
 
 For terminal-driven task ops, cron jobs, scripted compile prep:
 
@@ -535,7 +543,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
 | Env var | Purpose | Default |
 |---|---|---|
@@ -556,7 +564,7 @@ API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API
 
 ---
 
-## Optional: capture every Claude session, machine-wide
+## 📸 Optional: capture every Claude session, machine-wide
 
 By default Kevin only captures sessions when you launch `claude` from inside your agent home (the plugin's hooks fire on enabled-plugin sessions). If you want **every** Claude Code session on your machine — coding work in random repos, one-off Q&A, anything — to land in your knowledge base, add user-level hooks to `~/.claude/settings.json`:
 
@@ -623,7 +631,7 @@ After editing `~/.claude/settings.json`, launch `claude` from any directory, hav
 
 ---
 
-## Privacy
+## 🔐 Privacy
 
 - **All data stays local.** Your agent home is markdown on your disk. No cloud sync unless you choose to commit it to git.
 - **API keys live in `.claude/settings.local.json` and data in `.kevin/`**, gitignored by default. The plugin's `.gitignore` includes them.
@@ -633,7 +641,7 @@ After editing `~/.claude/settings.json`, launch `claude` from any directory, hav
 
 ---
 
-## Platform support
+## 🖥️ Platform support
 
 Built and tested on **macOS**. The plugin should work on **Linux** with one caveat: chromium auto-install via `playwright` is sometimes flaky in headless sandboxes. **Windows is untested**; the Bun-based hooks and MCP server should run under WSL2 but the per-skill `bash` patterns in `permissions.allow` (e.g. `Bash(git log *)`) assume a POSIX shell. PowerShell equivalents would need to be added separately.
 
@@ -641,7 +649,7 @@ If you run Kevin successfully on Linux or Windows, please open a PR with platfor
 
 ---
 
-## Claude Code Billing
+## 💳 Claude Code Billing
 
 `/agent-kevin:knowledge-compile` is the showcase of how this plugin handles billing. Other personal-AI setups call the LLM internally, which bills against a metered API key. This plugin doesn't. The MCP server returns a synthesis prompt; *you*, in your interactive Claude Code session, do the synthesis; the MCP server confirms the write. The thinking happens inside your TUI turn, so it draws from your Claude Code subscription pool (Max / Pro / Teams), not a per-token API bucket.
 
@@ -671,7 +679,7 @@ What that means in practice:
 
 If Anthropic ever reopens the Agent SDK to subscription billing, we'll happily revive the daemon. Until then, this plugin is the maximum amount of Kevin that fits inside the rules.
 
-## Common questions
+## ❓ Common questions
 
 **Q: Do I need to be a developer to use this?**
 A: You need to clone a git repo, run `bun install`, and launch Claude Code. After that, the entire experience is conversational. `/agent-kevin:init` walks you through everything.
@@ -699,7 +707,7 @@ A: For the LLM synthesis steps yes. The MCP server is pure I/O, returning prompt
 
 ---
 
-## Known limitations
+## ⚠️ Known limitations
 
 1. **CC must open in `<HOME>`** for static identity to load. Outside, you only get the dynamic lane.
 2. **Sandbox can block `.claude/skills/` writes** during `/agent-kevin:configure-skills`. Pre-create the dir from a normal terminal if it hits the wall.
@@ -710,7 +718,7 @@ A: For the LLM synthesis steps yes. The MCP server is pure I/O, returning prompt
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 Pull requests welcome. Particularly interested in:
 
@@ -724,7 +732,7 @@ Open an issue first for architectural changes. Kevin's contract with `<HOME>/` m
 
 ---
 
-## License
+## 📜 License
 
 Licensed under the [Apache License, Version 2.0](./LICENSE).
 
