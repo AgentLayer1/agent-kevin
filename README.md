@@ -601,7 +601,7 @@ By default Kevin only captures sessions when you launch `claude` from inside you
 **Excluding specific directories.** Pass one or more `--exclude PATH` (or `--exclude=PATH`) flags after the subcommand to suppress capture when `claude` is launched from those paths or any of their children. Paths are tilde-expanded and resolved to absolutes; matching uses `/`-boundary prefixes (so `~/Developer/foo` excludes `~/Developer/foo/bar` but not `~/Developer/foobar`). Useful for sibling agents (another `SOUL.md`-rooted home), Ring-1 repos that shouldn't bleed into this knowledge base, or noisy throwaway dirs:
 
 ```json
-"command": "bun /absolute/path/to/agent-kevin/scripts/session-capture.ts session-end --exclude ~/Developer/Walapay --exclude ~/scratch"
+"command": "bun /absolute/path/to/agent-kevin/scripts/session-capture.ts session-end --exclude ~/Developer/foo --exclude ~/scratch"
 ```
 
 Repeat the flag in both the `SessionEnd` and `PreCompact` hook entries. The plugin's own SessionEnd hook (when you launch from the agent home itself) already takes precedence via the `pluginEnabledInCwd()` check, so excludes only need to cover *other* agent homes and dirs you actively want to skip.
