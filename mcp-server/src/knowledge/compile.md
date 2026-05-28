@@ -49,16 +49,23 @@ If the headline summary in `USER.md` itself needs an update (e.g. new role, new 
 - Write a daily summary: what was worked on, decisions made, action items, context for upcoming sessions.
 - Projects have their own READMEs at `projects/<slug>/README.md` — link to them, don't duplicate.
 
-**4. Memory index** ({{memoryIndex}}) — hot context loaded every session, must stay lean. Section order matters — keep it. Hot working context comes first; backward-looking timeline comes last:
-- **Active Threads**: only things being actively worked on RIGHT NOW. Drop completed/stale items.
-  - **Reconcile against task frontmatter every compile.** For each existing Active Threads bullet that references a task ID, read the task file under `projects/*/tasks/<id>-*.md` and check `status`. If `done` or `cancelled`, REMOVE the bullet. Even if you have nothing new to add — staleness is a top failure mode.
+**4. Memory index** ({{memoryIndex}}) — hot context loaded every session, must stay lean. Section order matters — keep it. Hot working context comes first; backward-looking timeline comes last.
+
+**Hard budget: total file ≤ 30KB.** Claude Code warns at 40KB and that warning hurts every future session. Bullets are *bullets*, not paragraphs — each one is a pointer with enough context to recognise what it's about, not a self-contained recap. Detail lives in the linked task, daily memory, or concept article; the index points to detail, it doesn't carry it.
+
+Per-section budgets:
+
+- **Active Threads** (≤ 8KB, ≤ 10 bullets, **≤ 250 chars per bullet**): only what's being worked on RIGHT NOW. Each bullet: thread name + task wikilink + the *one* current sentence (next action, blocker, or live state). Push file paths, line numbers, pending sub-items, and historical detail into the linked task's `## Thread` or into daily memory — **do not inline them here**. If a thread needs more than 250 chars to make sense, that's a signal the task body is under-maintained.
+  - **Reconcile against task frontmatter every compile.** For each bullet referencing a task ID, read `projects/*/tasks/<id>-*.md` and check `status`. If `done`/`cancelled`, REMOVE the bullet. Staleness is the top failure mode.
   - If an active task isn't represented but appears in today's raw inputs, ADD a bullet.
-- **Recent Decisions**: last 2 weeks max. Each entry: date, what was decided, one-line rationale. Drop older — they belong in permanent articles.
-- **Pending**: only items actually still pending. Drop completed.
-- **Key Context**: stable facts that provide essential background every session.
+  - If you're over 10 bullets, demote the lowest-priority / least-recently-touched ones — they can come back next session if they re-surface.
+- **Recent Decisions** (≤ 10KB, ≤ 25 bullets, **≤ 250 chars per bullet, exactly one line**): last 2 weeks max. Format: `- **YYYY-MM-DD** — <what was decided>. <one-clause rationale or pointer>.` No multi-sentence prose, no nested bullets, no inline file paths beyond a single `path:line` reference. Older items belong in `archive/decisions-YYYY-MM.md` or graduate to `concepts/`.
+- **Pending** (≤ 2KB): only items actually still pending. Drop completed. One line each.
+- **Key Context** (≤ 1KB): stable facts that provide essential background every session.
 - **Learnings** (if present): DO NOT TOUCH. Managed exclusively by the feedback compile step. Preserve verbatim.
-- **Daily Memory** (LAST section): manifest of every `memory/YYYY-MM-DD.md` file, most recent first. Lowest priority — it's a backward-looking timeline, not hot context. When you write today's daily memory (output #3 above), ADD a bullet at the top of this section: `- [[memory/YYYY-MM-DD]] — <one-sentence summary, ≤200 chars>`. When a daily file gets pruned (14-day retention), its bullet should disappear from this section too — drop bullets whose date is older than 14 days from today.
-- IMPORTANT: When updating, READ the current index first and PRUNE stale entries. The Daily Memory section can grow up to 14 bullets (one per retained day); the other sections must stay tight — overall file should sit comfortably under 200 lines.
+- **Daily Memory** (LAST section, ≤ 14 bullets): manifest of every `memory/YYYY-MM-DD.md`, most recent first. When you write today's daily memory (output #3), ADD a bullet at the top: `- [[memory/YYYY-MM-DD]] — <one-sentence summary, ≤ 200 chars>`. Drop bullets whose date is older than 14 days.
+
+**IMPORTANT: When updating, READ the current index first, then enforce the budgets above.** If a section is over budget, compress: collapse multi-sentence entries to one line, demote bloated entries to the linked task/daily memory, or drop the lowest-value items. After your edits, the rendered file MUST satisfy: total ≤ 30KB, no entry > 250 chars in Active Threads / Recent Decisions / Pending. If you can't get under budget without losing load-bearing information, that information probably belongs in a permanent article (`concepts/`) — promote it.
 
 ### Rules:
 1. Prefer updating existing articles over creating new ones.
