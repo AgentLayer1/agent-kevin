@@ -30,6 +30,21 @@ Compile raw inputs from `<HOME>/knowledge/raw/` into structured wiki articles. T
 5. After all edits land, call `mcp__plugin_agent-kevin_kevin__compile_write` with the `itemId`. State is updated: session items advance chunk counter (or promote on last chunk); feedback marks hash; specs archive the source file.
 6. Goto step 2.
 
+## Gap pass (on completion)
+
+When the loop ends (`compile_next` returns `done: true`) **and at least one item was compiled this run**, do one editorial pass over the wiki you just updated and refresh the knowledge-gap list. Synthesis is only half the job — naming the holes is the other half. (This is the "what the brain doesn't know yet" idea: surface gaps so the operator can fill them.)
+
+1. Re-read `<HOME>/knowledge/index.md` and `<HOME>/knowledge/memory/index.md` (both current after this run).
+2. Judge the wiki as a whole and surface up to **7** items across three kinds:
+   - **stale** — a dated/status-bearing fact that current context has outrun (a "pending" since resolved, a deadline now past, a "target X" that already happened).
+   - **contradiction** — two articles asserting incompatible facts.
+   - **missing** — a fact strongly implied across the corpus but never recorded (a decision referenced everywhere with no source, a project with threads but no README fact).
+3. Overwrite the `## Open Questions` section of `<HOME>/knowledge/memory/index.md` with the result (create it directly above `## Daily Memory` if absent). **Overwrite, never append** — this is *derived state*, regenerated each compile so filled gaps drop off and unfilled ones persist. Hard cap 7. If nothing qualifies, write `_None — wiki is internally consistent as of <date>._`.
+
+Format each as one line: `- **[stale|contradiction|missing]** <the gap — and where it shows up>`.
+
+Do **not** invent gaps to hit a quota. Most runs surface 0–3. This is a judgment pass, not a checklist. Because `memory/index.md` is auto-loaded every session, the list becomes ambient context — no briefing wiring needed.
+
 ## Boundaries
 
 - **Do not modify the raw source file.** The session log, feedback log, or spec under `raw/` is the input; never edit it. Compilation produces *new or updated wiki articles* and (for specs) archives the source via `compile_write`.
