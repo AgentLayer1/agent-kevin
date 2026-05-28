@@ -258,6 +258,13 @@ export function readTranscript(transcriptPath: string): TranscriptTurn[] {
  *
  * Skipping values shorter than 12 chars to avoid scrubbing common short strings
  * that happen to match a key's value. Real API keys are long.
+ *
+ * 3. **Base64 blob redaction** — pasted PNG/JPEG/PDF payloads make session logs
+ *    unreadable and choke Obsidian's indexer. Catches `data:<mime>;base64,XXXX`
+ *    data URIs and standalone runs of ≥200 base64-alphabet characters. The
+ *    200-char floor is well above hex hashes (64), JWTs (segments are
+ *    dot-separated and caught by Pass 2), and URL-safe IDs, so prose and
+ *    identifiers pass through untouched.
  */
 export function redactSecrets(text: string): string {
   let out = text;
@@ -299,6 +306,14 @@ export function redactSecrets(text: string): string {
       /\b(api[_-]?key|access[_-]?token|token|authorization|bearer)([=:\s]+)([A-Za-z0-9_-]{20,})/gi,
       '$1$2<REDACTED:VALUE>'
     );
+
+  // Pass 3: base64 blobs. Data URIs first so the mime prefix survives.
+  out = out
+    .replace(
+      /(data:[\w.+-]+\/[\w.+-]+;base64,)[A-Za-z0-9+/]{40,}={0,2}/g,
+      '$1<REDACTED:BASE64>'
+    )
+    .replace(/[A-Za-z0-9+/]{200,}={0,2}/g, '<REDACTED:BASE64>');
 
   return out;
 }
