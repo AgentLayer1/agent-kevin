@@ -42,15 +42,25 @@ Decide for each:
 - **Close** — if done, `mcp__plugin_agent-kevin_kevin__task_close`. Don't leave finished work as "active".
 - **Defer** — set status to `blocked` with a real blocker note, or change priority to P3 and move on.
 
-### 3. Identify cross-cutting opportunities
+### 3. Archive closed tasks
+
+Sweep every `status: done` or `status: cancelled` task file still living in `<HOME>/projects/<slug>/tasks/` into the project's `tasks/archive/` subdir. This keeps the active dir scannable and matches what the dashboard already does (it skips `tasks/archive/`).
+
+```
+Bash: mkdir -p <HOME>/projects/<slug>/tasks/archive && mv <HOME>/projects/<slug>/tasks/<id>-*.md <HOME>/projects/<slug>/tasks/archive/
+```
+
+Find candidates with grep across `projects/*/tasks/*.md` for `^status: (done|cancelled)` in frontmatter. Don't touch files already under `archive/`. After moving, refresh `task_dashboard` so `TASKS.md` re-renders without the archived rows in the Recently Closed section.
+
+### 4. Identify cross-cutting opportunities
 
 As you work, watch for patterns that span 2+ projects (e.g., the same library helps two projects, a decision in one affects another). When you find one, draft a `<HOME>/knowledge/concepts/<slug>.md` capturing it. Don't force this — only do it when the connection is real.
 
-### 4. Capture decisions
+### 5. Capture decisions
 
 If you made a decision worth remembering (architectural call, priority shift, dropped scope), add a one-liner to `<HOME>/knowledge/memory/index.md` → `## Recent Decisions` with today's date and a brief rationale.
 
-### 5. Wrap
+### 6. Wrap
 
 Briefly summarise to the user:
 - Which projects you touched and what changed (1 line each)
@@ -60,7 +70,7 @@ Briefly summarise to the user:
 
 Keep the summary tight. The thread entries on each task carry the detail. `TASKS.md` already re-rendered itself after every mutation in this session — no manual `task_dashboard` call needed at wrap unless something seems off.
 
-### 6. Persist
+### 7. Persist
 
 After the wrap, **persist a snapshot** via the
 `mcp__plugin_agent-kevin_kevin__report_write` MCP tool — captures what moved
