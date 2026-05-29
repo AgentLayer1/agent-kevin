@@ -4,7 +4,7 @@
  *
  * Subcommands:
  *   kevin ping
- *   kevin capture [text] [--file=PATH] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
+ *   kevin capture [text] [--file=PATH] [--url=URL] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
  *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--exclude PATH] [--format=claude]
  *   kevin session-start [--hook-protocol=claude]
  *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
@@ -134,6 +134,7 @@ Task commands:
 Capture commands:
   capture "the thought"             Write inline text to raw/inbox/<ts>-<slug>.md (next compile distils it)
   capture --file=PATH               Capture a file's contents into raw/inbox/
+  capture --url=URL                 Fetch a URL, strip HTML noise (<script>/<style>/<head>), store with source: url:<url> in frontmatter
   capture --stdin                   Read content from stdin (e.g. \`pbpaste | kevin capture --stdin\`)
   capture ... --kind=feedback       Append to raw/user/feedback.md instead of inbox/ (corrections/preferences)
   capture ... --title=X --label=Y   Optional metadata (slug source + frontmatter label)
@@ -167,6 +168,7 @@ Environment:
 Examples:
   kevin capture "remember to follow up with tracy on constitution lodgement"
   kevin capture --file=~/notes/board-meeting.md --title="Board meeting 2026-05-28"
+  kevin capture --url=https://docs.anthropic.com/en/docs/claude-code/overview
   pbpaste | kevin capture --stdin --title="Clipped article"
   kevin capture --kind=feedback "don't propose git push for local-only repos"
   kevin task query --status=active
@@ -464,7 +466,7 @@ async function run(): Promise<void> {
     const positional = allArgs.find((a) => !a.startsWith('--'));
     const wantStdin = allArgs.includes('--stdin');
     let text = positional ?? localFlag('text');
-    if (!text && !localFlag('file') && (wantStdin || !process.stdin.isTTY)) {
+    if (!text && !localFlag('file') && !localFlag('url') && (wantStdin || !process.stdin.isTTY)) {
       text = await new Promise<string>((resolveFn) => {
         let data = '';
         process.stdin.setEncoding('utf-8');
@@ -476,6 +478,7 @@ async function run(): Promise<void> {
     const result = await capture({
       text,
       file: localFlag('file'),
+      url: localFlag('url'),
       kind: localFlag('kind') as 'inbox' | 'feedback' | undefined,
       title: localFlag('title'),
       label: localFlag('label')

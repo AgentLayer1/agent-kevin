@@ -73,6 +73,11 @@ export const KNOWLEDGE = {
   MAX_TRANSCRIPT_CHARS: 100_000,
   MAX_TURN_CHARS: 10_000,
   MAX_TEXT_FILE_BYTES: 512 * 1024,
+  /** Upstream ceiling on raw URL fetches before sanitization. HTML pages with
+   *  inline scripts/styles routinely blow past MAX_TEXT_FILE_BYTES raw but
+   *  shrink to a fraction once stripped, so the stored-content cap is checked
+   *  post-sanitization; this larger guard just prevents runaway downloads. */
+  MAX_URL_FETCH_BYTES: 5 * 1024 * 1024,
   MAX_CHUNK_BYTES: 300 * 1024,
   // Cap on the raw chunk inlined into each compile_next prompt. Observed MCP
   // tool-response cap is ~16K tokens / ~50KB chars. With ~20KB overhead

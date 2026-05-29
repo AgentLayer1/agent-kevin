@@ -227,16 +227,60 @@ graph LR
 
 **The capture is automatic.** Every time you exit a session, or Claude Code auto-compacts mid-session, a hook calls `bin/kevin session-capture` which reads your transcript and appends it to today's session log under `knowledge/raw/sessions/YYYY-MM-DD.md`. The hook **redacts API key values** before writing (exact-match against `.claude/settings.local.json` env values, plus prefix heuristics for `sk-…`, `pplx-…`, `AIza…`, `sk-ant-…`, `gh[pous]_…`). The CLI is harness-agnostic — adding Codex (or any future host) is a one-file format adapter inside `mcp-server/src/knowledge/session-capture.ts`, not a new hook script.
 
-**Capture anything else manually.** A thought, a meeting note, a clipped article, a file, a correction rule — anything you want compiled into the wiki goes in via the `capture` verb. Same destination, same compile pipeline; you just initiate it instead of a hook.
+**Capture anything else manually.** A thought, a meeting note, a clipped article, a file, a URL, a correction rule — anything you want compiled into the wiki goes in via the `capture` verb. Same destination, same compile pipeline; you just initiate it instead of a hook.
 
-```sh
-kevin capture "remember to follow up with tracy on constitution lodgement"
-kevin capture --file=~/notes/board-meeting.md --title="Board meeting 2026-05-28"
-pbpaste | kevin capture --stdin --title="Clipped article"
-kevin capture --kind=feedback "don't propose git push for local-only repos"
+**In a conversation (the common case).** Drop a URL, paste a snippet, or hand Kevin a file path — he'll route to the `capture` MCP tool automatically. The tool is exposed as `mcp__plugin_agent-kevin_kevin__capture`, and natural-language prompts work fine:
+
+```
+you  > capture this for the inbox: https://thenewstack.io/hidden-agentic-technical-debt/
+kevin > [calls capture(url=…)] → wrote inbox → knowledge/raw/inbox/2026-05-29-1430-hidden-agentic-technical-debt.md
+
+you  > save as feedback: when refactoring, don't touch adjacent code I didn't ask about
+kevin > [calls capture(text=…, kind=feedback)] → appended to knowledge/raw/user/feedback.md
+
+you  > here's my standup notes — capture with title "Standup 2026-05-28": <paste>
+kevin > [calls capture(text=…, title=…)] → wrote inbox
+
+you  > pull in ~/notes/board-meeting.md
+kevin > [calls capture(file=…)] → wrote inbox
 ```
 
-Default destination is `knowledge/raw/inbox/<YYYY-MM-DD-HHMM>-<slug>.md`. `--kind=feedback` routes to `knowledge/raw/user/feedback.md` instead — operator-meta (corrections, preferences, rules), compiled into `memory/index.md` → `## Learnings`. Local-only, secret-redacted (same heuristics as session capture), atomic write, content-hash deduped (re-capturing identical input short-circuits to the existing file). The same surface is exposed as `mcp__plugin_agent-kevin_kevin__capture` for use inside Claude Code sessions.
+URL fetches run through Mozilla Readability + Turndown, which extracts the article body (drops nav/footer/sidebar/modal noise) and converts it to clean Markdown — no HTML soup in the inbox.
+
+**From the CLI** — same surface, useful for clipboards, scripts, and one-shots from a terminal:
+
+```sh
+# Inline thought → raw/inbox/<ts>-<slug>.md
+kevin capture "remember to follow up with tracy on constitution lodgement"
+
+# Local file → raw/inbox/ with an explicit title (overrides the auto-slug)
+kevin capture --file=~/notes/board-meeting.md --title="Board meeting 2026-05-28"
+
+# URL → fetch, extract article body, convert to Markdown, store with provenance
+kevin capture --url=https://docs.anthropic.com/en/docs/claude-code/overview
+
+# Stdin pipe → useful for clipboard / scripted captures
+pbpaste | kevin capture --stdin --title="Clipped article"
+
+# Correction / rule / preference → raw/user/feedback.md (compiled into memory/index.md → Learnings)
+kevin capture --kind=feedback "don't propose git push for local-only repos"
+
+# Optional metadata — label is stored in frontmatter (inbox) or in the feedback header
+kevin capture --file=~/spec.md --label="design-spec"
+```
+
+| Flag | Behaviour |
+|---|---|
+| _(positional)_ or `--text=...` | Inline text. Default input source. |
+| `--file=PATH` | Read a local file (≤ 512 KB) and capture its contents. |
+| `--url=URL` | Fetch over HTTP(S) (≤ 5 MB raw). HTML responses run through Mozilla Readability (extracts the article body, drops nav / footer / sidebar / modals) → Turndown (HTML → Markdown). On extraction failure, falls back to a regex strip of `<script>/<style>/<head>/<nav>/<header>/<footer>/<aside>/<form>/<svg>/<iframe>/comments`. Sanitized body must fit ≤ 512 KB. Provenance recorded as `source: url:<url>` in frontmatter. |
+| `--stdin` | Read from stdin. Auto-enabled when stdin is a pipe. |
+| `--kind=inbox` _(default)_ | Write to `knowledge/raw/inbox/<YYYY-MM-DD-HHMM>-<slug>.md`. Compiled into concepts / user facets next compile. |
+| `--kind=feedback` | Append to `knowledge/raw/user/feedback.md`. Operator-meta — corrections, preferences, rules. Compiled into `memory/index.md` → `## Learnings`. |
+| `--title=X` | Sets the filename slug + frontmatter title (inbox only). Without it, the slug comes from the first heading / first line. |
+| `--label=X` | Stored in frontmatter (inbox) or in the feedback entry header. Free-form tag. |
+
+Local-only, secret-redacted (same heuristics as session capture), atomic write, content-hash deduped (re-capturing identical input short-circuits to the existing file). The same surface is exposed as `mcp__plugin_agent-kevin_kevin__capture` for use inside Claude Code sessions — same options, same defaults.
 
 **The compile is on-demand.** When you run `/agent-kevin:knowledge-compile`, Kevin picks up any session logs whose hash has changed since last compile, plus any inputs you've captured into `knowledge/raw/inbox/` (via `kevin capture`, the MCP `capture` tool, or a direct file drop), plus any new feedback in `knowledge/raw/user/feedback.md`. The MCP server returns a synthesis prompt; *you*, in your TUI session, synthesize; the MCP server confirms the write. Idempotent, hash-tracked, interruptible.
 
@@ -440,7 +484,7 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | Group | Tools |
 |---|---|
 | **Tasks** (8) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan`, `task_dashboard` |
-| **Knowledge** (6) | `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
+| **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Dispatch** (13) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_record`, `perplexity_search`, `ping` |
 

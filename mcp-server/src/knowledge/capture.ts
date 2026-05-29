@@ -1,6 +1,6 @@
 /**
- * Universal capture — write any input (text, dropped file) into Kevin's raw
- * tree for the next knowledge-compile to absorb.
+ * Universal capture — write any input (text, dropped file, fetched URL) into
+ * Kevin's raw tree for the next knowledge-compile to absorb.
  *
  * Two destinations, one entry surface:
  *   - `kind: 'inbox'` (default) — timestamped doc in `raw/inbox/`, compiled
@@ -14,6 +14,7 @@
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { hashBuffer, redactSecrets, splitFrontmatter } from '@/knowledge/utils';
 import { nowISO, nowTimeCompact, todayDate } from '@/shared/date';
+import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { slugify } from '@/tasks/mutate';
 import { existsSync, statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
@@ -24,6 +25,7 @@ export type CaptureKind = 'inbox' | 'feedback';
 export interface CaptureOpts {
   text?: string;
   file?: string;
+  url?: string;
   kind?: CaptureKind;
   title?: string;
   label?: string;
@@ -38,9 +40,43 @@ export interface CaptureResult {
   duplicate: boolean;
 }
 
+async function fetchUrl(url: string): Promise<{ content: string; sourceHint: string }> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; kevin-capture/1.0)',
+        Accept: 'text/html,text/markdown,text/plain;q=0.9,*/*;q=0.5'
+      },
+      redirect: 'follow'
+    });
+  } catch (err) {
+    throw new Error(`Fetch failed: ${url} — ${(err as Error).message}`);
+  }
+  if (!res.ok) throw new Error(`Fetch ${url} → HTTP ${res.status}`);
+  const contentType = res.headers.get('content-type') ?? '';
+  const raw = await res.text();
+  if (raw.length > KNOWLEDGE.MAX_URL_FETCH_BYTES) {
+    throw new Error(
+      `Response too large (${raw.length} > ${KNOWLEDGE.MAX_URL_FETCH_BYTES} bytes): ${url}`
+    );
+  }
+  const isHtml = /html/i.test(contentType);
+  const content = isHtml ? renderExtracted(await htmlToMarkdown(raw)) : raw;
+  if (content.length > KNOWLEDGE.MAX_TEXT_FILE_BYTES) {
+    throw new Error(
+      `Sanitized content too large (${content.length} > ${KNOWLEDGE.MAX_TEXT_FILE_BYTES} bytes): ${url}`
+    );
+  }
+  return { content, sourceHint: `url:${url}` };
+}
+
 async function resolveContent(opts: CaptureOpts): Promise<{ content: string; sourceHint: string }> {
   if (opts.text && opts.text.trim()) {
     return { content: opts.text, sourceHint: 'text' };
+  }
+  if (opts.url) {
+    return fetchUrl(opts.url);
   }
   if (opts.file) {
     const abs = resolve(opts.file);
@@ -52,7 +88,7 @@ async function resolveContent(opts: CaptureOpts): Promise<{ content: string; sou
     const content = await readFile(abs, 'utf-8');
     return { content, sourceHint: `file:${basename(abs)}` };
   }
-  throw new Error('No content — provide text or file');
+  throw new Error('No content — provide text, url, or file');
 }
 
 function deriveSlug(content: string, title?: string): string {
