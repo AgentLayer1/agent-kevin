@@ -30,7 +30,7 @@ Don't stop at the synth — pull raw evidence from every surface where correctio
 4. Recent task threads — scan tasks updated in the last 7 days. Search `[!quote]` blocks for the same correction phrases. Threads are where in-flight corrections land.
 5. `git log --format='%h %ai %s' -50` in `<HOME>/identity/` and the plugin repo's `skills/` — commits matching prior cycle dates are addressed work. Note the dates so you can compute "violations after fix".
 6. `<HOME>/knowledge/concepts/` — list every article. This is where *implemented and distilled* decisions live. A theme that maps to an existing concept article means the *thinking* landed but the *behavior* didn't — different fix shape (enforcement gap, not knowledge gap).
-7. `<HOME>/reports/plans/` — in-flight, unimplemented plans only. Use to (a) de-dup if a Track B proposal already exists, (b) age-sweep — plans >14 days old without follow-through are stuck.
+7. `<HOME>/reports/plans/` — in-flight, unimplemented plans only. **Consider only self-review-authored plans**: files with frontmatter `skill: self-review` (these are written by `report_write`, date-time-prefixed filenames). The same folder also holds raw Claude Code plan-mode dumps (random-slug filenames, no frontmatter) — **ignore those**; they aren't self-review's to sweep. Use the self-review plans to (a) de-dup if a Track B proposal already exists, (b) age-sweep — plans >14 days old without follow-through are stuck.
 8. The plugin's `skills/` directory — what's installed. Reference for Track C — don't propose installing or creating something already covered.
 
 ### 2. Cluster, count, classify
@@ -103,7 +103,7 @@ Stay surgical. Small targeted changes beat sweeping rewrites.
 
 ### 4. Aging plan sweep
 
-For each `<HOME>/reports/plans/*.md` with mtime >14 days, check whether the work landed. If it's stuck, propose: **re-surface**, **downgrade**, or **close**.
+For each self-review-authored plan (frontmatter `skill: self-review`) in `<HOME>/reports/plans/*.md` with mtime >14 days, check whether the work landed. If it's stuck, propose: **re-surface**, **downgrade**, or **close**. Skip raw plan-mode dumps (no frontmatter) — they're the harness's, not self-review's.
 
 ### 5. Discuss, then edit or plan
 

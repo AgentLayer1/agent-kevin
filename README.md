@@ -612,7 +612,8 @@ agent-kevin/
 ├── reports/                 # transient skill outputs (briefings, plans)
 │   ├── index.md             # auto-maintained "newest first" log (today's entries injected into SessionStart)
 │   ├── briefings/           # morning/evening briefings, weekly/monthly goals, self-review summaries
-│   └── plans/               # code-change proposals written by self-review (Track B)
+│   ├── captures/            # playwright artifacts (screenshots, pdfs, recordings) — gitignored, regenerable
+│   └── plans/               # self-review code-change proposals (Track B) + native plan-mode saves (plansDirectory)
 ├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
 ├── CLAUDE.md                # operating manual + @-imports for identity stack
 │                            # (or CLAUDE.local.md if CLAUDE.md pre-existed)
