@@ -18,11 +18,50 @@ export interface CorrectionHit {
   matched: string;
 }
 
-/** One entry in state.ingested — tracks a compiled file by hash. */
+/**
+ * One entry in state.ingested — tracks a compiled file.
+ *
+ * `hash` is of the whole file (legacy gating). `bytes` is the incremental
+ * compile cursor: the byte offset compiled up to, with `prefix_hash` covering
+ * `[0, bytes)` so a non-append edit (rather than a pure append) is detected
+ * and triggers a from-scratch recompile. Entries written before incremental
+ * compile landed have no `bytes`/`prefix_hash` and fall back to whole-file
+ * hash gating — past day-files never change, so they stay skipped.
+ */
 export interface IngestedEntry {
   hash: string;
   compiled_at: string;
   cost_usd: number;
+  bytes?: number;
+  prefix_hash?: string;
+}
+
+/** One session's slice of a day-file: turns `[from, to]` captured on `date`. */
+export interface SessionBlock {
+  date: string;
+  from: number;
+  to: number;
+}
+
+/**
+ * One session in the raw-session catalog (`raw/sessions/index.json`). Keyed by
+ * sessionId. `captured_turns` is the capture cursor (high-water mark of turns
+ * written to raw); `last_turn_fp` fingerprints that turn so a rewritten
+ * transcript is detected. Reconstructable from day-file block headers.
+ */
+export interface SessionRecord {
+  first_seen: string;
+  last_seen: string;
+  cwd: string;
+  captured_turns: number;
+  last_turn_fp: string;
+  briefing: string;
+  blocks: SessionBlock[];
+}
+
+export interface SessionIndex {
+  schema: number;
+  sessions: Record<string, SessionRecord>;
 }
 
 /**

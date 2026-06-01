@@ -64,7 +64,11 @@ export const FILES = {
   USER: resolve(KEVIN_HOME, 'USER.md'),
   MEMORY: resolve(FOLDERS.MEMORY, 'index.md'),
   KNOWLEDGE: resolve(FOLDERS.KNOWLEDGE, 'index.md'),
-  FEEDBACK: resolve(FOLDERS.USER_RAW, 'feedback.md')
+  FEEDBACK: resolve(FOLDERS.USER_RAW, 'feedback.md'),
+  /** Session catalog keyed by sessionId — capture cursor + cross-day resume
+   *  tracking. Authoritative for "how far have we captured session X"; itself
+   *  reconstructable from day-file block headers (see session-index.ts). */
+  SESSION_INDEX: resolve(FOLDERS.SESSIONS, 'index.json')
 } as const;
 
 export const KNOWLEDGE = {
