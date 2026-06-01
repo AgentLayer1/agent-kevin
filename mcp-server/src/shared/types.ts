@@ -65,13 +65,17 @@ export interface SessionIndex {
 }
 
 /**
- * One entry in state.partial — tracks how far through a multi-chunk file we
- * got. Hash is recorded so a content change between runs invalidates the
- * partial progress (chunks would no longer align). On full success the entry
- * is deleted and the file is promoted into `ingested`.
+ * One entry in state.partial — tracks how far through a multi-chunk *slice* we
+ * got. The slice `[slice_start, slice_end)` is pinned at first pick so an
+ * append to the file mid-compile can't shift the chunk count. `hash` covers the
+ * pinned slice, so an unexpected rewrite of that region invalidates progress.
+ * On full success the entry is deleted and the file's `ingested` cursor
+ * advances to `slice_end`.
  */
 export interface PartialEntry {
   hash: string;
+  slice_start: number;
+  slice_end: number;
   completed: number;
   total: number;
   cost_usd: number;

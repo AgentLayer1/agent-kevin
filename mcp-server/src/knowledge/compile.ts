@@ -7,13 +7,55 @@
  */
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { chunkSessionLog } from '@/knowledge/chunk';
+import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
 import { hashBuffer, listRawFiles, loadScriptTemplate, readWikiIndex, renderTemplate } from '@/knowledge/utils';
-import type { CompileState } from '@/shared/types';
+import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
 import { nowISO } from '@/shared/date';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
+
+/**
+ * Byte offset of `buf` already compiled, per the file's ingest record.
+ *
+ * - Incremental record (`bytes` set): trust the cursor only if `prefix_hash`
+ *   still matches `[0, bytes)` — a pure append leaves the prefix intact, a
+ *   rewrite/edit doesn't, and that mismatch forces a from-scratch recompile.
+ * - Legacy record (no `bytes`): fall back to whole-file hash gating —
+ *   unchanged ⇒ fully compiled, changed ⇒ recompile whole. Past day-files
+ *   never change, so they stay compiled without ever growing a `bytes` field.
+ * - No record: nothing compiled yet.
+ *
+ * All offsets are byte offsets into the file; slices are taken with
+ * `Buffer.subarray` (never string indices) so multibyte header glyphs
+ * (en-dash, ↩, ⚠) don't skew them.
+ */
+function compiledOffset(buf: Buffer, record: IngestedEntry | undefined): number {
+  if (!record) return 0;
+  if (record.bytes != null) {
+    const intact =
+      record.bytes <= buf.length && record.prefix_hash === hashBuffer(buf.subarray(0, record.bytes));
+    return intact ? record.bytes : 0;
+  }
+  return record.hash === hashBuffer(buf) ? buf.length : 0;
+}
+
+/** Advance a file's compile cursor to `sliceEnd` after a slice fully compiles.
+ *  `prefix_hash` covers `[0, sliceEnd)` so the next run can tell a pure append
+ *  (cursor still valid) from a rewrite (recompile from scratch). */
+function promoteCursor(state: CompileState, fileName: string, buf: Buffer, sliceEnd: number, addedCost: number): void {
+  const prev = state.ingested[fileName];
+  const wholeHash = hashBuffer(buf);
+  state.ingested[fileName] = {
+    hash: wholeHash,
+    compiled_at: nowISO(),
+    cost_usd: (prev?.cost_usd ?? 0) + addedCost,
+    bytes: sliceEnd,
+    // When the slice reached EOF the prefix is the whole file — reuse the hash.
+    prefix_hash: sliceEnd === buf.length ? wholeHash : hashBuffer(buf.subarray(0, sliceEnd))
+  };
+}
 
 const SESSION_TEMPLATE = loadScriptTemplate(import.meta.url, 'compile.md');
 const FEEDBACK_TEMPLATE = loadScriptTemplate(import.meta.url, 'feedback.md');
@@ -41,10 +83,15 @@ async function pendingSessions(state: CompileState): Promise<string[]> {
   const all = await listRawFiles();
   const results = await Promise.all(
     all.map(async (logPath) => {
-      const prev = state.ingested[basename(logPath)];
-      if (!prev) return logPath;
+      const fileName = basename(logPath);
+      // A pinned partial is always pending — resume it before anything else.
+      if (state.partial[fileName]) return logPath;
       const buf = await readFile(logPath);
-      return prev.hash !== hashBuffer(buf) ? logPath : null;
+      const start = compiledOffset(buf, state.ingested[fileName]);
+      if (start >= buf.length) return null;
+      // Pending only if the uncompiled tail actually holds an entry — guards
+      // against re-picking a file whose only growth was trailing whitespace.
+      return ENTRY_HEADER_RE.test(buf.subarray(start).toString('utf-8')) ? logPath : null;
     })
   );
   return results.filter((p): p is string => p !== null);
@@ -147,42 +194,59 @@ export async function pickNext(): Promise<CompileWorkItem | null> {
     await saveState(state);
   }
 
-  // 1. Sessions — promote-and-continue loop avoids re-scanning on each promotion.
+  // 1. Sessions — incremental: compile only the uncompiled tail of each file,
+  //    one pinned slice at a time. Promote-and-continue avoids re-scanning.
   while (true) {
     const sessionsPending = await pendingSessions(state);
     if (sessionsPending.length === 0) break;
     const logPath = sessionsPending[0];
     const fileName = basename(logPath);
     const buf = await readFile(logPath);
-    const hash = hashBuffer(buf);
-    const chunks = chunkSessionLog(buf.toString('utf-8'), KNOWLEDGE.MAX_SESSION_LOG_CHUNK_BYTES);
 
-    const prior = state.partial[fileName];
-    let chunkIndex = 0;
-    let costSoFar = 0;
-    if (prior && prior.hash === hash && prior.total === chunks.length) {
-      chunkIndex = prior.completed;
-      costSoFar = prior.cost_usd;
-    } else if (prior) {
+    // Resolve the slice [sliceStart, sliceEnd). A pinned partial wins — so an
+    // append mid-compile can't shift chunk boundaries — unless its region no
+    // longer hashes the same (an unexpected rewrite), in which case re-slice.
+    let pinned: PartialEntry | undefined = state.partial[fileName];
+    if (pinned && hashBuffer(buf.subarray(pinned.slice_start, pinned.slice_end)) !== pinned.hash) {
       delete state.partial[fileName];
+      pinned = undefined;
     }
+    const sliceStart = pinned ? pinned.slice_start : compiledOffset(buf, state.ingested[fileName]);
+    const sliceEnd = pinned ? pinned.slice_end : buf.length;
+    const sliceBuf = buf.subarray(sliceStart, sliceEnd);
+    // A valid pinned slice already hashed equal to pinned.hash above — reuse it.
+    const sliceHash = pinned ? pinned.hash : hashBuffer(sliceBuf);
+    const chunks = chunkSessionLog(sliceBuf.toString('utf-8'), KNOWLEDGE.MAX_SESSION_LOG_CHUNK_BYTES);
+
+    const chunkIndex = pinned ? pinned.completed : 0;
+    const costSoFar = pinned ? pinned.cost_usd : 0;
 
     if (chunkIndex >= chunks.length) {
+      // Slice already fully compiled — advance the cursor and look again.
+      promoteCursor(state, fileName, buf, sliceEnd, costSoFar);
       delete state.partial[fileName];
-      state.ingested[fileName] = { hash, compiled_at: nowISO(), cost_usd: costSoFar };
       await saveState(state);
       continue;
     }
 
-    const prompt = await buildSessionPrompt(fileName, chunks[chunkIndex]);
+    // Pin the slice so markComplete (and any re-pick) resumes it identically.
+    state.partial[fileName] = {
+      hash: sliceHash,
+      slice_start: sliceStart,
+      slice_end: sliceEnd,
+      completed: chunkIndex,
+      total: chunks.length,
+      cost_usd: costSoFar
+    };
     state.in_flight = fileName;
+    const prompt = await buildSessionPrompt(fileName, chunks[chunkIndex]);
     await saveState(state);
     return {
       itemId: `session:${fileName}:${chunkIndex}`,
       kind: 'session',
       fileName,
       prompt,
-      meta: { sourcePath: logPath, hash, chunkIndex, totalChunks: chunks.length, costSoFar }
+      meta: { sourcePath: logPath, sliceStart, sliceEnd, chunkIndex, totalChunks: chunks.length, costSoFar }
     };
   }
 
@@ -231,27 +295,22 @@ const HANDLERS: Array<[string, CompleteHandler]> = [
       if (!match) throw new Error(`Invalid session itemId: ${itemId}`);
       const fileName = match[1];
       const chunkIndex = parseInt(match[2], 10);
-      const logPath = resolve(FOLDERS.SESSIONS, fileName);
-      const buf = await readFile(logPath).catch(() => {
-        throw new Error(`Source file vanished: ${fileName}`);
-      });
-      const hash = hashBuffer(buf);
-      // Read total from partial state when available — avoids re-chunking the
-      // full file just to recompute `.length`. First chunk has no prior partial
-      // so we still pay the chunking cost there.
-      const prior = state.partial[fileName];
-      const totalChunks =
-        prior?.hash === hash
-          ? prior.total
-          : chunkSessionLog(buf.toString('utf-8'), KNOWLEDGE.MAX_SESSION_LOG_CHUNK_BYTES).length;
-      const costSoFar = prior?.cost_usd ?? 0;
+      // pickNext pins the slice (start/end/total) before handing out any chunk,
+      // so there's no re-chunking here. A missing partial means there's nothing
+      // to advance (already promoted, or state was reset).
+      const partial = state.partial[fileName];
+      if (!partial) return true;
       const nextChunk = chunkIndex + 1;
-      if (nextChunk >= totalChunks) {
+      if (nextChunk >= partial.total) {
+        const logPath = resolve(FOLDERS.SESSIONS, fileName);
+        const buf = await readFile(logPath).catch(() => {
+          throw new Error(`Source file vanished: ${fileName}`);
+        });
+        promoteCursor(state, fileName, buf, partial.slice_end, partial.cost_usd);
         delete state.partial[fileName];
-        state.ingested[fileName] = { hash, compiled_at: nowISO(), cost_usd: costSoFar };
         return true;
       }
-      state.partial[fileName] = { hash, completed: nextChunk, total: totalChunks, cost_usd: costSoFar };
+      state.partial[fileName] = { ...partial, completed: nextChunk };
       return false;
     }
   ],

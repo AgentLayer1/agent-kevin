@@ -55,13 +55,13 @@ describe('diffTurns', () => {
     expect(diff.newTurns[0].text).toBe('turn 9');
   });
 
-  test('anchor fingerprint mismatch re-anchors by count, still advancing', () => {
+  test('anchor fingerprint mismatch re-emits the whole session (no content loss)', () => {
     const turns = transcript(15);
     const prior = { ...recordFor(turns, 8), last_turn_fp: 'stale-does-not-match' };
     const diff = diffTurns(turns, prior);
     expect(diff.reanchored).toBe(true);
-    expect(diff.from).toBe(9);
-    expect(diff.newTurns).toHaveLength(7);
+    expect(diff.from).toBe(1);
+    expect(diff.newTurns).toHaveLength(15);
   });
 
   test('shrunken transcript never produces negative slice', () => {

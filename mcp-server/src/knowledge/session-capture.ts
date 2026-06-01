@@ -285,7 +285,7 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     source,
     from: diff.from,
     to: diff.to,
-    continues: prior && prior.first_seen !== today ? prior.first_seen : undefined,
+    continues: prior && diff.from !== 1 ? prior.first_seen : undefined,
     reanchored: diff.reanchored
   });
   await appendFile(logPath, `${header}\n\n${redacted}${ENTRY_SEPARATOR}`, 'utf-8');

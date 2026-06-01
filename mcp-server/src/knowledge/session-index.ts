@@ -12,19 +12,16 @@
  * (`loadIndex`, `saveIndex`, `rebuildFromDayFiles`) so the dedup maths is
  * unit-testable without touching disk.
  */
-import { FILES, FOLDERS } from '@/config';
-import { hashBuffer } from '@/knowledge/utils';
+import { FILES } from '@/config';
+import { hashBuffer, listRawFiles } from '@/knowledge/utils';
 import { parseEntryHeaders } from '@/knowledge/session-format';
 import { log as baseLog } from '@/shared/log';
 import type { SessionIndex, SessionRecord, TranscriptTurn } from '@/shared/types';
 import { writeJsonAtomic } from '@/shared/utils';
 import { existsSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 const log = baseLog.session.with('index');
-
-const DAY_FILE_RE = /^\d{4}-\d{2}-\d{2}\.md$/;
 
 const emptyIndex = (): SessionIndex => ({ schema: 1, sessions: {} });
 
@@ -63,13 +60,14 @@ export function diffTurns(allTurns: TranscriptTurn[], prior: SessionRecord | nul
     return { newTurns: [], from: cursor + 1, to: cursor, reanchored: false };
   }
 
-  const anchorOk = fingerprintTurn(allTurns[cursor - 1]) === prior?.last_turn_fp;
-  return {
-    newTurns: allTurns.slice(cursor),
-    from: cursor + 1,
-    to: total,
-    reanchored: !anchorOk
-  };
+  if (fingerprintTurn(allTurns[cursor - 1]) === prior?.last_turn_fp) {
+    return { newTurns: allTurns.slice(cursor), from: cursor + 1, to: total, reanchored: false };
+  }
+  // Anchor mismatch — the transcript was rewritten, so the cursor count can no
+  // longer be trusted to align with content. Re-emit the whole session rather
+  // than risk slicing past real turns: a rare one-time re-dump (the compile
+  // continuation pass dedups it) is safer for the brain than silent loss.
+  return { newTurns: allTurns, from: 1, to: total, reanchored: true };
 }
 
 // ── Pure: record a capture into the index ────────────────────────────
@@ -95,52 +93,31 @@ const mergeBlock = (blocks: SessionRecord['blocks'], date: string, from: number,
   return [...blocks, { date, from, to }];
 };
 
-/** Return a new index with `ev` folded in (create-or-extend the session). */
+/** Return a new index with `ev` folded in (create-or-extend the session).
+ *  `first_seen` and `briefing` are seeded once on creation and preserved after. */
 export function recordCapture(index: SessionIndex, ev: CaptureEvent): SessionIndex {
-  const existing = index.sessions[ev.sessionId];
-  const record: SessionRecord = existing
-    ? {
-        ...existing,
-        last_seen: ev.date,
-        cwd: ev.cwd,
-        captured_turns: ev.to,
-        last_turn_fp: ev.lastTurnFp,
-        blocks: mergeBlock(existing.blocks, ev.date, ev.from, ev.to)
-      }
-    : {
-        first_seen: ev.date,
-        last_seen: ev.date,
-        cwd: ev.cwd,
-        captured_turns: ev.to,
-        last_turn_fp: ev.lastTurnFp,
-        briefing: ev.briefingStub,
-        blocks: [{ date: ev.date, from: ev.from, to: ev.to }]
-      };
+  const base = index.sessions[ev.sessionId] ?? { first_seen: ev.date, briefing: ev.briefingStub, blocks: [] };
+  const record: SessionRecord = {
+    ...base,
+    last_seen: ev.date,
+    cwd: ev.cwd,
+    captured_turns: ev.to,
+    last_turn_fp: ev.lastTurnFp,
+    blocks: mergeBlock(base.blocks, ev.date, ev.from, ev.to)
+  };
   return { schema: index.schema, sessions: { ...index.sessions, [ev.sessionId]: record } };
 }
 
 // ── I/O ──────────────────────────────────────────────────────────────
 
-async function listDayFiles(): Promise<string[]> {
-  try {
-    const entries = await readdir(FOLDERS.SESSIONS);
-    return entries
-      .filter((f) => DAY_FILE_RE.test(f))
-      .sort()
-      .map((f) => resolve(FOLDERS.SESSIONS, f));
-  } catch {
-    return [];
-  }
-}
-
 /**
  * Rebuild the index from day-file headers. Used when the index file is missing
- * or unparseable. `last_turn_fp`/`briefing` can't be recovered from headers
- * (turn text isn't stored), so they come back empty — the next capture
- * re-anchors once and heals. Turn coverage, spans and cwd are exact.
+ * or unparseable. Turn coverage, spans and cwd come back exact; `last_turn_fp`
+ * and `briefing` aren't in the headers, so they re-seed on the next capture
+ * (which re-anchors that session once, then heals).
  */
 export async function rebuildFromDayFiles(): Promise<SessionIndex> {
-  const files = await listDayFiles();
+  const files = await listRawFiles();
   let index = emptyIndex();
   for (const file of files) {
     const content = await readFile(file, 'utf-8').catch(() => '');

@@ -1,5 +1,4 @@
 import { FILES, FOLDERS } from '@/config';
-import { todayDate } from '@/shared/date';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
@@ -176,10 +175,9 @@ export async function readAllWikiContent(): Promise<Map<string, string>> {
 
 export async function listRawFiles(): Promise<string[]> {
   try {
-    const today = todayDate();
     const entries = await readdir(FOLDERS.SESSIONS);
     return entries
-      .filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f) && !f.startsWith(today))
+      .filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
       .map((f) => resolve(FOLDERS.SESSIONS, f))
       .sort();
   } catch {

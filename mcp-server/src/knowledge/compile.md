@@ -19,6 +19,18 @@ This is the canonical list of every permanent article in the wiki, each with a o
 
 **File:** {{fileName}}
 
+Each block header reads `### Session (HH:MM) [id] · date · cwd · turns N–M`. The
+`turns N–M` range and `[id]` tell you where a block sits in its session:
+
+- A block whose header carries `↩ continues <date>`, or whose range does not
+  start at `turns 1–…`, is a **continuation** of an earlier session. The
+  earlier turns are already compiled into the wiki — **find and extend the
+  existing article(s) for that work; do not create a duplicate memory.**
+- Treat a block as **new** only when it starts at `turns 1–…` for an id you
+  haven't compiled before.
+- `⚠ re-anchored` means the cursor was reset after a transcript rewrite; the
+  turn numbers may not be exact — rely on content, not the range, in that case.
+
 {{logContent}}
 
 ## Your Task
