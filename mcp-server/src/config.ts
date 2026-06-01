@@ -73,8 +73,6 @@ export const FILES = {
 
 export const KNOWLEDGE = {
   MEMORY_PRUNE_DAYS: 14,
-  MAX_TRANSCRIPT_TURNS: 500,
-  MAX_TRANSCRIPT_CHARS: 100_000,
   MAX_TURN_CHARS: 10_000,
   MAX_TEXT_FILE_BYTES: 512 * 1024,
   /** Upstream ceiling on raw URL fetches before sanitization. HTML pages with

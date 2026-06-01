@@ -194,11 +194,11 @@ export async function pickNext(): Promise<CompileWorkItem | null> {
     await saveState(state);
   }
 
-  // 1. Sessions — incremental: compile only the uncompiled tail of each file,
-  //    one pinned slice at a time. Promote-and-continue avoids re-scanning.
-  while (true) {
-    const sessionsPending = await pendingSessions(state);
-    if (sessionsPending.length === 0) break;
+  // 1. Sessions — incremental: hand out the next chunk of the next pending
+  //    file's uncompiled tail. pendingSessions only returns files with real
+  //    uncompiled chunks, so there's exactly one slice to consider here.
+  const sessionsPending = await pendingSessions(state);
+  if (sessionsPending.length > 0) {
     const logPath = sessionsPending[0];
     const fileName = basename(logPath);
     const buf = await readFile(logPath);
@@ -217,17 +217,8 @@ export async function pickNext(): Promise<CompileWorkItem | null> {
     // A valid pinned slice already hashed equal to pinned.hash above — reuse it.
     const sliceHash = pinned ? pinned.hash : hashBuffer(sliceBuf);
     const chunks = chunkSessionLog(sliceBuf.toString('utf-8'), KNOWLEDGE.MAX_SESSION_LOG_CHUNK_BYTES);
-
     const chunkIndex = pinned ? pinned.completed : 0;
     const costSoFar = pinned ? pinned.cost_usd : 0;
-
-    if (chunkIndex >= chunks.length) {
-      // Slice already fully compiled — advance the cursor and look again.
-      promoteCursor(state, fileName, buf, sliceEnd, costSoFar);
-      delete state.partial[fileName];
-      await saveState(state);
-      continue;
-    }
 
     // Pin the slice so markComplete (and any re-pick) resumes it identically.
     state.partial[fileName] = {
