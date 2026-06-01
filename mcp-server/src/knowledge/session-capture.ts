@@ -24,7 +24,7 @@ import { log as baseLog } from '@/shared/log';
 import type { TranscriptTurn } from '@/shared/types';
 import { expandTilde } from '@/shared/utils';
 import { existsSync, readFileSync } from 'node:fs';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { relative, resolve } from 'node:path';
 
@@ -180,6 +180,48 @@ function briefingStub(turns: TranscriptTurn[]): string {
   return text.length > 120 ? `${text.slice(0, 120)}…` : text;
 }
 
+// ── Capture mutex ────────────────────────────────────────────────────
+
+const LOCK_DIR = resolve(FOLDERS.DATA, 'capture.lock');
+const LOCK_STALE_MS = 10_000;
+const LOCK_RETRY_MS = 50;
+const LOCK_MAX_WAIT_MS = 5_000;
+
+/**
+ * Cross-process mutex via atomic `mkdir`. Serializes the read-modify-write of
+ * the session index + day-file append so two hooks firing for the same session
+ * at once can't both read an empty cursor and both write a first-capture block.
+ * A stale lock (a hook that crashed mid-capture) is stolen after LOCK_STALE_MS;
+ * if the lock can't be taken within LOCK_MAX_WAIT_MS we proceed anyway —
+ * dropping a capture is worse than a once-in-a-blue-moon duplicate.
+ */
+async function acquireCaptureLock(): Promise<() => Promise<void>> {
+  await mkdir(FOLDERS.DATA, { recursive: true }); // ensure lock's parent exists
+  const deadline = Date.now() + LOCK_MAX_WAIT_MS;
+  const release = async () => {
+    await rm(LOCK_DIR, { recursive: true, force: true }).catch(() => {});
+  };
+  for (;;) {
+    try {
+      await mkdir(LOCK_DIR);
+      return release;
+    } catch {
+      const age = await stat(LOCK_DIR)
+        .then((s) => Date.now() - s.mtimeMs)
+        .catch(() => Infinity);
+      if (age > LOCK_STALE_MS) {
+        await release();
+        continue;
+      }
+      if (Date.now() >= deadline) {
+        log.warn('capture lock contended past timeout — proceeding without it');
+        return async () => {};
+      }
+      await new Promise((resolveFn) => setTimeout(resolveFn, LOCK_RETRY_MS));
+    }
+  }
+}
+
 // ── Public surface ───────────────────────────────────────────────────
 
 export interface CaptureSessionOpts {
@@ -244,63 +286,72 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
   // last captured. The cursor lives in the session index, keyed by sessionId,
   // so a session resumed on a later day still resolves to the right offset.
   const idShort = opts.sessionId.slice(0, 8);
-  const index = await loadIndex();
-  const prior = index.sessions[idShort] ?? null;
-  const diff = diffTurns(turns, prior);
 
-  if (diff.newTurns.length === 0) {
-    log.info(`skip (${mode}) — no new turns since last capture (cursor ${prior?.captured_turns ?? 0})`);
-    return { saved: false, reason: 'no-new-turns', turns: 0 };
+  // Hold the capture mutex across the whole read-modify-write: load the index,
+  // diff, append the block, and save the cursor as one atomic unit so two
+  // concurrent hooks can't both write a first-capture block for this session.
+  const release = await acquireCaptureLock();
+  try {
+    const index = await loadIndex();
+    const prior = index.sessions[idShort] ?? null;
+    const diff = diffTurns(turns, prior);
+
+    if (diff.newTurns.length === 0) {
+      log.info(`skip (${mode}) — no new turns since last capture (cursor ${prior?.captured_turns ?? 0})`);
+      return { saved: false, reason: 'no-new-turns', turns: 0 };
+    }
+    if (diff.newTurns.length < cfg.minTurns) {
+      // Don't advance the cursor — these turns are re-offered on the next capture.
+      log.info(`skip (${mode}) — ${diff.newTurns.length} new turns (min ${cfg.minTurns})`);
+      return { saved: false, reason: 'too-few-turns', turns: diff.newTurns.length };
+    }
+    if (diff.reanchored) {
+      log.warn(`(${mode}) [${idShort}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`);
+    }
+
+    const redacted = redactSecrets(formatTurnList(diff.newTurns));
+    if (!redacted.trim()) {
+      log.info(`skip (${mode}) — empty after redaction`);
+      return { saved: false, reason: 'empty-after-redaction', turns: diff.newTurns.length };
+    }
+
+    const today = todayDate();
+    const filename = `${today}.md`;
+    const logPath = resolve(FOLDERS.SESSIONS, filename);
+
+    await mkdir(FOLDERS.SESSIONS, { recursive: true });
+    if (!existsSync(logPath)) {
+      await writeFile(logPath, `# Session Log: ${today}\n\n`, 'utf-8');
+    }
+
+    const source = homeRelative(opts.cwd);
+    const header = formatEntryHeader({
+      heading: cfg.heading,
+      time: nowTime(),
+      idShort,
+      date: today,
+      source,
+      from: diff.from,
+      to: diff.to,
+      continues: prior && diff.from !== 1 ? prior.first_seen : undefined,
+      reanchored: diff.reanchored
+    });
+    await appendFile(logPath, `${header}\n\n${redacted}${ENTRY_SEPARATOR}`, 'utf-8');
+
+    const updated = recordCapture(index, {
+      sessionId: idShort,
+      date: today,
+      cwd: source,
+      from: diff.from,
+      to: diff.to,
+      lastTurnFp: fingerprintTurn(turns[turns.length - 1]),
+      briefingStub: briefingStub(diff.newTurns)
+    });
+    await saveIndex(updated);
+
+    log.info(`saved turns ${diff.from}–${diff.to} → ${filename} (${mode})`);
+    return { saved: true, turns: diff.newTurns.length, path: logPath, filename };
+  } finally {
+    await release();
   }
-  if (diff.newTurns.length < cfg.minTurns) {
-    // Don't advance the cursor — these turns are re-offered on the next capture.
-    log.info(`skip (${mode}) — ${diff.newTurns.length} new turns (min ${cfg.minTurns})`);
-    return { saved: false, reason: 'too-few-turns', turns: diff.newTurns.length };
-  }
-  if (diff.reanchored) {
-    log.warn(`(${mode}) [${idShort}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`);
-  }
-
-  const redacted = redactSecrets(formatTurnList(diff.newTurns));
-  if (!redacted.trim()) {
-    log.info(`skip (${mode}) — empty after redaction`);
-    return { saved: false, reason: 'empty-after-redaction', turns: diff.newTurns.length };
-  }
-
-  const today = todayDate();
-  const filename = `${today}.md`;
-  const logPath = resolve(FOLDERS.SESSIONS, filename);
-
-  await mkdir(FOLDERS.SESSIONS, { recursive: true });
-  if (!existsSync(logPath)) {
-    await writeFile(logPath, `# Session Log: ${today}\n\n`, 'utf-8');
-  }
-
-  const source = homeRelative(opts.cwd);
-  const header = formatEntryHeader({
-    heading: cfg.heading,
-    time: nowTime(),
-    idShort,
-    date: today,
-    source,
-    from: diff.from,
-    to: diff.to,
-    continues: prior && diff.from !== 1 ? prior.first_seen : undefined,
-    reanchored: diff.reanchored
-  });
-  await appendFile(logPath, `${header}\n\n${redacted}${ENTRY_SEPARATOR}`, 'utf-8');
-
-  const updated = recordCapture(index, {
-    sessionId: idShort,
-    date: today,
-    cwd: source,
-    from: diff.from,
-    to: diff.to,
-    lastTurnFp: fingerprintTurn(turns[turns.length - 1]),
-    briefingStub: briefingStub(diff.newTurns)
-  });
-  await saveIndex(updated);
-
-  log.info(`saved turns ${diff.from}–${diff.to} → ${filename} (${mode})`);
-  return { saved: true, turns: diff.newTurns.length, path: logPath, filename };
 }

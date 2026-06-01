@@ -94,6 +94,21 @@ describe('captureSession', () => {
     expect(rec.blocks).toEqual([{ date: rec.last_seen, from: 1, to: 12 }]);
     expect(rec.briefing.length).toBeGreaterThan(0);
   });
+
+  test('concurrent captures of the same new session write exactly one block (mutex)', async () => {
+    writeTranscript(8);
+    const fire = () =>
+      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end', selfDefer: false });
+    const results = await Promise.all([fire(), fire()]);
+    // Exactly one writes; the serialized loser sees the cursor and skips.
+    expect(results.filter((r) => r.saved).length).toBe(1);
+    expect(results.filter((r) => !r.saved && r.reason === 'no-new-turns').length).toBe(1);
+    const log = readFileSync(logPath, 'utf-8');
+    expect(log.match(/\[racer123\]/g)).toHaveLength(1);
+    const index = JSON.parse(readFileSync(SESSION_INDEX, 'utf-8'));
+    expect(index.sessions.racer123.captured_turns).toBe(8);
+    expect(index.sessions.racer123.blocks).toHaveLength(1);
+  });
 });
 
 // ── Compile: incremental, today-inclusive, corruption-safe ───────────
