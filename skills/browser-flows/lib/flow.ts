@@ -54,7 +54,7 @@ export const runFlow = async (
     // Flows live in folders (`flows/<name>/index.ts`) — name the run after the folder.
     const script = process.argv[1] ?? '';
     const flowName = /index\.[tj]s$/.test(script) ? basename(dirname(script)) : basename(script).replace(/\.[tj]s$/, '') || 'flow';
-    const session = await launch(target, flowName);
+    const session = await launch(target, flowName, { headless: params.headless === 'true' });
     try {
       await ensureLoggedIn(session, target);
       await handler({ params, target, session });

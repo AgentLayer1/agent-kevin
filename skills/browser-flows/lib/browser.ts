@@ -24,6 +24,7 @@ export interface Session {
   context: BrowserContext;
   page: Page;
   shotsDir: string;
+  headless: boolean;
 }
 
 if (!process.env.KEVIN_HOME) {
@@ -42,23 +43,26 @@ const ensureDir = (path: string): string => {
 };
 
 /**
- * Launches a headed persistent browser for the given target. The user-data dir is keyed per
- * environment so sessions never mix; screenshots are scoped per flow + run.
+ * Launches a persistent browser for the given target. The user-data dir is keyed per environment
+ * so sessions never mix; screenshots are scoped per flow + run. Headed by default (manual login
+ * acquires the session); `headless` reuses the persisted session without a window — it needs an
+ * explicit viewport (`viewport: null` is headed-only) and cannot acquire a login, only reuse one.
  */
-export const launch = async (target: Target, flowName: string): Promise<Session> => {
+export const launch = async (target: Target, flowName: string, options: { headless?: boolean } = {}): Promise<Session> => {
+  const headless = options.headless ?? false;
   const runStamp = new Date().toISOString().replace(/[:.]/g, '-');
   const userDataDir = ensureDir(join(PROFILE_ROOT, target.name, 'profile'));
   const shotsDir = ensureDir(join(CAPTURES_ROOT, target.name, flowName, runStamp));
-  log(`screenshots → ${shotsDir}`);
+  log(`screenshots → ${shotsDir}${headless ? ' (headless)' : ''}`);
 
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: false,
-    viewport: null,
+    headless,
+    viewport: headless ? { width: 1280, height: 900 } : null,
     args: [...BROWSER.INTERACTIVE_ARGS]
   });
 
   const page = context.pages()[0] ?? (await context.newPage());
-  return { context, page, shotsDir };
+  return { context, page, shotsDir, headless };
 };
 
 /**
@@ -81,7 +85,8 @@ export const ensureLoggedIn = async (session: Session, target: Target, timeoutMs
   await page.goto(`${target.appUrl}${homePath}`, { waitUntil: 'domcontentloaded' });
   // The app can briefly render the authed route before a client-side redirect to the IdP fires —
   // settle before each check and never early-return, or an unauthenticated session false-positives.
-  const deadline = Date.now() + timeoutMs;
+  // Headless can only reuse a persisted session, never acquire one — fail fast with the fix.
+  const deadline = Date.now() + (session.headless ? 10_000 : timeoutMs);
   let prompted = false;
   while (Date.now() < deadline) {
     await page.waitForTimeout(1_500);
@@ -89,10 +94,13 @@ export const ensureLoggedIn = async (session: Session, target: Target, timeoutMs
       log(prompted ? 'Login detected — continuing.' : `Already logged in to ${target.name}.`);
       return;
     }
-    if (!prompted) {
+    if (!prompted && !session.headless) {
       log(`👉 Log in to the ${target.name} app in the open window — I'll continue automatically once you're in.`);
       prompted = true;
     }
+  }
+  if (session.headless) {
+    throw new Error(`Not logged in to ${target.name} (headless can't acquire a session) — run once without --headless to log in.`);
   }
   throw new Error(`Timed out after ${Math.round(timeoutMs / 1000)}s waiting for manual login.`);
 };

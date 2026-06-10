@@ -40,6 +40,8 @@ If the headed browser ever fails to launch even from the server, fall back to a 
 
 Each flow declares its own params, defaults, and `targets` in `index.ts`'s header — **read `flows/<flow>/index.ts` + `index.md`** for the exact list, so adding or changing a flow never requires editing SKILL.md.
 
+Harness-level params (every flow): `env` (target key), `confirm-prod` (required for guarded targets), and `headless: true` — runs without a window, reusing the persisted login. Headless can't *acquire* a session: if the login expired, it fails fast with "run once without --headless to log in".
+
 ## Layout — portable core vs per-agent
 
 `lib/` and the dispatcher are portable (mirror across agents); everything site-specific lives in `flows/<flow>/`.
