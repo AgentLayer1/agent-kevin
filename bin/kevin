@@ -120,7 +120,7 @@ Groups:
   knowledge                         Wiki maintenance (lint)
   prune                             Delete memory/YYYY-MM-DD*.md older than 14 days
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
-  status                            Rebuild the Agent OS dashboard at <HOME>/index.html (open in any browser)
+  status                            Rebuild the Agent OS dashboard at <HOME>/index.html + projects/TASKS.md (open in any browser)
 
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
@@ -130,7 +130,7 @@ Task commands:
   task close <id>
   task thread <id> --message=... [--type=quote|info|warning]
   task scan                         Resolve dependencies, surface overdue/stale/auto-* changes
-  task dashboard                    Rebuild projects/TASKS.md from frontmatter
+  task dashboard                    Rebuild projects/TASKS.md from frontmatter + the Agent OS dashboard
 
 Capture commands:
   capture "the thought"             Write inline text to raw/inbox/<ts>-<slug>.md (next compile distils it)
@@ -304,7 +304,10 @@ async function run(): Promise<void> {
       }
       case 'dashboard': {
         const { writeDashboard } = await import(resolve(PLUGIN_ROOT, `${TASKS}/dashboard`));
-        console.log(JSON.stringify(writeDashboard(), null, 2));
+        const { writeDashboardHtml } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/status/html'));
+        const tasks = writeDashboard();
+        const html = await writeDashboardHtml();
+        console.log(JSON.stringify({ ...tasks, html }, null, 2));
         return;
       }
       default:
@@ -505,8 +508,16 @@ async function run(): Promise<void> {
   if (group === 'status') {
     // The Agent OS dashboard replaced the old terminal TUI: regenerate
     // <HOME>/index.html from a fresh snapshot and print where it landed.
+    // TASKS.md rebuilds first — the two derived views always refresh together.
+    const { writeDashboard } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/tasks/dashboard'));
     const { writeDashboardHtml } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/status/html'));
-    console.log(JSON.stringify(await writeDashboardHtml(), null, 2));
+    let tasks = null;
+    try {
+      tasks = writeDashboard();
+    } catch {
+      // best-effort — the HTML snapshot is the contract here
+    }
+    console.log(JSON.stringify({ ...(await writeDashboardHtml()), tasks }, null, 2));
     return;
   }
 

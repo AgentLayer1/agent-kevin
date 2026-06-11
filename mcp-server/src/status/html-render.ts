@@ -739,8 +739,8 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: 'Refresh this page',
-    say: `/${plugin}:status`,
-    what: 'Regenerates this dashboard from current state.'
+    say: `/${plugin}:dashboard`,
+    what: 'Regenerates this dashboard (and TASKS.md) from current state.'
   }
 ];
 

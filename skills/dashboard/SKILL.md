@@ -1,11 +1,11 @@
 ---
-name: status
-description: Rebuild and open the Agent OS dashboard — a static HTML mission-control page covering today's plan and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. Use when the user wants the big picture of what Kevin is and what's going on.
+name: dashboard
+description: Rebuild and open the Agent OS dashboard — a static HTML mission-control page covering today's plan and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. Also refreshes the projects/TASKS.md task dashboard in the same pass. Use when the user wants the big picture of what Kevin is and what's going on.
 disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__status_dashboard, Bash
 ---
 
-# Status
+# Dashboard
 
 The Agent OS dashboard is the command center: a self-contained `index.html` at
 the agent home, regenerated from current state on demand. No server, zero
@@ -13,13 +13,14 @@ external requests.
 
 ## Run
 
-1. Rebuild the snapshot:
+1. Rebuild the snapshot (one call refreshes both `index.html` and
+   `projects/TASKS.md` — the two derived views always regenerate together):
 
 ```
 mcp__plugin_agent-kevin_kevin__status_dashboard
 ```
 
-Returns `{ path, bytes }`.
+Returns `{ path, bytes, tasks }`.
 
 2. Open it for the user (macOS):
 
@@ -40,7 +41,8 @@ attention) · `sessions` · `brain` (threads / concepts / memory / pipeline) ·
 
 ## Notes
 
-- Pure read: regenerating the dashboard never mutates knowledge or tasks.
+- Pure read: regenerating the dashboard never mutates knowledge or task files
+  (`projects/TASKS.md` is a derived view, rebuilt from frontmatter).
 - Secrets are redacted at the source (`••••`); never un-redact them.
 - Markdown links open via the configured opener app: set the `MARKDOWN_URL`
   env var in `.claude/settings.local.json` (`{path}` placeholder, e.g.

@@ -23,7 +23,7 @@ mcp__plugin_agent-kevin_kevin__task_dashboard
 Read <HOME>/projects/TASKS.md
 ```
 
-`TASKS.md` is auto-rebuilt from task frontmatter on every mutation; refreshing first guarantees the view matches disk. The rendered sections (Active grouped by project, Blocked, Overdue, Stale, Recently Closed) are your action queue — no need to chain per-project queries to get the same picture.
+`TASKS.md` is auto-rebuilt from task frontmatter on every mutation; refreshing first guarantees the view matches disk. The call also regenerates the Agent OS dashboard (`<HOME>/index.html`) — the two derived views always refresh together, so no separate `status_dashboard` call is needed anywhere in this skill. The rendered sections (Active grouped by project, Blocked, Overdue, Stale, Recently Closed) are your action queue — no need to chain per-project queries to get the same picture.
 
 Then read `<HOME>/knowledge/memory/index.md` end to end for narrative context. The `## Active Threads` section explains the *why* behind the tasks. If it conflicts with `TASKS.md`, trust the dashboard — frontmatter is source of truth; memory index is a synthesis that the next compile will reconcile.
 
@@ -50,7 +50,7 @@ Sweep every `status: done` or `status: cancelled` task file still living in `<HO
 Bash: mkdir -p <HOME>/projects/<slug>/tasks/archive && mv <HOME>/projects/<slug>/tasks/<id>-*.md <HOME>/projects/<slug>/tasks/archive/
 ```
 
-Find candidates with grep across `projects/*/tasks/*.md` for `^status: (done|cancelled)` in frontmatter. Don't touch files already under `archive/`. After moving, refresh `task_dashboard` so `TASKS.md` re-renders without the archived rows in the Recently Closed section.
+Find candidates with grep across `projects/*/tasks/*.md` for `^status: (done|cancelled)` in frontmatter. Don't touch files already under `archive/`. After moving, refresh `task_dashboard` so `TASKS.md` and the Agent OS dashboard re-render without the archived rows.
 
 ### 4. Identify cross-cutting opportunities
 
@@ -68,7 +68,7 @@ Briefly summarise to the user:
 - Concepts drafted (if any)
 - What you'd tackle next session
 
-Keep the summary tight. The thread entries on each task carry the detail. `TASKS.md` already re-rendered itself after every mutation in this session — no manual `task_dashboard` call needed at wrap unless something seems off.
+Keep the summary tight. The thread entries on each task carry the detail. Both dashboards (`TASKS.md` + `index.html`) already re-rendered themselves after every mutation in this session — no manual `task_dashboard` or `status_dashboard` call needed at wrap unless something seems off.
 
 ### 7. Persist
 

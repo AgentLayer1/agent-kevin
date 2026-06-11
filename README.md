@@ -148,7 +148,7 @@ Pages and sub-tabs deep-link by hash (`index.html#work/projects`), text filters 
 { "env": { "MARKDOWN_URL": "markedit://open?path={path}" } }
 ```
 
-**How to refresh it:** every `/agent-kevin:sync` does it automatically; `/agent-kevin:status` rebuilds and opens it; `kevin status` does the same from a terminal; the `status_dashboard` MCP tool is the programmatic hook. It's a **snapshot, not a live app** — the generated timestamp is in the footer. The file is fully self-contained and makes **zero external requests**: no CDN, no webfonts, no analytics. It renders identically offline, nothing on it leaves your machine, and regenerating it never mutates state.
+**How to refresh it:** every `/agent-kevin:sync` does it automatically; `/agent-kevin:dashboard` rebuilds and opens it; `kevin status` does the same from a terminal; the `status_dashboard` MCP tool is the programmatic hook. Every refresh also rebuilds `projects/TASKS.md` (and vice versa) — the two derived views always regenerate together. It's a **snapshot, not a live app** — the generated timestamp is in the footer. The file is fully self-contained and makes **zero external requests**: no CDN, no webfonts, no analytics. It renders identically offline, nothing on it leaves your machine, and regenerating it never mutates state.
 
 > ⚠️ Privacy note: `index.html` sits at your HOME root and reflects your tasks, knowledge stats, and (redacted) settings. If you ever publish that repo — e.g. enable GitHub Pages on it — this page publishes too. Keep agent homes private.
 
@@ -343,7 +343,7 @@ Local-only, secret-redacted (same heuristics as session capture), atomic write, 
 
 ## 🔄 Sync: end-to-end maintenance in one pass
 
-`/agent-kevin:sync` runs the whole maintenance chain — compile → lint → prune → links → **flywheel** → dashboard → scan → status — when you want every derived view brought current at once. Heavier than `quick-pulse`, lighter than running each skill manually.
+`/agent-kevin:sync` runs the whole maintenance chain — compile → lint → prune → links → **flywheel** → scan → dashboards — when you want every derived view brought current at once. Heavier than `quick-pulse`, lighter than running each skill manually.
 
 ```mermaid
 flowchart TD
@@ -356,20 +356,19 @@ flowchart TD
     C2 --> C3[3\. Prune transient memory]
     C3 --> C4[4\. Rewrite stale wikilinks]
     C4 --> C5[5\. Flywheel: advance · **archive** · **persist**]
-    C5 --> C6[6\. Refresh task dashboard]
-    C6 --> C7[7\. Scan for overdue/stale]
-    C7 --> C8[8\. Read dust-settled state]
-    C8 --> OUT([🔄 Status block])
+    C5 --> C6[6\. Scan for overdue/stale]
+    C6 --> C7[7\. Refresh dashboards + read dust-settled state]
+    C7 --> OUT([🔄 Status block])
 
     C1 -.synthesis in your TUI turn.-> WIKI[(knowledge/<br/>user · concepts · memory)]
     C2 -.errors + warnings.-> LINT[/.kevin/lint.md/]
     C5 -.advance · update · close.-> TASKMUT[(task frontmatter<br/>+ threads)]
     C5 -.unconditional sweep.-> ARCHIVE[(projects/&lt;slug&gt;/<br/>tasks/archive/)]
     C5 -.unconditional snapshot.-> FLYREP[/reports/briefings/<br/>flywheel/&lt;slug&gt;.md/]
-    C6 -.from frontmatter.-> TASKS[/projects/TASKS.md/]
+    C7 -.one call, both views.-> TASKS[/projects/TASKS.md<br/>+ index.html/]
 ```
 
-The dependency order is the point: compile feeds the wiki state that lint operates on; lint's auto-fix touches the same articles the dashboard's task-link rewriter needs to be clean. Flywheel runs *after* the wiki is clean (so it reads a current memory index) and *before* the dashboard refresh (so the dashboard reflects post-flywheel task state). Scan reads the just-rebuilt dashboard. Running steps out of order makes you re-reconcile.
+The dependency order is the point: compile feeds the wiki state that lint operates on; lint's auto-fix touches the same articles the dashboard's task-link rewriter needs to be clean. Flywheel runs *after* the wiki is clean (so it reads a current memory index) and *before* scan + dashboard refresh (so both views reflect post-flywheel task state). Running steps out of order makes you re-reconcile.
 
 Two sub-steps of flywheel run **every sync, unconditionally**: the archive sweep (moves `done`/`cancelled` task files into `tasks/archive/` so the active dir stays scannable) and the snapshot persist (`report_write` to `reports/briefings/flywheel/` so the next morning brief can pick up the cross-session trail). Advance · update · close · concepts · decisions fire only when there's real work to do.
 

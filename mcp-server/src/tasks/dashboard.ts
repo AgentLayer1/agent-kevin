@@ -208,10 +208,33 @@ export const writeDashboard = (): DashboardCounts => {
 };
 
 /**
+ * The two derived views always regenerate together: TASKS.md (this module)
+ * and the Agent OS dashboard at <HOME>/index.html (status/html). The HTML
+ * rebuild is fire-and-forget and coalesced — overlapping requests collapse
+ * into the one in flight, so a burst of mutations costs one snapshot.
+ */
+let htmlInFlight = false;
+
+const rebuildHtmlSafe = (): void => {
+  if (htmlInFlight) return;
+  htmlInFlight = true;
+  void import('@/status/html')
+    .then(({ writeDashboardHtml }) => writeDashboardHtml())
+    .catch(() => {
+      // best-effort — TASKS.md is already written; the HTML view catches up
+      // on the next mutation or explicit dashboard call
+    })
+    .finally(() => {
+      htmlInFlight = false;
+    });
+};
+
+/**
  * Best-effort dashboard rebuild for call sites that shouldn't fail when the
  * dashboard write hiccups (sandbox denial, transient FS error). Logs but
  * never throws — the calling mutation is the source of truth, the dashboard
- * is a derived view.
+ * is a derived view. Also refreshes the Agent OS dashboard (async,
+ * coalesced) so both views stay in lockstep.
  *
  * When called from inside `withDashboardBatch(...)`, defers the actual write
  * until the outer scope exits — so a multi-mutation flow like `applyResolution`
@@ -226,7 +249,9 @@ export const writeDashboardSafe = (): DashboardCounts | null => {
     return null;
   }
   try {
-    return writeDashboard();
+    const counts = writeDashboard();
+    rebuildHtmlSafe();
+    return counts;
   } catch {
     return null;
   }
@@ -243,6 +268,7 @@ export const withDashboardBatch = <T>(fn: () => T): T => {
       pendingWrite = false;
       try {
         writeDashboard();
+        rebuildHtmlSafe();
       } catch {
         // best-effort — caller has already succeeded
       }
