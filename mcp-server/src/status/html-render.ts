@@ -86,7 +86,7 @@ const nameHue = (name: string): number => {
 const projectColor = (name: string): string => `hsl(${nameHue(name)}, 55%, 62%)`;
 
 const projChip = (name: string): string =>
-  `<span class="chip proj" style="border-color:hsl(${nameHue(name)} 55% 62% / 0.45)"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
+  `<span class="chip proj"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
 
 /** External web link — opens in a new tab. */
 const extLink = (url: string, text: string): string =>
