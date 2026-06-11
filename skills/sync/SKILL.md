@@ -2,7 +2,7 @@
 name: sync
 description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, refresh both dashboards (TASKS.md + index.html), then surface a briefing of what changed and what needs attention. Optionally chain into a morning or evening briefing. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__task_dashboard, mcp__plugin_agent-kevin_kevin__status_dashboard, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__perplexity_search, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__perplexity_search, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -93,10 +93,10 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, stale, priorityBumps, pe
 
 ### 7. Read the dust-settled state
 
-First regenerate the dashboards so they snapshot the post-scan state (placement matters: step 6's task_scan auto-mutates task state, and the dashboards should reflect it). One call rebuilds both `<HOME>/index.html` and `projects/TASKS.md` — don't also call `task_dashboard`, that would regenerate the same pair twice:
+First regenerate the dashboards so they snapshot the post-scan state (placement matters: step 6's task_scan auto-mutates task state, and the dashboards should reflect it). One call rebuilds both `<HOME>/index.html` and `projects/TASKS.md` — call it once here, nowhere else in sync:
 
 ```
-mcp__plugin_agent-kevin_kevin__status_dashboard
+mcp__plugin_agent-kevin_kevin__dashboard
 ```
 
 Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent } }`. One call, no judgment needed.

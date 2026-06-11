@@ -25,7 +25,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
-import type { ContextGroup, ProjectLoad, ReportRef, StatusSnapshot, TaskRef } from './collect';
+import type { ContextGroup, ProfileSection, ProjectLoad, ReportRef, StatusSnapshot, TaskRef } from './collect';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
 
 const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8');
@@ -862,10 +862,16 @@ const pagePersona = (snap: StatusSnapshot): string => {
   const avatar = persona.avatar ? `<img src="${esc(persona.avatar)}" alt="${esc(persona.name)}">` : '';
   const head = `<div class="persona-head">${avatar}<div><div class="p-name">${esc(persona.name)} ${esc(persona.emoji)}</div><div class="p-kind">${esc(persona.kind)}</div><div class="p-vibe">${esc(persona.vibe)}</div></div></div>`;
   const bio = persona.bio ? `<p class="bio">${esc(persona.bio)}</p>` : '';
-  const bullets = (items: string[]): string =>
-    items.length
-      ? `<ul class="plain">${items.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>`
-      : hint('(not written yet)');
+  const personaSections = (sections: ProfileSection[], source: string): string =>
+    sections
+      .map((item) =>
+        section(
+          item.title,
+          `from ${source}`,
+          `<ul class="plain">${item.lines.map((line) => `<li>${esc(line)}</li>`).join('')}</ul>`
+        )
+      )
+      .join('');
   const runtimeRows = table(
     [],
     [
@@ -884,8 +890,9 @@ const pagePersona = (snap: StatusSnapshot): string => {
     [
       head,
       bio,
-      section('Core role', '', bullets(persona.roles)),
-      section('Soul', 'from SOUL.md', bullets(persona.soulTraits)),
+      personaSections(persona.identitySections, 'IDENTITY.md') ||
+        section('Identity', 'from IDENTITY.md', hint('(not written yet)')),
+      personaSections(persona.soulSections, 'SOUL.md') || section('Soul', 'from SOUL.md', hint('(not written yet)')),
       section(
         'Identity files',
         '',

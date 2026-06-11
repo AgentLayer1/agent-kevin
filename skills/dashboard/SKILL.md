@@ -2,7 +2,7 @@
 name: dashboard
 description: Rebuild and open the Agent OS dashboard — a static HTML mission-control page covering today's plan and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. Also refreshes the projects/TASKS.md task dashboard in the same pass. Use when the user wants the big picture of what Kevin is and what's going on.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__status_dashboard, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Bash
 ---
 
 # Dashboard
@@ -17,7 +17,7 @@ external requests.
    `projects/TASKS.md` — the two derived views always regenerate together):
 
 ```
-mcp__plugin_agent-kevin_kevin__status_dashboard
+mcp__plugin_agent-kevin_kevin__dashboard
 ```
 
 Returns `{ path, bytes, tasks }`.

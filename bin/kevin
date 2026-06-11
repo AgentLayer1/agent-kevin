@@ -14,7 +14,6 @@
  *   kevin task close <id>
  *   kevin task thread <id> --message=... [--type=quote|info|warning]
  *   kevin task scan
- *   kevin task dashboard
  *
  *   kevin compile status
  *   kevin compile next          (prints the next work item JSON — doesn't synthesise)
@@ -130,7 +129,6 @@ Task commands:
   task close <id>
   task thread <id> --message=... [--type=quote|info|warning]
   task scan                         Resolve dependencies, surface overdue/stale/auto-* changes
-  task dashboard                    Rebuild projects/TASKS.md from frontmatter + the Agent OS dashboard
 
 Capture commands:
   capture "the thought"             Write inline text to raw/inbox/<ts>-<slug>.md (next compile distils it)
@@ -174,7 +172,7 @@ Examples:
   kevin capture --kind=feedback "don't propose git push for local-only repos"
   kevin task query --status=active
   kevin task create --project=blog-dev --title="Draft launch post" --description="..." --priority=P1
-  kevin task dashboard
+  kevin status
   kevin knowledge lint --fix
   kevin compile status
 `;
@@ -300,14 +298,6 @@ async function run(): Promise<void> {
         const all = scanAllTasks();
         const result = resolveTasks(all);
         console.log(JSON.stringify({ scanned: all.length, ...result }, null, 2));
-        return;
-      }
-      case 'dashboard': {
-        const { writeDashboard } = await import(resolve(PLUGIN_ROOT, `${TASKS}/dashboard`));
-        const { writeDashboardHtml } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/status/html'));
-        const tasks = writeDashboard();
-        const html = await writeDashboardHtml();
-        console.log(JSON.stringify({ ...tasks, html }, null, 2));
         return;
       }
       default:

@@ -148,7 +148,7 @@ Pages and sub-tabs deep-link by hash (`index.html#work/projects`), text filters 
 { "env": { "MARKDOWN_URL": "markedit://open?path={path}" } }
 ```
 
-**How to refresh it:** every `/agent-kevin:sync` does it automatically; `/agent-kevin:dashboard` rebuilds and opens it; `kevin status` does the same from a terminal; the `status_dashboard` MCP tool is the programmatic hook. Every refresh also rebuilds `projects/TASKS.md` (and vice versa) — the two derived views always regenerate together. It's a **snapshot, not a live app** — the generated timestamp is in the footer. The file is fully self-contained and makes **zero external requests**: no CDN, no webfonts, no analytics. It renders identically offline, nothing on it leaves your machine, and regenerating it never mutates state.
+**How to refresh it:** every `/agent-kevin:sync` does it automatically; `/agent-kevin:dashboard` rebuilds and opens it; `kevin status` does the same from a terminal; the `dashboard` MCP tool is the programmatic hook. Every refresh also rebuilds `projects/TASKS.md` (and vice versa) — the two derived views always regenerate together. It's a **snapshot, not a live app** — the generated timestamp is in the footer. The file is fully self-contained and makes **zero external requests**: no CDN, no webfonts, no analytics. It renders identically offline, nothing on it leaves your machine, and regenerating it never mutates state.
 
 > ⚠️ Privacy note: `index.html` sits at your HOME root and reflects your tasks, knowledge stats, and (redacted) settings. If you ever publish that repo — e.g. enable GitHub Pages on it — this page publishes too. Keep agent homes private.
 
@@ -560,17 +560,17 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (32)
+### MCP tools (31)
 
 | Group | Tools |
 |---|---|
-| **Tasks** (8) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan`, `task_dashboard` |
+| **Tasks** (7) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan` |
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
-| **Status** (1) | `status_dashboard` |
+| **Dashboard** (1) | `dashboard` |
 | **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, `browser_flows`, `perplexity_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `status_dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 

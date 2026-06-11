@@ -44,8 +44,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     emoji: '🍌',
     avatar: '.claude/assets/kevin-avatar.jpg',
     bio: 'A personal AI assistant that runs as a Claude Code plugin.',
-    roles: ['General-purpose personal assistant'],
-    soulTraits: ['Concise by default. Walls of text are a crime.']
+    identitySections: [{ title: 'Core Role', lines: ['General-purpose personal assistant'] }],
+    soulSections: [{ title: 'Vibe', lines: ['Concise by default. Walls of text are a crime.'] }]
   },
   operator: {
     name: 'Basem',
@@ -67,10 +67,10 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   mcp: {
     servers: ['kevin'],
     toolCount: 2,
-    tools: ['mcp__kevin__task_dashboard', 'mcp__kevin__status_dashboard'],
+    tools: ['mcp__kevin__task_scan', 'mcp__kevin__dashboard'],
     toolDetails: [
-      { name: 'mcp__kevin__status_dashboard', description: 'Rebuild the Agent OS dashboard.' },
-      { name: 'mcp__kevin__task_dashboard', description: 'Rebuild projects/TASKS.md.' }
+      { name: 'mcp__kevin__dashboard', description: 'Rebuild TASKS.md + the Agent OS dashboard.' },
+      { name: 'mcp__kevin__task_scan', description: 'Resolve cross-task state.' }
     ]
   },
   goals: {
@@ -318,8 +318,8 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(makeSnapshot());
     expect(html).toContain('/agent-kevin:sync');
     expect(html).toContain('End-to-end refresh of every derived view.');
-    expect(html).toContain('status_dashboard');
-    expect(html).toContain('Rebuild the Agent OS dashboard.');
+    expect(html).toContain('<div class="tname">dashboard</div>');
+    expect(html).toContain('Rebuild TASKS.md + the Agent OS dashboard.');
   });
 
   test('markdown files open through Obsidian URIs', () => {

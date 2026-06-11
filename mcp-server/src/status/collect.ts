@@ -135,8 +135,10 @@ export interface Persona {
   /** Avatar path relative to <HOME>; '' when the file doesn't exist. */
   avatar: string;
   bio: string;
-  roles: string[];
-  soulTraits: string[];
+  /** Every `## Section` of IDENTITY.md except the ones the header already shows. */
+  identitySections: ProfileSection[];
+  /** Every `## Section` of SOUL.md as stripped text lines. */
+  soulSections: ProfileSection[];
 }
 
 export interface FacetInfo {
@@ -992,15 +994,20 @@ const wikiIndexDescriptions = (prefix: string): Map<string, string> => {
 // Pre-init fallback: derive the agent's name from the plugin id (agent-walle → Walle).
 const FALLBACK_AGENT_NAME = PLUGIN_NAME.replace(/^agent-/, '').replace(/^./, (c) => c.toUpperCase());
 
+// Rendered in the persona header (name/kind/vibe chips + bio), so their
+// sections would only duplicate it below.
+const PERSONA_HEAD_SECTIONS = new Set(['Who', 'Short Bio']);
+
 const collectPersona = (): Persona => ({
   name: boldField(FILES.IDENTITY, 'Name') || FALLBACK_AGENT_NAME,
   kind: stripMarkdown(boldField(FILES.IDENTITY, 'Kind')),
-  vibe: stripMarkdown(boldField(FILES.IDENTITY, 'Vibe')),
+  // Forks word the tagline field differently (Vibe, Register, ...).
+  vibe: stripMarkdown(boldField(FILES.IDENTITY, 'Vibe') || boldField(FILES.IDENTITY, 'Register')),
   emoji: boldField(FILES.IDENTITY, 'Emoji'),
   avatar: firstImage(FILES.IDENTITY),
   bio: sectionText(FILES.IDENTITY, 'Short Bio'),
-  roles: bulletsUnder(FILES.IDENTITY, 'Core Role').map(stripMarkdown),
-  soulTraits: bulletsUnder(FILES.SOUL, 'Vibe').map(stripMarkdown)
+  identitySections: mdSections(FILES.IDENTITY).filter((section) => !PERSONA_HEAD_SECTIONS.has(section.title)),
+  soulSections: mdSections(FILES.SOUL)
 });
 
 /** Sections that are link farms or provenance, not profile content. */

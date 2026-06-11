@@ -4,12 +4,12 @@ import { writeDashboard, type DashboardCounts } from '@/tasks/dashboard';
 
 export const tools: ToolDef[] = [
   defineTool({
-    name: 'status_dashboard',
+    name: 'dashboard',
     description:
-      'Rebuild <HOME>/index.html — the static Agent OS dashboard — from a fresh status snapshot (runtime, knowledge, ' +
-      'compile, tasks, context, settings, logs, health). Self-contained page, no server, zero external requests. ' +
-      'Also rebuilds projects/TASKS.md first so the snapshot reads current task + goals state — the two derived ' +
-      'views always refresh together. Run after task mutations so the snapshot reflects current state.',
+      'Rebuild both derived views in one pass: projects/TASKS.md (task dashboard from frontmatter — Active, Blocked, ' +
+      'Overdue, Stale, Recently Closed; preserves the goals block) and <HOME>/index.html (the static Agent OS ' +
+      'dashboard from a fresh status snapshot). Self-contained, no server, zero external requests. Task mutations ' +
+      'refresh both automatically; invoke explicitly to force a refresh.',
     inputSchema: {},
     handler: async () => {
       let tasks: DashboardCounts | null = null;
