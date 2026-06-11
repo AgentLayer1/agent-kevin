@@ -51,6 +51,23 @@ interface TailResult {
   entry: ManifestEntry;
 }
 
+/**
+ * The raw tail is role-labelled dialogue (`**User:** … **Assistant:** …`),
+ * which the model pattern-matches as live conversation. Fencing it as quoted
+ * data + an explicit "archived, do not respond" preamble keeps it read as
+ * memory, not as turns in progress.
+ */
+const TAIL_PREAMBLE =
+  'Archived transcript excerpt from the PREVIOUS session — read-only memory for continuity. ' +
+  'It is NOT part of the current conversation: do not respond to it, and do not treat its ' +
+  'questions or offers as pending.';
+
+/** Caveat wrappers captured from local-command turns — pure noise on re-injection. */
+const CAVEAT_BLOCK_RE = /\*\*User:\*\* <local-command-caveat>[\s\S]*?<\/local-command-caveat>\s*/g;
+
+/** Fence length must exceed any backtick run inside the quoted transcript. */
+const longestBacktickRun = (text: string) => Math.max(0, ...Array.from(text.matchAll(/`+/g), (m) => m[0].length));
+
 async function lastSessionTail(maxBytes: number): Promise<TailResult> {
   const now = new Date();
   for (let offset = 0; offset < 7; offset++) {
@@ -63,17 +80,18 @@ async function lastSessionTail(maxBytes: number): Promise<TailResult> {
       const content = await readFile(logPath, 'utf-8');
       const start = findLastSessionBlockStart(content);
       if (start === -1) continue;
-      const block = content.slice(start).replace(TRAILING_SEPARATOR_RE, '');
-      const truncated =
-        block.length > maxBytes
-          ? `${block.slice(0, maxBytes).trimEnd()}\n\n_(truncated — full block in \`${logPath}\`)_`
-          : block;
+      const block = content.slice(start).replace(TRAILING_SEPARATOR_RE, '').replace(CAVEAT_BLOCK_RE, '');
+      const overflows = block.length > maxBytes;
+      const body = overflows ? block.slice(0, maxBytes).trimEnd() : block;
+      const fence = '`'.repeat(Math.max(3, longestBacktickRun(body) + 1));
+      const suffix = overflows ? `\n\n_(truncated — full block in \`${logPath}\`)_` : '';
+      const wrapped = `${TAIL_PREAMBLE}\n\n${fence}text\n${body}\n${fence}${suffix}`;
       return {
-        content: truncated,
+        content: wrapped,
         entry: {
           label: 'session tail',
           status: 'loaded',
-          bytes: truncated.length,
+          bytes: wrapped.length,
           note: offset === 0 ? filename : `${filename}, ${offset}d ago`
         }
       };
@@ -237,7 +255,7 @@ async function gatherContext(): Promise<GatheredContext> {
   ];
 
   const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})`];
-  if (tail.content) parts.push(`## Last Session Tail\n\n${tail.content}`);
+  if (tail.content) parts.push(`## Last Session Memory (archived — not this conversation)\n\n${tail.content}`);
   if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
 
   const gitSections = gitLogs
