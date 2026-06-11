@@ -10,7 +10,7 @@
  * Paths in: always via FOLDERS/FILES (@/config). Paths out: callers render
  * through repoRelative()/tildify so absolute machine paths never leak.
  */
-import { FILES, FOLDERS, PLUGIN_NAME, TIMEZONE } from '@/config';
+import { FILES, FOLDERS, MARKDOWN_URL, PLUGIN_NAME, TIMEZONE } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { nowTime } from '@/shared/date';
 import type { TaskFile } from '@/shared/types';
@@ -18,7 +18,7 @@ import { discoverProjects, scanAllTasks } from '@/tasks/scan';
 import { resolveTasks } from '@/tasks/resolve';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 export interface SettingsLayer {
   label: string;
@@ -51,8 +51,81 @@ export interface CompileEntry {
 }
 
 export interface ReportRef {
+  /** ISO day the report was filed under in reports/index.md. */
+  date: string;
   time: string;
   title: string;
+  /** Path relative to <HOME> (e.g. `reports/briefings/...md`); '' if unparsed. */
+  href: string;
+  skill: string;
+  /** Status emoji from the index line (🟢/🟠/🔴/⏳); '' if absent. */
+  status: string;
+}
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  custom: boolean;
+}
+
+export interface ToolInfo {
+  name: string;
+  description: string;
+}
+
+/** One captured working session from raw/sessions/index.json. */
+export interface SessionRef {
+  id: string;
+  firstSeen: string;
+  lastSeen: string;
+  turns: number;
+  cwd: string;
+  briefing: string;
+}
+
+/** Kevin's rendered identity — parsed best-effort from IDENTITY.md + SOUL.md. */
+export interface Persona {
+  name: string;
+  kind: string;
+  vibe: string;
+  emoji: string;
+  /** Avatar path relative to <HOME>; '' when the file doesn't exist. */
+  avatar: string;
+  bio: string;
+  roles: string[];
+  soulTraits: string[];
+}
+
+export interface FacetInfo {
+  name: string;
+  description: string;
+  bytes: number;
+  href: string;
+}
+
+export interface ProfileSection {
+  title: string;
+  lines: string[];
+}
+
+/** The operator as Kevin knows them — USER.md headline + facet catalog +
+ *  the compiled profile facet rendered into sections. */
+export interface OperatorInfo {
+  name: string;
+  timezone: string;
+  /** Avatar path relative to <HOME>; '' when the file doesn't exist. */
+  avatar: string;
+  /** First paragraph of knowledge/user/profile.md; '' when absent. */
+  headline: string;
+  /** `## Section` blocks of knowledge/user/profile.md, markdown stripped. */
+  profileSections: ProfileSection[];
+  facets: FacetInfo[];
+}
+
+export interface ConceptInfo {
+  name: string;
+  description: string;
+  href: string;
 }
 
 export interface Health {
@@ -84,7 +157,14 @@ export interface ProjectLoad {
   open: number;
   active: number;
   blocked: number;
+  /** Open + active + blocked — the live working set. */
   total: number;
+  /** Done/cancelled tasks: still-in-place ones plus the archive folder. */
+  done: number;
+  /** Most recent `updated:` across the project's live tasks; '' if none. */
+  updatedAt: string;
+  /** First paragraph of the project README, markdown stripped; '' if none. */
+  description: string;
 }
 
 export interface TaskRef {
@@ -92,6 +172,13 @@ export interface TaskRef {
   title: string;
   priority: string;
   project: string;
+  status: string;
+  due: string;
+  updated: string;
+  dependsOn: string[];
+  blockedBy: string;
+  /** Task file path relative to <HOME>, for clickable links. */
+  path: string;
 }
 
 export interface HookEntry {
@@ -112,14 +199,37 @@ export interface StatusSnapshot {
     logsPath: string;
     timezone: string;
     date: string;
+    /** Today as YYYY-MM-DD in TIMEZONE — anchor for due-date grouping. */
+    isoDate: string;
     time: string;
   };
-  skills: { count: number; names: string[]; custom: number };
-  mcp: { servers: string[]; toolCount: number; tools: string[] };
+  persona: Persona;
+  operator: OperatorInfo;
+  /** URL template for opening markdown files, `{path}` = encoded abs path.
+   *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
+  markdownUrl: string;
+  skills: { count: number; names: string[]; custom: number; details: SkillInfo[] };
+  mcp: { servers: string[]; toolCount: number; tools: string[]; toolDetails: ToolInfo[] };
+  /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
+  goals: { monthly: string[]; weekly: string[] };
+  /** `## Active Threads` bullets from memory/index.md, markdown stripped. */
+  memoryThreads: string[];
+  /** `## Recent Decisions` bullets from memory/index.md, markdown stripped. */
+  memoryDecisions: string[];
+  /** `## Learnings` bullets from memory/index.md, markdown stripped. */
+  memoryLearnings: string[];
+  /** `## Pending` bullets from memory/index.md, markdown stripped. */
+  memoryPending: string[];
+  /** Transient daily memory files, newest first, with manifest summaries. */
+  memoryDailyFiles: Array<{ name: string; href: string; summary: string }>;
+  /** Recent captured sessions, newest first. */
+  sessions: SessionRef[];
   hooks: { events: string[]; count: number; entries: HookEntry[] };
   knowledge: {
     concepts: number;
     conceptNames: string[];
+    /** Concepts joined with their one-line descriptions from knowledge/index.md. */
+    conceptDetails: ConceptInfo[];
     userFacets: number;
     facets: FacetSize[];
     memoryDaily: number;
@@ -151,6 +261,10 @@ export interface StatusSnapshot {
     overdueList: TaskRef[];
     staleList: TaskRef[];
     activeList: TaskRef[];
+    /** Every open/active/blocked task — the dashboard derives agenda groups. */
+    queue: TaskRef[];
+    /** Any task (any status) whose `updated:` is today — the activity trail. */
+    touchedToday: TaskRef[];
   };
   context: {
     source: string;
@@ -175,6 +289,8 @@ export interface StatusSnapshot {
     totalWarnings: number;
     totalErrors: number;
     lastError: string | null;
+    /** Last slice of app.log (credential URLs masked) for the Logs tab. */
+    tail: string;
   };
   reports: ReportRef[];
   reportsTotal: number;
@@ -227,15 +343,50 @@ const safeBytes = (path: string): number => {
  *  identify which credential it is without exposing it. */
 const maskValue = (value: string): string => (value.length > 8 ? `••••${value.slice(-4)}` : '••••••');
 
+/** First sentence of a description, capped — card-sized summaries. */
+const firstSentence = (text: string, max = 160): string => {
+  const sentence = text.split(/(?<=\.)\s/)[0] ?? text;
+  return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
+};
+
+/** `description:` value from a SKILL.md's YAML frontmatter. Handles both
+ *  single-line values and folded/literal blocks (`description: >` followed by
+ *  indented lines). */
+const skillDescription = (skillDir: string): string => {
+  try {
+    const lines = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8').split('\n');
+    const start = lines.findIndex((line) => line.startsWith('description:'));
+    if (start === -1) return '';
+    const inline = lines[start].slice('description:'.length).trim();
+    if (inline && !/^[>|][+-]?$/.test(inline)) return firstSentence(inline);
+    const block: string[] = [];
+    for (let i = start + 1; i < lines.length; i++) {
+      const line = lines[i] ?? '';
+      if (!/^\s+\S/.test(line)) break;
+      block.push(line.trim());
+    }
+    return firstSentence(block.join(' '));
+  } catch {
+    return '';
+  }
+};
+
 const collectSkills = (): StatusSnapshot['skills'] => {
   const hasSkill = (base: string) => (name: string) => existsSync(resolve(base, name, 'SKILL.md'));
-  const pluginSkillsDir = resolve(FOLDERS.ROOT, 'skills');
-  const names = listDirs(pluginSkillsDir)
-    .filter(hasSkill(pluginSkillsDir))
-    .sort((a, b) => a.localeCompare(b));
-  const customDir = resolve(FOLDERS.HOME, '.claude', 'skills');
-  const custom = listDirs(customDir).filter(hasSkill(customDir)).length;
-  return { count: names.length + custom, names, custom };
+  const skillInfos = (base: string, custom: boolean): SkillInfo[] =>
+    listDirs(base)
+      .filter(hasSkill(base))
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ name, description: skillDescription(resolve(base, name)), custom }));
+  const plugin = skillInfos(resolve(FOLDERS.ROOT, 'skills'), false);
+  const customs = skillInfos(resolve(FOLDERS.HOME, '.claude', 'skills'), true);
+  const details = [...plugin, ...customs];
+  return {
+    count: details.length,
+    names: plugin.map((skill) => skill.name),
+    custom: customs.length,
+    details
+  };
 };
 
 const collectMcp = async (): Promise<StatusSnapshot['mcp']> => {
@@ -244,8 +395,13 @@ const collectMcp = async (): Promise<StatusSnapshot['mcp']> => {
     const parsed = readJson<{ mcpServers?: Record<string, unknown> }>(path);
     Object.keys(parsed?.mcpServers ?? {}).forEach((name) => servers.add(name));
   }
-  const tools = await collectMcpTools();
-  return { servers: [...servers], toolCount: tools.length, tools };
+  const toolDetails = await collectMcpTools();
+  return {
+    servers: [...servers],
+    toolCount: toolDetails.length,
+    tools: toolDetails.map((tool) => tool.name),
+    toolDetails
+  };
 };
 
 /**
@@ -254,8 +410,9 @@ const collectMcp = async (): Promise<StatusSnapshot['mcp']> => {
  * top-level `server.connect()` would start a server), so the module list is
  * mirrored here — keep in sync with server.ts's TOOLS assembly.
  */
-const collectMcpTools = async (): Promise<string[]> => {
+const collectMcpTools = async (): Promise<ToolInfo[]> => {
   const modules = [
+    'browser-flows',
     'capture',
     'compile',
     'google-page-speed',
@@ -267,21 +424,25 @@ const collectMcpTools = async (): Promise<string[]> => {
     'playwright',
     'reports',
     'serpapi',
+    'status',
     'tasks'
   ];
   const lists = await Promise.all(
     modules.map(async (name) => {
       try {
         const mod = (await import(`@/tools/${name}`)) as {
-          tools?: Array<{ name?: string }>;
+          tools?: Array<{ name?: string; description?: string }>;
         };
-        return (mod.tools ?? []).map((tool) => tool.name ?? '?');
+        return (mod.tools ?? []).map((tool) => ({
+          name: tool.name ?? '?',
+          description: firstSentence(tool.description ?? '')
+        }));
       } catch {
         return [];
       }
     })
   );
-  return lists.flat().sort((a, b) => a.localeCompare(b));
+  return lists.flat().sort((a, b) => a.name.localeCompare(b.name));
 };
 
 interface HookConfig {
@@ -328,22 +489,43 @@ const treeBytes = (dir: string): number => {
   }
 };
 
-/** Count `- ` bullet lines under a `## Heading` in a markdown file. */
-const countBulletsUnder = (file: string, heading: string): number => {
+/** Non-empty lines under a `## Heading` (prefix match), until the next `##`. */
+const sectionLines = (file: string, heading: string): string[] => {
   try {
     const lines = readFileSync(file, 'utf-8').split('\n');
-    const start = lines.findIndex((line) => line.trim() === `## ${heading}`);
-    if (start === -1) return 0;
-    let count = 0;
+    const start = lines.findIndex((line) => line.trim().startsWith(`## ${heading}`));
+    if (start === -1) return [];
+    const collected: string[] = [];
     for (let i = start + 1; i < lines.length; i++) {
-      if (/^## /.test(lines[i] ?? '')) break;
-      if (/^\s*[-*] /.test(lines[i] ?? '')) count += 1;
+      const line = lines[i] ?? '';
+      if (/^## /.test(line)) break;
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('<!--')) collected.push(trimmed);
     }
-    return count;
+    return collected;
   } catch {
-    return 0;
+    return [];
   }
 };
+
+/** `- ` bullet texts under a `## Heading`. */
+const bulletsUnder = (file: string, heading: string): string[] =>
+  sectionLines(file, heading)
+    .filter((line) => /^[-*] /.test(line))
+    .map((line) => line.replace(/^[-*] /, ''));
+
+/** Count `- ` bullet lines under a `## Heading` in a markdown file. */
+const countBulletsUnder = (file: string, heading: string): number => bulletsUnder(file, heading).length;
+
+/** Flatten inline markdown (wikilinks, links, bold, italics, code) to plain text. */
+const stripMarkdown = (text: string): string =>
+  text
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1');
 
 /** Byte size of each of the last 7 days' session transcripts (oldest first). */
 const collectSessionsWeek = (): SessionDay[] => {
@@ -372,9 +554,15 @@ const collectKnowledge = (): StatusSnapshot['knowledge'] => {
     name: name.replace(MARKDOWN_RE, ''),
     bytes: safeBytes(resolve(FOLDERS.USER_KNOWLEDGE, name))
   }));
+  const conceptDescriptions = wikiIndexDescriptions('concepts');
   return {
     concepts: conceptNames.length,
     conceptNames,
+    conceptDetails: conceptNames.map((name) => ({
+      name,
+      description: conceptDescriptions.get(name) ?? '',
+      href: `knowledge/concepts/${name}.md`
+    })),
     userFacets: facets.length,
     facets,
     memoryDaily: countDir(FOLDERS.MEMORY, (name) => /^\d{4}-\d{2}-\d{2}.*\.md$/.test(name)),
@@ -435,34 +623,61 @@ const toRef = (task: TaskFile): TaskRef => ({
   id: task.frontmatter.id,
   title: task.frontmatter.title,
   priority: task.frontmatter.priority,
-  project: task.frontmatter.project
+  project: task.frontmatter.project,
+  status: task.frontmatter.status,
+  due: task.frontmatter.due,
+  updated: task.frontmatter.updated,
+  dependsOn: task.frontmatter.depends_on,
+  blockedBy: task.frontmatter.blocked_by,
+  path: relative(FOLDERS.HOME, task.filePath)
 });
 
 const OPEN_STATUSES = new Set(['open', 'active', 'blocked']);
 
+/** First plain paragraph of a project README (frontmatter skipped). */
+const projectDescription = (project: string): string => firstParagraph(resolve(FOLDERS.PROJECTS, project, 'README.md'));
+
 const collectTasks = (): StatusSnapshot['tasks'] => {
   const all = scanAllTasks();
   const scan = resolveTasks(all);
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const byStatus = (status: string) => all.filter((task) => task.frontmatter.status === status).length;
 
   const projectMap = new Map<string, ProjectLoad>();
   for (const task of all) {
-    const { project, status } = task.frontmatter;
-    if (!OPEN_STATUSES.has(status)) continue;
+    const { project, status, updated } = task.frontmatter;
     const load = projectMap.get(project) ?? {
       project,
       open: 0,
       active: 0,
       blocked: 0,
-      total: 0
+      total: 0,
+      done: 0,
+      updatedAt: '',
+      description: ''
     };
     if (status === 'open') load.open += 1;
     else if (status === 'active') load.active += 1;
     else if (status === 'blocked') load.blocked += 1;
-    load.total += 1;
+    else load.done += 1;
+    if (OPEN_STATUSES.has(status)) load.total += 1;
+    if (updated > load.updatedAt) load.updatedAt = updated;
     projectMap.set(project, load);
   }
-  const byProject = [...projectMap.values()].sort((a, b) => b.total - a.total);
+  const byProject = [...projectMap.values()]
+    .map((load) => ({
+      ...load,
+      done:
+        load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
+      description: projectDescription(load.project)
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  // Whole working set, P0 first then earliest due — the dashboard's agenda raw material.
+  const queue = all
+    .filter((task) => OPEN_STATUSES.has(task.frontmatter.status))
+    .map(toRef)
+    .sort((a, b) => a.priority.localeCompare(b.priority) || (a.due || '9999').localeCompare(b.due || '9999'));
 
   return {
     active: byStatus('active'),
@@ -475,7 +690,9 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     byProject,
     overdueList: scan.overdue.map(toRef),
     staleList: scan.stale.map(toRef),
-    activeList: all.filter((task) => task.frontmatter.status === 'active').map(toRef)
+    activeList: all.filter((task) => task.frontmatter.status === 'active').map(toRef),
+    queue,
+    touchedToday: all.filter((task) => task.frontmatter.updated === today).map(toRef)
   };
 };
 
@@ -617,6 +834,9 @@ const collectSettings = (): StatusSnapshot['settings'] => {
 // "ERROR" substring inside a message body never inflates the count.
 const LEVEL_RE = /^\S+Z (WARN|ERROR) /;
 
+/** Bytes of app.log surfaced in the System → Logs tab. */
+const LOG_TAIL_BYTES = 24_000;
+
 const collectLogs = (): StatusSnapshot['logs'] => {
   const path = resolve(FOLDERS.LOGS, 'app.log');
   let bytes = 0;
@@ -626,6 +846,7 @@ const collectLogs = (): StatusSnapshot['logs'] => {
   let totalWarnings = 0;
   let totalErrors = 0;
   let lastError: string | null = null;
+  let tail = '';
   try {
     const stat = statSync(path);
     bytes = stat.size;
@@ -635,8 +856,8 @@ const collectLogs = (): StatusSnapshot['logs'] => {
       minute: '2-digit'
     });
     const today = new Date().toISOString().slice(0, 10);
-    const lines = readFileSync(path, 'utf-8').split('\n');
-    for (const line of lines) {
+    const content = readFileSync(path, 'utf-8');
+    for (const line of content.split('\n')) {
       const level = line.match(LEVEL_RE)?.[1];
       if (!level) continue;
       const isToday = line.startsWith(today);
@@ -649,6 +870,9 @@ const collectLogs = (): StatusSnapshot['logs'] => {
         lastError = line.replace(LEVEL_RE, '').slice(0, 80);
       }
     }
+    const slice = content.slice(-LOG_TAIL_BYTES);
+    // Start at a line boundary and mask any credentialed URLs defensively.
+    tail = slice.slice(slice.indexOf('\n') + 1).replace(/:\/\/[^\s:@/]+:[^\s@/]+@/g, '://••••:••••@');
   } catch {
     // no log yet
   }
@@ -660,8 +884,173 @@ const collectLogs = (): StatusSnapshot['logs'] => {
     errors,
     totalWarnings,
     totalErrors,
-    lastError
+    lastError,
+    tail
   };
+};
+
+// ── identity parsing (IDENTITY.md / SOUL.md / USER.md — all best-effort) ──
+
+/** Value of a `**Label:** value` bullet anywhere in a markdown file. */
+const boldField = (file: string, label: string): string => {
+  try {
+    return (
+      readFileSync(file, 'utf-8')
+        .match(new RegExp(`\\*\\*${label}:\\*\\*\\s*(.+)$`, 'm'))?.[1]
+        ?.trim() ?? ''
+    );
+  } catch {
+    return '';
+  }
+};
+
+/** First markdown image path in a file, kept only if it exists under HOME. */
+const firstImage = (file: string): string => {
+  try {
+    const path = readFileSync(file, 'utf-8').match(/!\[[^\]]*\]\(([^)]+)\)/)?.[1] ?? '';
+    return path && existsSync(resolve(FOLDERS.HOME, path)) ? path : '';
+  } catch {
+    return '';
+  }
+};
+
+/** Paragraph text (non-bullet lines) under a `## Heading`, joined. */
+const sectionText = (file: string, heading: string): string =>
+  stripMarkdown(
+    sectionLines(file, heading)
+      .filter((line) => !/^[-*>!]/.test(line) && !line.startsWith('_('))
+      .join(' ')
+  );
+
+/** `- [[prefix/name]] — description` entries from knowledge/index.md. */
+const wikiIndexDescriptions = (prefix: string): Map<string, string> => {
+  const map = new Map<string, string>();
+  try {
+    const re = new RegExp(`^- \\[\\[${prefix}/([^\\]]+)\\]\\]\\s*—\\s*(.+)$`, 'gm');
+    for (const match of readFileSync(FILES.KNOWLEDGE, 'utf-8').matchAll(re)) {
+      map.set(match[1], stripMarkdown(match[2]));
+    }
+  } catch {
+    // no wiki index yet
+  }
+  return map;
+};
+
+const collectPersona = (): Persona => ({
+  name: boldField(FILES.IDENTITY, 'Name') || 'Kevin',
+  kind: stripMarkdown(boldField(FILES.IDENTITY, 'Kind')),
+  vibe: stripMarkdown(boldField(FILES.IDENTITY, 'Vibe')),
+  emoji: boldField(FILES.IDENTITY, 'Emoji'),
+  avatar: firstImage(FILES.IDENTITY),
+  bio: sectionText(FILES.IDENTITY, 'Short Bio'),
+  roles: bulletsUnder(FILES.IDENTITY, 'Core Role').map(stripMarkdown),
+  soulTraits: bulletsUnder(FILES.SOUL, 'Vibe').map(stripMarkdown)
+});
+
+/** Sections that are link farms or provenance, not profile content. */
+const PROFILE_SKIP_SECTIONS = new Set(['See Also', 'Deep Dive', 'Sources']);
+const PROFILE_SECTION_LINES = 12;
+
+/** Every `## Section` of a markdown file as stripped text lines. */
+const mdSections = (file: string): ProfileSection[] => {
+  try {
+    const lines = readFileSync(file, 'utf-8').split('\n');
+    const sections: ProfileSection[] = [];
+    let current: ProfileSection | null = null;
+    for (const line of lines) {
+      const heading = line.match(/^## (.+)$/);
+      if (heading) {
+        current = { title: heading[1].trim(), lines: [] };
+        sections.push(current);
+        continue;
+      }
+      const trimmed = line.trim();
+      if (!current || !trimmed || trimmed.startsWith('![') || trimmed.startsWith('<!--')) continue;
+      if (current.lines.length < PROFILE_SECTION_LINES) {
+        current.lines.push(stripMarkdown(trimmed.replace(/^[-*] /, '')));
+      }
+    }
+    return sections.filter((section) => section.lines.length && !PROFILE_SKIP_SECTIONS.has(section.title));
+  } catch {
+    return [];
+  }
+};
+
+/** First plain paragraph of a markdown file (frontmatter + headings skipped). */
+const firstParagraph = (file: string): string => {
+  try {
+    const body = readFileSync(file, 'utf-8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+    const paragraph = body.split('\n').find((line) => line.trim() && !/^[#>\-*!|<\[]/.test(line.trim()));
+    return paragraph ? stripMarkdown(paragraph.trim()) : '';
+  } catch {
+    return '';
+  }
+};
+
+const collectOperatorInfo = (facetSizes: FacetSize[]): OperatorInfo => {
+  const descriptions = wikiIndexDescriptions('user');
+  const profilePath = resolve(FOLDERS.USER_KNOWLEDGE, 'profile.md');
+  return {
+    name: boldField(FILES.USER, 'Name'),
+    timezone: stripMarkdown(boldField(FILES.USER, 'Timezone')),
+    avatar: firstImage(FILES.USER),
+    headline: firstParagraph(profilePath),
+    profileSections: mdSections(profilePath),
+    facets: facetSizes.map((facet) => ({
+      name: facet.name,
+      description: descriptions.get(facet.name) ?? '',
+      bytes: facet.bytes,
+      href: `knowledge/user/${facet.name}.md`
+    }))
+  };
+};
+
+/** Strip harness boilerplate from captured briefings: injected XML-ish tags
+ *  (`<command-message>` etc.) and the local-command caveat preamble. Briefings
+ *  are pre-truncated in the index, so the caveat may be cut mid-sentence —
+ *  strip greedily and let the renderer show a fallback when nothing remains.
+ *  Whitespace collapses first so the caveat regex can't be split by newlines. */
+const cleanBriefing = (text: string): string =>
+  text
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/Caveat: The messages below.*?(unless the user explicitly asks you to\.|$)/i, ' ')
+    .replace(/^\s*DO NOT respond.*$/i, '')
+    .trim();
+
+const MAX_SESSIONS = 20;
+
+interface SessionIndexRecord {
+  first_seen?: string;
+  last_seen?: string;
+  cwd?: string;
+  captured_turns?: number;
+  briefing?: string;
+}
+
+const collectSessions = (): SessionRef[] => {
+  const parsed = readJson<{ sessions?: Record<string, SessionIndexRecord> }>(FILES.SESSION_INDEX);
+  return Object.entries(parsed?.sessions ?? {})
+    .map(([id, record]) => ({
+      id,
+      firstSeen: record.first_seen ?? '',
+      lastSeen: record.last_seen ?? record.first_seen ?? '',
+      turns: record.captured_turns ?? 0,
+      cwd: record.cwd ?? '',
+      briefing: cleanBriefing(record.briefing ?? '')
+    }))
+    .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen) || b.id.localeCompare(a.id))
+    .slice(0, MAX_SESSIONS);
+};
+
+const DEFAULT_MARKDOWN_URL = 'obsidian://open?path={path}';
+
+/** Markdown-opener URL template from the MARKDOWN_URL env var; must be a
+ *  custom scheme carrying a `{path}` placeholder, else the Obsidian default
+ *  applies. */
+const collectMarkdownUrl = (): string => {
+  const valid = /^[a-z][a-z0-9.+-]*:\/\//i.test(MARKDOWN_URL) && MARKDOWN_URL.includes('{path}');
+  return valid ? MARKDOWN_URL : DEFAULT_MARKDOWN_URL;
 };
 
 const collectRuntime = (): StatusSnapshot['runtime'] => {
@@ -686,21 +1075,76 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
       day: '2-digit',
       month: 'short'
     }),
+    isoDate: now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE }),
     time: nowTime(now)
   };
 };
 
-/** All report entries from reports/index.md (newest first). */
+/** All report entries from reports/index.md (newest first), carrying the
+ *  `## YYYY-MM-DD` day they were filed under and the index line's link/skill/
+ *  status so the dashboard can render them clickable. */
 const collectReports = (): ReportRef[] => {
   try {
-    return readFileSync(FILES.REPORTS_INDEX, 'utf-8')
-      .split('\n')
-      .map((line) => line.match(/^- (\d{2}:\d{2}) · \[([^\]]+)\]/))
-      .filter((match): match is RegExpMatchArray => Boolean(match))
-      .map((match) => ({ time: match[1], title: match[2] }));
+    const refs: ReportRef[] = [];
+    let day = '';
+    for (const line of readFileSync(FILES.REPORTS_INDEX, 'utf-8').split('\n')) {
+      const heading = line.match(/^## (\d{4}-\d{2}-\d{2})/);
+      if (heading) {
+        day = heading[1];
+        continue;
+      }
+      const entry = line.match(/^- (\d{2}:\d{2}) · \[([^\]]+)\](?:\(([^)]+)\))?(?: · `([^`]+)`)?(?: · (\S+))?/);
+      if (!entry) continue;
+      refs.push({
+        date: day,
+        time: entry[1],
+        title: entry[2],
+        // Index links are relative to reports/; the dashboard sits at <HOME>.
+        href: entry[3] ? `reports/${entry[3]}` : '',
+        skill: entry[4] ?? '',
+        status: entry[5] ?? ''
+      });
+    }
+    return refs;
   } catch {
     return [];
   }
+};
+
+const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');
+
+const collectGoals = (): StatusSnapshot['goals'] => ({
+  monthly: sectionLines(TASKS_DASHBOARD, 'Monthly Goals').map(stripMarkdown),
+  weekly: sectionLines(TASKS_DASHBOARD, 'Weekly Goals').map(stripMarkdown)
+});
+
+const MAX_THREADS = 12;
+
+const collectMemoryThreads = (): string[] =>
+  bulletsUnder(FILES.MEMORY, 'Active Threads').slice(0, MAX_THREADS).map(stripMarkdown);
+
+const collectMemoryDecisions = (): string[] =>
+  bulletsUnder(FILES.MEMORY, 'Recent Decisions').slice(0, MAX_THREADS).map(stripMarkdown);
+
+const collectMemoryLearnings = (): string[] =>
+  bulletsUnder(FILES.MEMORY, 'Learnings').slice(0, MAX_THREADS).map(stripMarkdown);
+
+const collectMemoryPending = (): string[] =>
+  bulletsUnder(FILES.MEMORY, 'Pending').slice(0, MAX_THREADS).map(stripMarkdown);
+
+const collectMemoryDailyFiles = (): Array<{ name: string; href: string; summary: string }> => {
+  // The `## Daily Memory` manifest carries a one-line summary per day file.
+  const summaries = new Map<string, string>();
+  for (const bullet of bulletsUnder(FILES.MEMORY, 'Daily Memory')) {
+    const match = bullet.match(/^\[\[memory\/([^\]|]+)\]\]\s*—\s*(.+)$/);
+    if (match) summaries.set(match[1], stripMarkdown(match[2]));
+  }
+  return listMarkdown(FOLDERS.MEMORY, (name) => !/^\d{4}-\d{2}-\d{2}/.test(name))
+    .sort((a, b) => b.localeCompare(a))
+    .map((name) => {
+      const day = name.replace(MARKDOWN_RE, '');
+      return { name: day, href: `knowledge/memory/${name}`, summary: summaries.get(day) ?? '' };
+    });
 };
 
 const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
@@ -718,20 +1162,33 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   };
 };
 
+const MAX_REPORTS = 60;
+
 export const collectStatus = async (): Promise<StatusSnapshot> => {
   const allReports = collectReports();
+  const knowledge = collectKnowledge();
   const base = {
     runtime: collectRuntime(),
+    persona: collectPersona(),
+    operator: collectOperatorInfo(knowledge.facets),
+    markdownUrl: collectMarkdownUrl(),
     skills: collectSkills(),
     mcp: await collectMcp(),
+    goals: collectGoals(),
+    memoryThreads: collectMemoryThreads(),
+    memoryDecisions: collectMemoryDecisions(),
+    memoryLearnings: collectMemoryLearnings(),
+    memoryPending: collectMemoryPending(),
+    memoryDailyFiles: collectMemoryDailyFiles(),
+    sessions: collectSessions(),
     hooks: collectHooks(),
-    knowledge: collectKnowledge(),
+    knowledge,
     compile: collectCompile(),
     tasks: collectTasks(),
     context: await collectContext(),
     settings: collectSettings(),
     logs: collectLogs(),
-    reports: allReports.slice(0, 5),
+    reports: allReports.slice(0, MAX_REPORTS),
     reportsTotal: allReports.length
   };
   return { ...base, health: computeHealth(base) };

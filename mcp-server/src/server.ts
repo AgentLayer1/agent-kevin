@@ -23,6 +23,7 @@ import { tools as pingTools } from './tools/ping';
 import { tools as playwrightTools } from './tools/playwright';
 import { tools as reportTools } from './tools/reports';
 import { tools as serpapiTools } from './tools/serpapi';
+import { tools as statusTools } from './tools/status';
 import { tools as taskTools } from './tools/tasks';
 
 // google-auth.ts only exports OAuth helpers used by gsc + page-speed tools.
@@ -42,7 +43,8 @@ const TOOLS: ToolDef[] = [
   ...pageSpeedTools,
   ...playwrightTools,
   ...reportTools,
-  ...browserFlowsTools
+  ...browserFlowsTools,
+  ...statusTools
 ];
 
 const server = new McpServer({ name: 'kevin', version: '0.1.0' });
