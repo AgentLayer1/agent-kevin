@@ -123,22 +123,33 @@ graph LR
 
 ---
 
-## 🛰️ The Command Center
+## 🛰️ The Agent OS Dashboard
 
 <div align="center">
-<img src="assets/agent-control-center.png" alt="Kevin command center" width="720" />
+<img src="assets/dashboard.png" alt="Kevin Agent OS dashboard" width="720" />
 </div>
 
-There's a lot going on inside an agent. The **command center** is a single screen that shows the whole picture at a glance — skills, MCP tools, hooks, the knowledge wiki and compile coverage, tasks across every project, the **context that loads each session** (static `@-imports` + the dynamic SessionStart manifest), layered settings (secrets redacted), and logs. A system-status badge up top tells you in one glance whether anything needs attention.
+There's a lot going on inside an agent — and even more going on in your life around it. The **Agent OS dashboard** shows both: **your life through Kevin's eyes**. Every `/agent-kevin:sync` regenerates **`<HOME>/index.html`** — a dark mission-control page you open like any file (no server, no service). A left sidebar carries Kevin's wordmark, the page nav, your avatar, and the system-health badge; the pages are operator-first:
 
-**How to open it:**
+- **Today** — a time-aware greeting, a stat strip (overdue · due today · in flight · pending compile), a "today so far" activity trail (sessions worked, tasks touched, output produced), your monthly/weekly goals, focus list, the next 7 days, and who you're waiting on.
+- **Work** — sub-tabs for the agenda (grouped overdue → today → this week → this month → later), project cards (color-coded, with description, done/total progress, and last-updated — click one to expand its tasks grouped by status), and a needs-attention view (blocked with reasons, going stale).
+- **Sessions** — your recent working sessions with one-line briefings, turn counts, and where they ran, plus a 7-day volume bar.
+- **Brain** — active memory threads and recent decisions, concept articles with their one-liners, a Memory tab (learnings, pending items, daily memory files), and the compile pipeline.
+- **Reports** — everything Kevin has produced, grouped by day, every title clickable.
+- **Capabilities** — a cheatsheet of starter recipes (morning sync, capture, screenshots, PDFs, monthly self-review), plus every skill and MCP tool as a tile with its description. The "what can I ask Kevin?" page.
+- **Profile** — the operator page: your avatar, timezone, and the five facets of what Kevin has learned about you.
+- **Persona** — Kevin's page: avatar, vibe, bio, core role, and soul traits rendered from IDENTITY.md and SOUL.md.
+- **System** — sub-tabs for context assembly, settings + env (secrets redacted), and a scrollable log tail.
 
-- In Claude Code, run **`/agent-kevin:status`** — it renders a clean, static overview right in the conversation.
-- Drill into any area with `kevin status <tab>` — `overview · context · knowledge · work · system · settings`.
+Pages and sub-tabs deep-link by hash (`index.html#work/projects`), text filters narrow tasks/sessions/skills/tools/reports live, every project carries a stable color across its badges, and the pulsing health badge jumps you to whatever needs attention. Markdown links (tasks, reports, concepts, memory) open through a configurable opener app so they land rendered and editable rather than downloading as raw text — `obsidian://open?path={path}` by default; set the `MARKDOWN_URL` env var in `.claude/settings.local.json` to point elsewhere, e.g.:
 
-**It's more alive in your terminal.** Run `kevin status` directly in a real terminal and it launches an **interactive TUI**: a banner, a tab bar, and live tab-switching with the **arrow keys** (`q` to quit). Piped or captured through Claude, it auto-detects the non-interactive context and falls back to the static overview — so the same command does the right thing in both places.
+```json
+{ "env": { "MARKDOWN_URL": "markedit://open?path={path}" } }
+```
 
-It's read-only. It never mutates anything; it just reflects what Kevin is right now.
+**How to refresh it:** every `/agent-kevin:sync` does it automatically; `/agent-kevin:status` rebuilds and opens it; `kevin status` does the same from a terminal; the `status_dashboard` MCP tool is the programmatic hook. It's a **snapshot, not a live app** — the generated timestamp is in the footer. The file is fully self-contained and makes **zero external requests**: no CDN, no webfonts, no analytics. It renders identically offline, nothing on it leaves your machine, and regenerating it never mutates state.
+
+> ⚠️ Privacy note: `index.html` sits at your HOME root and reflects your tasks, knowledge stats, and (redacted) settings. If you ever publish that repo — e.g. enable GitHub Pages on it — this page publishes too. Keep agent homes private.
 
 ---
 
@@ -549,16 +560,17 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (30)
+### MCP tools (32)
 
 | Group | Tools |
 |---|---|
 | **Tasks** (8) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan`, `task_dashboard` |
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
-| **Dispatch** (14) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, `perplexity_search`, `ping` |
+| **Status** (1) | `status_dashboard` |
+| **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, `browser_flows`, `perplexity_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `status_dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -846,7 +858,7 @@ A: For the LLM synthesis steps yes. The MCP server is pure I/O, returning prompt
 1. **CC must open in `<HOME>`** for static identity to load. Outside, you only get the dynamic lane.
 2. **Sandbox can block `.claude/skills/` writes** during `/agent-kevin:configure-skills`. Pre-create the dir from a normal terminal if it hits the wall.
 3. **Playwright + macOS sandbox.** Browser launch can fail inside CC's sandboxed subprocesses (XPC walls). Workaround: install playwright manually in a normal terminal so chromium caches.
-4. **No GUI / dashboard.** Tasks render in your terminal or in Obsidian.
+4. **No live GUI.** The [Agent OS dashboard](#%EF%B8%8F-the-agent-os-dashboard) at `<HOME>/index.html` is a static snapshot regenerated on sync (or `kevin status`), not a served app — between syncs it can drift from task frontmatter.
 5. **Single-user.** Multi-user / team-isolation isn't built in. Workaround: separate homes per user.
 6. **No proactive Kevin.** See [Claude Code Billing](#claude-code-billing). External schedulers can run Kevin via `claude --print`, but those calls bill against API quota, not your subscription.
 
