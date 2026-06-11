@@ -309,7 +309,7 @@ const pageToday = (snap: StatusSnapshot): string => {
   const activityCount = sessionsToday.length + touched.length + todaysReports.length;
   return page(
     'today',
-    `Good ${part}${name} <span class="accent">${esc(snap.persona.emoji)}</span>`,
+    `Good ${part}${name} <span class="accent">✨</span>`,
     `${snap.runtime.date} · here's where everything stands.`,
     stats +
       subTabs([
