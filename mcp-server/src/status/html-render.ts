@@ -75,15 +75,18 @@ const pathLink = (path: string, cls = 'plink'): string => {
   return `<a class="${cls}" href="file://${esc(encodeURI(abs))}">${esc(tildifyHome(abs))}</a>`;
 };
 
-/** Stable per-project hue so a project's badge color survives regeneration. */
-const projectColor = (name: string): string => {
-  let hash = 0;
-  for (const ch of name) hash = (hash * 31 + (ch.codePointAt(0) ?? 0)) % 360;
-  return `hsl(${hash}, 55%, 62%)`;
+/** Stable hue per name (djb2 hash, full-width before the mod, so similar
+ *  names land far apart) — used for project and skill badges. */
+const nameHue = (name: string): number => {
+  let hash = 5381;
+  for (const ch of name) hash = ((hash * 33) ^ (ch.codePointAt(0) ?? 0)) >>> 0;
+  return hash % 360;
 };
 
+const projectColor = (name: string): string => `hsl(${nameHue(name)}, 55%, 62%)`;
+
 const projChip = (name: string): string =>
-  `<span class="chip proj"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
+  `<span class="chip proj" style="border-color:hsl(${nameHue(name)} 55% 62% / 0.45)"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
 
 /** External web link — opens in a new tab. */
 const extLink = (url: string, text: string): string =>
@@ -279,11 +282,17 @@ const pageToday = (snap: StatusSnapshot): string => {
       )
     : hint('Nothing explicitly waiting on anyone.');
 
-  // The grounding feed: sessions worked, commands run, tasks touched, output
-  // produced today. Group headers carry the icons; rows stay clean.
-  const sessionsToday = snap.sessions.filter((sessionRef) => sessionRef.lastSeen === today && !sessionRef.isCommand);
-  const commandsToday = snap.sessions.filter((sessionRef) => sessionRef.lastSeen === today && sessionRef.isCommand);
-  const todaysReports = snap.reports.filter((report) => report.date === today);
+  // The grounding feed covers the last ~24h so it survives midnight: sessions
+  // and tasks carry date-only stamps (today + yesterday); reports have times
+  // and filter precisely. Sessions with nothing captured are noise — dropped.
+  const yesterday = new Date(Date.parse(`${today}T00:00:00`) - 86_400_000).toISOString().slice(0, 10);
+  const inWindow = (sessionRef: (typeof snap.sessions)[number]) =>
+    (sessionRef.lastSeen === today || sessionRef.lastSeen === yesterday) && Boolean(sessionRef.briefing);
+  const sessionsToday = snap.sessions.filter((sessionRef) => inWindow(sessionRef) && !sessionRef.isCommand);
+  const commandsToday = snap.sessions.filter((sessionRef) => inWindow(sessionRef) && sessionRef.isCommand);
+  const todaysReports = snap.reports.filter(
+    (report) => report.date === today || (report.date === yesterday && report.time > runtime.time)
+  );
   const touched = tasks.touchedToday;
   const sessionFeedRow = (sessionRef: (typeof snap.sessions)[number]): string =>
     `<div class="row"><span class="grow">${esc(
@@ -331,7 +340,7 @@ const pageToday = (snap: StatusSnapshot): string => {
     ? [...newsByDate.entries()]
         .map(
           ([date, items]) =>
-            `<h3 class="group">${esc(date || 'undated')}</h3>${items
+            `<h3 class="group date">${esc(date || 'undated')}</h3>${items
               .map(
                 (item) =>
                   `<div class="row" data-row><span class="grow">${extLink(item.url, item.title)}</span>${
@@ -489,12 +498,12 @@ const pageSessions = (snap: StatusSnapshot): string => {
   // Real working sessions only — command/skill invocations live on Today's
   // activity feed. Grouped by day; the home cwd is implied, others shown.
   const homeTilde = tildifyHome(snap.runtime.home);
-  const conversations = snap.sessions.filter((sessionRef) => !sessionRef.isCommand);
+  const conversations = snap.sessions.filter((sessionRef) => !sessionRef.isCommand && sessionRef.briefing);
   const sessionRow = (sessionRef: (typeof snap.sessions)[number]): string => {
     const cwd = tildifyHome(sessionRef.cwd.startsWith('~') ? sessionRef.cwd.replace('~', homedir()) : sessionRef.cwd);
     const where = cwd && cwd !== homeTilde ? `<div class="sess-cwd">${pathLink(sessionRef.cwd)}</div>` : '';
     return `<div class="row" data-row><span class="sess-turns nowrap" style="flex:none">${sessionRef.turns} turns</span><div class="grow"><div>${esc(
-      truncate(sessionRef.briefing || '(no prompt captured)', 240)
+      truncate(sessionRef.briefing, 240)
     )}</div>${where}</div></div>`;
   };
   const byDay = new Map<string, typeof conversations>();
@@ -503,7 +512,7 @@ const pageSessions = (snap: StatusSnapshot): string => {
   }
   const rows = conversations.length
     ? [...byDay.entries()]
-        .map(([date, refs]) => `<h3 class="group">${esc(date || 'undated')}</h3>${refs.map(sessionRow).join('')}`)
+        .map(([date, refs]) => `<h3 class="group date">${esc(date || 'undated')}</h3>${refs.map(sessionRow).join('')}`)
         .join('')
     : hint('No sessions captured yet — they land here automatically as you work.');
 
@@ -534,7 +543,7 @@ const pageBrain = (snap: StatusSnapshot): string => {
     ? knowledge.conceptDetails
         .map(
           (concept) =>
-            `<div class="row" data-row><span class="nowrap" style="flex:none">${mdLink(snap, concept.href, concept.name)}</span><span class="grow dim">${esc(concept.description)}</span></div>`
+            `<div class="row" data-row><span class="grow">${mdLink(snap, concept.href, concept.name)} <span class="dim">— ${esc(concept.description)}</span></span></div>`
         )
         .join('')
     : hint('No concept articles compiled yet.');
@@ -653,7 +662,7 @@ const pageReports = (snap: StatusSnapshot): string => {
   const groups = [...byDate.entries()]
     .map(
       ([date, reports]) =>
-        `<h3 class="group">${esc(date || 'undated')}</h3>${reports.map((report) => reportRow(report, snap)).join('')}`
+        `<h3 class="group date">${esc(date || 'undated')}</h3>${reports.map((report) => reportRow(report, snap)).join('')}`
     )
     .join('');
   const note =
@@ -784,7 +793,9 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
             cliSection.entries
               .map(
                 (entry) =>
-                  `<div class="row" data-row><span class="good" style="flex:none;max-width:46%">${esc(entry.cmd)}</span><span class="grow dim">${esc(entry.desc)}</span></div>`
+                  `<div class="row" data-row><div class="grow"><div class="good">${esc(entry.cmd)}</div>${
+                    entry.desc ? `<div class="dim" style="font-size:12px;margin-top:2px">${esc(entry.desc)}</div>` : ''
+                  }</div></div>`
               )
               .join('')
           )

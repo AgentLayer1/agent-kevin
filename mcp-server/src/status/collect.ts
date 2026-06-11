@@ -692,6 +692,7 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
   const all = scanAllTasks();
   const scan = resolveTasks(all);
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+  const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const byStatus = (status: string) => all.filter((task) => task.frontmatter.status === status).length;
 
   const projectMap = new Map<string, ProjectLoad>();
@@ -743,7 +744,11 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     staleList: scan.stale.map(toRef),
     activeList: all.filter((task) => task.frontmatter.status === 'active').map(toRef),
     queue,
-    touchedToday: all.filter((task) => task.frontmatter.updated === today).map(toRef)
+    // "Today" with date-only granularity: include yesterday too so the feed
+    // survives the stroke of midnight (the renderer labels it last-24h).
+    touchedToday: all
+      .filter((task) => task.frontmatter.updated === today || task.frontmatter.updated === yesterday)
+      .map(toRef)
   };
 };
 
@@ -833,12 +838,20 @@ const collectSettings = (): StatusSnapshot['settings'] => {
     const parsed = readJson<SettingsShape>(layer.path);
     if (!parsed) return layer;
     const scope: EnvEntry['scope'] = layer.label === 'user' ? 'user' : 'workspace';
-    allow += parsed.permissions?.allow?.length ?? 0;
-    deny += parsed.permissions?.deny?.length ?? 0;
+    const layerAllow = parsed.permissions?.allow?.length ?? 0;
+    const layerDeny = parsed.permissions?.deny?.length ?? 0;
+    allow += layerAllow;
+    deny += layerDeny;
     Object.entries(parsed.env ?? {}).forEach(([key, value]) => env.set(key, { value, scope }));
     Object.entries(parsed.enabledPlugins ?? {}).forEach(([name, on]) => on && enabledPlugins.add(name));
     Object.assign(marketplaces, parsed.extraKnownMarketplaces ?? {});
-    return { ...layer, present: true };
+    return {
+      ...layer,
+      present: true,
+      allow: layerAllow,
+      deny: layerDeny,
+      envCount: Object.keys(parsed.env ?? {}).length
+    };
   });
 
   const redactedEnv: EnvEntry[] = [...env.entries()].map(([key, entry]) => ({
