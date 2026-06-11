@@ -60,8 +60,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     names: ['sync', 'status'],
     custom: 0,
     details: [
-      { name: 'sync', description: 'End-to-end refresh of every derived view.', custom: false },
-      { name: 'status', description: 'Command-center overview of the whole agent.', custom: false }
+      { name: 'sync', description: 'End-to-end refresh of every derived view.', custom: false, auto: false },
+      { name: 'status', description: 'Command-center overview of the whole agent.', custom: false, auto: true }
     ]
   },
   mcp: {
@@ -73,7 +73,11 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       { name: 'mcp__kevin__task_dashboard', description: 'Rebuild projects/TASKS.md.' }
     ]
   },
-  goals: { monthly: ['Ship the MD Status application'], weekly: [] },
+  goals: {
+    weekly: [],
+    monthly: ['Ship the MD Status application'],
+    yearly: ['Q3: land MD Status; Q4: first customer']
+  },
   memoryThreads: ['al-005 MD portal blocked on 2-member rule', 'Walapay = day job, Ring 1'],
   memoryDecisions: ['BP v2.4→v2.5: third-party AI scrubbed'],
   memoryLearnings: ['One approval is not blanket commit license.'],
@@ -88,7 +92,39 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       lastSeen: '2026-06-11',
       turns: 13,
       cwd: '~/Documents/Agents/Kevin',
-      briefing: 'Morning sync and MDEC portal work'
+      briefing: 'Morning sync and MDEC portal work',
+      isCommand: false
+    },
+    {
+      id: 'cmd00001',
+      firstSeen: '2026-06-11',
+      lastSeen: '2026-06-11',
+      turns: 4,
+      cwd: '/tmp/elsewhere',
+      briefing: 'agent-kevin:sync morning',
+      isCommand: true
+    }
+  ],
+  news: [
+    {
+      date: '2026-06-11',
+      title: 'Claude Fable 5 released',
+      url: 'https://example.com/fable',
+      source: 'Anthropic, Jun 9'
+    }
+  ],
+  lint: {
+    date: '2026-06-11T09:02:20+08:00',
+    errors: 0,
+    warnings: 1,
+    suggestions: 2,
+    issues: [{ severity: 'WARNING', text: 'memory/2026-06-07.md is sparse' }],
+    present: true
+  },
+  cli: [
+    {
+      section: 'Groups',
+      entries: [{ cmd: 'status', desc: 'Rebuild the Agent OS dashboard at <HOME>/index.html' }]
     }
   ],
   hooks: { events: ['SessionStart'], count: 1, entries: [{ event: 'SessionStart', command: 'kevin session-start' }] },
@@ -179,7 +215,9 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     }
   },
   settings: {
-    layers: [{ label: 'project', path: '/tmp/home/.claude/settings.json', present: true }],
+    layers: [
+      { label: 'project', path: '/tmp/home/.claude/settings.json', present: true, allow: 5, deny: 1, envCount: 1 }
+    ],
     allow: 5,
     deny: 1,
     env: [{ key: 'KEVIN_API_KEY', value: '••••abcd', scope: 'workspace' }],
@@ -328,13 +366,41 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('Fix &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; co');
   });
 
-  test('makes zero external requests', () => {
+  test('loads zero external resources; outbound links open new tabs', () => {
     const html = renderDashboardHtml(makeSnapshot());
+    // No auto-loaded remote resources — scripts, stylesheets, images, fonts.
     expect(html).not.toMatch(/<script[^>]+src=/);
-    expect(html).not.toMatch(/href="https?:/);
+    expect(html).not.toMatch(/<link [^>]*href="https?:/);
     expect(html).not.toMatch(/src="https?:/);
     expect(html).not.toMatch(/url\(\s*['"]?https?:/);
     expect(html).not.toMatch(/@import/);
+    // Every external anchor (news, profile links) opens in a new tab.
+    const external = html.match(/<a [^>]*href="https?:[^>]*>/g) ?? [];
+    expect(external.length).toBeGreaterThan(0);
+    external.forEach((anchor) => expect(anchor).toContain('target="_blank"'));
+  });
+
+  test('today carries goals, news, and the commands feed', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).toContain('Q3: land MD Status; Q4: first customer');
+    expect(html).toContain('href="https://example.com/fable"');
+    expect(html).toContain('⌘ Commands · 1');
+    expect(html).toContain('💬 Sessions · 1');
+  });
+
+  test('brain lint tab and capabilities commands tab render', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).toContain('memory/2026-06-07.md is sparse');
+    expect(html).toContain('Rebuild the Agent OS dashboard at &lt;HOME&gt;/index.html');
+    expect(html).toContain('class="chip auto"');
+  });
+
+  test('sessions page drops command sessions and groups by day', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    const sessions = html.slice(html.indexOf('data-page="sessions"'), html.indexOf('data-page="brain"'));
+    expect(sessions).toContain('Morning sync and MDEC portal work');
+    expect(sessions).not.toContain('agent-kevin:sync morning');
+    expect(sessions).toContain('13 turns');
   });
 
   test('unhealthy snapshot names the issues and anchors them', () => {

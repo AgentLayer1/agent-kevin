@@ -34,7 +34,8 @@ const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8
  *  Profile page is reached through the operator card instead. */
 export const PAGES = [
   { id: 'today', icon: '☀️', label: 'Today' },
-  { id: 'work', icon: '✅', label: 'Work' },
+  { id: 'tasks', icon: '✅', label: 'Tasks' },
+  { id: 'projects', icon: '📂', label: 'Projects' },
   { id: 'sessions', icon: '💬', label: 'Sessions' },
   { id: 'brain', icon: '🧠', label: 'Brain' },
   { id: 'reports', icon: '📰', label: 'Reports' },
@@ -83,6 +84,17 @@ const projectColor = (name: string): string => {
 
 const projChip = (name: string): string =>
   `<span class="chip proj"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
+
+/** External web link — opens in a new tab. */
+const extLink = (url: string, text: string): string =>
+  `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+
+/** Escape text and turn embedded http(s) URLs into new-tab links. */
+const linkify = (text: string): string =>
+  text
+    .split(/(https?:\/\/[^\s)]+)/)
+    .map((part, index) => (index % 2 === 1 ? extLink(part, part.replace(/^https?:\/\/(www\.)?/, '')) : esc(part)))
+    .join('');
 
 const section = (title: string, right: string, body: string): string =>
   `<div class="section"><h2>${esc(title)}<i></i>${right ? `<span class="right">${esc(right)}</span>` : ''}</h2>${body}</div>`;
@@ -207,7 +219,7 @@ const reportRow = (report: ReportRef, snap: StatusSnapshot): string => {
   const title = report.href ? mdLink(snap, report.href, report.title) : esc(report.title);
   return `<div class="row" data-row><span class="dim" style="flex:none">${esc(report.time)}</span><span style="flex:none">${esc(
     report.status
-  )}</span><span class="grow">${title}</span>${report.skill ? `<span class="chip">${esc(report.skill)}</span>` : ''}</div>`;
+  )}</span><span class="grow">${title}</span>${report.skill ? projChip(report.skill) : ''}</div>`;
 };
 
 const pageToday = (snap: StatusSnapshot): string => {
@@ -242,7 +254,10 @@ const pageToday = (snap: StatusSnapshot): string => {
         ? `<ul class="plain">${lines.map((line) => `<li>${esc(line)}</li>`).join('')}</ul>`
         : hint('not set yet')
     }</div>`;
-  const goalsBody = goalCard('🎯', 'Monthly', goals.monthly) + goalCard('🗓', 'Weekly', goals.weekly);
+  const goalsBody =
+    goalCard('🗓', 'Weekly', goals.weekly) +
+    goalCard('🎯', 'Monthly', goals.monthly) +
+    goalCard('🧭', 'Yearly', goals.yearly);
 
   const focus =
     [
@@ -264,17 +279,18 @@ const pageToday = (snap: StatusSnapshot): string => {
       )
     : hint('Nothing explicitly waiting on anyone.');
 
-  // The grounding feed: sessions worked, tasks touched, output produced today.
-  // Group headers carry the icons; rows stay clean.
-  const sessionsToday = snap.sessions.filter((sessionRef) => sessionRef.lastSeen === today);
+  // The grounding feed: sessions worked, commands run, tasks touched, output
+  // produced today. Group headers carry the icons; rows stay clean.
+  const sessionsToday = snap.sessions.filter((sessionRef) => sessionRef.lastSeen === today && !sessionRef.isCommand);
+  const commandsToday = snap.sessions.filter((sessionRef) => sessionRef.lastSeen === today && sessionRef.isCommand);
   const todaysReports = snap.reports.filter((report) => report.date === today);
   const touched = tasks.touchedToday;
-  const sessionRows = sessionsToday.map(
-    (sessionRef) =>
-      `<div class="row"><span class="grow">${esc(
-        truncate(sessionRef.briefing || '(local-command session)', 140)
-      )}</span><span class="dim" style="flex:none">${sessionRef.turns} turns</span></div>`
-  );
+  const sessionFeedRow = (sessionRef: (typeof snap.sessions)[number]): string =>
+    `<div class="row"><span class="grow">${esc(
+      truncate(sessionRef.briefing || '(local-command session)', 140)
+    )}</span><span class="dim" style="flex:none">${sessionRef.turns} turns</span></div>`;
+  const sessionRows = sessionsToday.map(sessionFeedRow);
+  const commandRows = commandsToday.map(sessionFeedRow);
   const touchedRows = touched.map(
     (ref) =>
       `<div class="row"><span class="nowrap">${mdLink(
@@ -285,18 +301,18 @@ const pageToday = (snap: StatusSnapshot): string => {
   );
   const outputRows = todaysReports.map((report) => reportRow(report, snap));
   const activity =
-    sessionRows.length + touchedRows.length + outputRows.length
+    sessionRows.length + commandRows.length + touchedRows.length + outputRows.length
       ? [
           sessionRows.length ? `<h3 class="group">💬 Sessions · ${sessionRows.length}</h3>${sessionRows.join('')}` : '',
           touchedRows.length
             ? `<h3 class="group">✏️ Tasks touched · ${touchedRows.length}</h3>${touchedRows.join('')}`
             : '',
+          commandRows.length ? `<h3 class="group">⌘ Commands · ${commandRows.length}</h3>${commandRows.join('')}` : '',
           outputRows.length ? `<h3 class="group">📰 Output · ${outputRows.length}</h3>${outputRows.join('')}` : ''
         ].join('')
       : hint('Nothing yet today — it all lands here as you work.');
 
   const plan = [
-    section('Goals', 'from projects/TASKS.md', goalsBody),
     section('Focus', '', focus),
     section(
       'Next 7 days',
@@ -306,7 +322,28 @@ const pageToday = (snap: StatusSnapshot): string => {
     section('Waiting on', `${tasks.blocked} blocked`, waiting)
   ].join('');
 
-  const activityCount = sessionsToday.length + touched.length + todaysReports.length;
+  // Headlines harvested from recent briefings, grouped by briefing day.
+  const newsByDate = new Map<string, typeof snap.news>();
+  for (const item of snap.news) {
+    newsByDate.set(item.date, [...(newsByDate.get(item.date) ?? []), item]);
+  }
+  const news = snap.news.length
+    ? [...newsByDate.entries()]
+        .map(
+          ([date, items]) =>
+            `<h3 class="group">${esc(date || 'undated')}</h3>${items
+              .map(
+                (item) =>
+                  `<div class="row" data-row><span class="grow">${extLink(item.url, item.title)}</span>${
+                    item.source ? `<span class="chip">${esc(item.source)}</span>` : ''
+                  }</div>`
+              )
+              .join('')}`
+        )
+        .join('')
+    : hint('No headlines yet — briefings collect them as they run.');
+
+  const activityCount = sessionsToday.length + commandsToday.length + touched.length + todaysReports.length;
   return page(
     'today',
     `Good ${part}${name} <span class="accent">✨</span>`,
@@ -314,7 +351,13 @@ const pageToday = (snap: StatusSnapshot): string => {
     stats +
       subTabs([
         { id: 'plan', label: 'Plan', body: plan },
-        { id: 'activity', label: `Today so far · ${activityCount}`, body: activity }
+        { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/TASKS.md', goalsBody) },
+        { id: 'activity', label: `Today so far · ${activityCount}`, body: activity },
+        {
+          id: 'news',
+          label: `News · ${snap.news.length}`,
+          body: `<div data-filterbox>${filterInput('filter headlines…')}${news}</div>`
+        }
       ])
   );
 };
@@ -349,7 +392,7 @@ ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 16
 </summary><div class="proj-tasks">${taskRows}</div></details>`;
 };
 
-const pageWork = (snap: StatusSnapshot): string => {
+const pageTasks = (snap: StatusSnapshot): string => {
   const { tasks } = snap;
   const today = snap.runtime.isoDate;
 
@@ -375,10 +418,6 @@ const pageWork = (snap: StatusSnapshot): string => {
     taskGroup('🔭 Later', groups.get('later') ?? [], snap),
     taskGroup('♾ No due date', groups.get('someday') ?? [], snap)
   ].join('')}</div>`;
-
-  const projects = `<div data-filterbox>${filterInput('filter projects…')}${tasks.byProject
-    .map((load) => projectCard(load, snap))
-    .join('')}</div>`;
 
   const blocked = tasks.queue.filter((ref) => ref.status === 'blocked');
   const attention = [
@@ -406,16 +445,25 @@ const pageWork = (snap: StatusSnapshot): string => {
   ].join('');
 
   return page(
-    'work',
-    'Work',
+    'tasks',
+    'Tasks',
     `${tasks.queue.length} open tasks across ${tasks.projects} projects.`,
     subTabs([
       { id: 'agenda', label: 'Agenda', body: agenda },
-      { id: 'projects', label: `Projects · ${tasks.byProject.length}`, body: projects },
       { id: 'attention', label: `Needs attention · ${blocked.length + tasks.stale}`, body: attention }
     ])
   );
 };
+
+const pageProjects = (snap: StatusSnapshot): string =>
+  page(
+    'projects',
+    'Projects',
+    `${snap.tasks.byProject.length} projects — click one to see its tasks.`,
+    `<div data-filterbox>${filterInput('filter projects…')}${snap.tasks.byProject
+      .map((load) => projectCard(load, snap))
+      .join('')}</div>`
+  );
 
 const WEEK_COLORS = [
   'var(--cyan)',
@@ -438,14 +486,24 @@ const pageSessions = (snap: StatusSnapshot): string => {
       }))
     );
 
-  const rows = snap.sessions.length
-    ? snap.sessions
-        .map(
-          (sessionRef) =>
-            `<div class="row" data-row><span class="dim nowrap" style="flex:none">${esc(sessionRef.lastSeen)}</span><span class="grow">${esc(
-              truncate(sessionRef.briefing || '(local-command session — no prompt captured)', 150)
-            )}</span>${pathLink(sessionRef.cwd, 'chip')}<span class="dim nowrap" style="flex:none">${sessionRef.turns} turns</span></div>`
-        )
+  // Real working sessions only — command/skill invocations live on Today's
+  // activity feed. Grouped by day; the home cwd is implied, others shown.
+  const homeTilde = tildifyHome(snap.runtime.home);
+  const conversations = snap.sessions.filter((sessionRef) => !sessionRef.isCommand);
+  const sessionRow = (sessionRef: (typeof snap.sessions)[number]): string => {
+    const cwd = tildifyHome(sessionRef.cwd.startsWith('~') ? sessionRef.cwd.replace('~', homedir()) : sessionRef.cwd);
+    const where = cwd && cwd !== homeTilde ? `<div class="sess-cwd">${pathLink(sessionRef.cwd)}</div>` : '';
+    return `<div class="row" data-row><span class="sess-turns nowrap" style="flex:none">${sessionRef.turns} turns</span><div class="grow"><div>${esc(
+      truncate(sessionRef.briefing || '(no prompt captured)', 240)
+    )}</div>${where}</div></div>`;
+  };
+  const byDay = new Map<string, typeof conversations>();
+  for (const sessionRef of conversations) {
+    byDay.set(sessionRef.lastSeen, [...(byDay.get(sessionRef.lastSeen) ?? []), sessionRef]);
+  }
+  const rows = conversations.length
+    ? [...byDay.entries()]
+        .map(([date, refs]) => `<h3 class="group">${esc(date || 'undated')}</h3>${refs.map(sessionRow).join('')}`)
         .join('')
     : hint('No sessions captured yet — they land here automatically as you work.');
 
@@ -457,7 +515,7 @@ const pageSessions = (snap: StatusSnapshot): string => {
       section('Volume', 'last 7 days', volume),
       section(
         'Recent sessions',
-        `${snap.sessions.length} shown`,
+        `last 30 days · ${conversations.length} shown`,
         `<div data-filterbox>${filterInput('filter sessions…')}${rows}</div>`
       )
     ].join('')
@@ -537,19 +595,52 @@ const pageBrain = (snap: StatusSnapshot): string => {
     )
   ].join('');
 
+  const { lint } = snap;
+  const severityCls = (severity: string) => (severity === 'ERROR' ? 'bad' : severity === 'WARNING' ? 'warn' : 'dim');
+  const lintBody = lint.present
+    ? [
+        section(
+          'Last lint run',
+          lint.date,
+          table(
+            [],
+            [
+              ['errors', `<span class="${lint.errors ? 'bad' : 'dim'}">${lint.errors}</span>`],
+              ['warnings', `<span class="${lint.warnings ? 'warn' : 'dim'}">${lint.warnings}</span>`],
+              ['suggestions', `<span class="dim">${lint.suggestions}</span>`],
+              ['report', mdLink(snap, '.kevin/lint.md', 'open lint.md')]
+            ]
+          )
+        ),
+        section(
+          'Issues',
+          String(lint.issues.length),
+          lint.issues.length
+            ? lint.issues
+                .map(
+                  (issue) =>
+                    `<div class="row" data-row><span class="${severityCls(issue.severity)} nowrap" style="flex:none">${esc(issue.severity)}</span><span class="grow">${esc(issue.text)}</span></div>`
+                )
+                .join('')
+            : hint('Wiki is clean — nothing flagged.')
+        )
+      ].join('')
+    : hint('No lint report yet — it lands here after the first sync.');
+
   return page(
     'brain',
     'Brain',
     `${snap.persona.name}'s living memory of your world — compiled from every session.`,
     subTabs([
       { id: 'threads', label: 'Threads', body: threads },
+      { id: 'memory', label: 'Memory', body: memory },
       {
         id: 'concepts',
         label: `Concepts · ${knowledge.concepts}`,
         body: `<div data-filterbox>${filterInput('filter concepts…')}${concepts}</div>`
       },
-      { id: 'memory', label: 'Memory', body: memory },
-      { id: 'pipeline', label: 'Pipeline', body: pipeline }
+      { id: 'pipeline', label: 'Pipeline', body: pipeline },
+      { id: 'lint', label: `Lint · ${lint.errors + lint.warnings + lint.suggestions}`, body: lintBody }
     ])
   );
 };
@@ -582,14 +673,9 @@ const pageReports = (snap: StatusSnapshot): string => {
 /** Curated starter recipes — product copy parameterized by plugin name. */
 const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: string }> => [
   {
-    when: 'Every morning',
-    say: `/${plugin}:sync morning`,
-    what: 'Full refresh — compile, lint, flywheel, dashboard — then your morning briefing.'
-  },
-  {
-    when: 'Every evening',
-    say: `/${plugin}:sync evening`,
-    what: 'Same refresh, then an evening recap: what shipped, what stalled, tomorrow’s first move.'
+    when: 'Morning and evening',
+    say: `/${plugin}:sync`,
+    what: 'Full refresh — compile, lint, flywheel, dashboard — then a briefing. Picks morning automatically before 3pm, evening from 3pm to 3am (or say `sync morning` / `sync evening`).'
   },
   {
     when: 'Between sessions',
@@ -610,6 +696,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     when: '1st of the month',
     say: `/${plugin}:monthly-goals`,
     what: 'Set the month’s themes and big rocks (weekly-goals does the same per week).'
+  },
+  {
+    when: 'Quarterly',
+    say: `/${plugin}:yearly-goals`,
+    what: 'Plan the year ahead quarter by quarter — run mid-year it shapes the remaining quarters; run in Q4 it drafts next year from Q1.'
   },
   {
     when: 'Once a month',
@@ -662,7 +753,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
       (skill) =>
         `<div class="tile" data-row><div class="tname"><span class="good">/${esc(snap.runtime.pluginName)}:${esc(skill.name)}</span>${
           skill.custom ? ' <span class="chip">custom</span>' : ''
-        }</div><div class="tdesc">${esc(skill.description || '—')}</div></div>`
+        }${skill.auto ? ' <span class="chip auto" title="the model may invoke this on its own">auto</span>' : ''}</div><div class="tdesc">${esc(skill.description || '—')}</div></div>`
     )
     .join('')}</div></div>`;
 
@@ -682,6 +773,25 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
     )
     .join('');
 
+  // The bin CLI's HELP text, section by section (entries already carry the
+  // right shape per section — subcommands, env vars, example invocations).
+  const cliBody = snap.cli.length
+    ? `<div data-filterbox>${filterInput('filter commands…')}${snap.cli
+        .map((cliSection) =>
+          section(
+            cliSection.section,
+            '',
+            cliSection.entries
+              .map(
+                (entry) =>
+                  `<div class="row" data-row><span class="good" style="flex:none;max-width:46%">${esc(entry.cmd)}</span><span class="grow dim">${esc(entry.desc)}</span></div>`
+              )
+              .join('')
+          )
+        )
+        .join('')}</div>`
+    : hint('CLI help not found.');
+
   return page(
     'capabilities',
     'Capabilities',
@@ -690,6 +800,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
       { id: 'cheatsheet', label: 'Cheatsheet', body: cheatRows },
       { id: 'skills', label: `Skills · ${skills.count}`, body: skillTiles },
       { id: 'tools', label: `Tools · ${mcp.toolCount}`, body: toolTiles },
+      { id: 'commands', label: 'Commands', body: cliBody },
       { id: 'hooks', label: `Reflexes · ${hooks.count}`, body: hookRows }
     ])
   );
@@ -707,7 +818,7 @@ const pageProfile = (snap: StatusSnapshot): string => {
       section(
         profileSection.title,
         '',
-        `<ul class="plain">${profileSection.lines.map((line) => `<li>${esc(line)}</li>`).join('')}</ul>`
+        `<ul class="plain">${profileSection.lines.map((line) => `<li>${linkify(line)}</li>`).join('')}</ul>`
       )
     )
     .join('');
@@ -730,11 +841,6 @@ const pageProfile = (snap: StatusSnapshot): string => {
         'Go deeper',
         `${operator.facets.length} facets`,
         facetRows || hint('No facets yet — they grow as you work together.')
-      ),
-      section(
-        'Headline',
-        '',
-        `<div class="row"><span class="grow dim">Name, timezone, and how ${esc(snap.persona.name)} should talk to you — loaded every session.</span><span class="nowrap">${mdLink(snap, 'USER.md', 'open USER.md')}</span></div>`
       )
     ].join('')
   );
@@ -856,15 +962,37 @@ const pageSystem = (snap: StatusSnapshot): string => {
     /^~?\//.test(entry.value) ? pathLink(entry.value) : esc(tildifyHome(entry.value)),
     `<span class="dim">${esc(entry.scope)}</span>`
   ]);
-  const layers = settings.layers.filter((layer) => layer.present).map((layer) => layer.label);
+  // One row per settings layer, so the user/project/local scopes and what
+  // each contributes are visible at a glance.
+  const layerRows = settings.layers.map((layer) => [
+    `<span class="nowrap">${esc(layer.label)}</span>`,
+    layer.present ? pathLink(layer.path) : `<span class="dim">${esc(tildifyHome(layer.path))} (absent)</span>`,
+    layer.present
+      ? `<span class="${layer.allow ? 'good' : 'dim'}">${layer.allow}</span>`
+      : '<span class="dim">—</span>',
+    layer.present ? `<span class="${layer.deny ? 'warn' : 'dim'}">${layer.deny}</span>` : '<span class="dim">—</span>',
+    layer.present ? `<span class="dim">${layer.envCount}</span>` : '<span class="dim">—</span>'
+  ]);
+  const pluginRows = settings.plugin
+    ? [
+        ['plugin', esc(settings.plugin.ref)],
+        ['marketplace', esc(`${settings.plugin.marketplace} (${settings.plugin.sourceType})`)],
+        ...(settings.plugin.sourcePath ? [['source path', pathLink(settings.plugin.sourcePath)]] : [])
+      ]
+    : [['plugin', '<span class="dim">not detected</span>']];
   const settingsBody = [
     section(
-      'Settings',
-      layers.join(' + ') || 'none',
+      'Settings layers',
+      `${settings.allow} allow · ${settings.deny} deny total`,
+      table(['scope', 'file', 'allow', 'deny', 'env'], layerRows)
+    ),
+    section(
+      'Plugin',
+      '',
       table(
         [],
         [
-          ['permissions', `${settings.allow} allow · ${settings.deny} deny`],
+          ...pluginRows,
           ['plugins enabled', esc(settings.enabledPlugins.map((name) => name.split('@')[0]).join(' · ') || '—')]
         ]
       )
@@ -954,7 +1082,8 @@ const fill = (template: string, slots: Record<string, string>): string =>
 
 const PAGE_BUILDERS: Record<(typeof PAGES)[number]['id'], (snap: StatusSnapshot) => string> = {
   today: pageToday,
-  work: pageWork,
+  tasks: pageTasks,
+  projects: pageProjects,
   sessions: pageSessions,
   brain: pageBrain,
   reports: pageReports,

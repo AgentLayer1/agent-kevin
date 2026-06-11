@@ -24,6 +24,9 @@ export interface SettingsLayer {
   label: string;
   path: string;
   present: boolean;
+  allow: number;
+  deny: number;
+  envCount: number;
 }
 
 export interface EnvEntry {
@@ -66,6 +69,8 @@ export interface SkillInfo {
   name: string;
   description: string;
   custom: boolean;
+  /** True when the model may auto-invoke it (no `disable-model-invocation`). */
+  auto: boolean;
 }
 
 export interface ToolInfo {
@@ -81,6 +86,44 @@ export interface SessionRef {
   turns: number;
   cwd: string;
   briefing: string;
+  /** True when the session opened with a slash command / skill invocation. */
+  isCommand: boolean;
+}
+
+/** A news headline harvested from a recent briefing report. */
+export interface NewsItem {
+  /** Briefing day (from the report filename). */
+  date: string;
+  title: string;
+  url: string;
+  /** `(Source, Mon D)` annotation following the link; '' if absent. */
+  source: string;
+}
+
+export interface LintIssue {
+  severity: string;
+  text: string;
+}
+
+/** Parsed .kevin/lint.md — the last knowledge_lint run. */
+export interface LintReport {
+  date: string;
+  errors: number;
+  warnings: number;
+  suggestions: number;
+  issues: LintIssue[];
+  present: boolean;
+}
+
+export interface CliEntry {
+  cmd: string;
+  desc: string;
+}
+
+/** One section of the bin CLI HELP text. */
+export interface CliSection {
+  section: string;
+  entries: CliEntry[];
 }
 
 /** Kevin's rendered identity — parsed best-effort from IDENTITY.md + SOUL.md. */
@@ -211,7 +254,7 @@ export interface StatusSnapshot {
   skills: { count: number; names: string[]; custom: number; details: SkillInfo[] };
   mcp: { servers: string[]; toolCount: number; tools: string[]; toolDetails: ToolInfo[] };
   /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
-  goals: { monthly: string[]; weekly: string[] };
+  goals: { weekly: string[]; monthly: string[]; yearly: string[] };
   /** `## Active Threads` bullets from memory/index.md, markdown stripped. */
   memoryThreads: string[];
   /** `## Recent Decisions` bullets from memory/index.md, markdown stripped. */
@@ -222,8 +265,14 @@ export interface StatusSnapshot {
   memoryPending: string[];
   /** Transient daily memory files, newest first, with manifest summaries. */
   memoryDailyFiles: Array<{ name: string; href: string; summary: string }>;
-  /** Recent captured sessions, newest first. */
+  /** Recent captured sessions (last 30 days), newest first. */
   sessions: SessionRef[];
+  /** Headlines from the most recent briefing reports, newest first. */
+  news: NewsItem[];
+  /** Last knowledge-lint run, parsed from .kevin/lint.md. */
+  lint: LintReport;
+  /** The bin CLI's HELP text, parsed into sections. */
+  cli: CliSection[];
   hooks: { events: string[]; count: number; entries: HookEntry[] };
   knowledge: {
     concepts: number;
@@ -349,25 +398,27 @@ const firstSentence = (text: string, max = 160): string => {
   return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
 };
 
-/** `description:` value from a SKILL.md's YAML frontmatter. Handles both
- *  single-line values and folded/literal blocks (`description: >` followed by
- *  indented lines). */
-const skillDescription = (skillDir: string): string => {
+/** Description + auto-invocation flag from a SKILL.md's YAML frontmatter.
+ *  Descriptions handle both single-line values and folded/literal blocks
+ *  (`description: >` followed by indented lines). */
+const skillMeta = (skillDir: string): { description: string; auto: boolean } => {
   try {
-    const lines = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8').split('\n');
+    const raw = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8');
+    const auto = !/^disable-model-invocation:\s*true/m.test(raw);
+    const lines = raw.split('\n');
     const start = lines.findIndex((line) => line.startsWith('description:'));
-    if (start === -1) return '';
+    if (start === -1) return { description: '', auto };
     const inline = lines[start].slice('description:'.length).trim();
-    if (inline && !/^[>|][+-]?$/.test(inline)) return firstSentence(inline);
+    if (inline && !/^[>|][+-]?$/.test(inline)) return { description: firstSentence(inline), auto };
     const block: string[] = [];
     for (let i = start + 1; i < lines.length; i++) {
       const line = lines[i] ?? '';
       if (!/^\s+\S/.test(line)) break;
       block.push(line.trim());
     }
-    return firstSentence(block.join(' '));
+    return { description: firstSentence(block.join(' ')), auto };
   } catch {
-    return '';
+    return { description: '', auto: false };
   }
 };
 
@@ -377,7 +428,7 @@ const collectSkills = (): StatusSnapshot['skills'] => {
     listDirs(base)
       .filter(hasSkill(base))
       .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({ name, description: skillDescription(resolve(base, name)), custom }));
+      .map((name) => ({ name, ...skillMeta(resolve(base, name)), custom }));
   const plugin = skillInfos(resolve(FOLDERS.ROOT, 'skills'), false);
   const customs = skillInfos(resolve(FOLDERS.HOME, '.claude', 'skills'), true);
   const details = [...plugin, ...customs];
@@ -755,22 +806,11 @@ const collectContext = async (): Promise<StatusSnapshot['context']> => {
 };
 
 const collectSettings = (): StatusSnapshot['settings'] => {
+  const blank = { present: false, allow: 0, deny: 0, envCount: 0 };
   const layerDefs: SettingsLayer[] = [
-    {
-      label: 'user',
-      path: resolve(homedir(), '.claude', 'settings.json'),
-      present: false
-    },
-    {
-      label: 'project',
-      path: resolve(FOLDERS.HOME, '.claude', 'settings.json'),
-      present: false
-    },
-    {
-      label: 'local',
-      path: resolve(FOLDERS.HOME, '.claude', 'settings.local.json'),
-      present: false
-    }
+    { label: 'user', path: resolve(homedir(), '.claude', 'settings.json'), ...blank },
+    { label: 'project', path: resolve(FOLDERS.HOME, '.claude', 'settings.json'), ...blank },
+    { label: 'local', path: resolve(FOLDERS.HOME, '.claude', 'settings.local.json'), ...blank }
   ];
 
   interface MarketplaceSource {
@@ -970,7 +1010,10 @@ const mdSections = (file: string): ProfileSection[] => {
       const trimmed = line.trim();
       if (!current || !trimmed || trimmed.startsWith('![') || trimmed.startsWith('<!--')) continue;
       if (current.lines.length < PROFILE_SECTION_LINES) {
-        current.lines.push(stripMarkdown(trimmed.replace(/^[-*] /, '')));
+        // Keep web links recoverable: `[text](http…)` → `text (http…)` so the
+        // renderer can linkify them after the markdown strip.
+        const linksKept = trimmed.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1 ($2)');
+        current.lines.push(stripMarkdown(linksKept.replace(/^[-*] /, '')));
       }
     }
     return sections.filter((section) => section.lines.length && !PROFILE_SKIP_SECTIONS.has(section.title));
@@ -1021,7 +1064,8 @@ const cleanBriefing = (text: string): string =>
     .replace(/^\s*DO NOT respond.*$/i, '')
     .trim();
 
-const MAX_SESSIONS = 20;
+const MAX_SESSIONS = 60;
+const SESSION_WINDOW_DAYS = 30;
 
 interface SessionIndexRecord {
   first_seen?: string;
@@ -1033,17 +1077,128 @@ interface SessionIndexRecord {
 
 const collectSessions = (): SessionRef[] => {
   const parsed = readJson<{ sessions?: Record<string, SessionIndexRecord> }>(FILES.SESSION_INDEX);
+  const cutoff = new Date(Date.now() - SESSION_WINDOW_DAYS * 86_400_000).toLocaleDateString('sv-SE', {
+    timeZone: TIMEZONE
+  });
   return Object.entries(parsed?.sessions ?? {})
-    .map(([id, record]) => ({
-      id,
-      firstSeen: record.first_seen ?? '',
-      lastSeen: record.last_seen ?? record.first_seen ?? '',
-      turns: record.captured_turns ?? 0,
-      cwd: record.cwd ?? '',
-      briefing: cleanBriefing(record.briefing ?? '')
-    }))
+    .map(([id, record]) => {
+      const raw = (record.briefing ?? '').trim();
+      return {
+        id,
+        firstSeen: record.first_seen ?? '',
+        lastSeen: record.last_seen ?? record.first_seen ?? '',
+        turns: record.captured_turns ?? 0,
+        cwd: record.cwd ?? '',
+        briefing: cleanBriefing(raw),
+        isCommand: raw.startsWith('<command-') || raw.startsWith('/')
+      };
+    })
+    .filter((session) => session.lastSeen >= cutoff)
     .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen) || b.id.localeCompare(a.id))
     .slice(0, MAX_SESSIONS);
+};
+
+// ── news / lint / cli ─────────────────────────────────────────────────
+
+const NEWS_BRIEFINGS = 15;
+const MAX_NEWS = 30;
+/** `[Title](http://…)` optionally followed by a `(Source, date)` annotation. */
+const NEWS_LINK_RE = /\[([^\]]+)\]\((https?:[^)]+)\)\s*(?:\(([^)]+)\))?/;
+
+/** Harvest headline links from the News/Signals sections of the most recent
+ *  briefing reports. Deduped by URL, newest briefing first. */
+const collectNews = (): NewsItem[] => {
+  const dir = resolve(FOLDERS.REPORTS, 'briefings');
+  const files = listMarkdown(dir)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, NEWS_BRIEFINGS);
+  const seen = new Set<string>();
+  const items: NewsItem[] = [];
+  for (const name of files) {
+    const date = name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
+    let inNews = false;
+    let content = '';
+    try {
+      content = readFileSync(resolve(dir, name), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const line of content.split('\n')) {
+      if (/📰|🌐/.test(line)) {
+        inNews = true;
+        continue;
+      }
+      // Any other section marker ends the news block.
+      if (/^\s*(\*\*)?[👉🍌📋🎯⚙️🔄✅]/u.test(line.trim()) || /^#{1,3} /.test(line)) {
+        inNews = false;
+        continue;
+      }
+      if (!inNews) continue;
+      const match = line.match(NEWS_LINK_RE);
+      if (!match || seen.has(match[2])) continue;
+      seen.add(match[2]);
+      items.push({ date, title: stripMarkdown(match[1]), url: match[2], source: match[3] ?? '' });
+    }
+  }
+  return items.slice(0, MAX_NEWS);
+};
+
+/** Parse .kevin/lint.md (written by knowledge_lint) into counts + issues. */
+const collectLint = (): LintReport => {
+  const empty: LintReport = { date: '', errors: 0, warnings: 0, suggestions: 0, issues: [], present: false };
+  let content = '';
+  try {
+    content = readFileSync(resolve(FOLDERS.DATA, 'lint.md'), 'utf-8');
+  } catch {
+    return empty;
+  }
+  const count = (label: string) => parseInt(content.match(new RegExp(`- ${label}: (\\d+)`))?.[1] ?? '0', 10);
+  const issues = [...content.matchAll(/^- \*\*([A-Z]+)\*\*: (.+)$/gm)].map((match) => ({
+    severity: match[1],
+    text: stripMarkdown(match[2])
+  }));
+  return {
+    date: content.match(/^Date: (.+)$/m)?.[1] ?? '',
+    errors: count('Errors'),
+    warnings: count('Warnings'),
+    suggestions: count('Suggestions'),
+    issues,
+    present: true
+  };
+};
+
+/** Parse the bin CLI's HELP template literal into sections of cmd/desc rows. */
+const collectCli = (): CliSection[] => {
+  let content = '';
+  try {
+    content = readFileSync(resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, '')), 'utf-8');
+  } catch {
+    return [];
+  }
+  const help = content.match(/const HELP = `([\s\S]*?)`;/)?.[1];
+  if (!help) return [];
+  const sections: CliSection[] = [];
+  let current: CliSection | null = null;
+  for (const line of help.split('\n')) {
+    const heading = line.match(/^([A-Z][^:]+):$/);
+    if (heading) {
+      current = { section: heading[1], entries: [] };
+      sections.push(current);
+      continue;
+    }
+    if (!current) continue;
+    const entry = line.match(/^  (\S.*?)\s{2,}(.+)$/);
+    if (entry) {
+      current.entries.push({ cmd: entry[1], desc: entry[2] });
+    } else if (/^  \S/.test(line)) {
+      // Entry with no inline description (e.g. long Examples lines).
+      current.entries.push({ cmd: line.trim(), desc: '' });
+    } else if (/^\s{4,}\S/.test(line) && current.entries.length) {
+      // Continuation of the previous entry's description.
+      current.entries[current.entries.length - 1].desc += ` ${line.trim()}`;
+    }
+  }
+  return sections.filter((section) => section.entries.length);
 };
 
 const DEFAULT_MARKDOWN_URL = 'obsidian://open?path={path}';
@@ -1117,8 +1272,9 @@ const collectReports = (): ReportRef[] => {
 const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');
 
 const collectGoals = (): StatusSnapshot['goals'] => ({
+  weekly: sectionLines(TASKS_DASHBOARD, 'Weekly Goals').map(stripMarkdown),
   monthly: sectionLines(TASKS_DASHBOARD, 'Monthly Goals').map(stripMarkdown),
-  weekly: sectionLines(TASKS_DASHBOARD, 'Weekly Goals').map(stripMarkdown)
+  yearly: sectionLines(TASKS_DASHBOARD, 'Yearly Goals').map(stripMarkdown)
 });
 
 const MAX_THREADS = 12;
@@ -1184,6 +1340,9 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     memoryPending: collectMemoryPending(),
     memoryDailyFiles: collectMemoryDailyFiles(),
     sessions: collectSessions(),
+    news: collectNews(),
+    lint: collectLint(),
+    cli: collectCli(),
     hooks: collectHooks(),
     knowledge,
     compile: collectCompile(),
