@@ -131,15 +131,16 @@ graph LR
 
 There's a lot going on inside an agent — and even more going on in your life around it. The **Agent OS dashboard** shows both: **your life through Kevin's eyes**. Every `/agent-kevin:sync` regenerates **`<HOME>/index.html`** — a dark mission-control page you open like any file (no server, no service). A left sidebar carries Kevin's wordmark, the page nav, your avatar, and the system-health badge; the pages are operator-first:
 
-- **Today** — a time-aware greeting, a stat strip (overdue · due today · in flight · pending compile), a "today so far" activity trail (sessions worked, tasks touched, output produced), your monthly/weekly goals, focus list, the next 7 days, and who you're waiting on.
-- **Work** — sub-tabs for the agenda (grouped overdue → today → this week → this month → later), project cards (color-coded, with description, done/total progress, and last-updated — click one to expand its tasks grouped by status), and a needs-attention view (blocked with reasons, going stale).
-- **Sessions** — your recent working sessions with one-line briefings, turn counts, and where they ran, plus a 7-day volume bar.
-- **Brain** — active memory threads and recent decisions, concept articles with their one-liners, a Memory tab (learnings, pending items, daily memory files), and the compile pipeline.
-- **Reports** — everything Kevin has produced, grouped by day, every title clickable.
-- **Capabilities** — a cheatsheet of starter recipes (morning sync, capture, screenshots, PDFs, monthly self-review), plus every skill and MCP tool as a tile with its description. The "what can I ask Kevin?" page.
-- **Profile** — the operator page: your avatar, timezone, and the five facets of what Kevin has learned about you.
+- **Today** — a time-aware greeting and stat strip, with sub-tabs: the plan (focus, next 7 days, waiting-on), your weekly/monthly/yearly goals, a "today so far" activity trail (sessions, tasks touched, commands run, output produced), and a News tab of headlines harvested from recent briefings.
+- **Tasks** — the agenda grouped by due horizon (overdue → today → this week → this month → later) and a needs-attention view (blocked with reasons, going stale).
+- **Projects** — color-coded project cards with description, done/total progress, and last-updated; click one to expand its tasks grouped by status.
+- **Sessions** — your real working sessions (command runs filtered out) from the last 30 days, grouped by day with longer summaries, subtle turn counts, and the working directory only when it isn't the agent home.
+- **Brain** — active memory threads and recent decisions, the Memory tab (daily memory with summaries, learnings, pending), concept articles, the compile pipeline, and the last lint run.
+- **Reports** — everything Kevin has produced, grouped by day, skill chips color-coded, every title clickable.
+- **Capabilities** — a cheatsheet of starter recipes, every skill as a tile (with an `auto` badge when the model may self-invoke it), every MCP tool, the full `kevin` CLI command reference, and hook wiring. The "what can I ask Kevin?" page.
+- **Profile** — the operator page: your avatar, timezone, and the compiled profile rendered section by section (web links open in new tabs).
 - **Persona** — Kevin's page: avatar, vibe, bio, core role, and soul traits rendered from IDENTITY.md and SOUL.md.
-- **System** — sub-tabs for context assembly, settings + env (secrets redacted), and a scrollable log tail.
+- **System** — sub-tabs for context assembly, settings (per-scope layers with their allow/deny/env contributions), and a scrollable log tail.
 
 Pages and sub-tabs deep-link by hash (`index.html#work/projects`), text filters narrow tasks/sessions/skills/tools/reports live, every project carries a stable color across its badges, and the pulsing health badge jumps you to whatever needs attention. Markdown links (tasks, reports, concepts, memory) open through a configurable opener app so they land rendered and editable rather than downloading as raw text — `obsidian://open?path={path}` by default; set the `MARKDOWN_URL` env var in `.claude/settings.local.json` to point elsewhere, e.g.:
 
@@ -530,7 +531,7 @@ graph LR
 | `flywheel` | Cross-project work session |
 | `sync` | End-to-end maintenance: compile → lint+fix → memory-prune → dashboard refresh → briefing in one pass |
 | `morning-briefing` / `evening-briefing` | Daily orient + wrap |
-| `weekly-goals` / `monthly-goals` | Goal-setting cadences |
+| `weekly-goals` / `monthly-goals` / `yearly-goals` | Goal-setting cadences — weeks, monthly themes, and the year planned quarter by quarter |
 | `quick-pulse` | 60-second status check |
 | `self-review` | Process feedback into skill refinements |
 

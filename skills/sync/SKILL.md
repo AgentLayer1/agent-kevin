@@ -15,7 +15,7 @@ Optional first arg selects a briefing to chain after sync completes:
 
 - `morning` — run the [morning-briefing](../morning-briefing/SKILL.md) protocol after step 8.
 - `evening` — run the [evening-briefing](../evening-briefing/SKILL.md) protocol after step 8.
-- _(none)_ — sync only; no briefing.
+- _(none)_ — pick automatically from the local clock: **morning** from 3am up to 3pm, **evening** from 3pm up to 3am. (`date +%H` if today's time isn't already in context.) State which briefing was auto-selected in the output header.
 
 The briefing reads the post-sync state, so it's strictly better than running the briefing standalone against stale data. Output gets a second block appended (see Output).
 
@@ -117,14 +117,14 @@ Read <HOME>/.kevin/lint.md
 Read <HOME>/knowledge/memory/index.md   # for narrative context
 ```
 
-### 9. Briefing (only if arg supplied)
+### 9. Briefing
 
-If invoked with `morning` or `evening`, inline the matching briefing protocol now:
+Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the auto-selection from `## Arguments` (morning 3am–3pm, evening 3pm–3am). Then inline the matching protocol:
 
 - `morning` → run [morning-briefing](../morning-briefing/SKILL.md) verbatim. The Active Threads / task queries / scan results are already in context from step 8; skip the re-reads and go straight to the signal-news perplexity call, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Compose-without-persist is the bug — the briefing isn't done until `reports/index.md` shows today's entry.
 - `evening` → run [evening-briefing](../evening-briefing/SKILL.md) verbatim. Same context-reuse — pull today's git log + closed-today tasks, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Same rule: not done until persisted.
 
-If no arg, skip this step.
+To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 
 ## Output
 
