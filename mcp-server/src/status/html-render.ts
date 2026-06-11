@@ -1062,13 +1062,15 @@ const sidebarNav = (snap: StatusSnapshot): string =>
   PAGES.filter((item) => !('hidden' in item && item.hidden))
     .map((item) => {
       const icon = item.id === 'persona' && snap.persona.emoji ? snap.persona.emoji : item.icon;
-      return `<a class="nav-item" data-nav="${item.id}" href="#${item.id}"><span class="ico">${esc(icon)}</span>${esc(item.label)}</a>`;
+      return `<div class="nav-item" data-nav="${item.id}"><span class="ico">${esc(icon)}</span>${esc(item.label)}</div>`;
     })
     .join('\n');
 
+/** Only rendered when something needs attention — a green "all nominal"
+ *  badge earns no pixels. */
 const healthBadge = (snap: StatusSnapshot): string => {
   const { health } = snap;
-  if (health.ok) return '<span class="badge ok"><span class="pulse"></span>ALL SYSTEMS NOMINAL</span>';
+  if (health.ok) return '';
   const issues = [
     health.overdue && `${health.overdue} overdue`,
     health.pendingCompiles && `${health.pendingCompiles} pending`,
@@ -1084,7 +1086,7 @@ const sidebarFoot = (snap: StatusSnapshot): string => {
   const avatar = operator.avatar
     ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">`
     : `<span class="op-fallback">👤</span>`;
-  const card = `<a class="op-card" href="#profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${esc(operator.timezone || '')}</span></span></a>`;
+  const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${esc(operator.timezone || '')}</span></span></div>`;
   return card + healthBadge(snap);
 };
 

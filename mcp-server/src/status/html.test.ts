@@ -255,11 +255,13 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(makeSnapshot());
     for (const item of PAGES) {
       expect(html).toContain(`data-page="${item.id}"`);
-      const hasNav = html.includes(`data-nav="${item.id}"`);
-      expect(hasNav).toBe(!('hidden' in item && item.hidden));
+      // Hidden pages get no sidebar item (profile routes via the operator card).
+      const hasNavItem = html.includes(`class="nav-item" data-nav="${item.id}"`);
+      expect(hasNavItem).toBe(!('hidden' in item && item.hidden));
     }
     expect(html.match(/<!doctype html>/g)?.length).toBe(1);
-    expect(html).toContain('class="badge ok"');
+    // Healthy snapshots render no badge at all — only problems earn pixels.
+    expect(html).not.toContain('class="badge');
     expect(html).toContain('Good morning, Basem');
   });
 
