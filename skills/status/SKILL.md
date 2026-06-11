@@ -44,6 +44,7 @@ attention) · `sessions` · `brain` (threads / concepts / memory / pipeline) ·
 - Secrets are redacted at the source (`••••`); never un-redact them.
 - Markdown links open via the configured opener app: set the `MARKDOWN_URL`
   env var in `.claude/settings.local.json` (`{path}` placeholder, e.g.
-  `markedit://open?path={path}`); defaults to `obsidian://open?path={path}`.
+  `markedit://open?path={path}`); defaults to
+  `obsidian://open?path={path}&paneType=tab` (new Obsidian tab, dashboard stays put).
 - Every `/agent-kevin:sync` also refreshes the dashboard; `kevin status` does
   the same from a terminal.

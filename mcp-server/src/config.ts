@@ -20,7 +20,7 @@ export const TIMEZONE = process.env.KEVIN_TIMEZONE?.trim() || Intl.DateTimeForma
  *  `{path}` is replaced with the URL-encoded absolute path. Set via the
  *  `MARKDOWN_URL` env var (e.g. in `.claude/settings.local.json` `env`);
  *  defaults to Obsidian. */
-export const MARKDOWN_URL = process.env.MARKDOWN_URL?.trim() || 'obsidian://open?path={path}';
+export const MARKDOWN_URL = process.env.MARKDOWN_URL?.trim() || 'obsidian://open?path={path}&paneType=tab';
 
 /** Plugin name used to detect "is this plugin enabled in cwd?" in cross-agent
  * defer logic. Mirrors `.claude-plugin/plugin.json` `name`. Kept here so the

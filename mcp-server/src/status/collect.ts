@@ -1214,7 +1214,9 @@ const collectCli = (): CliSection[] => {
   return sections.filter((section) => section.entries.length);
 };
 
-const DEFAULT_MARKDOWN_URL = 'obsidian://open?path={path}';
+// paneType=tab keeps the dashboard tab alive — Obsidian opens the note in a
+// new tab instead of replacing the active one.
+const DEFAULT_MARKDOWN_URL = 'obsidian://open?path={path}&paneType=tab';
 
 /** Markdown-opener URL template from the MARKDOWN_URL env var; must be a
  *  custom scheme carrying a `{path}` placeholder, else the Obsidian default
