@@ -309,7 +309,7 @@ const pageToday = (snap: StatusSnapshot): string => {
   const activityCount = sessionsToday.length + touched.length + todaysReports.length;
   return page(
     'today',
-    `Good ${part}${name} <span class="accent">🍌</span>`,
+    `Good ${part}${name} <span class="accent">${esc(snap.persona.emoji)}</span>`,
     `${snap.runtime.date} · here's where everything stands.`,
     stats +
       subTabs([
@@ -509,7 +509,7 @@ const pageBrain = (snap: StatusSnapshot): string => {
           [
             'pending',
             compile.pending > 0
-              ? `<span class="warn" data-issue>${compile.pending} session(s) waiting for /agent-kevin:sync</span>`
+              ? `<span class="warn" data-issue>${compile.pending} session(s) waiting for /${esc(snap.runtime.pluginName)}:sync</span>`
               : '<span class="dim">0 — fully absorbed</span>'
           ],
           ['last compiled', esc(relTime(compile.lastCompiled))],
@@ -575,41 +575,41 @@ const pageReports = (snap: StatusSnapshot): string => {
   );
 };
 
-/** Curated starter recipes — product copy, not snapshot data. */
-const CHEATSHEET: Array<{ when: string; say: string; what: string }> = [
+/** Curated starter recipes — product copy parameterized by plugin name. */
+const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: string }> => [
   {
     when: 'Every morning',
-    say: '/agent-kevin:sync morning',
+    say: `/${plugin}:sync morning`,
     what: 'Full refresh — compile, lint, flywheel, dashboard — then your morning briefing.'
   },
   {
     when: 'Every evening',
-    say: '/agent-kevin:sync evening',
+    say: `/${plugin}:sync evening`,
     what: 'Same refresh, then an evening recap: what shipped, what stalled, tomorrow’s first move.'
   },
   {
     when: 'Between sessions',
-    say: '/agent-kevin:quick-pulse',
+    say: `/${plugin}:quick-pulse`,
     what: 'A fast status check without the heavy maintenance pass.'
   },
   {
     when: 'Feeling lost',
-    say: '/agent-kevin:where-am-i',
+    say: `/${plugin}:where-am-i`,
     what: 'Radar of your recent sessions — what each was about, where it left off, how to resume it.'
   },
   {
     when: 'After a busy day',
-    say: '/agent-kevin:knowledge-compile',
+    say: `/${plugin}:knowledge-compile`,
     what: 'Absorb captured sessions, feedback, and inbox drops into long-term memory.'
   },
   {
     when: '1st of the month',
-    say: '/agent-kevin:monthly-goals',
+    say: `/${plugin}:monthly-goals`,
     what: 'Set the month’s themes and big rocks (weekly-goals does the same per week).'
   },
   {
     when: 'Once a month',
-    say: '/agent-kevin:self-review',
+    say: `/${plugin}:self-review`,
     what: 'Kevin reviews his own behavior against your feedback and proposes improvements.'
   },
   {
@@ -635,7 +635,7 @@ const CHEATSHEET: Array<{ when: string; say: string; what: string }> = [
   },
   {
     when: 'Refresh this page',
-    say: '/agent-kevin:status — or kevin status in a terminal',
+    say: `/${plugin}:status`,
     what: 'Regenerates this dashboard from current state.'
   }
 ];
@@ -645,7 +645,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
 
   const cheatRows = `<div data-filterbox>${filterInput('filter recipes…')}${table(
     ['when', 'say', 'what happens'],
-    CHEATSHEET.map((recipe) => [
+    cheatsheet(snap.runtime.pluginName).map((recipe) => [
       `<span class="dim nowrap">${esc(recipe.when)}</span>`,
       `<span class="good">${esc(recipe.say)}</span>`,
       `<span class="dim">${esc(recipe.what)}</span>`
@@ -656,7 +656,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
   const skillTiles = `<div data-filterbox>${filterInput('filter skills…')}<div class="tiles">${skills.details
     .map(
       (skill) =>
-        `<div class="tile" data-row><div class="tname"><span class="good">/agent-kevin:${esc(skill.name)}</span>${
+        `<div class="tile" data-row><div class="tname"><span class="good">/${esc(snap.runtime.pluginName)}:${esc(skill.name)}</span>${
           skill.custom ? ' <span class="chip">custom</span>' : ''
         }</div><div class="tdesc">${esc(skill.description || '—')}</div></div>`
     )
@@ -915,12 +915,12 @@ const sidebarBanner = (snap: StatusSnapshot): string =>
     `<div class="dateline">${pathLink(snap.runtime.home)}</div>`
   ].join('\n');
 
-const sidebarNav = (): string =>
+const sidebarNav = (snap: StatusSnapshot): string =>
   PAGES.filter((item) => !('hidden' in item && item.hidden))
-    .map(
-      (item) =>
-        `<a class="nav-item" data-nav="${item.id}" href="#${item.id}"><span class="ico">${item.icon}</span>${esc(item.label)}</a>`
-    )
+    .map((item) => {
+      const icon = item.id === 'persona' && snap.persona.emoji ? snap.persona.emoji : item.icon;
+      return `<a class="nav-item" data-nav="${item.id}" href="#${item.id}"><span class="ico">${esc(icon)}</span>${esc(item.label)}</a>`;
+    })
     .join('\n');
 
 const healthBadge = (snap: StatusSnapshot): string => {
@@ -963,10 +963,12 @@ const PAGE_BUILDERS: Record<(typeof PAGES)[number]['id'], (snap: StatusSnapshot)
 export const renderDashboardHtml = (snap: StatusSnapshot): string => {
   const generated = `${snap.runtime.date} ${snap.runtime.time} ${snap.runtime.timezone}`;
   return fill(TEMPLATE, {
+    TITLE: esc(`${snap.persona.name} · Agent OS`),
+    EMOJI: esc(snap.persona.emoji || '🤖'),
     BANNER: sidebarBanner(snap),
-    NAV: sidebarNav(),
+    NAV: sidebarNav(snap),
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
-    FOOTER: `generated ${esc(generated)}<span class="sep">·</span>snapshot, not live<span class="sep">·</span>regenerate with /agent-kevin:sync or kevin status`
+    FOOTER: `generated ${esc(generated)}<span class="sep">·</span>snapshot, not live<span class="sep">·</span>regenerate with /${esc(snap.runtime.pluginName)}:sync`
   });
 };
