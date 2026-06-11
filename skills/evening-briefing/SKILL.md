@@ -17,7 +17,7 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 4. **Closed today** — `mcp__plugin_agent-kevin_kevin__task_query` `{closed_on:"today"}` (or scan task frontmatter `closed:` for today's date).
 5. **Active / open P0–P1** — `{status:"active"}`, `{status:"open", priority:"P0"}`, `{status:"open", priority:"P1"}`.
 6. **Overdue / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan`.
-7. **Goals** — read `<HOME>/projects/GOALS.md` `## Monthly Goals` and `## Weekly Goals` to compute end-of-day delta.
+7. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` to compute end-of-day delta.
 
 ## Hard guardrails
 

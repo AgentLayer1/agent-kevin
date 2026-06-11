@@ -7,7 +7,7 @@ export const tools: ToolDef[] = [
     description:
       'Rebuild <HOME>/index.html — the static Agent OS dashboard — from a fresh status snapshot (runtime, knowledge, ' +
       'compile, tasks, context, settings, logs, health). Self-contained page, no server, zero external requests. ' +
-      'Run after task mutations so the snapshot reflects current state.',
+      'Sibling of task_dashboard; run after task mutations so the snapshot reflects current state.',
     inputSchema: {},
     handler: async () => writeDashboardHtml()
   })

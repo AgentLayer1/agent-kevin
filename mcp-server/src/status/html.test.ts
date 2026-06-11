@@ -67,10 +67,10 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   mcp: {
     servers: ['kevin'],
     toolCount: 2,
-    tools: ['mcp__kevin__task_scan', 'mcp__kevin__status_dashboard'],
+    tools: ['mcp__kevin__task_dashboard', 'mcp__kevin__status_dashboard'],
     toolDetails: [
       { name: 'mcp__kevin__status_dashboard', description: 'Rebuild the Agent OS dashboard.' },
-      { name: 'mcp__kevin__task_scan', description: 'Resolve cross-task state.' }
+      { name: 'mcp__kevin__task_dashboard', description: 'Rebuild projects/TASKS.md.' }
     ]
   },
   goals: {

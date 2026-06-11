@@ -34,7 +34,7 @@ If `ALREADY_INITIALIZED`, `AskUserQuestion` with an explicit enumeration of what
 > ✓  Preserve `knowledge/user/<facet>.md` files that have content (operator-curated facets safe; conflict prompt if Step 5 also synthesises content)
 > ✓  Preserve `knowledge/concepts/*.md` (seeded concepts re-materialise only if missing; existing files — including 0-byte tombstones — are never overwritten)
 > ✓  Preserve `knowledge/raw/`, `projects/<slug>/` (never touched)
-> ✓  Preserve `projects/GOALS.md` if it has content (operator goals safe — scaffold written only if missing)
+> ⚠️  Reset `projects/TASKS.md` (auto-rebuilds on next task mutation via `task_dashboard`)
 >
 > - Abort (recommended)
 > - Re-run setup
@@ -468,6 +468,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__status_dashboard",
       "mcp__plugin_agent-kevin_kevin__task_close",
       "mcp__plugin_agent-kevin_kevin__task_create",
+      "mcp__plugin_agent-kevin_kevin__task_dashboard",
       "mcp__plugin_agent-kevin_kevin__task_get",
       "mcp__plugin_agent-kevin_kevin__task_query",
       "mcp__plugin_agent-kevin_kevin__task_scan",
@@ -664,7 +665,7 @@ Cross-cutting patterns spanning ≥2 projects. Synthesized insights, not project
 
 Operational work units. Each has its own README, tasks/, and tracker. Project READMEs live outside the wiki and use markdown links (not wikilinks).
 
-Cross-project goals: [projects/GOALS.md](../projects/GOALS.md). Live task board: the Agent OS dashboard at `<HOME>/index.html` (rebuilt by `status_dashboard`).
+Cross-project task dashboard: [projects/TASKS.md](../projects/TASKS.md).
 
 ## Raw (inputs to compile)
 
@@ -681,25 +682,23 @@ Substitute `<NAME>` with the operator's name from Step 4a and `<YYYY-MM-DD>` wit
 - File missing OR file body is empty/whitespace-only → write the master-index scaffold with empty placeholder sections.
 - File exists with any non-whitespace body content → **never overwrite**. Skip the write entirely, no prompt. The Step 0 prompt already committed to preserving this; honour it unconditionally.
 
-For `projects/GOALS.md`, write this scaffold **only if the file is missing or empty** — it's operator-authored (the goals skills write into it), so an existing file with content is never overwritten:
+For `projects/TASKS.md`, write this single-line scaffold — the task-list sections render automatically when `task_dashboard` first runs (which the auto-rebuild on the user's first task creation will trigger):
 
 ```markdown
-# Goals
+> Tasks hub — auto-rebuilt by Kevin from task frontmatter on every mutation. Edit goals block only.
 
-> Written by the weekly/monthly/yearly goals skills. Read by briefings and the Agent OS dashboard.
+<!-- GOALS:START -->
+## Monthly Goals
+
+_No goals set yet — Kevin proposes on the 1st of each Hijri month._
 
 ## Weekly Goals
 
 _No weekly goals set yet._
-
-## Monthly Goals
-
-_No monthly goals set yet._
-
-## Yearly Goals
-
-_No yearly goals set yet._
+<!-- GOALS:END -->
 ```
+
+After scaffolding, call `mcp__plugin_agent-kevin_kevin__task_dashboard` once so the file has its (empty) Active/Blocked/Overdue/Stale/Recently Closed sections rendered from day one — no scaffold drift.
 
 **Seed concept articles — preservation-aware.** Four bundled concepts describe the system itself (the wiki pattern, the task system, the feedback loop, the audit-premise-decay heuristic). Seeding them means a freshly-initialised home has working `[[concepts/*]]` wikilinks from day one instead of broken refs, and the operator can read them to understand the architecture they just installed.
 
@@ -764,7 +763,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Operating manual   `<MANUAL_PATH>` (`@-imports` the above)
 > ✅ Plugin reg    .claude/settings.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
-> ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/GOALS.md
+> ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/TASKS.md
 > ✅ Concepts      4 seeded: karpathy-wiki · markdown-native-task-management · self-evolution-loop · audit-premise-decay
 > `<SKILL_PACK_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`

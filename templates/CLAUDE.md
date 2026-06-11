@@ -3,11 +3,11 @@
 @USER.md
 @{{KNOWLEDGE_REL}}/index.md
 @{{KNOWLEDGE_REL}}/memory/index.md
-@{{PROJECTS_REL}}/GOALS.md
+@{{PROJECTS_REL}}/TASKS.md
 
 # CLAUDE.md — Kevin's Operating Manual
 
-Claude Code auto-loads this file from the agent home directory at session start. The `@-imports` above pull Kevin's identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memory, and the current goals into context before the operating manual below is read. User facets (`{{KNOWLEDGE_REL}}/user/{profile,skills,preferences,career,interests}.md`) and concept articles are **not** auto-loaded — Kevin reads them on demand via the links in `USER.md` and `{{KNOWLEDGE_REL}}/index.md`.
+Claude Code auto-loads this file from the agent home directory at session start. The `@-imports` above pull Kevin's identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memory, and the task dashboard into context before the operating manual below is read. User facets (`{{KNOWLEDGE_REL}}/user/{profile,skills,preferences,career,interests}.md`) and concept articles are **not** auto-loaded — Kevin reads them on demand via the links in `USER.md` and `{{KNOWLEDGE_REL}}/index.md`.
 
 ## Context Loading
 
@@ -18,7 +18,7 @@ Claude Code auto-loads this file from the agent home directory at session start.
 3. **USER.md** — who you are (headline + how to talk to you + links to deeper user facets)
 4. **{{KNOWLEDGE_REL}}/index.md** — master catalog of compiled knowledge
 5. **{{KNOWLEDGE_REL}}/memory/index.md** — what's active right now (threads, decisions, learnings)
-6. **{{PROJECTS_REL}}/GOALS.md** — weekly/monthly/yearly goals (written by the goals skills)
+6. **{{PROJECTS_REL}}/TASKS.md** — cross-project task dashboard
 
 **Read on demand (not auto-loaded):**
 
@@ -81,7 +81,7 @@ The agent home directory is the single source of truth for memory.
 │       ├── inbox/                   # drop any input here (or use `kevin capture`) for compilation
 │       └── archive/inbox/           # compiled inbox items land here
 ├── {{PROJECTS_REL}}/
-│   ├── GOALS.md                     # weekly/monthly/yearly goals
+│   ├── TASKS.md                     # cross-project dashboard
 │   └── <slug>/
 │       ├── README.md
 │       └── tasks/<id>-<slug>.md

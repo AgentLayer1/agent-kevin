@@ -1,8 +1,8 @@
 ---
 name: sync
-description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, refresh the Agent OS dashboard, then surface a briefing of what changed and what needs attention. Optionally chain into a morning or evening briefing. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
+description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, refresh the task dashboard, then surface a briefing of what changed and what needs attention. Optionally chain into a morning or evening briefing. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__status_dashboard, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__perplexity_search, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__task_dashboard, mcp__plugin_agent-kevin_kevin__status_dashboard, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__perplexity_search, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -13,8 +13,8 @@ One pass through every maintenance op, in dependency order, ending in a single s
 
 Optional first arg selects a briefing to chain after sync completes:
 
-- `morning` — run the [morning-briefing](../morning-briefing/SKILL.md) protocol after step 7.
-- `evening` — run the [evening-briefing](../evening-briefing/SKILL.md) protocol after step 7.
+- `morning` — run the [morning-briefing](../morning-briefing/SKILL.md) protocol after step 8.
+- `evening` — run the [evening-briefing](../evening-briefing/SKILL.md) protocol after step 8.
 - _(none)_ — pick automatically from the local clock: **morning** from 3am up to 3pm, **evening** from 3pm up to 3am. (`date +%H` if today's time isn't already in context.) State which briefing was auto-selected in the output header.
 
 The briefing reads the post-sync state, so it's strictly better than running the briefing standalone against stale data. Output gets a second block appended (see Output).
@@ -70,7 +70,7 @@ Lint with `fix:true` already calls this internally — running it again is a no-
 
 ### 5. Flywheel pass
 
-Run the [flywheel](../flywheel/SKILL.md) protocol — cross-project work sweep. Touch each active project at least briefly, advance/update/close tasks, capture decisions. Placement is deliberate: after the wiki is clean (steps 1-4) so the flywheel reads a current memory index, but **before** scan + dashboard (steps 6-7) so those reflect the post-flywheel task state.
+Run the [flywheel](../flywheel/SKILL.md) protocol — cross-project work sweep. Touch each active project at least briefly, advance/update/close tasks, capture decisions. Placement is deliberate: after the wiki is clean (steps 1-4) so the flywheel reads a current memory index, but **before** dashboard + scan (steps 6-7) so those reflect the post-flywheel task state.
 
 Quick form for one-shot execution:
 1. Read `<HOME>/knowledge/memory/index.md` `## Active Threads` for current portfolio state.
@@ -81,9 +81,17 @@ Quick form for one-shot execution:
 6. Log architectural decisions to `<HOME>/knowledge/memory/index.md` `## Recent Decisions`.
 7. **Persist flywheel snapshot.** Call `mcp__plugin_agent-kevin_kevin__report_write` with `category: 'briefings'`, `slug: 'flywheel'`, `skill: 'flywheel'`, a one-line title, a body covering projects touched + tasks moved + concepts drafted, and `status: 'findings'` if anything moved (closes, updates, threads, concepts, decisions) or `status: 'clean'` if only the archive sweep ran. The morning brief reads these to pick up the trail across sessions.
 
-Bound the breadth: touch every active project, don't sink the whole session into one. The archive sweep (step 4) is the one mechanical action that always runs — closing tasks throughout the week without archiving lets recently-closed files accumulate and clutter the active dirs. Steps 4 and 7 are unconditional; everything else fires only when there's real work to do. Skip the in-skill wrap summary — that lands in step 7 below as part of the sync output. Flywheel's orient sub-steps (task board pull, task_scan) are intentionally fanned out across sync's steps 6-7 so they reflect post-flywheel state, not pre-flywheel.
+Bound the breadth: touch every active project, don't sink the whole session into one. The archive sweep (step 4) is the one mechanical action that always runs — closing tasks throughout the week without archiving lets `Recently Closed` accumulate and clutters the active dirs. Steps 4 and 7 are unconditional; everything else fires only when there's real work to do. Skip the in-skill wrap summary — that lands in step 8 below as part of the sync output. Flywheel's orient sub-steps (dashboard refresh, TASKS.md read, task_scan) are intentionally fanned out across sync's steps 6-8 so they reflect post-flywheel state, not pre-flywheel.
 
-### 6. Surface what needs attention
+### 6. Refresh task dashboard
+
+```
+mcp__plugin_agent-kevin_kevin__task_dashboard
+```
+
+Forces a rebuild of `projects/TASKS.md` from current task frontmatter (now reflecting flywheel mutations). Returns `{ active, blocked, overdue, stale, closedRecent }`.
+
+### 7. Surface what needs attention
 
 ```
 mcp__plugin_agent-kevin_kevin__task_scan
@@ -91,9 +99,9 @@ mcp__plugin_agent-kevin_kevin__task_scan
 
 Returns `{ unblocked, autoBlocked, autoClosed, overdue, stale, priorityBumps, pendingIds }`. The auto-* buckets were already applied; the surfaces (`overdue`, `stale`, `priorityBumps`) are the human-judgment queue.
 
-### 7. Read the dust-settled state
+### 8. Read the dust-settled state
 
-First regenerate the Agent OS dashboard so `<HOME>/index.html` snapshots the post-scan state (placement matters: step 6's task_scan auto-mutates task state, and the dashboard should reflect it):
+First regenerate the Agent OS dashboard so `<HOME>/index.html` snapshots the post-scan state (placement matters: step 7's task_scan auto-mutates task state, and the dashboard should reflect it):
 
 ```
 mcp__plugin_agent-kevin_kevin__status_dashboard
@@ -101,19 +109,19 @@ mcp__plugin_agent-kevin_kevin__status_dashboard
 
 Returns `{ path, bytes }`. One call, no judgment needed.
 
-After all mutations above, pull the final task board and the lint report — these are your sources for the summary, not the per-tool return values:
+After all mutations above, both `projects/TASKS.md` and the lint report at `.kevin/lint.md` are current. Read them once each — these are your sources for the summary, not the per-tool return values:
 
 ```
-mcp__plugin_agent-kevin_kevin__task_query with {}   # full board for the Tasks counts
+Read <HOME>/projects/TASKS.md
 Read <HOME>/.kevin/lint.md
 Read <HOME>/knowledge/memory/index.md   # for narrative context
 ```
 
-### 8. Briefing
+### 9. Briefing
 
 Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the auto-selection from `## Arguments` (morning 3am–3pm, evening 3pm–3am). Then inline the matching protocol:
 
-- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) verbatim. The Active Threads / task queries / scan results are already in context from step 7; skip the re-reads and go straight to the signal-news perplexity call, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Compose-without-persist is the bug — the briefing isn't done until `reports/index.md` shows today's entry.
+- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) verbatim. The Active Threads / task queries / scan results are already in context from step 8; skip the re-reads and go straight to the signal-news perplexity call, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Compose-without-persist is the bug — the briefing isn't done until `reports/index.md` shows today's entry.
 - `evening` → run [evening-briefing](../evening-briefing/SKILL.md) verbatim. Same context-reuse — pull today's git log + closed-today tasks, compose, **then call `report_write` per the briefing skill's `## Persist` section**. Same rule: not done until persisted.
 
 To run a sync with no briefing at all, say so explicitly (e.g. "sync only").

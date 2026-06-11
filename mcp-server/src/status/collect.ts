@@ -180,7 +180,7 @@ export interface Health {
   ok: boolean;
 }
 
-export type ContextGroup = 'instructions' | 'identity' | 'facets' | 'knowledge' | 'goals' | 'other';
+export type ContextGroup = 'instructions' | 'identity' | 'facets' | 'knowledge' | 'tasks' | 'other';
 
 export interface SessionDay {
   day: string;
@@ -253,7 +253,7 @@ export interface StatusSnapshot {
   markdownUrl: string;
   skills: { count: number; names: string[]; custom: number; details: SkillInfo[] };
   mcp: { servers: string[]; toolCount: number; tools: string[]; toolDetails: ToolInfo[] };
-  /** Goals blocks from projects/GOALS.md (lines, markdown stripped). */
+  /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
   goals: { weekly: string[]; monthly: string[]; yearly: string[] };
   /** `## Active Threads` bullets from memory/index.md, markdown stripped. */
   memoryThreads: string[];
@@ -758,7 +758,7 @@ const classifyImport = (label: string): ContextGroup => {
   if (/knowledge\/user\//.test(label)) return 'facets';
   if (/^(SOUL|IDENTITY|USER)\.md$/.test(label)) return 'identity';
   if (/index\.md$/.test(label)) return 'knowledge';
-  if (/GOALS\.md$/.test(label)) return 'goals';
+  if (/TASKS\.md$/.test(label)) return 'tasks';
   return 'other';
 };
 
@@ -1282,12 +1282,12 @@ const collectReports = (): ReportRef[] => {
   }
 };
 
-const GOALS_FILE = resolve(FOLDERS.PROJECTS, 'GOALS.md');
+const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');
 
 const collectGoals = (): StatusSnapshot['goals'] => ({
-  weekly: sectionLines(GOALS_FILE, 'Weekly Goals').map(stripMarkdown),
-  monthly: sectionLines(GOALS_FILE, 'Monthly Goals').map(stripMarkdown),
-  yearly: sectionLines(GOALS_FILE, 'Yearly Goals').map(stripMarkdown)
+  weekly: sectionLines(TASKS_DASHBOARD, 'Weekly Goals').map(stripMarkdown),
+  monthly: sectionLines(TASKS_DASHBOARD, 'Monthly Goals').map(stripMarkdown),
+  yearly: sectionLines(TASKS_DASHBOARD, 'Yearly Goals').map(stripMarkdown)
 });
 
 const MAX_THREADS = 12;

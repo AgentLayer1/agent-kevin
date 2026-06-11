@@ -360,7 +360,7 @@ const pageToday = (snap: StatusSnapshot): string => {
     stats +
       subTabs([
         { id: 'plan', label: 'Plan', body: plan },
-        { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/GOALS.md', goalsBody) },
+        { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/TASKS.md', goalsBody) },
         { id: 'activity', label: `Today so far · ${activityCount}`, body: activity },
         {
           id: 'news',
@@ -724,7 +724,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   {
     when: 'File work',
     say: '“create a task in <project>: …”',
-    what: 'New task file with id, priority, and due date; shows up here on the next dashboard refresh.'
+    what: 'New task file with id, priority, and due date; shows up here and in TASKS.md.'
   },
   { when: 'Grab a page', say: '“screenshot https://…”', what: 'Headless-browser PNG into reports/captures/.' },
   {
@@ -901,7 +901,7 @@ const GROUP_COLORS: Record<ContextGroup, string> = {
   identity: 'var(--accent)',
   facets: 'var(--magenta)',
   knowledge: 'var(--green)',
-  goals: 'var(--blue)',
+  tasks: 'var(--blue)',
   other: 'var(--dim)'
 };
 

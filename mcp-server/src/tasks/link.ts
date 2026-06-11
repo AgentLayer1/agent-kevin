@@ -68,8 +68,8 @@ export const rewriteLinks = (text: string, taskMap: Map<string, string>): string
 
   const prefixes = Array.from(new Set(Array.from(taskMap.keys(), (id) => id.split('-')[0])));
   const prefixGroup = `(?:${prefixes.join('|')})-\\d+`;
-  // Match either a single-bracketed ID `[<id>]` (common shorthand in task
-  // notes) or a bare ID with word boundaries.
+  // Match either a single-bracketed ID `[<id>]` (consume brackets — common
+  // shorthand in TASKS.md) or a bare ID with word boundaries.
   const idRegex = new RegExp(`\\[(${prefixGroup})\\]|\\b(${prefixGroup})\\b`, 'g');
 
   const wikilinkFor = (id: string): string => {

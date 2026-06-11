@@ -20,7 +20,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
    - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / stale / blocked surfacing
-5. **Goals** — read `<HOME>/projects/GOALS.md` `## Monthly Goals` and `## Weekly Goals` sections. If empty, note the gap.
+5. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap.
 6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `perplexity_search` calls in parallel**, one per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
    - Pick clusters from the user's `## Signal Topics` (each topic or related-topic group becomes one query). Typical clusters: a competitive/industry cluster tied to the day job, a local-regulatory cluster (recency `"week"`, set `country` if applicable), an AI/tooling cluster covering the model ecosystem they build on, and a geopolitics cluster for events that touch their values or travel.
    - Use `recency: "day"` for fast-moving clusters, `recency: "week"` for slower regulatory ones.
@@ -32,7 +32,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
 
 Every candidate for `🌐 Signals` / `📰 News` must clear **both** gates. If nothing clears them, omit the section — a brief with no signals is a feature.
 
-- **Relevance gate.** A signal earns a slot only if it touches something *actionable* or *tracked*: (a) it implies a concrete action this week, OR (b) it bears on something on the task board (`task_query`) or in `<HOME>/projects/GOALS.md` — an active/open task, a weekly goal, or a monthly goal. Ambient industry news that maps to no task and no this-week action does **not** qualify, however interesting.
+- **Relevance gate.** A signal earns a slot only if it touches something *actionable* or *tracked*: (a) it implies a concrete action this week, OR (b) it bears on something in `<HOME>/projects/TASKS.md` — an active/open task, a weekly goal, or a monthly goal. Ambient industry news that maps to no task and no this-week action does **not** qualify, however interesting.
 - **Novelty gate (soft).** Compare each candidate against the last 7 days of briefings (input 7). If the same story already shipped, suppress it — *unless* a fact materially changed (a new number, a new decision, a status flip, a date that's now imminent). "X is still happening" / restating a known situation is never a signal. When you do re-surface a topic, lead with *what changed*, not the background.
 - **Source gate.** Every `🌐 Signals` / `📰 News` item must carry a clickable source link (the canonical URL from the Perplexity citation). No URL, no slot — an unsourced signal is unverifiable and can't ship.
 
@@ -122,7 +122,7 @@ Surface `📄 Saved to <relPath>` to the operator at the end of the brief.
 - ❌ Dumping every active task. `🎯 Today` is 3–6 sharpest items, not a backlog.
 - ❌ Running ONE perplexity call to "cover everything" — the result is mush. Run a few **focused** queries, one per cluster you actually care about today.
 - ❌ Restating Active Threads from `memory/index.md` verbatim. Briefing is *delta and direction*, not status quo.
-- ❌ Including signals/news that are interesting but don't change today's plan or touch a tracked task/goal. Run it through the Signal gate; if the "so what" is generic, cut it.
+- ❌ Including signals/news that are interesting but don't change today's plan or touch a TASKS.md item. Run it through the Signal gate; if the "so what" is generic, cut it.
 - ❌ Re-reporting a signal you already delivered this week. Check the last 7 days of `reports/briefings/` first. Same story, no new fact = suppress. Repeating yourself is the fastest way to make the brief ignorable.
 - ❌ A `🌐 Signals` / `📰 News` item with no clickable source link. Every item links to its source — bare claims fail the Source gate.
 - ❌ Padding `📦 Drafted` with already-in-progress work. Yesterday's deltas only.

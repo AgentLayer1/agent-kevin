@@ -3,6 +3,7 @@
  */
 import type { TaskFile, TaskPriority, TaskType, ThreadEntry } from '@/shared/types';
 import { defineTool, type ToolDef } from '@/shared/types';
+import { writeDashboard } from '@/tasks/dashboard';
 import { appendThread, closeTask, createTask, updateTask } from '@/tasks/mutate';
 import { resolveTasks } from '@/tasks/resolve';
 import { findTaskById, queryTasks, scanAllTasks } from '@/tasks/scan';
@@ -136,6 +137,13 @@ export const tools: ToolDef[] = [
       appendThread(id, author, message, (type ?? 'info') as ThreadEntry['type']);
       return { ok: true };
     }
+  }),
+  defineTool({
+    name: 'task_dashboard',
+    description:
+      "Rebuild projects/TASKS.md from task frontmatter (Active, Blocked, Overdue, Stale, Recently Closed). Preserves the human-authored '<!-- GOALS:START -->...<!-- GOALS:END -->' block. Called automatically after every mutation; invoke explicitly to force a refresh.",
+    inputSchema: {},
+    handler: async () => writeDashboard()
   }),
   defineTool({
     name: 'task_scan',

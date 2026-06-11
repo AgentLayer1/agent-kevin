@@ -1,6 +1,6 @@
 ---
 name: weekly-goals
-description: Set this week's goals — reads the full task board + recent sessions, then interviews you (2-3 rounds) before drafting. Writes the goals block in projects/GOALS.md. Run on Sunday or Monday.
+description: Set this week's goals — reads the full task board + recent sessions, then interviews you (2-3 rounds) before drafting. Writes the goals block in TASKS.md. Run on Sunday or Monday.
 disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_create, AskUserQuestion, Read, Write, Edit, Glob, Bash
 ---
@@ -40,7 +40,7 @@ Skip questions whose answer is already obvious from context. One sharp question 
 
 ## Compose
 
-Output to the user as a draft, then offer to write it into `<HOME>/projects/GOALS.md`.
+Output to the user as a draft, then offer to write it into `<HOME>/projects/TASKS.md`.
 
 ```
 🎯 Week of <YYYY-MM-DD>
@@ -61,9 +61,9 @@ Output to the user as a draft, then offer to write it into `<HOME>/projects/GOAL
 
 ## Persist
 
-If the user confirms, edit `<HOME>/projects/GOALS.md` and **replace only the `## Weekly Goals` section** (create the file with `## Weekly Goals` / `## Monthly Goals` / `## Yearly Goals` sections if it doesn't exist). Leave the other goal sections untouched.
+If the user confirms, edit `<HOME>/projects/TASKS.md` and **replace only the `## Weekly Goals` block inside the `<!-- GOALS:START -->...<!-- GOALS:END -->` markers**. Leave `## Monthly Goals` (also inside the markers) and everything outside the markers untouched — the task-list sections are auto-rebuilt by Kevin and will be overwritten on the next mutation.
 
-Replace from `## Weekly Goals` up to (but not including) the next `##` heading with:
+Replace from `## Weekly Goals` up to (but not including) the next `##` heading or `<!-- GOALS:END -->` with:
 
 ```markdown
 ## Weekly Goals — Week of <YYYY-MM-DD>
@@ -73,9 +73,9 @@ Replace from `## Weekly Goals` up to (but not including) the next `##` heading w
 _Set <YYYY-MM-DD>. Next review: <next Sunday>._
 ```
 
-After updating `GOALS.md`, **also persist a snapshot** via the
+After updating `TASKS.md`, **also persist a snapshot** via the
 `mcp__plugin_agent-kevin_kevin__report_write` MCP tool so this week's goals
-survive when `GOALS.md` is overwritten next Sunday:
+survive when `TASKS.md` is overwritten next Sunday:
 
 ```
 report_write({
@@ -88,7 +88,7 @@ report_write({
 });
 ```
 
-Surface `📄 Saved to <relPath>` to the operator alongside the GOALS.md update.
+Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
 
 ## Anti-patterns
 

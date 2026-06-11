@@ -12,6 +12,7 @@ import { todayDate } from '@/shared/date';
 import { writeFileAtomic } from '@/shared/utils';
 import { existsSync, readFileSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
+import { withDashboardBatch, writeDashboardSafe } from './dashboard';
 import { buildTaskMap, rewriteLinks } from './link';
 import type { ScanResult } from './resolve';
 import { findTaskById, getNextId } from './scan';
@@ -141,6 +142,7 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
 
   writeFileAtomic(filePath, serializeTask(task));
   log.info(`Created task ${id}: ${opts.title} in ${opts.project}`);
+  writeDashboardSafe();
   return task;
 };
 
@@ -177,6 +179,7 @@ export const updateTask = (id: string, fields: Partial<Omit<TaskFrontmatter, 'id
   verifyMutation(id, task.filePath, fields, observed);
 
   log.info(`Updated task ${id}: ${JSON.stringify(fields)}`);
+  writeDashboardSafe();
 };
 
 // ── Close ─────────────────────────────────────────────────────────────
@@ -205,6 +208,7 @@ export const appendThread = (id: string, author: string, message: string, type: 
   // input; rewriting happens at write-time only.
   const linkedMessage = rewriteLinks(message, buildTaskMap());
   appendThreadToDisk(task.filePath, type, author, linkedMessage);
+  writeDashboardSafe();
 };
 
 // ── Assign Pending IDs ────────────────────────────────────────────────
@@ -244,6 +248,7 @@ export const assignPendingIds = (tasks: TaskFile[]): string[] => {
     log.info(`Assigned ID ${newId} to task: ${task.frontmatter.title}`);
   }
 
+  if (assigned.length > 0) writeDashboardSafe();
   return assigned;
 };
 
@@ -288,49 +293,53 @@ export const applyResolution = (
   manualClosedIds: string[];
   clearedBlockerIds: string[];
   assignedIds: string[];
-} => {
-  const unblockedIds = applyBucket({
-    tasks: result.unblocked,
-    stage: 'unblocked',
-    update: () => ({ status: 'active' }),
-    message: () => 'Auto: All dependencies resolved. Status -> active.'
+} =>
+  // Defer dashboard rebuilds — each bucket mutation otherwise triggers a full
+  // task-tree rescan + TASKS.md write. With N tasks across 5 buckets that's
+  // 5N+ rebuilds; batching collapses to one.
+  withDashboardBatch(() => {
+    const unblockedIds = applyBucket({
+      tasks: result.unblocked,
+      stage: 'unblocked',
+      update: () => ({ status: 'active' }),
+      message: () => 'Auto: All dependencies resolved. Status -> active.'
+    });
+
+    const blockedIds = applyBucket({
+      tasks: result.autoBlocked,
+      stage: 'blocked',
+      update: () => ({ status: 'blocked' }),
+      message: (t) => {
+        const reason = t.frontmatter.blocked_by
+          ? `External blocker: ${t.frontmatter.blocked_by}`
+          : `Unresolved dependencies: ${t.frontmatter.depends_on.join(', ')}`;
+        return `Auto: ${reason}. Status -> blocked.`;
+      }
+    });
+
+    const closedIds = applyBucket({
+      tasks: result.autoClosed,
+      stage: 'closed',
+      update: 'close',
+      message: () => 'Auto: All checklist items complete. Closing.'
+    });
+
+    const manualClosedIds = applyBucket({
+      tasks: result.manualClosed,
+      stage: 'manualClosed',
+      update: () => ({ closed: todayDate() }),
+      message: () => 'Auto: Closed date set. Status was changed manually in Obsidian.'
+    });
+
+    const clearedBlockerIds = applyBucket({
+      tasks: result.clearedBlockers,
+      stage: 'clearedBlocker',
+      update: () => ({ blocked_by: '' }),
+      message: (t) =>
+        `Auto: Status manually set to active but blocked_by was still set ("${t.frontmatter.blocked_by}"). Clearing blocked_by.`
+    });
+
+    const assignedIds = assignPendingIds(result.pendingIds);
+
+    return { unblockedIds, blockedIds, closedIds, manualClosedIds, clearedBlockerIds, assignedIds };
   });
-
-  const blockedIds = applyBucket({
-    tasks: result.autoBlocked,
-    stage: 'blocked',
-    update: () => ({ status: 'blocked' }),
-    message: (t) => {
-      const reason = t.frontmatter.blocked_by
-        ? `External blocker: ${t.frontmatter.blocked_by}`
-        : `Unresolved dependencies: ${t.frontmatter.depends_on.join(', ')}`;
-      return `Auto: ${reason}. Status -> blocked.`;
-    }
-  });
-
-  const closedIds = applyBucket({
-    tasks: result.autoClosed,
-    stage: 'closed',
-    update: 'close',
-    message: () => 'Auto: All checklist items complete. Closing.'
-  });
-
-  const manualClosedIds = applyBucket({
-    tasks: result.manualClosed,
-    stage: 'manualClosed',
-    update: () => ({ closed: todayDate() }),
-    message: () => 'Auto: Closed date set. Status was changed manually in Obsidian.'
-  });
-
-  const clearedBlockerIds = applyBucket({
-    tasks: result.clearedBlockers,
-    stage: 'clearedBlocker',
-    update: () => ({ blocked_by: '' }),
-    message: (t) =>
-      `Auto: Status manually set to active but blocked_by was still set ("${t.frontmatter.blocked_by}"). Clearing blocked_by.`
-  });
-
-  const assignedIds = assignPendingIds(result.pendingIds);
-
-  return { unblockedIds, blockedIds, closedIds, manualClosedIds, clearedBlockerIds, assignedIds };
-};

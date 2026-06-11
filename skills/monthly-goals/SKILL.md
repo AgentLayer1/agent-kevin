@@ -11,7 +11,7 @@ Strategic, not tactical. 2-4 themes max. Each theme has a concrete success crite
 
 ## Inputs
 
-1. **Last month's themes** — read previous `## Monthly Goals` section from `<HOME>/projects/GOALS.md` (if it exists).
+1. **Last month's themes** — read previous `## Monthly Goals` block from `<HOME>/projects/TASKS.md` (if it exists).
 2. **What landed in the last month** — task closures, knowledge commits.
 3. **Full task board** — `mcp__plugin_agent-kevin_kevin__task_query` across **all** statuses and priorities. Blocked chains, stale P1s, and the P3 graveyard say as much about the month ahead as the active list does.
 4. **Recent sessions** — read the last ~2 weeks of daily memory files (`<HOME>/knowledge/memory/YYYY-MM-DD.md`); skim `<HOME>/knowledge/raw/sessions/` day files where memory is thin. Where attention actually went last month is the honest baseline for what next month's themes can realistically claim.
@@ -60,11 +60,11 @@ Skip questions whose answer is plain from context (e.g. don't ask about a theme 
 
 ## Persist
 
-Offer to update `<HOME>/projects/GOALS.md` — replace **only** the `## Monthly Goals` section with the new month's content (create the file with `## Weekly Goals` / `## Monthly Goals` / `## Yearly Goals` sections if it doesn't exist). Leave the other goal sections alone. Don't auto-write; confirm first.
+Offer to update `<HOME>/projects/TASKS.md` — replace **only** the `## Monthly Goals` block inside the `<!-- GOALS:START -->...<!-- GOALS:END -->` markers with the new month's content. Leave `## Weekly Goals` and the auto-generated task-list sections outside the markers alone. Don't auto-write; confirm first.
 
-After updating `GOALS.md`, **also persist a snapshot** via the
+After updating `TASKS.md`, **also persist a snapshot** via the
 `mcp__plugin_agent-kevin_kevin__report_write` MCP tool so this month's themes
-+ report card survive when `GOALS.md` is overwritten next month:
++ report card survive when `TASKS.md` is overwritten next month:
 
 ```
 report_write({
@@ -77,7 +77,7 @@ report_write({
 });
 ```
 
-Surface `📄 Saved to <relPath>` to the operator alongside the GOALS.md update.
+Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
 
 ## Anti-patterns
 

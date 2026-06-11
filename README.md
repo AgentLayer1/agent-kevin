@@ -214,7 +214,7 @@ Context loaded from <HOME>/CLAUDE.md and its @-imports:
   └─ @USER.md                              your headline + links to deeper user facets
   └─ @knowledge/index.md                   master catalog
   └─ @knowledge/memory/index.md            active threads · decisions · learnings
-  └─ @projects/GOALS.md                    weekly/monthly/yearly goals
+  └─ @projects/TASKS.md                    cross-project task dashboard
 
 Read on demand (not auto-loaded — Kevin pulls them when relevant):
   · knowledge/user/{profile,skills,preferences,career,interests}.md
@@ -249,7 +249,7 @@ Plugin: agent-kevin@agentlayer · 28 MCP tools loaded
  long-term memory.]
 ```
 
-The header banner (`🧠 Knowledge / 📁 Projects / 📚 Context`) is what the SessionStart hook injects on every launch — quick proof your brain is wired up. The `/context` slash command (built into Claude Code) shows the full @-imports cascade: identity stack, knowledge index, memory index, goals, plus the dynamic per-session additions. User facets and concept articles aren't auto-loaded — Kevin reads them on demand via the links in `USER.md` and `knowledge/index.md`. That keeps the static lane lean while keeping the deeper material one read away.
+The header banner (`🧠 Knowledge / 📁 Projects / 📚 Context`) is what the SessionStart hook injects on every launch — quick proof your brain is wired up. The `/context` slash command (built into Claude Code) shows the full @-imports cascade: identity stack, knowledge index, memory index, task dashboard, plus the dynamic per-session additions. User facets and concept articles aren't auto-loaded — Kevin reads them on demand via the links in `USER.md` and `knowledge/index.md`. That keeps the static lane lean while keeping the deeper material one read away.
 
 ---
 
@@ -356,22 +356,24 @@ flowchart TD
     C2 --> C3[3\. Prune transient memory]
     C3 --> C4[4\. Rewrite stale wikilinks]
     C4 --> C5[5\. Flywheel: advance · **archive** · **persist**]
-    C5 --> C6[6\. Scan for overdue/stale]
-    C6 --> C7[7\. Read dust-settled state]
-    C7 --> OUT([🔄 Status block])
+    C5 --> C6[6\. Refresh task dashboard]
+    C6 --> C7[7\. Scan for overdue/stale]
+    C7 --> C8[8\. Read dust-settled state]
+    C8 --> OUT([🔄 Status block])
 
     C1 -.synthesis in your TUI turn.-> WIKI[(knowledge/<br/>user · concepts · memory)]
     C2 -.errors + warnings.-> LINT[/.kevin/lint.md/]
     C5 -.advance · update · close.-> TASKMUT[(task frontmatter<br/>+ threads)]
     C5 -.unconditional sweep.-> ARCHIVE[(projects/&lt;slug&gt;/<br/>tasks/archive/)]
     C5 -.unconditional snapshot.-> FLYREP[/reports/briefings/<br/>flywheel/&lt;slug&gt;.md/]
+    C6 -.from frontmatter.-> TASKS[/projects/TASKS.md/]
 ```
 
-The dependency order is the point: compile feeds the wiki state that lint operates on; lint's auto-fix touches the same articles the task-link rewriter needs to be clean. Flywheel runs *after* the wiki is clean (so it reads a current memory index) and *before* scan + dashboard (so they reflect post-flywheel task state). Running steps out of order makes you re-reconcile.
+The dependency order is the point: compile feeds the wiki state that lint operates on; lint's auto-fix touches the same articles the dashboard's task-link rewriter needs to be clean. Flywheel runs *after* the wiki is clean (so it reads a current memory index) and *before* the dashboard refresh (so the dashboard reflects post-flywheel task state). Scan reads the just-rebuilt dashboard. Running steps out of order makes you re-reconcile.
 
 Two sub-steps of flywheel run **every sync, unconditionally**: the archive sweep (moves `done`/`cancelled` task files into `tasks/archive/` so the active dir stays scannable) and the snapshot persist (`report_write` to `reports/briefings/flywheel/` so the next morning brief can pick up the cross-session trail). Advance · update · close · concepts · decisions fire only when there's real work to do.
 
-The status block reads from the **dust-settled state** (a final `task_query` over the board, `.kevin/lint.md`, `knowledge/memory/index.md`) — not from per-tool return values — so the summary reflects what's actually on disk after every mutation has landed. See [`skills/sync/SKILL.md`](skills/sync/SKILL.md) for the protocol.
+The status block reads from the **dust-settled artifacts** (`projects/TASKS.md`, `.kevin/lint.md`, `knowledge/memory/index.md`) — not from per-tool return values — so the summary reflects what's actually on disk after every mutation has landed. See [`skills/sync/SKILL.md`](skills/sync/SKILL.md) for the protocol.
 
 ---
 
@@ -559,11 +561,11 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (31)
+### MCP tools (32)
 
 | Group | Tools |
 |---|---|
-| **Tasks** (7) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan` |
+| **Tasks** (8) | `task_query`, `task_get`, `task_create`, `task_update`, `task_close`, `task_thread`, `task_scan`, `task_dashboard` |
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Status** (1) | `status_dashboard` |
@@ -635,7 +637,7 @@ agent-kevin/
 │   │   ├── tasks/
 │   │   │   └── <id>-<slug>.md
 │   │   └── README.md
-│   └── GOALS.md
+│   └── TASKS.md
 ├── reports/                 # transient skill outputs (briefings, plans)
 │   ├── index.md             # auto-maintained "newest first" log (today's entries injected into SessionStart)
 │   ├── briefings/           # morning/evening briefings, weekly/monthly goals, self-review summaries
@@ -679,6 +681,7 @@ Common examples:
 ```bash
 kevin task query --status=active
 kevin task create --project=blog-dev --title="Draft launch post" --description="..." --priority=P1
+kevin task dashboard                  # rebuild projects/TASKS.md from frontmatter
 kevin knowledge lint --fix            # check wiki + auto-fix broken links + backlinks
 kevin compile status                  # what's pending compile
 ```

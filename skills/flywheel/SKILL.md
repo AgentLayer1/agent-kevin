@@ -2,7 +2,7 @@
 name: flywheel
 description: Cross-project work session. Triage active tasks, advance every project meaningfully, close what's done, log what mattered. Invoke when you have time to work across the whole portfolio rather than one focus area.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_dashboard, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Flywheel Session
@@ -17,20 +17,21 @@ Don't just pick the most urgent thing and ride it for the whole session. Touch e
 
 ### 1. Orient (3 minutes)
 
-Pull the full task board as your single source of truth for what's active across the portfolio:
+Refresh the dashboard, then read it as your single source of truth for what's active across the portfolio:
 ```
-mcp__plugin_agent-kevin_kevin__task_query with {}        # all statuses, all projects
+mcp__plugin_agent-kevin_kevin__task_dashboard
+Read <HOME>/projects/TASKS.md
 ```
 
-Task frontmatter is the source of truth. Group the results mentally by project and status (active, blocked, overdue, stale) — that's your action queue.
+`TASKS.md` is auto-rebuilt from task frontmatter on every mutation; refreshing first guarantees the view matches disk. The rendered sections (Active grouped by project, Blocked, Overdue, Stale, Recently Closed) are your action queue — no need to chain per-project queries to get the same picture.
 
-Then read `<HOME>/knowledge/memory/index.md` end to end for narrative context. The `## Active Threads` section explains the *why* behind the tasks. If it conflicts with the board, trust the frontmatter — memory index is a synthesis that the next compile will reconcile.
+Then read `<HOME>/knowledge/memory/index.md` end to end for narrative context. The `## Active Threads` section explains the *why* behind the tasks. If it conflicts with `TASKS.md`, trust the dashboard — frontmatter is source of truth; memory index is a synthesis that the next compile will reconcile.
 
 Run `mcp__plugin_agent-kevin_kevin__task_scan` if you want resolver insight (auto-unblock candidates, priority bumps from low-priority blockers under high-priority tasks).
 
 ### 2. Sweep active tasks per project
 
-Walk the active tasks project by project. Only when you need full task detail (description, checklist, thread history) reach for:
+Walk the Active section of `TASKS.md` project by project. Only when you need full task detail (description, checklist, thread history) reach for:
 ```
 mcp__plugin_agent-kevin_kevin__task_get with { id: "<id>" }
 ```
@@ -43,13 +44,13 @@ Decide for each:
 
 ### 3. Archive closed tasks
 
-Sweep every `status: done` or `status: cancelled` task file still living in `<HOME>/projects/<slug>/tasks/` into the project's `tasks/archive/` subdir. This keeps the active dir scannable; queries and the Agent OS dashboard skip `tasks/archive/`.
+Sweep every `status: done` or `status: cancelled` task file still living in `<HOME>/projects/<slug>/tasks/` into the project's `tasks/archive/` subdir. This keeps the active dir scannable and matches what the dashboard already does (it skips `tasks/archive/`).
 
 ```
 Bash: mkdir -p <HOME>/projects/<slug>/tasks/archive && mv <HOME>/projects/<slug>/tasks/<id>-*.md <HOME>/projects/<slug>/tasks/archive/
 ```
 
-Find candidates with grep across `projects/*/tasks/*.md` for `^status: (done|cancelled)` in frontmatter. Don't touch files already under `archive/`.
+Find candidates with grep across `projects/*/tasks/*.md` for `^status: (done|cancelled)` in frontmatter. Don't touch files already under `archive/`. After moving, refresh `task_dashboard` so `TASKS.md` re-renders without the archived rows in the Recently Closed section.
 
 ### 4. Identify cross-cutting opportunities
 
@@ -67,7 +68,7 @@ Briefly summarise to the user:
 - Concepts drafted (if any)
 - What you'd tackle next session
 
-Keep the summary tight. The thread entries on each task carry the detail.
+Keep the summary tight. The thread entries on each task carry the detail. `TASKS.md` already re-rendered itself after every mutation in this session — no manual `task_dashboard` call needed at wrap unless something seems off.
 
 ### 7. Persist
 

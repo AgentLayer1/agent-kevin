@@ -20,7 +20,7 @@ State the chosen window explicitly at the top of the interview so the operator c
 
 ## Inputs
 
-1. **Existing yearly goals** — the `## Yearly Goals` section in `<HOME>/projects/GOALS.md` (if any), plus the current `## Monthly Goals`.
+1. **Existing yearly goals** — the `## Yearly Goals` block in `<HOME>/projects/TASKS.md` (if any), plus the current `## Monthly Goals`.
 2. **Full task board** — `mcp__plugin_agent-kevin_kevin__task_query` across **all** statuses and priorities. Long-blocked chains and the P3 graveyard reveal what a year keeps deferring.
 3. **Project visions** — each `<HOME>/projects/<slug>/README.md`; yearly outcomes should trace to a project's reason for existing, not a task list.
 4. **Memory** — `<HOME>/knowledge/memory/index.md` Active Threads + Recent Decisions for hard external dates (filings, renewals, school years) that pin quarters down.
@@ -38,7 +38,7 @@ Yearly planning is the operator's strategic intent, not an extrapolation — run
 
 ## Output
 
-Offer to update `<HOME>/projects/GOALS.md` — replace **only** the `## Yearly Goals` section (create it after `## Monthly Goals` if it doesn't exist; create the file with all three goal sections if missing). Leave the other goal sections alone. Don't auto-write; confirm first.
+Offer to update `<HOME>/projects/TASKS.md` — replace **only** the `## Yearly Goals` block inside the `<!-- GOALS:START -->...<!-- GOALS:END -->` markers (create the section after `## Monthly Goals` if it doesn't exist). Leave the other goal blocks and auto-generated sections alone. Don't auto-write; confirm first.
 
 Format:
 
