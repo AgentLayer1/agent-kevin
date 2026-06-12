@@ -291,8 +291,9 @@ const pageToday = (snap: StatusSnapshot): string => {
   );
   const touched = tasks.touchedToday;
   const sessionFeedRow = (sessionRef: (typeof snap.sessions)[number]): string => {
-    const when = sessionRef.lastSeen === yesterday ? `yd ${sessionRef.time}`.trim() : sessionRef.time;
-    return `<div class="row"><span class="dim nowrap" style="flex:none;min-width:48px">${esc(when || '—')}</span><span class="grow">${esc(
+    const dayNote =
+      sessionRef.lastSeen === yesterday ? '<span style="display:block;font-size:10px">yesterday</span>' : '';
+    return `<div class="row"><span class="dim nowrap" style="flex:none;min-width:48px">${esc(sessionRef.time || '—')}${dayNote}</span><span class="grow">${esc(
       truncate(sessionRef.briefing || '(local-command session)', 300)
     )}</span><div class="nowrap" style="flex:none;text-align:right"><div class="dim">${sessionRef.turns} turns</div>${resumedChip(sessionRef)}</div></div>`;
   };

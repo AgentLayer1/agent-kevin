@@ -423,9 +423,10 @@ describe('renderDashboardHtml', () => {
     const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
     expect(today).toContain('Late-night portal fixes');
     expect(today).not.toContain('Two-days-ago session');
-    // Feed rows carry timestamps; yesterday's rows are marked as such.
+    // Feed rows carry timestamps; yesterday's rows wear a stacked day label
+    // under the time so times stay column-aligned.
     expect(today).toContain('09:12');
-    expect(today).toContain('yd 23:40');
+    expect(today).toContain('23:40<span style="display:block;font-size:10px">yesterday</span>');
   });
 
   test('resumed sessions wear a since-chip explaining their old briefing', () => {
