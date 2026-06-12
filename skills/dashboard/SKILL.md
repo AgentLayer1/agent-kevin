@@ -22,16 +22,17 @@ mcp__plugin_agent-kevin_kevin__dashboard
 
 Returns `{ path, bytes, tasks }`.
 
-2. Open it for the user (macOS):
+2. Open it for the user (macOS) — ONLY if this session's Bash tool runs
+   commands unsandboxed. If the Bash tool description mentions a command
+   sandbox, app launches will fail: skip this step entirely (no `open`, no
+   `open -a`, no browser launchers) and just include the `file://` path in
+   your reply so the user can open it themselves.
 
 ```bash
 open "<path from step 1>"
 ```
 
-   If `open` errors (sandboxed or restricted setups block app launches), skip
-   this step entirely — do NOT retry with `open -a`, specific browsers, or any
-   other launcher. Just include the `file://` path in your reply so the user
-   can open it themselves.
+   If `open` errors anyway, same rule: do NOT retry with other launchers.
 
 3. Reply with one line: the dashboard is rebuilt (and open, if the launch
    worked), plus anything the health badge would flag (the tool result alone
