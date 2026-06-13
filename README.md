@@ -540,7 +540,7 @@ graph LR
 
 `serpapi` · `open-page-rank` · `google-search-console` · `google-page-speed` · `wordpress-rest` · `google-search-audit`
 
-Four need API keys (SerpAPI, OpenPageRank, Google OAuth + `GSC_SITE_URL` for the last two). `wordpress-rest` uses `curl` with a host-scoped permission grant derived from `GSC_SITE_URL`. `google-search-audit` is a composite read-only audit using everything above.
+Four need API keys (SerpAPI, OpenPageRank, Google OAuth + `GSC_SITE_URL` for the last two). `wordpress-rest` uses `curl` with a host-scoped permission grant derived from `GSC_SITE_URL`. `google-search-audit` is a composite read-only audit using everything above. Account signup steps and costs: [External accounts & costs](#-external-accounts--costs).
 
 ### Browser pack, configured on demand
 
@@ -708,6 +708,43 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 `KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. iCloud, an external drive, a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
 API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated env keys.** Kevin has no universal-infra keys, so `/init` writes an empty `{}` — every API key above is a pack-gated key that `configure-skills` plants as an empty placeholder when you activate the matching pack. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API.
+
+---
+
+## 🔑 External accounts & costs
+
+Kevin's core needs **zero external accounts**: tasks, knowledge compile, dashboard, session capture, and all four Playwright web tools (bundled chromium) run entirely on your machine against your Claude Code subscription. External accounts only enter the picture when you activate the **SEO** or **Browser** packs via `/agent-kevin:configure-skills`. Everything below is optional; skip this section if you don't need web search or SEO tooling.
+
+| Account | What it unlocks | Pack | Credential | Cost |
+|---|---|---|---|---|
+| [Perplexity](https://perplexity.ai/settings/api) | `perplexity_search`: live web research with citations | Browser | `PERPLEXITY_API_KEY` | Pay-as-you-go, $5 per 1,000 requests. A $5 credit lasts most personal users days to weeks. |
+| [Google Cloud](https://console.cloud.google.com) | `gsc_*` (Search Console data) + `page_speed_*` (Lighthouse audits) | SEO | OAuth client JSON at `<HOME>/.kevin/config/google-oauth-client.json` | Free. PSI quota is 25k requests/day per project. |
+| [Google Search Console](https://search.google.com/search-console) | The site data behind `gsc_query`, `gsc_inspect`, and the audit skill | SEO | Your site verified under the same Google account | Free |
+| [SerpAPI](https://serpapi.com) | `serpapi_search`: live Google SERP positions for rank tracking | SEO | `SERPAPI_KEY` | Free tier: 250 searches/month. Paid from $25/month (1,000 searches). |
+| [OpenPageRank](https://www.domcop.com/openpagerank/) | `open_page_rank`: domain-authority proxy (0–10) for competitor tracking | SEO | `OPENPAGERANK_API_KEY` | Free (1,000 requests/day; DomCop pledges to keep it free) |
+
+No account needed for the rest of the SEO pack: `wordpress-rest` reads the public `/wp-json/wp/v2/` API of whatever site `GSC_SITE_URL` points at, and `google-search-audit` is a composite over the tools above. The knowledge pipeline never bills an API key either (see [Claude Code Billing](#claude-code-billing)).
+
+**Bottom line:** a typical personal setup runs at $0/month on free tiers. Heavy Perplexity use or serious rank tracking adds roughly $5 to $30/month.
+
+### Setting each one up
+
+For every keyed service the flow is the same: `/agent-kevin:configure-skills` activates the pack and plants an empty placeholder in `settings.local.json`; you paste the key value **in your editor**, never in chat.
+
+**Perplexity** (web search): create an account at [perplexity.ai](https://perplexity.ai), go to Settings → API, load a small credit block ($5 is plenty to start), and generate a key. Note the API bills separately from a Perplexity Pro chat subscription (Pro only includes $5/month of API credit).
+
+**Google Search Console + PageSpeed** (one free Google Cloud project covers both):
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → create a project (any name).
+2. APIs & Services → Library → enable **Search Console API** and **PageSpeed Insights API**.
+3. APIs & Services → Credentials → Create credentials → OAuth client ID → application type **Desktop app**. (First time, Google forces you through the consent-screen setup: choose External, add your own email as a test user.)
+4. Download the client JSON and save it as `<HOME>/.kevin/config/google-oauth-client.json`.
+5. Verify your site in [Search Console](https://search.google.com/search-console) under the same Google account, and set `GSC_SITE_URL` in `settings.local.json` (e.g. `https://example.com/` or `sc-domain:example.com`).
+6. Run the `google_auth` MCP tool once (or `bun run dispatch google-search-console auth` from the plugin dir). A browser consent flow mints tokens that are cached and shared across all `google-*` tools; you won't be asked again.
+
+**SerpAPI** (rank tracking): sign up at [serpapi.com](https://serpapi.com), copy the key from the dashboard. The free 250 searches/month comfortably covers a weekly audit of a small site; upgrade only if you track many keywords across devices and locales.
+
+**OpenPageRank** (domain authority): sign up at [domcop.com/openpagerank](https://www.domcop.com/openpagerank/), generate the free key.
 
 ---
 
