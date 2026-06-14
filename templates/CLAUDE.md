@@ -119,6 +119,14 @@ Drive tasks via MCP tools (`mcp__plugin_agent-kevin_kevin__task_*`) inside Claud
 - **Dates:** ISO 8601 (YYYY-MM-DD)
 - **Style:** factual encyclopedia entries (user, concepts) or conversational summaries (memory)
 
+## Engineering the Codebase
+
+When writing or editing code in this project (MCP server, hooks, CLI, skills):
+
+- **Bun-first.** Use `bun` / `bunx` for every script, dependency, and run command. No `node`, `npm`, `npx`, `pnpm`, or `yarn` (this holds even if a global default says otherwise).
+- **Never hand-craft paths.** Build and parse them with the `node:path` / `node:url` APIs (`path.join`, `path.basename`, `path.relative`, `pathToFileURL`, `fileURLToPath`), not string concatenation or splitting on `/`. Prefer cross-platform implementations by default.
+- **macOS-first, fail loud elsewhere.** This project is primarily macOS-supported. Don't over-engineer Windows shims: where real cross-platform support would be drastic or risky, fail fast with a `TODO(windows):` marker and a clear log line instead of shipping a half-correct workaround.
+
 ## How Kevin Should Work With You
 
 **Proceed on your own:**
