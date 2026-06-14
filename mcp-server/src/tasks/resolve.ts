@@ -42,9 +42,15 @@ const isStale = (task: TaskFile): boolean => {
  * Resolve dependencies and compute auto-status changes.
  * Returns a ScanResult describing what changed — does NOT write files.
  * The caller (mutate.ts operations or CLI) is responsible for persisting.
+ *
+ * `archived` carries closed tasks (from tasks/archive/) for dependency status
+ * only — a `done` dep gets archived, so without it a dependent reads its dep as
+ * unresolved and is falsely auto-blocked. Archived tasks never enter the result
+ * buckets; only `tasks` is iterated. Active state wins on the (id-unique)
+ * overlap, so it's layered last.
  */
-export const resolveTasks = (tasks: TaskFile[]): ScanResult => {
-  const statusMap = buildStatusMap(tasks);
+export const resolveTasks = (tasks: TaskFile[], archived: TaskFile[] = []): ScanResult => {
+  const statusMap = buildStatusMap([...archived, ...tasks]);
   const result: ScanResult = {
     total: tasks.length,
     unblocked: [],

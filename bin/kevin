@@ -294,10 +294,10 @@ async function run(): Promise<void> {
         return;
       }
       case 'scan': {
-        const { scanAllTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/scan`));
+        const { scanAllTasks, scanArchivedTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/scan`));
         const { resolveTasks } = await import(resolve(PLUGIN_ROOT, `${TASKS}/resolve`));
         const all = scanAllTasks();
-        const result = resolveTasks(all);
+        const result = resolveTasks(all, scanArchivedTasks());
         console.log(JSON.stringify({ scanned: all.length, ...result }, null, 2));
         return;
       }

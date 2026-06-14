@@ -81,15 +81,17 @@ export const buildPrefixMap = (): Map<string, string> => {
 
 // ── Task scanning ────────────────────────────────────────────────────
 
-/** Scan a single project's tasks/ folder. */
-const scanProject = (project: string): TaskFile[] => {
-  const tasksDir = join(FOLDERS.PROJECTS, project, 'tasks');
-  if (!existsSync(tasksDir)) return [];
+/** Parse every task markdown file directly inside `dir` (non-recursive — the
+ *  `archive/` subdir is skipped here because it isn't a `.md` file). */
+const readTaskDir = (dir: string): TaskFile[] => {
+  if (!existsSync(dir)) return [];
 
-  return readdirSync(tasksDir)
-    .filter((f) => f.endsWith('.md') && !f.startsWith('.'))
+  return readdirSync(dir)
+    // Task files are `<prefix>-<NNN>...md`; skip README.md and other non-task
+    // markdown (archive/ dirs carry a README) so they don't log parse warnings.
+    .filter((f) => f.endsWith('.md') && !f.startsWith('.') && /^[a-z]+-\d+/.test(f))
     .flatMap<TaskFile>((file) => {
-      const filePath = join(tasksDir, file);
+      const filePath = join(dir, file);
       const task = parseTaskFile(filePath);
       if (task) return [task];
       log.warn(`Failed to parse task file: ${filePath}`);
@@ -97,8 +99,21 @@ const scanProject = (project: string): TaskFile[] => {
     });
 };
 
-/** Scan all discovered projects for task files. */
+/** Scan a single project's tasks/ folder (active tasks; excludes archive/). */
+const scanProject = (project: string): TaskFile[] => readTaskDir(join(FOLDERS.PROJECTS, project, 'tasks'));
+
+/** Scan all discovered projects for active task files. */
 export const scanAllTasks = (): TaskFile[] => discoverProjects().flatMap(scanProject);
+
+/** Scan a single project's tasks/archive/ folder (closed: done/cancelled). */
+const scanProjectArchive = (project: string): TaskFile[] =>
+  readTaskDir(join(FOLDERS.PROJECTS, project, 'tasks', 'archive'));
+
+/** Scan all discovered projects for archived (closed) task files. Dependency
+ *  resolution needs these: a `done` dep is moved to tasks/archive/, and if it's
+ *  absent from the status map its dependents read it as unresolved and get
+ *  falsely auto-blocked. Not part of the active working set — status only. */
+export const scanArchivedTasks = (): TaskFile[] => discoverProjects().flatMap(scanProjectArchive);
 
 /** Get the next available task ID for a project. Scans both active and archive dirs. */
 export const getNextId = (project: string): string => {

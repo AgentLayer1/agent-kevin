@@ -14,7 +14,7 @@ import { FILES, FOLDERS, MARKDOWN_URL, PLUGIN_NAME, TIMEZONE } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { nowTime } from '@/shared/date';
 import type { TaskFile } from '@/shared/types';
-import { discoverProjects, scanAllTasks } from '@/tasks/scan';
+import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
 import { resolveTasks } from '@/tasks/resolve';
 import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -630,7 +630,7 @@ const projectDescription = (project: string): string => firstParagraph(resolve(F
 
 const collectTasks = (): StatusSnapshot['tasks'] => {
   const all = scanAllTasks();
-  const scan = resolveTasks(all);
+  const scan = resolveTasks(all, scanArchivedTasks());
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const byStatus = (status: string) => all.filter((task) => task.frontmatter.status === status).length;

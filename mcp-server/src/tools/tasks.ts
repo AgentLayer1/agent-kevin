@@ -5,7 +5,7 @@ import type { TaskFile, TaskPriority, TaskType, ThreadEntry } from '@/shared/typ
 import { defineTool, type ToolDef } from '@/shared/types';
 import { appendThread, closeTask, createTask, updateTask } from '@/tasks/mutate';
 import { resolveTasks } from '@/tasks/resolve';
-import { findTaskById, queryTasks, scanAllTasks } from '@/tasks/scan';
+import { findTaskById, queryTasks, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
 import { z } from 'zod';
 
 const StatusEnum = z.enum(['open', 'active', 'blocked', 'done', 'cancelled']);
@@ -143,7 +143,7 @@ export const tools: ToolDef[] = [
     inputSchema: {},
     handler: async () => {
       const all = scanAllTasks();
-      const result = resolveTasks(all);
+      const result = resolveTasks(all, scanArchivedTasks());
       return {
         scanned: all.length,
         unblocked: result.unblocked.map(slim),
