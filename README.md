@@ -912,6 +912,197 @@ A: For the LLM synthesis steps yes. The MCP server is pure I/O, returning prompt
 
 ---
 
+## 🛠️ Agentic Coding Tips
+
+> **macOS-only.** Kevin runs anywhere Claude Code does, but the tooling below is what I (the author) actually use day to day on a Mac. Linux/Windows users: most have equivalents, but the specifics here assume macOS.
+
+Running agents well is less about the model and more about the rig around it: a fast terminal, sane keybindings, isolated worktrees, and a place to read the markdown brain. Here's the setup that makes driving Kevin (and a swarm of other agents) genuinely pleasant.
+
+### 1. Terminal: Ghostty
+
+[Ghostty](https://ghostty.org) is a GPU-accelerated, native-Mac terminal. It's fast (120fps, zero input lag even with agents streaming walls of output), it's native AppKit (no Electron tax), and the config is a single readable file. After bouncing through iTerm2 and the rest, this is the one that stuck. The 25MB scrollback alone is worth it when an agent dumps a long trace and you need to scroll back through all of it.
+
+<details>
+<summary><b>📄 My Ghostty config</b> — <code>~/.config/ghostty/config</code> (a starting point, not gospel)</summary>
+
+<br>
+
+```ini
+# Typography
+font-family = JetBrainsMonoNerdFont
+font-size = 14
+font-thicken = true
+adjust-cell-height = 2
+
+# Theme and Colors — Catppuccin with automatic light/dark switching
+theme = light:Catppuccin Latte,dark:Catppuccin Mocha
+
+# Window and Appearance
+background-opacity = 0.9
+background-blur-radius = 20
+macos-titlebar-style = transparent
+window-padding-x = 10
+window-padding-y = 8
+window-save-state = never
+quit-after-last-window-closed = true
+window-theme = auto
+
+# Cursor
+cursor-opacity = 0.8
+
+# Mouse
+mouse-hide-while-typing = true
+
+# Security
+clipboard-paste-protection = true
+clipboard-paste-bracketed-safe = true
+
+# Shell Integration
+shell-integration = detect
+
+# Keybindings — tabs
+keybind = cmd+t=new_tab
+keybind = cmd+shift+left=previous_tab
+keybind = cmd+shift+right=next_tab
+keybind = cmd+w=close_surface
+
+# Splits
+keybind = cmd+d=new_split:right
+keybind = cmd+shift+d=new_split:down
+keybind = cmd+alt+left=goto_split:left
+keybind = cmd+alt+right=goto_split:right
+keybind = cmd+alt+up=goto_split:top
+keybind = cmd+alt+down=goto_split:bottom
+
+# Font size
+keybind = cmd+plus=increase_font_size:1
+keybind = cmd+minus=decrease_font_size:1
+keybind = cmd+zero=reset_font_size
+
+# Splits management
+keybind = cmd+shift+e=equalize_splits
+keybind = cmd+shift+f=toggle_split_zoom
+
+# Reload config (Cmd+Shift+,)
+keybind = cmd+shift+comma=reload_config
+
+# Performance — generous scrollback (25MB)
+scrollback-limit = 25000000
+
+# Command finished notifications
+notify-on-command-finish = unfocused
+notify-on-command-finish-action = no-bell,notify
+notify-on-command-finish-after = 30s
+
+# Working directory inheritance
+window-inherit-working-directory = false
+tab-inherit-working-directory = true
+split-inherit-working-directory = true
+```
+
+</details>
+
+### 2. Essential keybindings
+
+These are readline (emacs-style) bindings that work in the Claude Code prompt **and** your shell. Internalize them and you stop reaching for arrow keys:
+
+| Keys | Does |
+|---|---|
+| `Cmd + ←` / `Cmd + →` | Jump to start / end of line |
+| `Ctrl + A` / `Ctrl + E` | Start / end of line (readline equivalent) |
+| `Ctrl + W` | Delete the word before the cursor |
+| `Ctrl + K` | Kill from cursor to end of line |
+| `Ctrl + U` | Clear the whole line |
+| `Option + ←` / `Option + →` | Move one word at a time |
+
+`Ctrl + W` and `Ctrl + K` are the two that pay for themselves daily — chopping a half-typed prompt back a word at a time beats holding backspace.
+
+### 3. cmux: orchestrate many agents at once
+
+[cmux](https://cmux.com) is a native-Mac terminal **built on Ghostty** (it renders via `libghostty` and reads your existing Ghostty config, so the look and keybindings above carry straight over). It's purpose-built for the parallel-agent era: instead of one terminal with one Claude session, you get **workspaces** in a vertical sidebar, each showing its git branch, PR status, working directory, and the latest agent notification.
+
+Why it's great for driving Kevin and friends:
+
+- **One workspace per agent task.** Kick off Kevin in one, a coding agent in another, a long research run in a third. Split panes within a workspace for the editor + logs + agent.
+- **Notifications that tell you who's waiting.** When an agent finishes or needs input, its pane gets a ring and the sidebar tab lights up, so you know which of your six running agents wants attention without staring.
+- **Organize like a file system.** Group related workspaces into folders, color-code by project (Kevin home = one color, each repo = another), and the sidebar becomes a live map of everything in flight.
+- **Session restore.** It saves and restores workspace layouts, directories, and scrollback, so closing the lid doesn't lose your swarm.
+
+cmux is open source (AGPL-3.0, by Manaflow AI). It pairs naturally with worktrees (next tip) — one workspace per worktree, one agent per workspace.
+
+### 4. Turn on `CLAUDE_CODE_NO_FLICKER`
+
+Add this to your **user-level** `~/.claude/settings.json` `env` block:
+
+```json
+{ "env": { "CLAUDE_CODE_NO_FLICKER": "1" } }
+```
+
+It's an alias for Claude Code's fullscreen renderer, and it fixes more than the name suggests:
+
+- **Click-to-position in the prompt.** This is the big one. Fullscreen mode enables mouse tracking, so you can **click anywhere in your prompt text to move the cursor** instead of arrow-keying across a long instruction. Without it, clicks fall through to the terminal and the prompt cursor never moves.
+- **No flicker.** It draws on the alternate screen buffer (like vim/htop) and virtualizes rendering, so the input box stays pinned to the bottom and streaming output doesn't make the screen jump.
+- **Flat memory in long sessions.** Only visible messages render, so a marathon session doesn't bloat.
+
+### 5. Git worktrees: parallel agents, one repo, zero collisions
+
+A [git worktree](https://git-scm.com/docs/git-worktree) checks out a second (third, fourth) working copy of the **same repo** into a separate folder, each on its own branch, all sharing one `.git`. This is the unlock for running multiple agents on the same codebase without them stepping on each other's files:
+
+```bash
+# From inside the repo — spin up an isolated copy on a new branch
+git worktree add ../myrepo-feature-x -b feature-x
+git worktree add ../myrepo-bugfix   -b bugfix-y
+
+git worktree list      # see them all
+git worktree remove ../myrepo-feature-x   # clean up when merged
+```
+
+Point one cmux workspace (and one agent) at each worktree. Agent A refactors on `feature-x` while Agent B fixes a bug on `bugfix-y`, no merge conflicts mid-flight, no "wait, why did my file just change" surprises. When a branch lands, remove the worktree and the folder's gone. (Claude Code's own background agents use the same trick under the hood.)
+
+> 💡 Managing worktrees from the CLI gets tedious. [Tower](https://www.git-tower.com) has an excellent worktree GUI — create, switch, and prune them visually. See [tip #10](#10-tower-for-git-review).
+
+### 6. Editor: VS Code, not Cursor
+
+If your terminal (cmux) is now the primary place agents do work, **Cursor is overkill.** Cursor's whole pitch is an AI layer baked into the editor, but when Claude Code and other agents live in the terminal driving the actual changes, you're paying for a second AI surface you don't use. Drop back to plain [VS Code](https://code.visualstudio.com) for reading diffs, quick manual edits, and extensions. The editor becomes a viewer/tweaker; the terminal is the cockpit.
+
+### 7. Obsidian: read the brain as a graph
+
+Kevin's entire memory is markdown with `[[wikilinks]]`, and so is almost everything an agent touches: tasks, project READMEs, plans, reports, knowledge articles. Working with agents *is* working in markdown all day. Open `<HOME>/` as an [Obsidian](https://obsidian.md) vault and that whole tree comes alive — it's a far nicer reader/editor for the projects, tasks, and notes than a code editor:
+
+- **A real markdown workspace.** Browse and edit `projects/`, `knowledge/`, reports, and daily memory with proper rendering, outline, search, and tags. This is where you live when you're reading what Kevin (and your other agents) wrote.
+- **Graph view** turns the knowledge base into a visual map — concepts, projects, memory, and user facets as linked nodes. You can *see* what's densely connected and what's orphaned.
+- **Working wikilinks + backlinks** for navigating between concepts, tasks, and daily memory the way Kevin wrote them.
+- **HTML-viewer plugins** (e.g. an "HTML Reader" community plugin) let you open the generated [Agent OS dashboard](#%EF%B8%8F-the-agent-os-dashboard) (`<HOME>/dashboard.html`) rendered, right inside Obsidian, next to the notes it summarizes. Combined with the `MARKDOWN_URL` setting (`obsidian://open?path={path}`), dashboard links open notes rendered in a new tab.
+
+### 8. MarkEdit: native markdown + styled PDF export
+
+[MarkEdit](https://github.com/MarkEdit-app/MarkEdit) is a free, open-source, native-Mac markdown editor (think "TextEdit for Markdown"). It's fast, distraction-free, and deeply Mac-integrated: **Quick Open**, system Quick Look, and a live **preview** so you see rendered output beside the source. The [markedit-preview](https://github.com/MarkEdit-app/MarkEdit-preview) extension adds the live HTML preview pane.
+
+The payoff is a clean **Markdown → HTML → PDF** export pipeline for anything you want to look polished (a business plan, a one-pager, a report Kevin generated). I run mine through a custom **panda-doc stylesheet** — a CSS theme that styles the exported HTML (typography, spacing, headings, code blocks) so the resulting PDF looks designed, not dumped. Drop your own stylesheet in, export to HTML, then print/render to PDF (Kevin's `playwright_pdf` tool can also do the HTML → PDF step with your CSS applied).
+
+### 9. Folder structure: home for the agent, tech for the repos
+
+The mental model that keeps multi-agent setups sane: **the agent's home is a knowledge+projects directory; your code repos live separately.**
+
+```text
+~/Documents/Agents/Kevin/        # Kevin's HOME — knowledge/, projects/, SOUL.md, etc.
+                                 #   the brain. No source code here.
+
+~/Developer/Acme/                # A forked company agent's HOME (fictitious "Acme")
+├── knowledge/                   #   same Kevin template, scoped to the company
+├── projects/
+├── SOUL.md / IDENTITY.md / USER.md
+└── tech/                        #   ALL the company's code lives under here
+    ├── repo-one/
+    ├── repo-two/
+    └── worktrees/               #   parallel worktrees for agents (tip #5)
+```
+
+The key idea: a company gets its **own fork of Kevin** whose HOME *is* the company directory (knowledge + projects scoped to that business), and a `tech/` subfolder holds every repo and worktree. So the agent's brain sits one level above the code it reasons about, the company's knowledge and its source live in one tree, and you can `cd ~/Developer/Acme && claude` to wake the company agent or `cd ~/Developer/Acme/tech/repo-one` to point a coding agent at a specific repo.
+
+### 10. Tower for git review
+
+VS Code's built-in git is fine for staging a quick commit, but for **reviewing** history, diffs, and branch topology it's cramped. [Tower](https://www.git-tower.com) gives you a proper visual overview: a clear commit graph, side-by-side diffs that are actually readable, interactive rebase/stage-by-hunk, fast branch navigation, and (per tip #5) a first-class worktree manager. When you're reviewing what three agents did across three worktrees before merging, a real git client earns its keep.
 
 ---
 
