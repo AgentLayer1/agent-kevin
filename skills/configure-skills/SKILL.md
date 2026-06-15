@@ -359,7 +359,7 @@ When a pack/skill is configured, write its tools into `$PROJECT_SETTINGS` → `p
 4. Sort `permissions.allow` alphabetically (deterministic diffs).
 5. Write back with 2-space indent.
 
-Example final shape — `/init` always-on baseline + **both** SEO and Browser activated, with SEO setting `GSC_SITE_URL=https://example.com/`. The core Bash patterns + core `kevin` MCP entries (`ping`, `compile_*`, `task_*`, `links_rewrite`, `memory_prune`) are written by `/init`; this skill appends pack-gated MCP entries when each pack is activated + host-scoped curl when SEO's `GSC_SITE_URL` is set:
+Example final shape — `/init` always-on baseline + both SEO and Browser activated, with SEO setting `GSC_SITE_URL=https://example.com/`. `/init` writes the core Bash patterns, the always-on `kevin` MCP entries, and the core skill grant (`setup-worktree`); this skill appends the pack-gated MCP entries (SEO, Browser) and the host-scoped curl pair when SEO's `GSC_SITE_URL` is set:
 
 ```json
 {
@@ -387,13 +387,16 @@ Example final shape — `/init` always-on baseline + **both** SEO and Browser ac
       "Bash(readlink *)",
       "Bash(test *)",
       "mcp__plugin_agent-kevin_kevin__browser_flows",
+      "mcp__plugin_agent-kevin_kevin__capture",
       "mcp__plugin_agent-kevin_kevin__compile_next",
       "mcp__plugin_agent-kevin_kevin__compile_status",
       "mcp__plugin_agent-kevin_kevin__compile_write",
+      "mcp__plugin_agent-kevin_kevin__dashboard",
       "mcp__plugin_agent-kevin_kevin__google_auth",
       "mcp__plugin_agent-kevin_kevin__gsc_inspect",
       "mcp__plugin_agent-kevin_kevin__gsc_query",
       "mcp__plugin_agent-kevin_kevin__gsc_sites",
+      "mcp__plugin_agent-kevin_kevin__knowledge_lint",
       "mcp__plugin_agent-kevin_kevin__links_rewrite",
       "mcp__plugin_agent-kevin_kevin__memory_prune",
       "mcp__plugin_agent-kevin_kevin__open_page_rank",
@@ -405,14 +408,17 @@ Example final shape — `/init` always-on baseline + **both** SEO and Browser ac
       "mcp__plugin_agent-kevin_kevin__playwright_pdf",
       "mcp__plugin_agent-kevin_kevin__playwright_record",
       "mcp__plugin_agent-kevin_kevin__playwright_screenshot",
+      "mcp__plugin_agent-kevin_kevin__report_write",
       "mcp__plugin_agent-kevin_kevin__serpapi_search",
+      "mcp__plugin_agent-kevin_kevin__setup_worktree",
       "mcp__plugin_agent-kevin_kevin__task_close",
       "mcp__plugin_agent-kevin_kevin__task_create",
       "mcp__plugin_agent-kevin_kevin__task_get",
       "mcp__plugin_agent-kevin_kevin__task_query",
       "mcp__plugin_agent-kevin_kevin__task_scan",
       "mcp__plugin_agent-kevin_kevin__task_thread",
-      "mcp__plugin_agent-kevin_kevin__task_update"
+      "mcp__plugin_agent-kevin_kevin__task_update",
+      "Skill(agent-kevin:setup-worktree)"
     ]
   }
 }
