@@ -776,7 +776,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
   const toolTiles = `<div data-filterbox>${filterInput('filter tools…')}<div class="tiles">${mcp.toolDetails
     .map(
       (tool) =>
-        `<div class="tile" data-row><div class="tname">${esc(shortToolName(tool.name))}</div><div class="tdesc">${esc(
+        `<div class="tile" data-row><div class="tname"><span class="good">${esc(shortToolName(tool.name))}</span></div><div class="tdesc">${esc(
           tool.description || '—'
         )}</div></div>`
     )

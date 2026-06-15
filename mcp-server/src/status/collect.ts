@@ -635,19 +635,25 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
   const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const byStatus = (status: string) => all.filter((task) => task.frontmatter.status === status).length;
 
-  const projectMap = new Map<string, ProjectLoad>();
+  const emptyLoad = (project: string): ProjectLoad => ({
+    project,
+    open: 0,
+    active: 0,
+    blocked: 0,
+    total: 0,
+    done: 0,
+    updatedAt: '',
+    description: ''
+  });
+
+  // Seed every discovered project so those with no live tasks still render as
+  // "quiet" cards. Archived projects move out of PROJECTS, so they drop off
+  // automatically; without this seeding, a live project whose tasks are all
+  // done/archived would silently vanish from the board.
+  const projectMap = new Map<string, ProjectLoad>(discoverProjects().map((project) => [project, emptyLoad(project)]));
   for (const task of all) {
     const { project, status, updated } = task.frontmatter;
-    const load = projectMap.get(project) ?? {
-      project,
-      open: 0,
-      active: 0,
-      blocked: 0,
-      total: 0,
-      done: 0,
-      updatedAt: '',
-      description: ''
-    };
+    const load = projectMap.get(project) ?? emptyLoad(project);
     if (status === 'open') load.open += 1;
     else if (status === 'active') load.active += 1;
     else if (status === 'blocked') load.blocked += 1;
@@ -663,7 +669,15 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
         load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
       description: projectDescription(load.project)
     }))
-    .sort((a, b) => b.total - a.total);
+    // Most recently touched project first (by latest live-task `updated:`),
+    // then by open-task count, then alphabetically. Quiet projects (no live
+    // tasks → empty updatedAt) sink to the bottom deterministically.
+    .sort(
+      (a, b) =>
+        (b.updatedAt || '').localeCompare(a.updatedAt || '') ||
+        b.total - a.total ||
+        a.project.localeCompare(b.project)
+    );
 
   // Whole working set, P0 first then earliest due — the dashboard's agenda raw material.
   const queue = all

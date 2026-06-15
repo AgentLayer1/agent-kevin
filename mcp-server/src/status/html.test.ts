@@ -311,7 +311,7 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(makeSnapshot());
     expect(html).toContain('/agent-kevin:sync');
     expect(html).toContain('End-to-end refresh of every derived view.');
-    expect(html).toContain('<div class="tname">dashboard</div>');
+    expect(html).toContain('<div class="tname"><span class="good">dashboard</span></div>');
     expect(html).toContain('Rebuild TASKS.md + the Agent OS dashboard.');
   });
 
