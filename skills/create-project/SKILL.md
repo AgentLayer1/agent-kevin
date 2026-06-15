@@ -1,7 +1,6 @@
 ---
 name: create-project
 description: Spin up a new project under projects/<slug>/ with a README, tasks folder, and a 2-letter task prefix registered with the MCP server. Use when the user says "create a new project called X", "start a project for Y", or otherwise declares a new multi-artefact initiative worth its own folder.
-disable-model-invocation: true
 ---
 
 # Create Project

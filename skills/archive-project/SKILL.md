@@ -1,7 +1,6 @@
 ---
 name: archive-project
 description: Retire a completed or cancelled project cleanly. Moves the project folder to the root-level archive/, strips references from active docs, heartbeat schedules, and task-management code, adds a final-thoughts banner to the project README, logs the archival in today's session file, and runs the knowledge compile to refresh the project index. Use when the user says "archive <project>", "retire <project>", or declares a project done/cancelled.
-disable-model-invocation: true
 ---
 
 # Archive Project

@@ -1,7 +1,6 @@
 ---
 name: quick-pulse
 description: Quick scan — anything stalled, any recent errors, any tasks past their cadence. ~1 minute read. Use when you want a status check without a full briefing.
-disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, Read, Glob, Bash
 ---
 

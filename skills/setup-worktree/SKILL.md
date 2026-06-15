@@ -1,7 +1,6 @@
 ---
 name: setup-worktree
 description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the current repo, or by asking when a HOME holds several repos), then creates the worktree as a sibling of that repo, never nested inside it.
-disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, Bash, Read
 ---
 
