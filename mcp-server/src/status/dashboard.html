@@ -259,6 +259,60 @@ ul.plain li { padding: 3px 0; }
 footer { margin-top: 44px; color: var(--dim); font-size: 12px; }
 footer .sep { margin: 0 8px; opacity: 0.5; }
 
+/* ── help / keyboard shortcuts ─────────────────────────────────────── */
+.help-fab {
+  position: fixed; top: 18px; right: 22px; z-index: 50;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--border); color: var(--dim);
+  font: 600 16px var(--mono); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.help-fab:hover { color: var(--accent); border-color: var(--accent); }
+.help-overlay {
+  position: fixed; inset: 0; z-index: 60; padding: 56px 24px 24px;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex; align-items: flex-start; justify-content: center; overflow-y: auto;
+}
+.help-overlay[hidden] { display: none; }
+.help-modal {
+  display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  width: 100%; max-width: 560px; max-height: calc(100vh - 80px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.help-head {
+  display: flex; align-items: center; justify-content: space-between; flex: none;
+  padding: 15px 20px; border-bottom: 1px solid var(--border);
+}
+.help-head h2 { margin: 0; font-size: 14px; color: var(--accent); letter-spacing: 0.04em; }
+.help-close {
+  background: none; border: none; color: var(--dim); cursor: pointer; font-size: 16px;
+  width: 28px; height: 28px; border-radius: 6px; flex: none;
+}
+.help-close:hover { color: var(--text); background: var(--panel-2); }
+.help-body { padding: 4px 20px 16px; overflow-y: auto; flex: 1 1 auto; }
+.help-body h3 {
+  margin: 18px 0 4px; font-size: 11px; font-weight: 600; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.help-table { width: 100%; border-collapse: collapse; }
+.help-table td { padding: 9px 8px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.help-table tr:last-child td { border-bottom: none; }
+.help-table td:first-child { white-space: nowrap; width: 1%; }
+.help-table td:last-child { color: var(--dim); font-size: 13px; }
+kbd {
+  display: inline-block; text-align: center;
+  background: var(--panel-2); border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: 6px; padding: 3px 7px; margin: 1px;
+  font: 12px var(--mono); color: var(--text); line-height: 1.1; white-space: nowrap;
+}
+.help-sep { color: var(--dim); margin: 0 4px; }
+.help-foot {
+  padding: 12px 20px 15px; border-top: 1px solid var(--border); flex: none;
+  color: var(--dim); font-size: 12px;
+}
+
 @media (max-width: 760px) {
   body { flex-direction: column; }
   aside { width: 100%; height: auto; position: static; }
@@ -271,6 +325,35 @@ footer .sep { margin: 0 8px; opacity: 0.5; }
 </style>
 </head>
 <body>
+<button class="help-fab" id="help-open" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+<div class="help-overlay" id="help-overlay" hidden>
+  <div class="help-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="help-head">
+      <h2>⌨️ Keyboard shortcuts</h2>
+      <button class="help-close" id="help-close" aria-label="Close">✕</button>
+    </div>
+    <div class="help-body">
+      <h3>Editing a line in the terminal</h3>
+      <table class="help-table">
+        <tr><td><kbd>⌘ Cmd</kbd> <kbd>←</kbd> <span class="help-sep">/</span> <kbd>⌘ Cmd</kbd> <kbd>→</kbd></td><td>Jump to the start / end of the line</td></tr>
+        <tr><td><kbd>⌥ Option</kbd> <kbd>←</kbd> <span class="help-sep">/</span> <kbd>⌥ Option</kbd> <kbd>→</kbd></td><td>Move one word at a time</td></tr>
+        <tr><td><kbd>⌃ Ctrl</kbd> <kbd>W</kbd></td><td>Delete the word before the cursor</td></tr>
+        <tr><td><kbd>⌃ Ctrl</kbd> <kbd>K</kbd></td><td>Delete from the cursor to the end of the line</td></tr>
+        <tr><td><kbd>⌃ Ctrl</kbd> <kbd>U</kbd></td><td>Clear the whole line</td></tr>
+      </table>
+      <h3>Working with Claude</h3>
+      <table class="help-table">
+        <tr><td><kbd>Esc</kbd></td><td>Stop Claude mid-reply</td></tr>
+        <tr><td><kbd>Esc</kbd> <kbd>Esc</kbd></td><td>Go back and edit an earlier message</td></tr>
+        <tr><td><kbd>⇧ Shift</kbd> <kbd>Tab</kbd></td><td>Switch modes (plan / auto-accept edits)</td></tr>
+        <tr><td><kbd>⌃ Ctrl</kbd> <kbd>C</kbd></td><td>Cancel what you're typing, or quit</td></tr>
+        <tr><td><kbd>↑</kbd></td><td>Scroll back through your past messages</td></tr>
+        <tr><td><kbd>/</kbd> <span class="help-sep">·</span> <kbd>@</kbd> <span class="help-sep">·</span> <kbd>!</kbd></td><td>Slash command · mention a file · run a shell command</td></tr>
+      </table>
+    </div>
+    <div class="help-foot">Press <kbd>?</kbd> anytime to open this, <kbd>Esc</kbd> to close.</div>
+  </div>
+</div>
 <aside>
   <div class="side-banner">
 {{BANNER}}
@@ -336,6 +419,19 @@ footer .sep { margin: 0 8px; opacity: 0.5; }
   const fromHash = () => open(location.hash.replace('#', ''));
   window.addEventListener('hashchange', fromHash);
   fromHash();
+
+  // Help modal: ? opens, Esc / overlay click / ✕ closes. The ? shortcut is
+  // ignored while typing in a filter so it doesn't hijack the keystroke.
+  const helpOverlay = document.getElementById('help-overlay');
+  const setHelp = (show) => { helpOverlay.hidden = !show; };
+  document.getElementById('help-open').addEventListener('click', () => setHelp(true));
+  document.getElementById('help-close').addEventListener('click', () => setHelp(false));
+  helpOverlay.addEventListener('click', (event) => { if (event.target === helpOverlay) setHelp(false); });
+  document.addEventListener('keydown', (event) => {
+    const typing = /^(input|textarea)$/i.test(document.activeElement?.tagName || '');
+    if (event.key === 'Escape') setHelp(false);
+    else if (event.key === '?' && !typing) { event.preventDefault(); setHelp(true); }
+  });
 
   // Text filter: narrows [data-row] elements within the same filterbox.
   document.querySelectorAll('input.filter').forEach((input) => {

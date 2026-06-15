@@ -647,8 +647,9 @@ const pageBrain = (snap: StatusSnapshot): string => {
     'Brain',
     `${snap.persona.name}'s living memory of your world — compiled from every session.`,
     subTabs([
-      { id: 'threads', label: 'Threads', body: threads },
+      { id: 'context', label: 'Context', body: buildContextBody(snap) },
       { id: 'memory', label: 'Memory', body: memory },
+      { id: 'threads', label: 'Threads', body: threads },
       {
         id: 'concepts',
         label: `Concepts · ${knowledge.concepts}`,
@@ -930,8 +931,11 @@ const MANIFEST_ICON: Record<ManifestEntry['status'], { icon: string; cls: string
   unavailable: { icon: '⚠', cls: 'warn' }
 };
 
-const pageSystem = (snap: StatusSnapshot): string => {
-  const { context, settings, logs } = snap;
+/** The "what loads into every session" view — static @-imports plus the
+ *  SessionStart injection. Lives on the Brain page (it's Kevin's context),
+ *  surfaced here as a standalone builder so pageBrain can mount it. */
+const buildContextBody = (snap: StatusSnapshot): string => {
+  const { context } = snap;
 
   const sums = (Object.keys(GROUP_COLORS) as ContextGroup[])
     .map((key) => ({
@@ -976,7 +980,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
     ];
   });
 
-  const contextBody = [
+  return [
     section(
       'Context loaded every session',
       `${context.staticImports.length} sources · ${humanBytes(context.staticBytes)}`,
@@ -984,6 +988,10 @@ const pageSystem = (snap: StatusSnapshot): string => {
     ),
     section('Injected at SessionStart', humanBytes(context.dynamic.bytes), table(['', 'entry', 'size'], manifestRows))
   ].join('');
+};
+
+const pageSystem = (snap: StatusSnapshot): string => {
+  const { settings, logs } = snap;
 
   // Path-valued env vars (KEVIN_HOME etc.) become Finder links; masked
   // secrets and plain values render as text.
@@ -1057,9 +1065,8 @@ const pageSystem = (snap: StatusSnapshot): string => {
   return page(
     'system',
     'System',
-    'The machinery — context assembly, settings, logs.',
+    'The machinery — settings, logs.',
     subTabs([
-      { id: 'context', label: 'Context', body: contextBody },
       { id: 'settings', label: 'Settings', body: settingsBody },
       { id: 'logs', label: 'Logs', body: logsBody }
     ])
@@ -1120,7 +1127,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
       ? missing
           .map(
             (item) =>
-              `<div class="row"><span class="bad" style="flex:none">✗</span><span class="grow">${esc(item.label)}</span>${navLink('system/context', 'see context table')}</div>`
+              `<div class="row"><span class="bad" style="flex:none">✗</span><span class="grow">${esc(item.label)}</span>${navLink('brain/context', 'see context table')}</div>`
           )
           .join('')
       : clearRow('All static imports present.'));

@@ -69,7 +69,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     monthly: ['Ship the MD Status application'],
     yearly: ['Q3: land MD Status; Q4: first customer']
   },
-  memoryThreads: ['al-005 MD portal blocked on 2-member rule', 'Walapay = day job, Ring 1'],
+  memoryThreads: ['al-005 MD portal blocked on 2-member rule', 'Acme Corp = day job, Ring 1'],
   memoryDecisions: ['BP v2.4→v2.5: third-party AI scrubbed'],
   memoryLearnings: ['One approval is not blanket commit license.'],
   memoryPending: ['al-014 corporate bank account awaiting CIMB HQ.'],
