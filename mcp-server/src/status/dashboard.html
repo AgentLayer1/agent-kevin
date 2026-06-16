@@ -206,7 +206,19 @@ details.task .meta.warn { color: var(--amber); }
 details.task .pri { flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--dim); }
 details.task .pri.p0 { color: var(--red); }
 details.task .pri.p1 { color: var(--amber); }
-details.task .taskbody { padding: 2px 2px 10px 72px; color: var(--dim); font-size: 12px; }
+/* Expanded body spans the full row width (no title-aligned indent). */
+details.task .taskbody { padding: 2px 2px 10px 4px; color: var(--dim); font-size: 12px; }
+/* Expand/collapse caret — sits at the row's end, rotates down when open. */
+details.task .caret { flex: none; color: var(--dim); font-size: 10px; transition: transform 0.15s; }
+details.task[open] .caret { transform: rotate(90deg); }
+/* Radar-derived session rows on the Today › Ongoing feed: accent title and a
+ *  smaller, narrower time-ago column. */
+details.task.radarrow .tid { min-width: 56px; color: var(--dim); font-size: 11px; }
+details.task.radarrow .ttl { color: var(--accent); }
+.taskbody .radarsum { line-height: 1.5; }
+.taskbody .resume { display: inline-block; margin-top: 8px; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; font-size: 11px; color: var(--dim); }
+.taskbody .resume code { background: none; padding: 0; font-size: 11px; color: var(--cyan); }
 h3.group { margin: 18px 0 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
 h3.group:first-of-type { margin-top: 8px; }
 h3.group.date { color: var(--accent); }
@@ -242,6 +254,15 @@ details.projcard[open] summary { border-bottom: 1px solid var(--border); }
 .proj-progress .track { flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
 .proj-progress .track span { display: block; height: 100%; border-radius: 3px; }
 .proj-tasks { padding: 6px 18px 14px; }
+
+/* ── scheduler cards ───────────────────────────────────────────────── */
+.cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
+.schedcard { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 15px 17px; }
+.sched-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sched-name { font-size: 14px; font-weight: 600; }
+.sched-when { font-size: 12px; margin-top: 8px; }
+.sched-next { font-size: 13px; margin-top: 4px; }
+.sched-invoke { font-size: 12px; margin-top: 12px; }
 
 /* ── log tail ──────────────────────────────────────────────────────── */
 pre.logtail {

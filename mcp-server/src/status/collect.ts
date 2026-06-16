@@ -77,6 +77,19 @@ export interface RadarLatest {
   /** The digest's "N sessions · window · scope" stats line, lifted out of the
    *  body so the dashboard can render it below the footer divider. */
   footer?: string;
+  /** Structured per-session rows parsed from the digest body — drives the
+   *  Today page's Ongoing feed (time-ago + title, expanding to summary + resume). */
+  sessions: RadarSession[];
+}
+
+/** One session block parsed out of a radar digest. */
+export interface RadarSession {
+  title: string;
+  /** Relative recency as the digest phrased it, e.g. `10m ago`, `~16h ago`. */
+  timeAgo: string;
+  summary: string;
+  /** `claude --resume <id>` command, or '' when the digest omitted one. */
+  resume: string;
 }
 
 export interface SkillInfo {
@@ -1393,7 +1406,26 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
     '<span class="resume">↳ <code>$1</code></span>'
   );
   const html = await sanitizeHtml(rendered);
-  return { date: ref.date, time: ref.time, title: ref.title, href: ref.href, html, footer };
+  return { date: ref.date, time: ref.time, title: ref.title, href: ref.href, html, footer, sessions: parseRadarSessions(raw) };
+}
+
+/** Pull the digest's per-session blocks (`**N. Title** · *time ago*`, a summary,
+ *  then a `↳ claude --resume …` line) into structured rows for the Today feed. */
+const parseRadarSessions = (raw: string): RadarSession[] => {
+  const sessions: RadarSession[] = [];
+  for (const block of raw.matchAll(
+    /\*\*\d+\.\s*([\s\S]*?)\*\*\s*·\s*\*([^*]+)\*([\s\S]*?)(?=\n\*\*\d+\.\s|\n##\s|$)/g
+  )) {
+    const body = block[3];
+    const resume = body.match(/↳\s*`?(claude --resume[^\n`]+)`?/)?.[1]?.trim() ?? '';
+    sessions.push({
+      title: stripMarkdown(block[1].trim()),
+      timeAgo: block[2].trim(),
+      summary: stripMarkdown(body.replace(/↳\s*`?claude --resume[^\n`]+`?/g, '').replace(/\s+/g, ' ').trim()),
+      resume
+    });
+  }
+  return sessions;
 };
 
 const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');

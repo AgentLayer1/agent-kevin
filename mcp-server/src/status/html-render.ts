@@ -25,7 +25,16 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
-import type { ContextGroup, ProfileSection, ProjectLoad, RadarLatest, ReportRef, StatusSnapshot, TaskRef } from './collect';
+import type {
+  ContextGroup,
+  ProfileSection,
+  ProjectLoad,
+  RadarLatest,
+  RadarSession,
+  ReportRef,
+  StatusSnapshot,
+  TaskRef
+} from './collect';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
 
 const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8');
@@ -202,13 +211,25 @@ const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {
     ref.path ? mdLink(snap, ref.path, ref.id) : esc(ref.id)
   }</span><span class="ttl">${esc(ref.title)}</span>${options.noProject ? '' : projChip(ref.project)}${dueHtml}<span class="pri ${esc(
     ref.priority.toLowerCase()
-  )}">${esc(ref.priority)}</span></summary><div class="taskbody">${esc(details.join(' · '))}${open}</div></details>`;
+  )}">${esc(ref.priority)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody">${esc(details.join(' · '))}${open}</div></details>`;
 };
 
 const taskGroup = (title: string, refs: TaskRef[], snap: StatusSnapshot, options: TaskRowOptions = {}): string =>
   refs.length
     ? `<h3 class="group">${esc(title)} · ${refs.length}</h3>${refs.map((ref) => taskRow(ref, snap, options)).join('')}`
     : '';
+
+/** Radar-derived session row for the Today › Ongoing feed: time-ago in the
+ *  first column, title second, expanding (like a task row) to the full summary
+ *  and the `claude --resume` command. */
+const radarSessionRow = (session: RadarSession): string => {
+  const resume = session.resume ? `<div class="resume">↳ <code>${esc(session.resume)}</code></div>` : '';
+  return `<details class="task radarrow" data-row><summary><span class="tid nowrap dim">${esc(
+    session.timeAgo
+  )}</span><span class="ttl">${esc(session.title)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody">${
+    session.summary ? `<div class="radarsum">${esc(session.summary)}</div>` : ''
+  }${resume}</div></details>`;
+};
 
 // ── pages ─────────────────────────────────────────────────────────────
 
@@ -294,7 +315,7 @@ const pageToday = (snap: StatusSnapshot): string => {
     [
       taskGroup('⏰ Overdue', tasks.overdueList, snap),
       taskGroup('📅 Due today', dueToday, snap),
-      taskGroup('▶ In flight', active, snap)
+      taskGroup('🚀 In flight', active, snap)
     ].join('') || hint('Nothing due, nothing overdue, nothing in flight. Clear runway.');
 
   const waiting = blocked.length
@@ -318,8 +339,10 @@ const pageToday = (snap: StatusSnapshot): string => {
   const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const inWindow = (sessionRef: (typeof snap.sessions)[number]) =>
     (sessionRef.lastSeen === today || sessionRef.lastSeen === yesterday) && Boolean(sessionRef.briefing);
-  const sessionsToday = snap.sessions.filter((sessionRef) => inWindow(sessionRef) && !sessionRef.isCommand);
   const commandsToday = snap.sessions.filter((sessionRef) => inWindow(sessionRef) && sessionRef.isCommand);
+  // The Sessions group is sourced from the latest radar digest (time-ago +
+  // title, expandable to summary + resume), not the raw session index.
+  const radarSessions = snap.radarLatest?.sessions ?? [];
   const todaysReports = snap.reports.filter(
     (report) => report.date === today || (report.date === yesterday && report.time > runtime.time)
   );
@@ -331,7 +354,7 @@ const pageToday = (snap: StatusSnapshot): string => {
       truncate(sessionRef.briefing || '(local-command session)', 300)
     )}</span><div class="nowrap" style="flex:none;text-align:right"><div class="dim">${sessionRef.turns} turns</div>${resumedChip(sessionRef)}</div></div>`;
   };
-  const sessionRows = sessionsToday.map(sessionFeedRow);
+  const radarRows = radarSessions.map(radarSessionRow);
   const commandRows = commandsToday.map(sessionFeedRow);
   const touchedRows = touched.map(
     (ref) =>
@@ -343,9 +366,9 @@ const pageToday = (snap: StatusSnapshot): string => {
   );
   const outputRows = todaysReports.map((report) => reportRow(report, snap));
   const activity =
-    sessionRows.length + commandRows.length + touchedRows.length + outputRows.length
+    radarRows.length + commandRows.length + touchedRows.length + outputRows.length
       ? [
-          sessionRows.length ? `<h3 class="group">💬 Sessions · ${sessionRows.length}</h3>${sessionRows.join('')}` : '',
+          radarRows.length ? `<h3 class="group">💬 Sessions · ${radarRows.length}</h3>${radarRows.join('')}` : '',
           touchedRows.length
             ? `<h3 class="group">✏️ Tasks touched · ${touchedRows.length}</h3>${touchedRows.join('')}`
             : '',
@@ -385,7 +408,7 @@ const pageToday = (snap: StatusSnapshot): string => {
         .join('')
     : hint('No headlines yet — briefings collect them as they run.');
 
-  const activityCount = sessionsToday.length + commandsToday.length + touched.length + todaysReports.length;
+  const activityCount = radarSessions.length + commandsToday.length + touched.length + todaysReports.length;
   return page(
     'today',
     `Good ${part}${name} <span class="accent">✨</span>`,
@@ -393,8 +416,8 @@ const pageToday = (snap: StatusSnapshot): string => {
     stats +
       subTabs([
         { id: 'plan', label: 'Plan', body: plan },
+        { id: 'activity', label: `Ongoing · ${activityCount}`, body: activity },
         { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/TASKS.md', goalsBody) },
-        { id: 'activity', label: `Today so far · ${activityCount}`, body: activity },
         {
           id: 'news',
           label: `News · ${snap.news.length}`,
@@ -571,9 +594,37 @@ const pageSessions = (snap: StatusSnapshot): string => {
     section('Volume', 'last 7 days', volume) +
       subTabs([
         { id: 'radar', label: '🛰️ Recent', body: radarTab(snap) },
-        { id: 'history', label: '🕘 History', body: recent }
+        { id: 'history', label: '🕘 History', body: recent },
+        { id: 'locations', label: '📍 Locations', body: locationsTab(snap) }
       ])
   );
+};
+
+/** Locations tab — every distinct working directory the sessions ran in, with
+ *  its most recent date and session count. An at-a-glance map of where on the
+ *  machine you've been working. */
+const locationsTab = (snap: StatusSnapshot): string => {
+  const byLoc = new Map<string, { lastSeen: string; count: number }>();
+  for (const sessionRef of snap.sessions) {
+    if (!sessionRef.cwd) continue;
+    const prev = byLoc.get(sessionRef.cwd);
+    byLoc.set(sessionRef.cwd, {
+      lastSeen: prev && prev.lastSeen > sessionRef.lastSeen ? prev.lastSeen : sessionRef.lastSeen,
+      count: (prev?.count ?? 0) + 1
+    });
+  }
+  const rows = [...byLoc.entries()]
+    .sort((a, b) => b[1].lastSeen.localeCompare(a[1].lastSeen))
+    .map(
+      ([cwd, info]) =>
+        `<div class="row" data-row><span class="grow">${pathLink(cwd)}</span><span class="dim nowrap">${
+          info.count
+        } session${info.count > 1 ? 's' : ''}</span><span class="dim nowrap">${esc(info.lastSeen)}</span></div>`
+    )
+    .join('');
+  return byLoc.size
+    ? `<div data-filterbox>${filterInput('filter locations…')}${rows}</div>`
+    : hint('No working directories captured yet.');
 };
 
 /** Recent (radar) tab — the latest where-am-i digest rendered inline, plus a
@@ -821,24 +872,23 @@ const pageScheduler = (snap: StatusSnapshot): string => {
   const now = snap.runtime.time;
   const plugin = snap.runtime.pluginName;
 
-  const rows = SCHEDULE.map((job) => {
+  const cards = SCHEDULE.map((job) => {
     const next = resolveNextRun(job, today, now);
     const days = daysBetween(today, next);
     const rel = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days}d`;
-    return [
-      `<span class="ttl">${esc(job.label)}</span>`,
-      `<span class="dim">${esc(job.when)} · ${esc(job.anchor)}</span>`,
-      `<span class="nowrap">${esc(prettyDate(next))} <span class="dim">${esc(rel)}</span></span>`,
-      '<span class="chip manual">manual</span>',
-      `<span class="good nowrap">/${esc(plugin)}:${esc(job.skill)}</span>`
-    ];
-  });
+    return `<div class="schedcard">
+<div class="sched-head"><span class="sched-name">${esc(job.label)}</span><span class="chip manual">manual</span></div>
+<div class="sched-when dim">${esc(job.when)} · ${esc(job.anchor)}</div>
+<div class="sched-next"><span class="dim">next</span> ${esc(prettyDate(next))} <span class="dim">${esc(rel)}</span></div>
+<div class="sched-invoke good">/${esc(plugin)}:${esc(job.skill)}</div>
+</div>`;
+  }).join('');
 
   return page(
     'scheduler',
     `Scheduler <span class="accent">⏰</span>`,
     'Recurring routines and when to run them — manual for now.',
-    table(['Task', 'When', 'Next', 'Status', 'Invoke'], rows, ' data-row')
+    `<div class="cardgrid">${cards}</div>`
   );
 };
 

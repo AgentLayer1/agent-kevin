@@ -261,13 +261,33 @@ describe('renderDashboardHtml', () => {
   });
 
   test('today page surfaces goals, due-today work, blockers, and the activity trail', () => {
-    const html = renderDashboardHtml(makeSnapshot());
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        radarLatest: {
+          date: '2026-06-16',
+          time: '08:59',
+          title: 'Where am I',
+          href: 'reports/radar/2026-06-16-0859-where-am-i.md',
+          html: '<p>digest</p>',
+          sessions: [
+            {
+              title: 'Add report writing to where-am-i skill',
+              timeAgo: '10m ago',
+              summary: 'The anchor session for the radar feature.',
+              resume: 'claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72'
+            }
+          ]
+        }
+      })
+    );
     expect(html).toContain('Ship the MD Status application');
     expect(html).toContain('Due today task');
     expect(html).toContain('Awaiting CIMB HQ approval');
-    expect(html).toContain('Today so far');
+    expect(html).toContain('Ongoing');
     expect(html).toContain('Tasks touched');
-    expect(html).toContain('Morning sync and MDEC portal work');
+    // The Ongoing feed's Sessions group now comes from the radar digest.
+    expect(html).toContain('Add report writing to where-am-i skill');
+    expect(html).toContain('claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72');
   });
 
   test('brain page carries threads, decisions, concepts, and the memory tab', () => {
@@ -385,7 +405,6 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('NEEP Category-I EP salary RM20K/mo confirmed');
     expect(html).not.toContain('href=""');
     expect(html).toContain('⚡ Commands · 1');
-    expect(html).toContain('💬 Sessions · 1');
   });
 
   test('unset goals show the run-the-skill hint', () => {
@@ -406,8 +425,8 @@ describe('renderDashboardHtml', () => {
             time: '23:40',
             turns: 7,
             cwd: '~/Documents/Agents/Kevin',
-            briefing: 'Late-night portal fixes',
-            isCommand: false
+            briefing: '/agent-kevin:sync evening',
+            isCommand: true
           },
           {
             id: 'old000001',
@@ -416,18 +435,19 @@ describe('renderDashboardHtml', () => {
             time: '',
             turns: 3,
             cwd: '~/Documents/Agents/Kevin',
-            briefing: 'Two-days-ago session',
-            isCommand: false
+            briefing: '/agent-kevin:quick-pulse',
+            isCommand: true
           }
         ]
       })
     );
     const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
-    expect(today).toContain('Late-night portal fixes');
-    expect(today).not.toContain('Two-days-ago session');
+    // The command feed still spans the 24h window: yesterday in, two days ago out.
+    expect(today).toContain('/agent-kevin:sync evening');
+    expect(today).not.toContain('/agent-kevin:quick-pulse');
     // Feed rows carry timestamps; yesterday's rows wear a stacked day label
     // under the time so times stay column-aligned.
-    expect(today).toContain('09:12');
+    expect(today).toContain('09:45');
     expect(today).toContain('23:40<span style="display:block;font-size:10px">yesterday</span>');
   });
 
