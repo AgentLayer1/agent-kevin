@@ -364,6 +364,34 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('all quiet');
   });
 
+  test('log tail offers all/warn/error level filters with per-line levels', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        logs: {
+          path: '/tmp/home/.kevin/logs/app.log',
+          bytes: 1000,
+          warnings: 1,
+          errors: 1,
+          totalWarnings: 3,
+          totalErrors: 1,
+          lastError: null,
+          tail: [
+            '2026-06-11T01:00:00Z INFO [system] booted',
+            '2026-06-11T01:00:01Z WARN [system] slow',
+            '2026-06-11T01:00:02Z ERROR [system] boom',
+            '    at stack continuation'
+          ].join('\n')
+        }
+      })
+    );
+    expect(html).toContain('data-catfilter="warn"');
+    expect(html).toContain('data-catfilter="error"');
+    expect(html).toContain('class="logline lvl-warn" data-row data-cat="warn"');
+    expect(html).toContain('class="logline lvl-error" data-row data-cat="error"');
+    // continuation line inherits the preceding ERROR level
+    expect(html).toContain('class="logline lvl-error" data-row data-cat="error">    at stack continuation');
+  });
+
   test('escapes snapshot-derived strings everywhere they render', () => {
     const hostile = 'Fix <script>alert("x")</script> & co';
     const base = makeSnapshot();

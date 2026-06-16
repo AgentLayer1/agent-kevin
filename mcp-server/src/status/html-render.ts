@@ -1196,6 +1196,41 @@ const buildContextBody = (snap: StatusSnapshot): string => {
   ].join('');
 };
 
+// Level field sits right after the ISO-UTC timestamp; mirrors collect.ts's
+// LEVEL_RE so the tail's coloring agrees with the today/all-time counts.
+const TAIL_LEVEL_RE = /^\S+Z (\w+) /;
+
+/** Renders the log tail as per-line rows wired into the shared filterbox: each
+ *  line carries its level so the All/Warn/Error chips hide entries accordingly.
+ *  Continuation lines (no timestamp, e.g. stack traces) inherit the preceding
+ *  entry's level so they hide and color with it. */
+const logTail = (tail: string): string => {
+  let level = 'info';
+  let entries = 0;
+  const counts = { warn: 0, error: 0 };
+  const rows = tail.split('\n').map((line) => {
+    const matched = line.match(TAIL_LEVEL_RE)?.[1];
+    if (matched) {
+      level = matched === 'WARN' ? 'warn' : matched === 'ERROR' ? 'error' : 'info';
+      entries += 1;
+      if (level === 'warn' || level === 'error') counts[level] += 1;
+    }
+    return `<div class="logline lvl-${level}" data-row data-cat="${level}">${esc(line) || '&nbsp;'}</div>`;
+  });
+  const chip = (filter: string, label: string, count: number | null, dot: string, active: boolean): string =>
+    `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${
+      dot ? `<i style="background:${dot}"></i>` : ''
+    }${esc(label)}${count === null ? '' : ` <span class="dim">${count}</span>`}</button>`;
+  const chips = `<div class="chips" data-catchips>${chip('all', 'All', entries, '', true)}${chip(
+    'warn',
+    'Warn',
+    counts.warn,
+    'var(--amber)',
+    false
+  )}${chip('error', 'Error', counts.error, 'var(--red)', false)}</div>`;
+  return `<div data-filterbox>${chips}<pre class="logtail">${rows.join('')}</pre></div>`;
+};
+
 const pageSystem = (snap: StatusSnapshot): string => {
   const { settings, logs } = snap;
 
@@ -1264,7 +1299,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
     section(
       'Tail',
       humanBytes(Buffer.byteLength(logs.tail)),
-      logs.tail ? `<pre class="logtail">${esc(logs.tail)}</pre>` : hint('No log output yet.')
+      logs.tail ? logTail(logs.tail) : hint('No log output yet.')
     )
   ].join('');
 
