@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds CLAUDE.md (operating manual + @-imports), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If a CLAUDE.md already exists at the home directory, Kevin's version is written to CLAUDE.local.md instead. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *)
 ---
 
 # Initialize Kevin
@@ -23,6 +23,52 @@ fi
 ```
 
 `SOUL.md` is Kevin's idempotency marker — its filename is unique to the plugin (unlike `CLAUDE.md`, which may pre-exist in any Claude Code project the plugin gets installed into).
+
+**Detect the operating system.** Several later steps scaffold OS-specific content — the timezone probe (Step 4), the external-storage suggestion (Step 5c), the security deny-list (Step 7), and the `{{PLATFORM}}` line recorded in CLAUDE.md. Resolve it once here. Claude Code's Bash tool runs under Git Bash on Windows, so `uname` is available everywhere.
+
+```bash
+case "$(uname -s)" in
+  Darwin)               KEVIN_OS="macos";   PLATFORM_LABEL="macOS" ;;
+  MINGW*|MSYS*|CYGWIN*) KEVIN_OS="windows"; PLATFORM_LABEL="Windows" ;;
+  Linux)
+    if grep -qiE "microsoft|wsl" /proc/version 2>/dev/null; then
+      KEVIN_OS="wsl";   PLATFORM_LABEL="Windows (WSL2)"
+    else
+      KEVIN_OS="linux"; PLATFORM_LABEL="Linux"
+    fi ;;
+  *)                    KEVIN_OS="unknown"; PLATFORM_LABEL="$(uname -s)" ;;
+esac
+echo "KEVIN_OS=$KEVIN_OS"
+```
+
+Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
+
+**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On Windows, Kevin is supported **only under WSL2**, not native Git Bash / MSYS.
+
+```bash
+MISSING=()
+command -v bun >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
+command -v git >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
+command -v python3 >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
+[ "$KEVIN_OS" = "windows" ] && echo "BLOCKER_NATIVE_WINDOWS"
+printf 'MISSING: %s\n' "${MISSING[@]}"
+```
+
+Act on the result **before** anything else:
+
+- **`BLOCKER_NATIVE_WINDOWS` printed** — you're in native Windows (Git Bash / MSYS / Cygwin). Print the message below and **STOP** — do not continue to Step 1:
+
+  > 🛑 **Windows is supported through WSL2 only.** You're running in native Windows. Install WSL2 (`wsl --install` in an admin PowerShell, then reboot), install your tools inside the Linux distro, and run Claude Code + `/agent-kevin:init` from **inside WSL2**. This keeps Kevin on one well-supported POSIX path instead of a half-working native shim.
+
+- **`MISSING` non-empty** — print the block below verbatim (one line per missing tool) and **STOP**:
+
+  > 🛑 **Missing prerequisites.** Kevin can't run until these are installed:
+  >
+  > `<each MISSING line>`
+  >
+  > Install them, then re-run `/agent-kevin:init` — it's idempotent and picks up where you left off.
+
+- **Nothing missing** — surface the optional `NOTE` (if any) as a one-line FYI and continue.
 
 If `ALREADY_INITIALIZED`, `AskUserQuestion` with an explicit enumeration of what re-run does. Surface the full write list so the operator knows what they're agreeing to — Step 0's prior wording understated the destructive surface and operators reasonably trusted it.
 
@@ -122,13 +168,21 @@ Infer defaults first:
 
 ```bash
 NAME_DEFAULT=$(git config user.name 2>/dev/null || echo "${USER:-friend}")
-TZ_IANA=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')
+# Timezone probe is OS-specific. macOS/Linux/WSL symlink /etc/localtime into the
+# zoneinfo db, so the IANA name falls right out. Windows has no IANA tz database
+# (tzutil returns Windows-style names), so skip the probe and let the user type one.
+case "$KEVIN_OS" in
+  macos|linux|wsl) TZ_IANA=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||') ;;
+  *)               TZ_IANA="" ;;
+esac
 ```
 
 `AskUserQuestion` (batched):
 
 > 1. **Your name** — what should Kevin call you? (Default: `<NAME_DEFAULT>`)
 > 2. **Your timezone** — IANA name like `America/New_York`. (System looks like: `<TZ_IANA>`)
+
+When `TZ_IANA` is blank (Windows, or the probe found nothing), drop the "System looks like" hint and prompt for the IANA name outright with an example, e.g. *"IANA name like `Asia/Kuala_Lumpur` — couldn't auto-detect, so please type yours."*
 
 Stage answers for the USER.md write.
 
@@ -143,7 +197,7 @@ Best-effort inference — only suggest a default when it's unambiguous (exactly 
 ```bash
 CODE_DEFAULT=""
 HITS=()
-for root in "$HOME/Developer" "$HOME/Code" "$HOME/code" "$HOME/Projects" "$HOME/projects" "$HOME/src" "$HOME/repos"; do
+for root in "$HOME/Developer" "$HOME/Code" "$HOME/code" "$HOME/Projects" "$HOME/projects" "$HOME/src" "$HOME/source" "$HOME/repos" "$HOME/git"; do
   [ -d "$root" ] || continue
   for dir in "$root"/*/; do
     [ -d "${dir}.git" ] && HITS+=("$(cd "$dir" && pwd)")
@@ -221,9 +275,11 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 `AskUserQuestion`:
 
 > **Where should `knowledge/` and `projects/` live?** Default keeps them inside your agent home. Override if you want to:
-> - sync via iCloud (path outside the home)
+> - sync via a cloud-synced folder (`<CLOUD_EXAMPLE>` — a path outside the home)
 > - keep them in a separate git repo
 > - share `projects/` across multiple Kevin homes
+
+Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a WSL/Linux home.
 >
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
@@ -318,10 +374,10 @@ else
 fi
 cp "${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md" "$CLAUDE_DEST"
 
-# Substitute path placeholders so @-imports reflect the chosen
+# Substitute placeholders: the @-import paths reflect the chosen
 # KNOWLEDGE_ROOT / PROJECTS_ROOT (may differ from the defaults if the user
-# picked "Specify" in Step 6). Falls back to relative paths when the root is
-# under HOME_DIR, absolute otherwise.
+# picked "Specify" in Step 6; relative when under HOME_DIR, absolute otherwise),
+# and {{PLATFORM}} records the OS detected in Step 0.
 relpath() {
   case "$1" in
     "$HOME_DIR") echo "." ;;
@@ -334,6 +390,7 @@ PROJECTS_REL="$(relpath "$PROJECTS_ROOT")"
 sed -i.bak \
   -e "s|{{KNOWLEDGE_REL}}|${KNOWLEDGE_REL}|g" \
   -e "s|{{PROJECTS_REL}}|${PROJECTS_REL}|g" \
+  -e "s|{{PLATFORM}}|${PLATFORM_LABEL}|g" \
   "$CLAUDE_DEST"
 rm "$CLAUDE_DEST.bak"
 ```
@@ -390,7 +447,9 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
 
-Baseline `permissions.deny` to write when global doesn't already have a deny list:
+Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Linux/WSL home, where they're dead entries that protect nothing. (Native Windows never reaches this step — it's gated to WSL2 in Step 0, where `$KEVIN_OS` is `wsl` and the Linux tail applies.)
+
+Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resolve correctly on Windows too, since Git Bash maps `~` to `%USERPROFILE%`:
 
 ```json
 [
@@ -421,7 +480,16 @@ Baseline `permissions.deny` to write when global doesn't already have a deny lis
   "Read(~/.npmrc)",
   "Read(~/.npm/**)",
   "Read(~/.pypirc)",
-  "Read(~/.gem/credentials)",
+  "Read(~/.gem/credentials)"
+]
+```
+
+OS-specific tail — append the block matching `$KEVIN_OS`:
+
+`macos`:
+
+```json
+[
   "Read(~/Library/Keychains/**)",
   "Read(~/Library/Application Support/**/metamask*/**)",
   "Read(~/Library/Application Support/**/electrum*/**)",
@@ -430,6 +498,19 @@ Baseline `permissions.deny` to write when global doesn't already have a deny lis
   "Read(~/Library/Application Support/**/solflare*/**)"
 ]
 ```
+
+`linux` / `wsl`:
+
+```json
+[
+  "Read(~/.local/share/keyrings/**)",
+  "Read(~/.config/**/electrum*/**)",
+  "Read(~/.config/**/exodus*/**)",
+  "Read(~/.config/**/Exodus/**)"
+]
+```
+
+For `unknown`, write the core only (no tail). The OS tail is best-effort wallet-folder coverage — names vary by app version, so don't treat absence as a guarantee.
 
 Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
 

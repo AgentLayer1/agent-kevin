@@ -119,6 +119,10 @@ Drive tasks via MCP tools (`mcp__plugin_agent-kevin_kevin__task_*`) inside Claud
 - **Dates:** ISO 8601 (YYYY-MM-DD)
 - **Style:** factual encyclopedia entries (user, concepts) or conversational summaries (memory)
 
+## Platform
+
+This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
+
 ## Engineering the Codebase
 
 When writing or editing code in this project (MCP server, hooks, CLI, skills):

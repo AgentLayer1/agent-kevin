@@ -53,10 +53,7 @@ Kevin runs on a small, **bun-first** toolchain (no Node.js). Install these once:
 
 `bun` and `git` are hard requirements — `/agent-kevin:init` checks for them up front and stops with an install pointer if either is missing. Chromium (for the Playwright tools) is **not** a manual step — `bun install` downloads it into the plugin via a postinstall hook.
 
-**On Windows?** The toolchain assumes a POSIX shell. Pick one:
-
-- **WSL2** *(recommended)* — a full Linux environment where everything runs unchanged. [Install guide](https://learn.microsoft.com/windows/wsl/install)
-- **Git Bash** *(experimental)* — native Windows plus the bash + coreutils that ship with [Git for Windows](https://git-scm.com/download/win). Native support is still being hardened (see [Platform support](#platform-support)).
+**On Windows? Use WSL2 — it's the only supported path.** Install [WSL2](https://learn.microsoft.com/windows/wsl/install) (`wsl --install` in an admin PowerShell, then reboot), install the toolchain above **inside** your Linux distro, and run Claude Code + `/agent-kevin:init` from inside WSL2. Kevin's hooks, MCP server, and per-skill `bash` permission patterns all assume a POSIX shell; WSL2 gives you one well-supported path instead of a half-working native-Windows shim. Native Git Bash / MSYS is **not** supported — `init` detects it and redirects you to WSL2.
 
 </details>
 
@@ -731,7 +728,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 **On `KEVIN_HOME`.** When you launch `claude` from inside your agent home, the cwd-fallback works and you don't need to set anything. When `cwd` is somewhere else — a subdir of home, a sibling repo, or the user-level session-capture hook firing from a random project — the MCP server resolves paths relative to `cwd` instead, and writes land in the wrong place (or the `isInitialized()` guard fires and the hook silently no-ops). If you ever launch Claude Code from outside the home, set `KEVIN_HOME` in your shell rc or in `~/.claude/settings.json` `env`.
 
-`KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. iCloud, an external drive, a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
+`KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
 API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated env keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every API key above is a pack-gated key that `configure-skills` plants as an empty placeholder when you activate the matching pack. **You fill the secret values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
 
@@ -853,9 +850,9 @@ After editing `~/.claude/settings.json`, launch `claude` from any directory, hav
 
 ## 🖥️ Platform support
 
-Built and tested on **macOS**. The plugin should work on **Linux** with one caveat: chromium auto-install via `playwright` is sometimes flaky in headless sandboxes. **Windows is untested**; the Bun-based hooks and MCP server should run under WSL2 but the per-skill `bash` patterns in `permissions.allow` (e.g. `Bash(git log *)`) assume a POSIX shell. PowerShell equivalents would need to be added separately.
+Built and tested on **macOS**. The plugin should work on **Linux** with one caveat: chromium auto-install via `playwright` is sometimes flaky in headless sandboxes. **Windows is supported through WSL2 only** — run everything (Claude Code, the toolchain, `init`) from inside a WSL2 distro, where Kevin runs on the same POSIX path as Linux. Native Windows (Git Bash / MSYS) is **not** supported: the hooks, MCP server, and per-skill `bash` permission patterns (e.g. `Bash(git log *)`) assume a POSIX shell, and `/agent-kevin:init` detects native Windows and redirects you to WSL2 rather than half-working.
 
-If you run Kevin successfully on Linux or Windows, please open a PR with platform-specific install notes.
+If you run Kevin successfully on Linux or WSL2, please open a PR with platform-specific install notes.
 
 ---
 
