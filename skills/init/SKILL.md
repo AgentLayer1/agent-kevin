@@ -43,22 +43,19 @@ echo "KEVIN_OS=$KEVIN_OS"
 
 Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
-**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On Windows, Kevin is supported **only under WSL2**, not native Git Bash / MSYS.
+**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
 
 ```bash
 MISSING=()
 command -v bun >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
 command -v git >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
 command -v python3 >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
-[ "$KEVIN_OS" = "windows" ] && echo "BLOCKER_NATIVE_WINDOWS"
 printf 'MISSING: %s\n' "${MISSING[@]}"
 ```
 
 Act on the result **before** anything else:
 
-- **`BLOCKER_NATIVE_WINDOWS` printed** — you're in native Windows (Git Bash / MSYS / Cygwin). Print the message below and **STOP** — do not continue to Step 1:
-
-  > 🛑 **Windows is supported through WSL2 only.** You're running in native Windows. Install WSL2 (`wsl --install` in an admin PowerShell, then reboot), install your tools inside the Linux distro, and run Claude Code + `/agent-kevin:init` from **inside WSL2**. This keeps Kevin on one well-supported POSIX path instead of a half-working native shim.
+- **Native Windows (`$KEVIN_OS` = `windows`)** — supported; do **not** stop. Surface a one-line FYI and continue: *"Running on native Windows via Git Bash — the supported Windows path. (Prefer a full Linux userland? WSL2 works too.)"* The OS-specific steps below (timezone probe, external-storage suggestion, security deny-list, the `{{PLATFORM}}` label) already branch on `windows`, so the scaffold is shaped correctly. Heads-up worth surfacing once: a few pack-gated skills assume tools Git Bash lacks (e.g. `jq`), and the OS sandbox is unavailable on Windows — neither blocks the core setup.
 
 - **`MISSING` non-empty** — print the block below verbatim (one line per missing tool) and **STOP**:
 
@@ -279,7 +276,7 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 > - keep them in a separate git repo
 > - share `projects/` across multiple Kevin homes
 
-Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a WSL/Linux home.
+Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/OneDrive`) on `windows`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a Windows/WSL/Linux home.
 >
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
@@ -447,7 +444,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
 
-Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Linux/WSL home, where they're dead entries that protect nothing. (Native Windows never reaches this step — it's gated to WSL2 in Step 0, where `$KEVIN_OS` is `wsl` and the Linux tail applies.)
+Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
 Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resolve correctly on Windows too, since Git Bash maps `~` to `%USERPROFILE%`:
 
@@ -507,6 +504,19 @@ OS-specific tail — append the block matching `$KEVIN_OS`:
   "Read(~/.config/**/electrum*/**)",
   "Read(~/.config/**/exodus*/**)",
   "Read(~/.config/**/Exodus/**)"
+]
+```
+
+`windows` (Git Bash maps `~` to `%USERPROFILE%`, so these `~/AppData/...` globs resolve to `%APPDATA%` / `%LOCALAPPDATA%`):
+
+```json
+[
+  "Read(~/AppData/Roaming/Microsoft/Credentials/**)",
+  "Read(~/AppData/Local/Microsoft/Vault/**)",
+  "Read(~/AppData/Roaming/**/electrum*/**)",
+  "Read(~/AppData/Roaming/Exodus/**)",
+  "Read(~/AppData/Roaming/**/exodus*/**)",
+  "Read(~/AppData/Local/**/metamask*/**)"
 ]
 ```
 

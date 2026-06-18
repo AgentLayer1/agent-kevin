@@ -53,7 +53,7 @@ Kevin runs on a small, **bun-first** toolchain (no Node.js). Install these once:
 
 `bun` and `git` are hard requirements — `/agent-kevin:init` checks for them up front and stops with an install pointer if either is missing. Chromium (for the Playwright tools) is **not** a manual step — `bun install` downloads it into the plugin via a postinstall hook.
 
-**On Windows? Use WSL2 — it's the only supported path.** Install [WSL2](https://learn.microsoft.com/windows/wsl/install) (`wsl --install` in an admin PowerShell, then reboot), install the toolchain above **inside** your Linux distro, and run Claude Code + `/agent-kevin:init` from inside WSL2. Kevin's hooks, MCP server, and per-skill `bash` permission patterns all assume a POSIX shell; WSL2 gives you one well-supported path instead of a half-working native-Windows shim. Native Git Bash / MSYS is **not** supported — `init` detects it and redirects you to WSL2.
+**On Windows?** Kevin runs on **native Windows through Git Bash** — the shell Claude Code already uses for its Bash tool, which supplies the POSIX environment Kevin's hooks, MCP server, and per-skill `bash` permission patterns expect. Install the `bun` + `git` toolchain (above) for Windows, then run Claude Code + `/agent-kevin:init` as usual. **WSL2 is also fully supported** if you prefer a full Linux userland: install [WSL2](https://learn.microsoft.com/windows/wsl/install) (`wsl --install` in an admin PowerShell, then reboot), put the toolchain inside the distro, and launch Claude Code from there. Either works — native is lighter; WSL2 is closer to a Linux production target. Native Windows has a few rough edges to know about (MSYS path-mangling on colon-paths, no OS sandbox, and a couple of pack-gated skills that assume tools Git Bash lacks like `jq`); see [Platform support](#platform-support).
 
 </details>
 
@@ -850,9 +850,12 @@ After editing `~/.claude/settings.json`, launch `claude` from any directory, hav
 
 ## 🖥️ Platform support
 
-Built and tested on **macOS**. The plugin should work on **Linux** with one caveat: chromium auto-install via `playwright` is sometimes flaky in headless sandboxes. **Windows is supported through WSL2 only** — run everything (Claude Code, the toolchain, `init`) from inside a WSL2 distro, where Kevin runs on the same POSIX path as Linux. Native Windows (Git Bash / MSYS) is **not** supported: the hooks, MCP server, and per-skill `bash` permission patterns (e.g. `Bash(git log *)`) assume a POSIX shell, and `/agent-kevin:init` detects native Windows and redirects you to WSL2 rather than half-working.
+Built and tested on **macOS**. The plugin also runs on **Linux** (one caveat: chromium auto-install via `playwright` is sometimes flaky in headless sandboxes — on a fresh distro run `playwright install-deps chromium` once) and on **Windows**, both native and via WSL2.
 
-If you run Kevin successfully on Linux or WSL2, please open a PR with platform-specific install notes.
+- **Native Windows** works through **Git Bash** — the shell Claude Code uses for its Bash tool — which supplies the POSIX environment the hooks, MCP server, and per-skill `bash` patterns (e.g. `Bash(git log *)`) assume. Requirements: `bun` and `git` on `PATH`. Rough edges to know about: MSYS path-mangling can bite commands that pass colon-paths or unix-style absolute paths (`MSYS_NO_PATHCONV=1` is the escape hatch); the OS sandbox is unavailable (Windows has no equivalent, so the sandbox block is omitted); and a few **pack-gated** skills assume tools Git Bash doesn't ship (e.g. `serpapi` pipes through `jq`). The core loop — tasks, compile, memory, briefings, worktrees, dashboard — runs natively.
+- **WSL2** is the closest-to-Linux-production option: run everything from inside the distro, where Kevin shares the same POSIX path as Linux.
+
+If you run Kevin on Linux, native Windows, or WSL2 and hit a platform-specific snag, please open a PR with install notes or a fix.
 
 ---
 

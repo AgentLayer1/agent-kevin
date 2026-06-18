@@ -6,7 +6,7 @@ Pull requests and issues welcome. Below is what we look for and the dev loop.
 
 - **New skill packs** that ship as opt-in via `/agent-kevin:configure-skills`
 - **New MCP dispatch tools** for external services (must follow the existing read-mostly + key-gated pattern)
-- **Platform support** for Linux and Windows (currently macOS-tested)
+- **Broader platform testing & hardening** — Kevin runs on macOS, Linux, and Windows (native via Git Bash, and WSL2); more real-world testing and platform-specific fixes are welcome
 - **Documentation improvements**, more use-case examples, screenshots
 - **Translations** and regional-compliance notes
 
