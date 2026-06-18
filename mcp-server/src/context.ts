@@ -10,7 +10,7 @@
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, TIMEZONE } from '@/config';
+import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, PLUGIN_VERSION, TIMEZONE } from '@/config';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
@@ -194,7 +194,7 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     return `    ${STATUS_ICON[e.status]} ${label}  ${size}${note}`;
   });
   const head = [
-    `  🤖 Agent:     Kevin`,
+    `  🤖 Agent:     Kevin · v${PLUGIN_VERSION}`,
     `  🧠 Knowledge: ${FOLDERS.KNOWLEDGE}`,
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`

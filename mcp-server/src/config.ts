@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
@@ -26,6 +26,17 @@ export const MARKDOWN_URL = process.env.MARKDOWN_URL?.trim() || 'obsidian://open
  * defer logic. Mirrors `.claude-plugin/plugin.json` `name`. Kept here so the
  * harness-agnostic capture core stays one substitution away from a fork. */
 export const PLUGIN_NAME = 'agent-kevin';
+
+/** Plugin version from `.claude-plugin/plugin.json`, read once at module load.
+ *  Falls back to `0.0.0` if the manifest is missing or unparseable. */
+export const PLUGIN_VERSION = ((): string => {
+  try {
+    const manifest = JSON.parse(readFileSync(resolve(PLUGIN_ROOT, '.claude-plugin', 'plugin.json'), 'utf-8'));
+    return typeof manifest.version === 'string' ? manifest.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
 
 export const FOLDERS = {
   ROOT: PLUGIN_ROOT,
