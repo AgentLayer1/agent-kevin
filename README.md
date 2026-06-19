@@ -540,7 +540,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (14), always loaded
+### Core skills (16), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -555,6 +555,8 @@ graph LR
 | `quick-pulse` | 60-second status check |
 | `self-review` | Process feedback into skill refinements |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
+| `plan-spec` | Deep-dive spec writer — Socratic interview → standalone, plan-compatible spec saved to the plans directory (`/plan-spec`) |
+| `simple-simplify` | Review a script/app/area/change and simplify it: elegance, dead-code removal, no over-engineering (`/simple-simplify`) |
 
 > Custom-skill authoring isn't a Kevin skill, because Claude Code already ships a native [`skill-creator`](https://github.com/anthropics/claude-plugins-official) plugin that does exactly that. Use it for your own skills.
 
@@ -618,7 +620,7 @@ agent-kevin/
 │   ├── src/
 │   └── package.json
 ├── scripts/                 # one-off migration scripts (session-capture/start now live in bin/kevin)
-├── skills/                  # 19 skills (13 core + 6 SEO) auto-load with plugin
+├── skills/                  # 21 skills (15 core + 6 SEO) auto-load with plugin
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
 │   ├── IDENTITY.md          # Kevin's role (includes Kevin's avatar)
