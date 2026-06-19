@@ -540,7 +540,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (16), always loaded
+### Core skills (17), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -557,6 +557,7 @@ graph LR
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
 | `plan-spec` | Deep-dive spec writer — Socratic interview → standalone, plan-compatible spec saved to the plans directory (`/plan-spec`) |
 | `simple-simplify` | Review a script/app/area/change and simplify it: elegance, dead-code removal, no over-engineering (`/simple-simplify`) |
+| `humanizer` | Strip the tells of AI-generated prose — inflated symbolism, rule-of-three, em-dash overuse, AI vocabulary — to make writing read as human |
 
 > Custom-skill authoring isn't a Kevin skill, because Claude Code already ships a native [`skill-creator`](https://github.com/anthropics/claude-plugins-official) plugin that does exactly that. Use it for your own skills.
 
