@@ -177,3 +177,121 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Session transcripts are captured automatically by hooks into `{{KNOWLEDGE_REL}}/raw/sessions/YYYY-MM-DD.md`. For deeper continuity beyond the injected last-session tail, `Read` the full daily log file.
 - Source of truth: `{{KNOWLEDGE_REL}}/` (compiled wiki). Feedback / corrections → `{{KNOWLEDGE_REL}}/raw/user/feedback.md` (append-only).
 - Use plan mode for architecture changes.
+
+## Workflow
+
+- For non-trivial tasks (3+ steps or architectural decisions), enter plan mode first. Think before building.
+- If something goes sideways, STOP and re-plan immediately.
+- Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
+- "Phase 1 must be perfect before Phase 2" — willing to spend a session getting foundation right.
+- Commit per phase for tractable review; rejects megacommits.
+- Compare options before committing — back-of-envelope across alternatives saves months.
+- Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know".
+- After any correction from me, write a lesson to memory so the same mistake doesn't repeat.
+
+## Engineering Standards
+
+These guidelines apply to any code Kevin reads, writes, or reviews — even when the operator is non-technical and just wants a script. Bias toward caution over speed; for trivial tasks, use judgment.
+
+### Think before coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### Simplicity first
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### Surgical changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: every changed line should trace directly to the user's request.
+
+### Goal-driven execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+### Toolchain
+
+- **Node.js:** managed via `fnm`. Corepack enabled.
+- **Package manager:** `pnpm` always. Never suggest npm or yarn.
+- **Bun** is acceptable for small, local projects that are new.
+- **Shell:** {{SHELL}}.
+- **Swift:** Xcode + Swift Package Manager.
+
+### Code style
+
+- **Functional style.** Arrow functions, higher-order functions strongly preferred — map/reduce/filter over for-loops; dislikes `continue`; one-line pipelines when readable.
+- **Type safety.** No `any`. No `!` (non-null assertion). No `as` casts without justification. Strong TypeScript.
+- **Prefer `interface` over `type`** for object contracts. Discriminated unions for state machines.
+- **Const objects over enums** — `const X = { A: 'a' } as const` with derived union types.
+- **Immutability.** `const` over `let` wherever possible; avoid mutation.
+- **No barrel/index re-export files** — consumers import directly from the module that owns the function.
+- **No single-letter params** except `i` for index. Use `item` when shadowing outer scope. Descriptive parameter names; avoid generic `value`.
+- **Always brace `if` statements**, even single-line.
+- **JSDoc for utilities only**; concise comments; no docstring novellas.
+- **Trust SDK signals over text scanning** — when a library exposes structured error info, use it.
+- **Useless tests waste attention.** Tests must protect against real regressions; round-trip-for-coverage's-sake gets deleted.
+- Modern language features. No legacy patterns.
+- Simplicity and elegance, clarity and concise. Don't over-engineer.
+
+### Code quality
+
+- SOLID principles. Clean Architecture for system design.
+- Separation of concerns: frontend components, backend services, DB, API integrations.
+- No unnecessary third-party deps. Use existing packages first.
+- Run formatter only on new or modified files.
+- Include unit tests for reusable code snippets.
+- Follow existing project conventions over these defaults.
+- No laziness. Find root causes. No temporary fixes. Senior developer standards.
+- When given a bug, just fix it. Don't ask for hand-holding.
+- For non-trivial changes, pause and ask "is there a more elegant way?" before presenting.
+- For simple, obvious fixes — skip that and just do it. Don't over-engineer.
+- For new or modified TS files, follow Prettier policies if available and remove unused imports and sort remaining ones alphabetically (mirrors VSCode's `source.organizeImports`).
+
+### Architecture references
+
+- [SOLID](https://en.wikipedia.org/wiki/SOLID)
+- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [The Unicorn Project](https://itrevolution.com/articles/five-ideals-of-devops/)
+
+**These guidelines are working if** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
