@@ -932,6 +932,20 @@ done
 
 Idempotent by file: any existing concept file is preserved (the `[ -f ]` check passes for empty files too — operators who want a seed permanently gone can `: > path/to/concept.md` to leave a 0-byte placeholder, rather than `rm`-ing it and getting it re-seeded on re-init).
 
+**Seed coding rules — preservation-aware.** The plugin bundles path-scoped coding rules under `templates/rules/*.md` (`typescript.md`, `swift.md`). Claude Code auto-loads any `.claude/rules/*.md` whose `paths:` frontmatter matches the file being edited, so seeding them gives the home sane language defaults from day one. The operator can edit or delete any of them.
+
+```bash
+mkdir -p "$HOME_DIR/.claude/rules"
+for src in "${CLAUDE_PLUGIN_ROOT}"/templates/rules/*.md; do
+  [ -f "$src" ] || continue
+  dest="$HOME_DIR/.claude/rules/$(basename "$src")"
+  [ -f "$dest" ] && continue   # operator already has it — never overwrite
+  cp "$src" "$dest"
+done
+```
+
+Idempotent by file, same as the concept seeding above: an existing rule file is never overwritten.
+
 ---
 
 ## Step 8 — Optional: configure skill packs
