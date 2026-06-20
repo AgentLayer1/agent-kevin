@@ -122,104 +122,15 @@ Prefer hands-off? Turn on auto-update via `/plugin` → **Marketplaces** tab →
 
 #### Then apply the home-side changes: `/agent-kevin:upgrade`
 
+`/plugin update` refreshes the plugin **code** only — it never touches your home's
+scaffolded files (`CLAUDE.md`, `SOUL.md`, settings, rules) or runs `bun install`. After
+pulling a new version, run `/agent-kevin:upgrade` to reconcile your home:
+
 ```text
 /agent-kevin:upgrade
 ```
 
-`/plugin update` refreshes the plugin **code** only. It does **not** touch your home's
-scaffolded files (`CLAUDE.md`, `SOUL.md`, `IDENTITY.md`, settings, rules — copied from
-templates at `/init`) and it does **not** run `bun install`. `/agent-kevin:upgrade` is
-what reconciles your home with the code you just pulled. The rest of this section
-explains how that works — it's a deliberately careful process, because your home is
-your whole brain.
-
----
-
-### 🔼 How upgrades & releases work
-
-Two halves of one machine: maintainers **release** (describe what changed and what a
-home needs), consumers **upgrade** (apply it). The contract between them is
-[`CHANGELOG.md`](CHANGELOG.md).
-
-```mermaid
-graph LR
-    A[maintainer: /agent-kevin:release] -->|writes Upgrade block| B[CHANGELOG.md + version bump + git tag]
-    B -->|/plugin update pulls code| C[your plugin dir]
-    C -->|/agent-kevin:upgrade reads the block| D[your home reconciled]
-    D -->|stamps| E[.kevin/version.json baseline]
-```
-
-**Why two steps at all?** A plugin update replaces files in the *plugin* directory.
-Your *home* (`CLAUDE.md`, `SOUL.md`, `.claude/settings.json`, `knowledge/`, …) was
-copied out of `templates/` once, at `/init`, and has been yours to edit ever since. A
-code update can't safely overwrite it. So the home is reconciled separately, on your
-terms.
-
-**How "you're behind" is detected — locally, no network.** Your home records which
-template version it's on in `.kevin/version.json` (git-tracked, so it survives a clone).
-Compared against the installed `plugin.json` version, that yields three states, surfaced
-on the SessionStart banner and the dashboard's sidebar badge:
-
-| State | Meaning | Signal |
-|---|---|---|
-| `current` | baseline == installed | (nothing) |
-| `pending` | baseline < installed — migrations await | amber badge "upgrade available · N" |
-| `onboard` | no `version.json` yet (home predates tracking) | "enable update tracking" |
-
-#### The consumer flow — `/agent-kevin:upgrade`
-
-1. **Scope.** Reads the `### Upgrade` blocks for every release between your baseline and
-   the installed version (`pending`), or all of them on a first run (`onboard`). Handles
-   being many versions behind in one pass.
-2. **Coalesce.** Merges the actions (latest wins) — the target is the *current* template
-   state, not a replay of every intermediate edit.
-3. **Back up.** Snapshots every file it will touch into `.kevin/updates/<from>-to-<to>/`
-   before writing a byte.
-4. **Apply.** Auto-applies functionality-critical changes; **asks** before anything you
-   may have personalized:
-   - `deps` → runs `bun install` in the MCP server
-   - `settings` → merges missing `permissions.allow` entries (never removes yours)
-   - `file` → copies new rule/concept files (only if absent)
-   - `template/<file>` → **section-aware merge** of `CLAUDE.md` / `SOUL.md` / etc.: adds
-     new sections, updates changed ones, and **preserves any sections you added**
-     (your personal blocks are never touched or deleted)
-5. **Stamp.** Writes the new baseline to `.kevin/version.json`.
-6. **Sync.** Finishes with `/agent-kevin:sync` so the dashboard, briefing, and knowledge
-   reflect the new state (or tells you to reload first if MCP code/deps changed).
-
-**Safety guarantees:** always backs up first · never overwrites a file wholesale ·
-never deletes a section it doesn't recognize · only auto-applies what the release marked
-mandatory/additive · idempotent (re-running when current is a no-op).
-
-#### The maintainer flow — `/agent-kevin:release`
-
-1. Diffs everything since the last `v*` tag and groups it into Added / Changed / Fixed.
-2. **Detects what consumers need** by inspecting the diff (dependency changes, touched
-   `templates/`, new skills/tools needing permissions) and writes them as a machine-
-   actionable `### Upgrade` block.
-3. Bumps `.claude-plugin/plugin.json` (SemVer), prepends the `CHANGELOG.md` entry, and
-   **stages a commit + `vX.Y.Z` tag for your approval** — it never commits or pushes on
-   its own.
-
-#### The Upgrade-block format
-
-Each release carries an `### Upgrade` section; every actionable line is a backticked tag
-plus a note. This is the exact text `/agent-kevin:upgrade` parses:
-
-```text
-- `<kind>: <severity>` — <note>
-```
-
-| kind | severity | what the upgrade does |
-|---|---|---|
-| `deps` | `required` | runs `bun install` |
-| `settings` | `mandatory` | adds the named permission/hook/env entries |
-| `file` | `additive` | copies a new file if absent |
-| `template/<f>` | `mandatory` | section-merges, applied automatically |
-| `template/<f>` | `optional` | section-merges, **asks first** with a diff |
-| `manual` | — | a step only you can do; surfaced, never silent |
-
-A code-only release writes a single line: `None — code-only, no bun install or HOME changes.`
+See [How upgrades & releases work](#-how-upgrades--releases-work) for the full process.
 
 ---
 
@@ -851,6 +762,92 @@ The `db_list`, `db_schema`, and `db_query` MCP tools run read-only Postgres quer
 That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `db_*` tool permissions and plants an empty `KEVIN_DB_<NAME>` placeholder for each connection name you give. You then fill the connection string in your editor, never in chat (it carries a password). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `KEVIN_DB_<NAME>` key regardless of how it got there. `db_list` only ever reports host/port/database, never the credentials.
 
 Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout and is then rolled back, so Postgres itself rejects any write: the tools are read-only by construction. For tighter control (row or column limits), point the connection string at a SELECT-only database role.
+
+---
+
+## 🔼 How upgrades & releases work
+
+Two halves of one machine: maintainers **release** (describe what changed and what a
+home needs), consumers **upgrade** (apply it). The contract between them is
+[`CHANGELOG.md`](CHANGELOG.md).
+
+```mermaid
+graph LR
+    A["/agent-kevin:release<br/>(maintainer)"] -->|CHANGELOG + tag| B["/plugin update<br/>(pull code)"]
+    B -->|/agent-kevin:upgrade| C["your home<br/>reconciled"]
+```
+
+**Why two steps at all?** A plugin update replaces files in the *plugin* directory.
+Your *home* (`CLAUDE.md`, `SOUL.md`, `.claude/settings.json`, `knowledge/`, …) was
+copied out of `templates/` once, at `/init`, and has been yours to edit ever since. A
+code update can't safely overwrite it. So the home is reconciled separately, on your
+terms.
+
+**How "you're behind" is detected — locally, no network.** Your home records which
+template version it's on in `.kevin/version.json` (git-tracked, so it survives a clone).
+Compared against the installed `plugin.json` version, that yields three states, surfaced
+on the SessionStart banner and the dashboard's sidebar badge:
+
+| State | Meaning | Signal |
+|---|---|---|
+| `current` | baseline == installed | (nothing) |
+| `pending` | baseline < installed — migrations await | amber badge "upgrade available · N" |
+| `onboard` | no `version.json` yet (home predates tracking) | "enable update tracking" |
+
+### The consumer flow — `/agent-kevin:upgrade`
+
+1. **Scope.** Reads the `### Upgrade` blocks for every release between your baseline and
+   the installed version (`pending`), or all of them on a first run (`onboard`). Handles
+   being many versions behind in one pass.
+2. **Coalesce.** Merges the actions (latest wins) — the target is the *current* template
+   state, not a replay of every intermediate edit.
+3. **Back up.** Snapshots every file it will touch into `.kevin/updates/<from>-to-<to>/`
+   before writing a byte.
+4. **Apply.** Auto-applies functionality-critical changes; **asks** before anything you
+   may have personalized:
+   - `deps` → runs `bun install` in the MCP server
+   - `settings` → merges missing `permissions.allow` entries (never removes yours)
+   - `file` → copies new rule/concept files (only if absent)
+   - `template/<file>` → **section-aware merge** of `CLAUDE.md` / `SOUL.md` / etc.: adds
+     new sections, updates changed ones, and **preserves any sections you added**
+     (your personal blocks are never touched or deleted)
+5. **Stamp.** Writes the new baseline to `.kevin/version.json`.
+6. **Sync.** Finishes with `/agent-kevin:sync` so the dashboard, briefing, and knowledge
+   reflect the new state (or tells you to reload first if MCP code/deps changed).
+
+**Safety guarantees:** always backs up first · never overwrites a file wholesale ·
+never deletes a section it doesn't recognize · only auto-applies what the release marked
+mandatory/additive · idempotent (re-running when current is a no-op).
+
+### The maintainer flow — `/agent-kevin:release`
+
+1. Diffs everything since the last `v*` tag and groups it into Added / Changed / Fixed.
+2. **Detects what consumers need** by inspecting the diff (dependency changes, touched
+   `templates/`, new skills/tools needing permissions) and writes them as a machine-
+   actionable `### Upgrade` block.
+3. Bumps `.claude-plugin/plugin.json` (SemVer), prepends the `CHANGELOG.md` entry, and
+   **stages a commit + `vX.Y.Z` tag for your approval** — it never commits or pushes on
+   its own.
+
+### The Upgrade-block format
+
+Each release carries an `### Upgrade` section; every actionable line is a backticked tag
+plus a note. This is the exact text `/agent-kevin:upgrade` parses:
+
+```text
+- `<kind>: <severity>` — <note>
+```
+
+| kind | severity | what the upgrade does |
+|---|---|---|
+| `deps` | `required` | runs `bun install` |
+| `settings` | `mandatory` | adds the named permission/hook/env entries |
+| `file` | `additive` | copies a new file if absent |
+| `template/<f>` | `mandatory` | section-merges, applied automatically |
+| `template/<f>` | `optional` | section-merges, **asks first** with a diff |
+| `manual` | — | a step only you can do; surfaced, never silent |
+
+A code-only release writes a single line: `None — code-only, no bun install or HOME changes.`
 
 ---
 
