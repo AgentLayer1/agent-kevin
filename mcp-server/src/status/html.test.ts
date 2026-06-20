@@ -31,7 +31,10 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     isoDate: '2026-06-11',
     time: '10:00',
     generatedAt: '2026-06-11T10:00:00+08:00',
-    lastSync: '2026-06-11T09:30:00+08:00'
+    lastSync: '2026-06-11T09:30:00+08:00',
+    baselineVersion: '0.1.4',
+    upgradeState: 'current',
+    releasesBehind: 0
   },
   markdownUrl: 'obsidian://open?path={path}',
   persona: {
@@ -217,7 +220,13 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       bytes: 500
     },
     rules: [
-      { name: 'typescript', level: 'project', paths: ['**/*.ts', '**/*.tsx'], bytes: 459, path: '.claude/rules/typescript.md' }
+      {
+        name: 'typescript',
+        level: 'project',
+        paths: ['**/*.ts', '**/*.tsx'],
+        bytes: 459,
+        path: '.claude/rules/typescript.md'
+      }
     ]
   },
   settings: {
@@ -253,6 +262,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   ],
   reportsTotal: 12,
   radarLatest: null,
+  changelog: [],
   health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, ok: true },
   ...overrides
 });
@@ -370,7 +380,9 @@ describe('renderDashboardHtml', () => {
 
   test('a db tool with zero connections shows a non-clickable 0-databases chip', () => {
     const snap = makeSnapshot();
-    snap.mcp.toolDetails = [{ name: 'mcp__kevin__db_list', description: 'List the Postgres connections.', dbConnections: [] }];
+    snap.mcp.toolDetails = [
+      { name: 'mcp__kevin__db_list', description: 'List the Postgres connections.', dbConnections: [] }
+    ];
     const html = renderDashboardHtml(snap);
     expect(html).toContain('0 databases');
     expect(html).toContain('class="chip db-empty"');

@@ -120,6 +120,30 @@ Prefer hands-off? Turn on auto-update via `/plugin` → **Marketplaces** tab →
 
 > ⚠️ **Auto-update is a global toggle per marketplace, not per plugin** — enabling it updates *every* plugin installed from that marketplace at startup, not just Kevin. Leave it off if you want to control exactly when each plugin changes.
 
+#### Then apply the home-side changes: `/agent-kevin:upgrade`
+
+`/plugin update` refreshes the plugin **code** only. It does **not** touch your home's
+scaffolded files (`CLAUDE.md`, `SOUL.md`, settings, rules — copied from templates at
+`/init`) and it does **not** run `bun install`. So after pulling a new version:
+
+```text
+/agent-kevin:upgrade
+```
+
+This reads the new release's [`CHANGELOG.md`](CHANGELOG.md) `### Upgrade` block, backs
+up to `.kevin/updates/`, runs `bun install` if a dependency changed, **auto-applies**
+functionality-critical changes (new permissions, new rule files), and **asks before
+touching** anything you may have personalized (a SOUL/CLAUDE section). It handles being
+several versions behind in one pass. The SessionStart banner and the dashboard's
+sidebar badge tell you when it's worth running ("upgrade available · N").
+
+First time on a home that predates this (no `.kevin/version.json`)? The same command
+onboards you — run it once to record your baseline and reconcile to the current
+templates.
+
+> Maintainers: cut releases with `/agent-kevin:release` (bumps the version, generates
+> the CHANGELOG entry + Upgrade block, stages the commit + tag for approval).
+
 ---
 
 ## 💡 Why you'll want one

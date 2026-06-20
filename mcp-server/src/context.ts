@@ -11,6 +11,7 @@
  * a few KB.
  */
 import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
@@ -199,6 +200,13 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`
   ];
+  const upgrade = getUpgradeStatus();
+  if (upgrade.state === 'pending') {
+    const n = upgrade.releasesBehind;
+    head.splice(1, 0, `  ⬆ Upgrade ready — run /agent-kevin:upgrade (${n} release${n === 1 ? '' : 's'} behind)`);
+  } else if (upgrade.state === 'onboard') {
+    head.splice(1, 0, '  ⬆ Run /agent-kevin:upgrade to enable update tracking');
+  }
   return [...head, ...lines].join('\n');
 }
 

@@ -12,6 +12,7 @@
  */
 import { FILES, FOLDERS, MARKDOWN_URL, PLUGIN_NAME, TIMEZONE } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
+import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
 import { sanitizeHtml } from '@/shared/sanitize-html';
 import type { TaskFile } from '@/shared/types';
@@ -307,6 +308,13 @@ export interface StatusSnapshot {
      *  evening) — the last heavy refresh, distinct from the dashboard re-render
      *  that fires on every task mutation. '' when no briefing exists yet. */
     lastSync: string;
+    /** HOME template baseline from .kevin/version.json; null on a pre-feature
+     *  or uninitialized home. */
+    baselineVersion: string | null;
+    /** Local upgrade signal: `current` | `pending` | `onboard`. See version.ts. */
+    upgradeState: UpgradeState;
+    /** Released versions in `(baseline, installed]` per the CHANGELOG. */
+    releasesBehind: number;
   };
   persona: Persona;
   operator: OperatorInfo;
@@ -401,6 +409,8 @@ export interface StatusSnapshot {
   reports: ReportRef[];
   reportsTotal: number;
   radarLatest: RadarLatest | null;
+  /** Parsed CHANGELOG.md entries (newest first) for the System → Changelog tab. */
+  changelog: ChangelogEntry[];
   health: Health;
 }
 
@@ -1358,6 +1368,7 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
     resolve(FOLDERS.ROOT, '.claude-plugin', 'plugin.json')
   );
   const now = new Date();
+  const upgrade = getUpgradeStatus();
   return {
     version: manifest?.version ?? '0.0.0',
     pluginName: manifest?.name ?? 'agent-kevin',
@@ -1374,7 +1385,10 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
     time: nowTime(now),
     generatedAt: nowISO(now),
     // Filled in collectStatus, which has the report list to derive it from.
-    lastSync: ''
+    lastSync: '',
+    baselineVersion: upgrade.baseline,
+    upgradeState: upgrade.state,
+    releasesBehind: upgrade.releasesBehind
   };
 };
 
@@ -1640,7 +1654,8 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     logs: collectLogs(),
     reports: allReports.slice(0, MAX_REPORTS),
     reportsTotal: allReports.length,
-    radarLatest: await collectRadarLatest(allReports)
+    radarLatest: await collectRadarLatest(allReports),
+    changelog: parseChangelog()
   };
   return { ...base, health: computeHealth(base) };
 };

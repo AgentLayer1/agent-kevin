@@ -1434,15 +1434,66 @@ const pageSystem = (snap: StatusSnapshot): string => {
     )
   ].join('');
 
+  const changelogBody = renderChangelog(snap);
+
   return page(
     'system',
     'System',
-    'The machinery — settings, logs.',
+    'The machinery — settings, logs, releases.',
     subTabs([
       { id: 'settings', label: 'Settings', body: settingsBody },
-      { id: 'logs', label: 'Logs', body: logsBody }
+      { id: 'logs', label: 'Logs', body: logsBody },
+      { id: 'changelog', label: 'Changelog', body: changelogBody }
     ])
   );
+};
+
+/** Severity → text-color class for an upgrade-action chip: green = handled for
+ *  you automatically, amber = the upgrade will ask before touching it. */
+const upgradeSeverityClass = (severity: string): string =>
+  severity === 'optional' ? 'warn' : severity === 'additive' ? 'dim' : 'good';
+
+/** System → Changelog tab: every release from CHANGELOG.md, each with its
+ *  Added/Changed/Fixed notes and its machine-actionable Upgrade block. */
+const renderChangelog = (snap: StatusSnapshot): string => {
+  const { upgradeState, releasesBehind, baselineVersion, version } = snap.runtime;
+  if (!snap.changelog.length) {
+    return hint('No CHANGELOG.md found in the plugin yet. Cut one with /agent-kevin:release.');
+  }
+  const banner =
+    upgradeState === 'pending'
+      ? `<div class="cl-banner pending">⬆ ${releasesBehind} release${releasesBehind === 1 ? '' : 's'} of HOME changes pending — home baseline v${esc(baselineVersion ?? '?')}, installed v${esc(version)}. Run <code>/${esc(snap.runtime.pluginName)}:upgrade</code>.</div>`
+      : upgradeState === 'onboard'
+        ? `<div class="cl-banner pending">⬆ This home predates update tracking. Run <code>/${esc(snap.runtime.pluginName)}:upgrade</code> to record your baseline.</div>`
+        : `<div class="cl-banner ok">✓ Up to date — home baseline matches installed v${esc(version)}.</div>`;
+
+  const entries = snap.changelog
+    .map((entry) => {
+      const groups = entry.sections
+        .map(
+          (grp) =>
+            `<div class="cl-grp"><h4>${esc(grp.heading)}</h4><ul>${grp.items.map((item) => `<li>${linkify(item)}</li>`).join('')}</ul></div>`
+        )
+        .join('');
+      const upgrade = entry.upgrade.length
+        ? table(
+            ['change', 'level', 'detail'],
+            entry.upgrade.map((action) => [
+              `<code>${esc(action.kind)}</code>`,
+              `<span class="${upgradeSeverityClass(action.severity)}">${esc(action.severity)}</span>`,
+              linkify(action.note)
+            ])
+          )
+        : `<div class="hint">${esc(entry.upgradeRaw || 'None — code-only, no bun install or HOME changes.')}</div>`;
+      const isCurrent = baselineVersion && entry.version === baselineVersion;
+      return section(
+        `v${entry.version}${isCurrent ? ' · your baseline' : ''}`,
+        entry.date,
+        `${groups}<div class="cl-grp cl-upgrade"><h4>⬆ Upgrade</h4>${upgrade}</div>`
+      );
+    })
+    .join('');
+  return banner + entries;
 };
 
 // ── status page ───────────────────────────────────────────────────────
@@ -1565,13 +1616,39 @@ const healthBadge = (snap: StatusSnapshot): string => {
   return `<span class="badge warn" data-nav="status" title="click for signal details"><span class="pulse"></span>${esc(issues.join(' · '))}</span>`;
 };
 
+/** Sidebar "upgrade available" badge — mirrors the stale-snapshot badge but is
+ *  static (server-decided), driven by the local baseline-vs-installed compare in
+ *  version.ts. Hidden when current; amber when HOME migrations are pending or an
+ *  established home hasn't started tracking. Click expands the how-to + command. */
+const upgradeBadge = (snap: StatusSnapshot): string => {
+  const { upgradeState, releasesBehind, baselineVersion, version, pluginName } = snap.runtime;
+  if (upgradeState === 'current') return '';
+  const cmd = `/${pluginName}:upgrade`;
+  const wrap = (title: string, msg: string, mini: string): string =>
+    `<details class="stale-wrap" title="${esc(title)}"><summary class="badge upgrade"><span class="pulse"></span><span class="sb-badge-msg">${esc(msg)}</span></summary><div class="stale-mini upg-mini">${mini}</div></details>`;
+  if (upgradeState === 'pending') {
+    const mini = [
+      `<div class="mini-row"><span class="mini-lab">installed</span><span class="mini-val">v${esc(version)}</span></div>`,
+      `<div class="mini-row"><span class="mini-lab">home baseline</span><span class="mini-val bad">v${esc(baselineVersion ?? '?')}</span></div>`,
+      `<div class="mini-how">${releasesBehind} release${releasesBehind === 1 ? '' : 's'} of HOME changes pending. Apply:</div>`,
+      `<code class="mini-cmd">${esc(cmd)}</code>`
+    ].join('');
+    return wrap('HOME upgrade pending — click for details', `upgrade available · ${releasesBehind}`, mini);
+  }
+  const mini = [
+    `<div class="mini-how">This home predates update tracking. Run once to record your baseline and apply any pending template/setting changes:</div>`,
+    `<code class="mini-cmd">${esc(cmd)}</code>`
+  ].join('');
+  return wrap('enable update tracking — click for details', 'enable updates', mini);
+};
+
 const sidebarFoot = (snap: StatusSnapshot): string => {
   const { operator } = snap;
   const avatar = operator.avatar
     ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">`
     : `<span class="op-fallback">👤</span>`;
   const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${esc(operator.timezone || '')}</span></span></div>`;
-  return card + healthBadge(snap);
+  return card + healthBadge(snap) + upgradeBadge(snap);
 };
 
 const fill = (template: string, slots: Record<string, string>): string =>
