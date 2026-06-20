@@ -34,6 +34,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.4] - 2026-06-20
+
+### Changed
+- The `sync` skill is now model-invocable (dropped `disable-model-invocation`), so Kevin can run a full state refresh on its own and other skills can chain it via the Skill tool (`/upgrade` now chains `sync` after applying a HOME migration). Added to the canonical onboarding grant list (eight → nine skill grants).
+
+### Upgrade
+- `settings: mandatory` — add permission `Skill(agent-kevin:sync)` to `settings.json` → `permissions.allow`. Without it, model invocations of `sync` (including the chain from `/upgrade`) prompt for confirmation each time.
+
 ## [0.2.3] - 2026-06-20
 
 ### Added
