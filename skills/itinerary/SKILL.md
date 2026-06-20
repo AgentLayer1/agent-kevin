@@ -2,7 +2,7 @@
 name: itinerary
 description: Plan a trip end-to-end and generate a polished, interactive, print-ready HTML itinerary. Use whenever the user wants to plan a vacation, family trip, day trip, road trip, or weekend getaway, asks for an itinerary, or wants help organizing travel dates, flights, routes, or hotels, even if they never say the word "itinerary". Wizard-style: interview first, then web research (flights, drive times, prices, opening hours, halal food, weather), then render the itinerary HTML into the trip project.
 disable-model-invocation: true
-allowed-tools: AskUserQuestion, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__perplexity_search, mcp__plugin_agent-kevin_kevin__playwright_pdf, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread
+allowed-tools: AskUserQuestion, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__perplexity_search, mcp__plugin_agent-kevin_kevin__browser_pdf, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 
 # Itinerary
@@ -62,7 +62,7 @@ Rules: specifics that go in the itinerary need a source from this session; estim
 1. Read `references/DESIGN.md`, then `references/template.html`. The template is the aesthetic contract: a light-mode **timeline of cards**, not a magazine spread. DESIGN.md says which modules to compose for this trip's flavor and what varies (accent color, masthead, modules).
 2. Structure every day as **Morning / Afternoon / Evening** periods on the timeline — never clock times like "09:00". End every day with a **"More options"** block: anything that didn't fit the day, backups if a plan falls through, and extras for spare time or good weather. Don't drop researched material — demote it to options. Give every day a one-line summary and every closing section a one-line summary.
 3. Write the itinerary to `<HOME>/projects/<trip-project>/itineraries/<trip-slug>-v<N>.html` (check for existing versions, increment, never overwrite). If no trips project exists, create a lightweight one first (the decision was settled on the final interview screen): `projects/<slug>/` with a one-line README and an `itineraries/` folder. If the user declined a project, save to the location they picked rather than inventing a path.
-4. Print check: render to PDF via `playwright_pdf` and confirm clean page breaks (one day per page, no split cards, detail expanded, videos hidden).
+4. Print check: render to PDF via `browser_pdf` and confirm clean page breaks (one day per page, no split cards, detail expanded, videos hidden).
 5. Link the new file from the trip project README, and append a short note to the trip's task thread if one exists (`task_thread`).
 6. Open it for the user, then give a 3-5 line summary: route, total budget, the one decision still open (e.g. "hotel not booked, two candidates in Good to Know"). Open only if this session's Bash tool runs unsandboxed (if its description mentions a command sandbox, app launches fail: skip the launch and just include the `file://` path so the user can open it). Use the platform's opener: `open` on macOS, `start "" <file>` on Windows, `xdg-open` on Linux. If it errors, don't retry with other launchers, just give the path.
 

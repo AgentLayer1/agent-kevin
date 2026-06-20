@@ -6,6 +6,7 @@
  * `google_auth` tool itself lives in google-search-console.ts.)
  */
 export const TOOL_MODULES = [
+  'browser',
   'browser-flows',
   'capture',
   'compile',
@@ -16,7 +17,6 @@ export const TOOL_MODULES = [
   'open-page-rank',
   'perplexity',
   'ping',
-  'playwright',
   'reports',
   'serpapi',
   'status',

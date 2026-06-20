@@ -1,7 +1,7 @@
 /**
  * HTML → Markdown extraction pipeline.
  *
- * Shared by URL capture (raw `fetch()` body) and playwright_markdown
+ * Shared by URL capture (raw `fetch()` body) and browser_markdown
  * (chromium-rendered DOM). Pipeline: linkedom parses HTML → Mozilla
  * Readability finds the article body (drops nav/footer/sidebar/modals
  * heuristically) → Turndown converts the extracted HTML fragment to Markdown.
@@ -88,7 +88,7 @@ export async function htmlToMarkdown(html: string): Promise<ExtractedArticle> {
 
 /** Convenience: render an ExtractedArticle into a single Markdown string with
  *  `# Title`, *byline*, and the body — the format both capture and the
- *  playwright_markdown tool write to disk. */
+ *  browser_markdown tool write to disk. */
 export function renderExtracted(extracted: ExtractedArticle): string {
   const heading = extracted.title ? `# ${extracted.title}\n\n` : '';
   const byline = extracted.byline ? `*${extracted.byline}*\n\n` : '';

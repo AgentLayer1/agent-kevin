@@ -1,6 +1,6 @@
 /**
  * Browser launch diagnostics shared by every chromium launch path (the
- * playwright_* capture tools and the browser-flows harness).
+ * browser_* capture tools and the browser-flows harness).
  *
  * The chromium *binary* downloads fine on Linux/WSL2, but it links against
  * system shared libs (libnss3, libgbm1, libasound2, …) that aren't installed

@@ -690,7 +690,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 |---|---|---|
 | Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
-| Browser-gated | `perplexity_search`, `playwright_*`, `browser_flows` | configure-skills A.2b (Browser walk) |
+| Browser-gated | `perplexity_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `db_list`, `db_query`, `db_schema` | configure-skills A.2c (Database walk) |
 
 The allow list also carries eight **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, and `Skill(agent-kevin:humanizer)` are **active**: all three are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
@@ -984,7 +984,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt) and ensures empty env placeholders exist in `settings.local.json` for the keys you'll fill via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
 >
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
-> - ☑ Browser pack **(recommended)** (perplexity search + playwright screenshot/pdf/record + browser-flows)
+> - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `db_list`/`db_schema`/`db_query`)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 

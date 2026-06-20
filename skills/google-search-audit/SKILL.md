@@ -2,7 +2,7 @@
 name: google-search-audit
 description: Read-only SEO audit for the site configured in GSC_SITE_URL. Pulls GSC + PageSpeed + WordPress (if applicable) + on-demand SerpAPI for anomaly investigation, applies four audit rules, ranks findings by impact, writes a markdown report, and threads notes into any matching active tasks. Diagnostic-only — never publishes or edits. Invoke on demand or wire to any scheduler (cron, GitHub Action, etc.). Trigger phrases — "run the SEO audit", "audit the site", "gsc audit", "search console audit".
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__gsc_query, mcp__plugin_agent-kevin_kevin__gsc_inspect, mcp__plugin_agent-kevin_kevin__gsc_sites, mcp__plugin_agent-kevin_kevin__page_speed_audit, mcp__plugin_agent-kevin_kevin__page_speed_psi, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__playwright_screenshot, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread, Read, Write, Edit, Glob, Grep, Bash(curl *), Bash(date *)
+allowed-tools: mcp__plugin_agent-kevin_kevin__gsc_query, mcp__plugin_agent-kevin_kevin__gsc_inspect, mcp__plugin_agent-kevin_kevin__gsc_sites, mcp__plugin_agent-kevin_kevin__page_speed_audit, mcp__plugin_agent-kevin_kevin__page_speed_psi, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread, Read, Write, Edit, Glob, Grep, Bash(curl *), Bash(date *)
 ---
 
 # Google Search Audit
@@ -47,7 +47,7 @@ If no matching project exists, the audit still runs — output just lands in `<H
    ```bash
    curl -sS -L --max-time 15 "<url>" | grep -E '<title>|<meta name="description"'
    ```
-   SEO plugins (Yoast, RankMath, The SEO Framework, AIOSEO) inject meta into the rendered HTML — NOT into the REST response. Always read the rendered page. For stubborn pages (JS-rendered titles), fall back to `mcp__plugin_agent-kevin_kevin__playwright_screenshot` to confirm what users see.
+   SEO plugins (Yoast, RankMath, The SEO Framework, AIOSEO) inject meta into the rendered HTML — NOT into the REST response. Always read the rendered page. For stubborn pages (JS-rendered titles), fall back to `mcp__plugin_agent-kevin_kevin__browser_screenshot` to confirm what users see.
 
 4. **PSI** — `mcp__plugin_agent-kevin_kevin__page_speed_audit` for the **top 5 pages by impressions**. (PSI quota is forgiving, but five is plenty for trend.)
 

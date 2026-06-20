@@ -409,16 +409,16 @@ The status block reads from the **dust-settled artifacts** (`projects/TASKS.md`,
 
 ---
 
-## 🌐 Playwright web tools
+## 🌐 Browser web tools
 
-Four MCP tools backed by a bundled chromium (installed once via `bun install`'s playwright postinstall, ~150MB). All four output to `<HOME>/reports/captures/<timestamp>-<name>.<ext>`. The Browser pack must be active (`/agent-kevin:configure-skills` → tick Browser pack) for the permissions to be pre-granted; without it the first call confirms.
+Four MCP tools (the `browser_*` family) backed by a bundled chromium (installed once via `bun install`'s playwright postinstall, ~150MB). All four output to `<HOME>/reports/captures/<timestamp>-<name>.<ext>`. The Browser pack must be active (`/agent-kevin:configure-skills` → tick Browser pack) for the permissions to be pre-granted; without it the first call confirms.
 
 | Tool | Output | Use it for |
 |---|---|---|
-| `playwright_screenshot` | PNG | Visual snapshot of any URL or local HTML / MD file; optional `fullPage` for the whole scrolling page |
-| `playwright_pdf` | PDF (A4) | Render markdown (with mermaid diagrams) or HTML to print-styled PDF |
-| `playwright_markdown` | Markdown | Convert any URL — including SPAs / Next.js / React sites — to clean LLM-friendly Markdown. Loads in chromium so client-rendered sections hydrate; pipes through Mozilla Readability + Turndown |
-| `playwright_record` | WebM video | Drive a page through scripted steps (`navigate` / `scroll` / `wait`) and capture the run |
+| `browser_screenshot` | PNG | Visual snapshot of any URL or local HTML / MD file; optional `fullPage` for the whole scrolling page |
+| `browser_pdf` | PDF (A4) | Render markdown (with mermaid diagrams) or HTML to print-styled PDF |
+| `browser_markdown` | Markdown | Convert any URL — including SPAs / Next.js / React sites — to clean LLM-friendly Markdown. Loads in chromium so client-rendered sections hydrate; pipes through Mozilla Readability + Turndown |
+| `browser_record` | WebM video | Drive a page through scripted steps (`navigate` / `scroll` / `wait`) and capture the run |
 
 **All four take the same `input`** — a URL, a `file://` URL, or an absolute/relative path. `screenshot` and `pdf` will also render local Markdown files (loading them through `marked` + a styled CSS so mermaid renders). `markdown` does the reverse — fetches a hydrated page and converts back to Markdown.
 
@@ -426,16 +426,16 @@ Four MCP tools backed by a bundled chromium (installed once via `bun install`'s 
 
 ```
 you  > screenshot https://acme.com and call it acme-landing
-kevin > [calls playwright_screenshot(input=…, name=acme-landing)] → reports/captures/<ts>-acme-landing.png
+kevin > [calls browser_screenshot(input=…, name=acme-landing)] → reports/captures/<ts>-acme-landing.png
 
 you  > render ~/Documents/business-plan.md to PDF
-kevin > [calls playwright_pdf(input=…)] → reports/captures/<ts>-pdf.pdf  (mermaid diagrams come through)
+kevin > [calls browser_pdf(input=…)] → reports/captures/<ts>-pdf.pdf  (mermaid diagrams come through)
 
 you  > convert https://basem.emara.io to markdown — make sure the JS-rendered sections come through
-kevin > [calls playwright_markdown(input=…, waitUntil=networkidle)] → reports/captures/<ts>-markdown.md
+kevin > [calls browser_markdown(input=…, waitUntil=networkidle)] → reports/captures/<ts>-markdown.md
 
 you  > record a 15-second tour of agentlayer.one — scroll halfway, wait 2s, scroll to the bottom
-kevin > [calls playwright_record(input=…, steps=[{kind:scroll,pixels:600},{kind:wait,ms:2000},{kind:scroll,pixels:9999}])] → reports/captures/<ts>-record.webm
+kevin > [calls browser_record(input=…, steps=[{kind:scroll,pixels:600},{kind:wait,ms:2000},{kind:scroll,pixels:9999}])] → reports/captures/<ts>-record.webm
 ```
 
 ---
@@ -582,11 +582,11 @@ Four need API keys (SerpAPI, OpenPageRank, Google OAuth + `GSC_SITE_URL` for the
 ### Browser pack, configured on demand
 
 - **Perplexity**, live web search with citations (`mcp__plugin_agent-kevin_kevin__perplexity_search`). Built into the `kevin` MCP server — direct call to the Perplexity Search API, no extra subprocess. Activate the tool via `/agent-kevin:configure-skills` (grants the permission + ensures a `PERPLEXITY_API_KEY` placeholder in `settings.local.json`), then fill the key value in your editor — `configure-skills` never asks for it in chat, since pasted secrets touch the transcript and the Anthropic API. Way better answers than vanilla web-search and dirt-cheap on pay-as-you-go: $5 of credit lasts most personal users several days to several weeks depending on query volume. Get a key at [perplexity.ai/settings/api](https://perplexity.ai/settings/api).
-- **Playwright**, four web tools backed by a bundled chromium (drops in via the one-time `bun install`). See [Playwright web tools](#-playwright-web-tools) below for the full set, or here's the short of it:
-  - `playwright_screenshot` — PNG of any URL or local HTML/MD file
-  - `playwright_pdf` — styled PDF (markdown + mermaid rendered)
-  - `playwright_markdown` — JS-rendered page → clean Markdown via Readability
-  - `playwright_record` — scripted page interactions → WebM video
+- **Browser tools**, four web tools backed by a bundled Playwright + chromium (drops in via the one-time `bun install`). See [Browser web tools](#-browser-web-tools) below for the full set, or here's the short of it:
+  - `browser_screenshot` — PNG of any URL or local HTML/MD file
+  - `browser_pdf` — styled PDF (markdown + mermaid rendered)
+  - `browser_markdown` — JS-rendered page → clean Markdown via Readability
+  - `browser_record` — scripted page interactions → WebM video
 
 ### Third-party skill libraries
 
@@ -605,9 +605,9 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Dashboard** (1) | `dashboard` |
-| **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, `browser_flows`, `perplexity_search`, `ping` |
+| **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`, `perplexity_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `playwright_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `perplexity_search`, `browser_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -677,7 +677,7 @@ agent-kevin/
 ├── reports/                 # transient skill outputs (briefings, plans)
 │   ├── index.md             # auto-maintained "newest first" log (today's entries injected into SessionStart)
 │   ├── briefings/           # morning/evening briefings, weekly/monthly goals, self-review summaries
-│   ├── captures/            # playwright artifacts (screenshots, pdfs, recordings) — gitignored, regenerable
+│   ├── captures/            # browser-tool artifacts (screenshots, pdfs, recordings) — gitignored, regenerable
 │   └── plans/               # self-review code-change proposals (Track B) + native plan-mode saves (plansDirectory)
 ├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
 ├── CLAUDE.md                # operating manual + @-imports for identity stack
@@ -1204,7 +1204,7 @@ Kevin's entire memory is markdown with `[[wikilinks]]`, and so is almost everyth
 
 [MarkEdit](https://github.com/MarkEdit-app/MarkEdit) is a free, open-source, native-Mac markdown editor (think "TextEdit for Markdown"). It's fast, distraction-free, and deeply Mac-integrated: **Quick Open**, system Quick Look, and a live **preview** so you see rendered output beside the source. The [markedit-preview](https://github.com/MarkEdit-app/MarkEdit-preview) extension adds the live HTML preview pane.
 
-The payoff is a clean **Markdown → HTML → PDF** export pipeline for anything you want to look polished (a business plan, a one-pager, a report Kevin generated). I run mine through a custom **panda-doc stylesheet** — a CSS theme that styles the exported HTML (typography, spacing, headings, code blocks) so the resulting PDF looks designed, not dumped. Drop your own stylesheet in, export to HTML, then print/render to PDF (Kevin's `playwright_pdf` tool can also do the HTML → PDF step with your CSS applied).
+The payoff is a clean **Markdown → HTML → PDF** export pipeline for anything you want to look polished (a business plan, a one-pager, a report Kevin generated). I run mine through a custom **panda-doc stylesheet** — a CSS theme that styles the exported HTML (typography, spacing, headings, code blocks) so the resulting PDF looks designed, not dumped. Drop your own stylesheet in, export to HTML, then print/render to PDF (Kevin's `browser_pdf` tool can also do the HTML → PDF step with your CSS applied).
 
 ### 9. Folder structure: home for the agent, tech for the repos
 

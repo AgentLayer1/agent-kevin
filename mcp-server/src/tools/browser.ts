@@ -1,5 +1,6 @@
 /**
- * Playwright MCP tools — in-process browser via the playwright npm package.
+ * Browser MCP tools (browser_screenshot/pdf/markdown/record) — in-process
+ * browser via the playwright npm package.
  *
  * Chromium is bundled inside the plugin's own `node_modules/playwright/.local-browsers/`
  * (via the `PLAYWRIGHT_BROWSERS_PATH=0` mode used in the package.json postinstall),
@@ -246,7 +247,7 @@ async function runStep(
 
 export const tools: ToolDef[] = [
   defineTool({
-    name: 'playwright_screenshot',
+    name: 'browser_screenshot',
     description:
       'Capture a PNG screenshot of a URL or local HTML/MD file. Requires the Browser pack installed (playwright + chromium).',
     inputSchema: {
@@ -272,7 +273,7 @@ export const tools: ToolDef[] = [
     }
   }),
   defineTool({
-    name: 'playwright_pdf',
+    name: 'browser_pdf',
     description: 'Render a URL or local file (HTML or Markdown) to PDF. Requires the Browser pack installed.',
     inputSchema: {
       input: z.string(),
@@ -296,7 +297,7 @@ export const tools: ToolDef[] = [
     }
   }),
   defineTool({
-    name: 'playwright_markdown',
+    name: 'browser_markdown',
     description:
       'Render a URL or local file in chromium so JS-rendered content hydrates, then extract the article body via Mozilla Readability and convert to Markdown. Output saved to reports/captures/<ts>-<name>.md. Use this for SPAs / Next.js / React sites where raw fetch() misses client-rendered sections. Requires the Browser pack installed.',
     inputSchema: {
@@ -318,7 +319,7 @@ export const tools: ToolDef[] = [
         if (target.isFile && target.filePath && MARKDOWN_EXT.test(target.filePath)) {
           // Local .md file → no extraction needed, just read as-is. We still
           // load it in the browser so behaviour is symmetric with the other
-          // playwright_* tools, but skip Readability since the file is
+          // browser_* tools, but skip Readability since the file is
           // already markdown.
           const raw = await readFile(target.filePath, 'utf-8');
           await writeFile(outPath, raw, 'utf-8');
@@ -339,7 +340,7 @@ export const tools: ToolDef[] = [
     }
   }),
   defineTool({
-    name: 'playwright_record',
+    name: 'browser_record',
     description:
       'Drive a browser through scripted steps and return a video file. Steps: {kind: navigate|scroll|wait, url|pixels|ms}. Requires the Browser pack installed.',
     inputSchema: {

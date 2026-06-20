@@ -107,8 +107,8 @@ Core WP REST does NOT expose The SEO Framework's title/meta overrides. The `titl
 **Always scrape the rendered page for SEO meta truth**:
 
 ```bash
-# Via the playwright plugin
-path=$(mcp__plugin_agent-kevin_kevin__playwright_screenshot "https://example.com/topic-keyword-b/" /tmp/fc.png)
+# Via the browser screenshot tool
+path=$(mcp__plugin_agent-kevin_kevin__browser_screenshot "https://example.com/topic-keyword-b/" /tmp/fc.png)
 
 # Or curl for quick tag extraction (static HTML only — WP renders this fine)
 curl -s https://example.com/topic-keyword-b/ \

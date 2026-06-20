@@ -153,7 +153,7 @@ Fill the values in <HOME>/.claude/settings.local.json — never paste them into 
 
 The Browser pack has two pieces, each independently activatable:
 1. **Perplexity** — grant `perplexity_search` permission + ensure `PERPLEXITY_API_KEY` placeholder.
-2. **Playwright + browser-flows** — grant `playwright_{screenshot,pdf,record}` + `browser_flows` permissions (no key; Chromium runs locally).
+2. **Playwright + browser-flows** — grant `browser_{screenshot,pdf,record}` + `browser_flows` permissions (no key; Chromium runs locally).
 
 Neither is pre-granted by `/init` anymore — they only land when the user activates the matching piece.
 
@@ -173,17 +173,17 @@ If yes:
 - **Do not** ask the user to paste the key value.
 - **Do not** touch `$MCP_FILE` — `perplexity_search` lives inside the `kevin` MCP server, not a separate project-registered server.
 
-**(2) Playwright + browser-flows** — the `playwright_{screenshot,pdf,markdown,record}` capture tools and `browser_flows` (runs pluggable browser flows in a visible browser; same bundled Chromium, no API key).
+**(2) Playwright + browser-flows** — the `browser_{screenshot,pdf,markdown,record}` capture tools and `browser_flows` (runs pluggable browser flows in a visible browser; same bundled Chromium, no API key).
 
 `AskUserQuestion`:
 
 > **Activate Playwright + browser-flows?**
-> Adds the playwright capture tools and `browser_flows` to `permissions.allow`. No API key needed — Chromium runs locally from the plugin's bundled install.
+> Adds the browser capture tools and `browser_flows` to `permissions.allow`. No API key needed — Chromium runs locally from the plugin's bundled install.
 >
 > - Yes — grant permissions
 > - Skip
 
-If yes: add `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, and `browser_flows` to `permissions.allow` via §E.
+If yes: add `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, and `browser_flows` to `permissions.allow` via §E.
 
 Then verify the chromium binary is in place (the plugin's postinstall handles this):
 
@@ -348,7 +348,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - If yes: read `$SETTINGS_FILE`, delete those keys from `env`, write back.
 
 **Browser deconfigure:**
-- Revoke Browser-gated MCP tool grants from `permissions.allow` (§E remove helper): `perplexity_search`, `playwright_screenshot`, `playwright_pdf`, `playwright_markdown`, `playwright_record`, `browser_flows`. Always-on core stays.
+- Revoke Browser-gated MCP tool grants from `permissions.allow` (§E remove helper): `perplexity_search`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`. Always-on core stays.
 - `AskUserQuestion`: "Remove `PERPLEXITY_API_KEY` from `$SETTINGS_FILE`?" (Yes/No). If yes, delete via §D.
 - Do **not** touch `$MCP_FILE` — `perplexity_search` lives inside the `kevin` MCP server, not a project-registered server.
 - Remind user: playwright + chromium stay installed (part of plugin base deps); only the permission grants get removed.
@@ -440,6 +440,10 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
       "Bash(readlink *)",
       "Bash(test *)",
       "mcp__plugin_agent-kevin_kevin__browser_flows",
+      "mcp__plugin_agent-kevin_kevin__browser_markdown",
+      "mcp__plugin_agent-kevin_kevin__browser_pdf",
+      "mcp__plugin_agent-kevin_kevin__browser_record",
+      "mcp__plugin_agent-kevin_kevin__browser_screenshot",
       "mcp__plugin_agent-kevin_kevin__capture",
       "mcp__plugin_agent-kevin_kevin__compile_next",
       "mcp__plugin_agent-kevin_kevin__compile_status",
@@ -457,10 +461,6 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
       "mcp__plugin_agent-kevin_kevin__page_speed_psi",
       "mcp__plugin_agent-kevin_kevin__perplexity_search",
       "mcp__plugin_agent-kevin_kevin__ping",
-      "mcp__plugin_agent-kevin_kevin__playwright_markdown",
-      "mcp__plugin_agent-kevin_kevin__playwright_pdf",
-      "mcp__plugin_agent-kevin_kevin__playwright_record",
-      "mcp__plugin_agent-kevin_kevin__playwright_screenshot",
       "mcp__plugin_agent-kevin_kevin__report_write",
       "mcp__plugin_agent-kevin_kevin__serpapi_search",
       "mcp__plugin_agent-kevin_kevin__setup_worktree",

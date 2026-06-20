@@ -72,4 +72,4 @@ Flavors are flags, not separate templates. Combine freely:
 
 ## Print check
 
-After writing the file, render to PDF (`playwright_pdf` on the `file://` URL) and confirm: each day starts on its own page, no card split mid-block, all card detail expanded, videos hidden, tables and checklist intact at A4. If a day overflows, tighten descriptions rather than shrinking the font.
+After writing the file, render to PDF (`browser_pdf` on the `file://` URL) and confirm: each day starts on its own page, no card split mid-block, all card detail expanded, videos hidden, tables and checklist intact at A4. If a day overflows, tighten descriptions rather than shrinking the font.
