@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { discoverConnections, safeConnectionInfo } from '@/tools/database';
+import { discoverConnections, resolveConnectionString, safeConnectionInfo } from '@/tools/database';
 
 describe('discoverConnections', () => {
   const added: string[] = [];
@@ -48,5 +48,37 @@ describe('safeConnectionInfo', () => {
 
   test('does not throw on an unparseable URL', () => {
     expect(safeConnectionInfo('not a url').host).toBe('(unparseable URL)');
+  });
+});
+
+describe('resolveConnectionString', () => {
+  test('swaps the database, preserving credentials and host/port', () => {
+    const out = resolveConnectionString('postgres://admin:secret@db.example.com:6543/app', 'app_my_branch');
+    expect(safeConnectionInfo(out)).toEqual({ host: 'db.example.com', port: '6543', database: 'app_my_branch' });
+    expect(out).toContain('admin');
+    expect(out).toContain('secret');
+  });
+
+  test('overrides a database pinned in the base string', () => {
+    expect(safeConnectionInfo(resolveConnectionString('postgres://u:p@h:5432/app', 'app_other')).database).toBe(
+      'app_other'
+    );
+  });
+
+  test('targets a database when the base string has none', () => {
+    expect(safeConnectionInfo(resolveConnectionString('postgres://u:p@h:5432', 'app_x')).database).toBe('app_x');
+  });
+
+  test('returns the base unchanged when a database is pinned and none is supplied', () => {
+    const base = 'postgres://u:p@h:5432/app';
+    expect(resolveConnectionString(base)).toBe(base);
+  });
+
+  test('throws when the base has no database and none is supplied', () => {
+    expect(() => resolveConnectionString('postgres://u:p@h:5432')).toThrow(/no default database/);
+  });
+
+  test('rejects an invalid database name', () => {
+    expect(() => resolveConnectionString('postgres://u:p@h:5432/app', 'bad/name')).toThrow(/Invalid database name/);
   });
 });
