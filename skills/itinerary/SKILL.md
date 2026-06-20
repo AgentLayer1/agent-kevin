@@ -2,7 +2,7 @@
 name: itinerary
 description: Plan a trip end-to-end and generate a polished, interactive, print-ready HTML itinerary. Use whenever the user wants to plan a vacation, family trip, day trip, road trip, or weekend getaway, asks for an itinerary, or wants help organizing travel dates, flights, routes, or hotels, even if they never say the word "itinerary". Wizard-style: interview first, then web research (flights, drive times, prices, opening hours, halal food, weather), then render the itinerary HTML into the trip project.
 disable-model-invocation: true
-allowed-tools: AskUserQuestion, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__perplexity_search, mcp__plugin_agent-kevin_kevin__browser_pdf, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread
+allowed-tools: AskUserQuestion, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__web_search, mcp__plugin_agent-kevin_kevin__browser_pdf, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 
 # Itinerary

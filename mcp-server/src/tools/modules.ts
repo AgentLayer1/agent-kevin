@@ -15,11 +15,11 @@ export const TOOL_MODULES = [
   'google-search-console',
   'knowledge',
   'open-page-rank',
-  'perplexity',
   'ping',
   'reports',
   'serpapi',
   'status',
   'tasks',
+  'web-search',
   'worktree'
 ] as const;

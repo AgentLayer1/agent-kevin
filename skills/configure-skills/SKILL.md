@@ -70,7 +70,7 @@ If nothing is ticked, cancel and return to Step 1. Otherwise run the matching su
 
 ### A.2a — SEO pack walk
 
-**Tool-name prefix convention** — important: the plugin bundles a single MCP server (`kevin`), so all its tools use the **plugin-namespaced** prefix `mcp__plugin_agent-kevin_kevin__<tool>` (e.g., `mcp__plugin_agent-kevin_kevin__serpapi_search`, `mcp__plugin_agent-kevin_kevin__perplexity_search`). The shorter `mcp__kevin__<tool>` form looks correct but won't match anything at runtime — Claude Code prefixes plugin-provided servers with `plugin_<plugin-name>_<server-name>`. Tools from servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs) would use the plain `mcp__<server>__<tool>` form. The "Permissions to grant" column below uses the correct form for each.
+**Tool-name prefix convention** — important: the plugin bundles a single MCP server (`kevin`), so all its tools use the **plugin-namespaced** prefix `mcp__plugin_agent-kevin_kevin__<tool>` (e.g., `mcp__plugin_agent-kevin_kevin__serpapi_search`, `mcp__plugin_agent-kevin_kevin__web_search`). The shorter `mcp__kevin__<tool>` form looks correct but won't match anything at runtime — Claude Code prefixes plugin-provided servers with `plugin_<plugin-name>_<server-name>`. Tools from servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs) would use the plain `mcp__<server>__<tool>` form. The "Permissions to grant" column below uses the correct form for each.
 
 | Skill | Backed by | Required key(s) | Extra permission to grant |
 |---|---|---|---|
@@ -152,26 +152,26 @@ Fill the values in <HOME>/.claude/settings.local.json — never paste them into 
 ### A.2b — Browser pack walk
 
 The Browser pack has two pieces, each independently activatable:
-1. **Perplexity** — grant `perplexity_search` permission + ensure `PERPLEXITY_API_KEY` placeholder.
+1. **Perplexity** — grant `web_search` permission + ensure `PERPLEXITY_API_KEY` placeholder.
 2. **Playwright + browser-flows** — grant `browser_{screenshot,pdf,record}` + `browser_flows` permissions (no key; Chromium runs locally).
 
 Neither is pre-granted by `/init` anymore — they only land when the user activates the matching piece.
 
-**(1) Perplexity** — `mcp__plugin_agent-kevin_kevin__perplexity_search`.
+**(1) Perplexity** — `mcp__plugin_agent-kevin_kevin__web_search`.
 
 `AskUserQuestion`:
 
 > **Activate Perplexity search?**
-> Adds `mcp__plugin_agent-kevin_kevin__perplexity_search` to `permissions.allow` and ensures `PERPLEXITY_API_KEY` slot exists in `.claude/settings.local.json` env block. You fill the key value via your editor after this completes (sign up at https://perplexity.ai/settings/api). The tool stays callable but returns "missing env var" until you fill it.
+> Adds `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` and ensures `PERPLEXITY_API_KEY` slot exists in `.claude/settings.local.json` env block. You fill the key value via your editor after this completes (sign up at https://perplexity.ai/settings/api). The tool stays callable but returns "missing env var" until you fill it.
 >
 > - Yes — grant permission + ensure placeholder
 > - Skip (no permission grant, no placeholder)
 
 If yes:
-- Add `mcp__plugin_agent-kevin_kevin__perplexity_search` to `permissions.allow` via §E.
+- Add `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` via §E.
 - Ensure `PERPLEXITY_API_KEY: ""` exists in `$SETTINGS_FILE` env block via §D (only writes empty string if key is absent — never overwrites a non-empty existing value).
 - **Do not** ask the user to paste the key value.
-- **Do not** touch `$MCP_FILE` — `perplexity_search` lives inside the `kevin` MCP server, not a separate project-registered server.
+- **Do not** touch `$MCP_FILE` — `web_search` lives inside the `kevin` MCP server, not a separate project-registered server.
 
 **(2) Playwright + browser-flows** — the `browser_{screenshot,pdf,markdown,record}` capture tools and `browser_flows` (runs pluggable browser flows in a visible browser; same bundled Chromium, no API key).
 
@@ -348,9 +348,9 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - If yes: read `$SETTINGS_FILE`, delete those keys from `env`, write back.
 
 **Browser deconfigure:**
-- Revoke Browser-gated MCP tool grants from `permissions.allow` (§E remove helper): `perplexity_search`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`. Always-on core stays.
+- Revoke Browser-gated MCP tool grants from `permissions.allow` (§E remove helper): `web_search`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`. Always-on core stays.
 - `AskUserQuestion`: "Remove `PERPLEXITY_API_KEY` from `$SETTINGS_FILE`?" (Yes/No). If yes, delete via §D.
-- Do **not** touch `$MCP_FILE` — `perplexity_search` lives inside the `kevin` MCP server, not a project-registered server.
+- Do **not** touch `$MCP_FILE` — `web_search` lives inside the `kevin` MCP server, not a project-registered server.
 - Remind user: playwright + chromium stay installed (part of plugin base deps); only the permission grants get removed.
 
 **Database deconfigure:**
@@ -459,7 +459,6 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
       "mcp__plugin_agent-kevin_kevin__open_page_rank",
       "mcp__plugin_agent-kevin_kevin__page_speed_audit",
       "mcp__plugin_agent-kevin_kevin__page_speed_psi",
-      "mcp__plugin_agent-kevin_kevin__perplexity_search",
       "mcp__plugin_agent-kevin_kevin__ping",
       "mcp__plugin_agent-kevin_kevin__report_write",
       "mcp__plugin_agent-kevin_kevin__serpapi_search",
@@ -471,6 +470,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
       "mcp__plugin_agent-kevin_kevin__task_scan",
       "mcp__plugin_agent-kevin_kevin__task_thread",
       "mcp__plugin_agent-kevin_kevin__task_update",
+      "mcp__plugin_agent-kevin_kevin__web_search",
       "Skill(agent-kevin:setup-worktree)"
     ]
   }
@@ -478,7 +478,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ```
 
 **Prefix rule** (use this whenever you need to know how a tool surfaces to permissions.allow):
-- Plugin-bundled MCP tools (from the plugin's own `.mcp.json` → any `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (25 tools, including `perplexity_search` which wraps the Perplexity Search API).
+- Plugin-bundled MCP tools (from the plugin's own `.mcp.json` → any `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (25 tools, including `web_search` which wraps the Perplexity Search API).
 - Standalone MCP servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs, but users can add their own): `mcp__<server>__<tool>`
 
 **Revoke** (remove entries — deconfigure path):

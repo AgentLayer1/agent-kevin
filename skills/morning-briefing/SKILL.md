@@ -2,7 +2,7 @@
 name: morning-briefing
 description: Tailored morning brief — today's priorities, drafted artifacts, goals delta, per-project pulse, stale callout, signal-topic news, geopolitical news, and one concrete first move. Run when you sit down at the start of the day.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__perplexity_search, Read, Glob, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__web_search, Read, Glob, Bash
 ---
 
 # Morning Briefing
@@ -21,12 +21,12 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
    - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / stale / blocked surfacing
 5. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap.
-6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `perplexity_search` calls in parallel**, one per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
+6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `web_search` calls in parallel**, one per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
    - Pick clusters from the user's `## Signal Topics` (each topic or related-topic group becomes one query). Typical clusters: a competitive/industry cluster tied to the day job, a local-regulatory cluster (recency `"week"`, set `country` if applicable), an AI/tooling cluster covering the model ecosystem they build on, and a geopolitics cluster for events that touch their values or travel.
    - Use `recency: "day"` for fast-moving clusters, `recency: "week"` for slower regulatory ones.
-   - **Capture the source URL for every result you might surface.** `perplexity_search` returns citations/source links — keep the canonical URL alongside each candidate so it can be rendered as a clickable link in the brief. A signal with no source URL doesn't ship (see Signal gate).
+   - **Capture the source URL for every result you might surface.** `web_search` returns citations/source links — keep the canonical URL alongside each candidate so it can be rendered as a clickable link in the brief. A signal with no source URL doesn't ship (see Signal gate).
    - **Apply the Signal gate below before any item earns a slot.** Most mornings, 0–2 signals clear it; that's correct, not a gap.
-7. **Prior briefings (novelty check)** — `Glob` `<HOME>/reports/briefings/*.md` and read the entries from the **last 7 days**. This is what you de-dupe today's signals against. Read it *before* deciding which perplexity results to surface.
+7. **Prior briefings (novelty check)** — `Glob` `<HOME>/reports/briefings/*.md` and read the entries from the **last 7 days**. This is what you de-dupe today's signals against. Read it *before* deciding which web_search results to surface.
 
 ## Signal gate (novelty + relevance)
 
@@ -34,7 +34,7 @@ Every candidate for `🌐 Signals` / `📰 News` must clear **both** gates. If n
 
 - **Relevance gate.** A signal earns a slot only if it touches something *actionable* or *tracked*: (a) it implies a concrete action this week, OR (b) it bears on something in `<HOME>/projects/TASKS.md` — an active/open task, a weekly goal, or a monthly goal. Ambient industry news that maps to no task and no this-week action does **not** qualify, however interesting.
 - **Novelty gate (soft).** Compare each candidate against the last 7 days of briefings (input 7). If the same story already shipped, suppress it — *unless* a fact materially changed (a new number, a new decision, a status flip, a date that's now imminent). "X is still happening" / restating a known situation is never a signal. When you do re-surface a topic, lead with *what changed*, not the background.
-- **Source gate.** Every `🌐 Signals` / `📰 News` item must carry a clickable source link (the canonical URL from the Perplexity citation). No URL, no slot — an unsourced signal is unverifiable and can't ship.
+- **Source gate.** Every `🌐 Signals` / `📰 News` item must carry a clickable source link (the canonical URL from the web_search result's citation). No URL, no slot — an unsourced signal is unverifiable and can't ship.
 
 ## Guardrails
 
@@ -88,7 +88,7 @@ Substitute `<USER_TZ>` with the operator's IANA timezone from `USER.md` (e.g. `A
 🌐 Signals
   • <emoji> [<headline>](<source-url>) (<source/date>) — <"so what" tied to your work>
   • <emoji> ...
-  (3–5 items pulled from the perplexity calls. Lead each with a country / company / topic emoji. Headline is a clickable markdown link to the source.)
+  (3–5 items pulled from the web_search calls. Lead each with a country / company / topic emoji. Headline is a clickable markdown link to the source.)
 
 📰 News
   • <emoji> [<headline>](<source-url>) — <one-line why it touches your world>
@@ -124,7 +124,7 @@ Surface `📄 Saved to <relPath>` to the operator at the end of the brief.
 ## Anti-patterns
 
 - ❌ Dumping every active task. `🎯 Today` is 3–6 sharpest items, not a backlog.
-- ❌ Running ONE perplexity call to "cover everything" — the result is mush. Run a few **focused** queries, one per cluster you actually care about today.
+- ❌ Running ONE web_search call to "cover everything" — the result is mush. Run a few **focused** queries, one per cluster you actually care about today.
 - ❌ Restating Active Threads from `memory/index.md` verbatim. Briefing is *delta and direction*, not status quo.
 - ❌ Including signals/news that are interesting but don't change today's plan or touch a TASKS.md item. Run it through the Signal gate; if the "so what" is generic, cut it.
 - ❌ Re-reporting a signal you already delivered this week. Check the last 7 days of `reports/briefings/` first. Same story, no new fact = suppress. Repeating yourself is the fastest way to make the brief ignorable.

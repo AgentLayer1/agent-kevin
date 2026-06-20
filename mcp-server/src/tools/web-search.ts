@@ -1,5 +1,5 @@
 /**
- * Perplexity Search MCP tool — typed wrapper.
+ * Web search MCP tool (web_search) — typed wrapper over the Perplexity Search API.
  */
 import { log } from '@/shared/log';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -31,7 +31,7 @@ interface PerplexityRequestBody {
 
 export const tools: ToolDef[] = [
   defineTool({
-    name: 'perplexity_search',
+    name: 'web_search',
     description:
       'Search the web via Perplexity. Returns a ranked list of {title, url, snippet, date} — no AI synthesis. Best for news, fact-finding, source discovery. Supports recency + domain filters.',
     inputSchema: {
