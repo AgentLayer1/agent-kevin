@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-kevin",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Portable, file-based personal AI assistant. Compiles raw sessions into a queryable wiki, manages tasks across project lifecycles, drives SEO/web tools (GSC, PageSpeed, SerpAPI, Playwright, Perplexity), and ships 18 skills covering onboarding, daily/weekly/monthly cadences, audits, and content workflows. All data stays as local markdown + YAML.",
   "author": {
     "name": "AgentLayer",

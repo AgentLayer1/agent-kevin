@@ -297,7 +297,8 @@ describe('renderDashboardHtml', () => {
               title: 'Add report writing to where-am-i skill',
               timeAgo: '10m ago',
               summary: 'The anchor session for the radar feature.',
-              resume: 'claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72'
+              resume: 'claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72',
+              meta: '<div class="rmeta-row"><span class="rmeta-tag">🔗</span> <a href="obsidian://x">lo-001</a> A task</div>'
             }
           ]
         }
@@ -308,9 +309,12 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('Awaiting CIMB HQ approval');
     expect(html).toContain('Ongoing');
     expect(html).toContain('Tasks touched');
-    // The Ongoing feed's Sessions group now comes from the radar digest.
+    // The Ongoing feed's Sessions group now comes from the radar digest, with
+    // the session's tasks/plans + resume grouped in a .radar-meta box.
     expect(html).toContain('Add report writing to where-am-i skill');
     expect(html).toContain('claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72');
+    expect(html).toContain('<div class="radar-meta">');
+    expect(html).toContain('>lo-001</a> A task');
   });
 
   test('brain page carries threads, decisions, concepts, and the memory tab', () => {

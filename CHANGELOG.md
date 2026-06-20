@@ -34,6 +34,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.3] - 2026-06-20
+
+### Added
+- Dashboard session cards now surface what each session worked on. On both the **Sessions → Recent** digest and the **Today → Ongoing** expanded rows, a card carries a subtle dashed "meta" box grouping the session's related tasks (🔗, one per line, linked to the task file), the plans it produced (📋, linked), and the resume command — set apart from the summary in a smaller, muted type. Related tasks/plans are derived from the session transcript's actual conversation (your messages + Kevin's text + tool calls), filtering out the auto-loaded `TASKS.md`/memory context that would otherwise match every session.
+
+### Upgrade
+None — code-only, no bun install or HOME changes.
+
 ## [0.2.2] - 2026-06-20
 
 ### Fixed

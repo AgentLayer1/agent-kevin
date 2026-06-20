@@ -249,12 +249,17 @@ const taskGroup = (title: string, refs: TaskRef[], snap: StatusSnapshot, options
  *  first column, title second, expanding (like a task row) to the full summary
  *  and the `claude --resume` command. */
 const radarSessionRow = (session: RadarSession): string => {
-  const resume = session.resume ? `<div class="resume">↳ <code>${esc(session.resume)}</code></div>` : '';
+  // Same grouped meta box as the Sessions → Recent digest: tasks + plans + the
+  // resume command in one dashed subsection. `session.meta` is pre-escaped HTML
+  // (rmeta-row divs) built in collect.ts; the resume command is esc()'d here.
+  const metaBox = session.resume
+    ? `<div class="radar-meta">${session.meta}<div class="rmeta-row resume">↳ <code>${esc(session.resume)}</code></div></div>`
+    : '';
   return `<details class="task radarrow" data-row><summary><span class="tid nowrap dim">${esc(
     session.timeAgo
   )}</span><span class="ttl">${esc(session.title)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody">${
     session.summary ? `<div class="radarsum">${esc(session.summary)}</div>` : ''
-  }${resume}</div></details>`;
+  }${metaBox}</div></details>`;
 };
 
 // ── pages ─────────────────────────────────────────────────────────────
@@ -285,7 +290,15 @@ const reportChips = (reports: ReportRef[]): string => {
     return `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${dot}${esc(label)} <span class="dim">${count}</span></button>`;
   };
   return `<div class="chips" data-catchips>${chip('all', 'All', reports.length, '', true)}${present
-    .map((category) => chip(category, `${category[0].toUpperCase()}${category.slice(1)}`, counts[category], CATEGORY_DOT[category], false))
+    .map((category) =>
+      chip(
+        category,
+        `${category[0].toUpperCase()}${category.slice(1)}`,
+        counts[category],
+        CATEGORY_DOT[category],
+        false
+      )
+    )
     .join('')}</div>`;
 };
 
@@ -876,10 +889,34 @@ const nextQuarterStart = (iso: string): string => {
 const SCHEDULE: ScheduledJob[] = [
   { label: 'Sync (morning)', skill: 'sync', when: 'Daily', anchor: '07:00', nextDate: (iso) => iso },
   { label: 'Sync (evening)', skill: 'sync', when: 'Daily', anchor: '19:00', nextDate: (iso) => iso },
-  { label: 'Weekly goals', skill: 'weekly-goals', when: 'Mondays', anchor: '08:00', nextDate: (iso) => nextWeekday(iso, 1) },
-  { label: 'Monthly goals', skill: 'monthly-goals', when: '1st of month', anchor: '08:00', nextDate: (iso) => nextMonthlyDay(iso, 1) },
-  { label: 'Yearly goals', skill: 'yearly-goals', when: 'Quarterly · Jan/Apr/Jul/Oct 1', anchor: '08:00', nextDate: nextQuarterStart },
-  { label: 'Self-review', skill: 'self-review', when: '15th of month', anchor: '08:00', nextDate: (iso) => nextMonthlyDay(iso, 15) }
+  {
+    label: 'Weekly goals',
+    skill: 'weekly-goals',
+    when: 'Mondays',
+    anchor: '08:00',
+    nextDate: (iso) => nextWeekday(iso, 1)
+  },
+  {
+    label: 'Monthly goals',
+    skill: 'monthly-goals',
+    when: '1st of month',
+    anchor: '08:00',
+    nextDate: (iso) => nextMonthlyDay(iso, 1)
+  },
+  {
+    label: 'Yearly goals',
+    skill: 'yearly-goals',
+    when: 'Quarterly · Jan/Apr/Jul/Oct 1',
+    anchor: '08:00',
+    nextDate: nextQuarterStart
+  },
+  {
+    label: 'Self-review',
+    skill: 'self-review',
+    when: '15th of month',
+    anchor: '08:00',
+    nextDate: (iso) => nextMonthlyDay(iso, 15)
+  }
 ];
 
 /** Roll the next date forward a period when today is the target but its time slot already passed. */
@@ -1313,17 +1350,22 @@ const logTail = (tail: string): string => {
   const groups: string[][] = [];
   // trimEnd drops the file's trailing newline, which would otherwise become an
   // empty row sitting atop the newest entry once the groups are reversed.
-  tail.trimEnd().split('\n').forEach((line) => {
-    const matched = line.match(TAIL_LEVEL_RE)?.[1];
-    if (matched) {
-      level = matched === 'WARN' ? 'warn' : matched === 'ERROR' ? 'error' : 'info';
-      entries += 1;
-      if (level === 'warn' || level === 'error') counts[level] += 1;
-      groups.push([]);
-    }
-    if (groups.length === 0) groups.push([]);
-    groups[groups.length - 1].push(`<div class="logline lvl-${level}" data-row data-cat="${level}">${esc(line) || '&nbsp;'}</div>`);
-  });
+  tail
+    .trimEnd()
+    .split('\n')
+    .forEach((line) => {
+      const matched = line.match(TAIL_LEVEL_RE)?.[1];
+      if (matched) {
+        level = matched === 'WARN' ? 'warn' : matched === 'ERROR' ? 'error' : 'info';
+        entries += 1;
+        if (level === 'warn' || level === 'error') counts[level] += 1;
+        groups.push([]);
+      }
+      if (groups.length === 0) groups.push([]);
+      groups[groups.length - 1].push(
+        `<div class="logline lvl-${level}" data-row data-cat="${level}">${esc(line) || '&nbsp;'}</div>`
+      );
+    });
   const rows = groups.reverse().flat();
   const chip = (filter: string, label: string, count: number | null, dot: string, active: boolean): string =>
     `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${
@@ -1350,7 +1392,8 @@ const ENV_KEY_TIPS: Record<string, string> = {
     'Turns off non-essential network traffic (telemetry, auto-update pings, etc.) — keeps Claude Code quiet on the wire.',
   ANTHROPIC_DEFAULT_HAIKU_MODEL:
     'Remaps the lightweight “Haiku” tier the harness uses for small background tasks to a more capable model, so quick auxiliary calls aren’t under-powered.',
-  KEVIN_CODE_PATH: 'Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as `$KEVIN_CODE_PATH`.',
+  KEVIN_CODE_PATH:
+    'Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as `$KEVIN_CODE_PATH`.',
   KEVIN_GIT_REPOS:
     'Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to `KEVIN_CODE_PATH`; append more with `,/path/to/other/repo`.',
   KEVIN_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',

@@ -14,6 +14,13 @@ import { FILES, FOLDERS, MARKDOWN_URL, PLUGIN_NAME, TIMEZONE } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
+import {
+  composeMetaBox,
+  composeMetaRows,
+  conversationTextFromLines,
+  extractSessionRefs,
+  type RadarTaskRef
+} from './radar-refs';
 import { sanitizeHtml } from '@/shared/sanitize-html';
 import type { TaskFile } from '@/shared/types';
 import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
@@ -91,6 +98,8 @@ export interface RadarSession {
   summary: string;
   /** `claude --resume <id>` command, or '' when the digest omitted one. */
   resume: string;
+  /** Related tasks + plans as raw HTML `.rmeta-row` divs; '' when none. */
+  meta: string;
 }
 
 export interface SkillInfo {
@@ -764,9 +773,7 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     // tasks → empty updatedAt) sink to the bottom deterministically.
     .sort(
       (a, b) =>
-        (b.updatedAt || '').localeCompare(a.updatedAt || '') ||
-        b.total - a.total ||
-        a.project.localeCompare(b.project)
+        (b.updatedAt || '').localeCompare(a.updatedAt || '') || b.total - a.total || a.project.localeCompare(b.project)
     );
 
   // Whole working set, P0 first then earliest due — the dashboard's agenda raw material.
@@ -1403,9 +1410,15 @@ const categoryFromHref = (href: string): string => href.split('/')[1] ?? '';
  *  filename. */
 const orphanReportTitle = (body: string, fileName: string): string => {
   const frontmatter = body.match(REPORT_FRONTMATTER_RE)?.[1];
-  const fmTitle = frontmatter?.match(/^title:\s*(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, '');
+  const fmTitle = frontmatter
+    ?.match(/^title:\s*(.+)$/m)?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, '');
   if (fmTitle) return fmTitle;
-  const h1 = body.replace(REPORT_FRONTMATTER_RE, '').match(/^#\s+(.+)$/m)?.[1]?.trim();
+  const h1 = body
+    .replace(REPORT_FRONTMATTER_RE, '')
+    .match(/^#\s+(.+)$/m)?.[1]
+    ?.trim();
   return h1 ?? fileName.replace(MARKDOWN_RE, '');
 };
 
@@ -1484,6 +1497,49 @@ const safeMtime = (path: string): Date => {
   }
 };
 
+// ── radar: per-session related tasks + plans ──────────────────────────
+//
+// The Recent tab links each session card to the tasks it worked on and the
+// plans it produced, derived at build time from the session's transcript. The
+// pure extraction/formatting lives in radar-refs.ts (config-free, testable);
+// collect.ts owns only the disk I/O (locate + read the transcript).
+
+const CLAUDE_PROJECTS_DIR = resolve(homedir(), '.claude', 'projects');
+
+/** Locate `<id>.jsonl` under any ~/.claude/projects/<dir>/; null if absent. */
+const findTranscript = (sessionId: string): string | null => {
+  let dirs: string[] = [];
+  try {
+    dirs = readdirSync(CLAUDE_PROJECTS_DIR);
+  } catch {
+    return null;
+  }
+  const hit = dirs
+    .map((dir) => resolve(CLAUDE_PROJECTS_DIR, dir, `${sessionId}.jsonl`))
+    .find((path) => existsSync(path));
+  return hit ?? null;
+};
+
+/** The 🔗 tasks + 📋 plans rows (raw HTML) for one session card; '' when none. */
+const sessionMetaRows = (
+  sessionId: string,
+  taskIndex: Map<string, RadarTaskRef>,
+  planTitles: Map<string, string>,
+  markdownUrl: string
+): string => {
+  const transcript = findTranscript(sessionId);
+  let lines: string[] = [];
+  if (transcript) {
+    try {
+      lines = readFileSync(transcript, 'utf-8').split('\n');
+    } catch {
+      lines = [];
+    }
+  }
+  const refs = extractSessionRefs(conversationTextFromLines(lines), taskIndex);
+  return composeMetaRows(refs, taskIndex, planTitles, markdownUrl, FOLDERS.HOME);
+};
+
 /** Read the newest radar report's body and render it to HTML for the Sessions
  *  page Radar tab. `reports` must be newest-first (collectReports output). */
 const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | null> => {
@@ -1512,32 +1568,67 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
   // Force a blank line after each "**N. …**" title line and before each "↳"
   // resume line so they render as distinct blocks. Idempotent: the negative
   // lookahead skips lines already blank-separated.
-  const markdown = raw
-    .replace(/^(\*\*\d+\..*)\n(?!\n)/gm, '$1\n\n')
-    .replace(/([^\n])\n(↳ )/g, '$1\n\n$2');
+  const normalized = raw.replace(/^(\*\*\d+\..*)\n(?!\n)/gm, '$1\n\n').replace(/([^\n])\n(↳ )/g, '$1\n\n$2');
+  // Per-session related tasks + plans, derived from each session's transcript;
+  // built off `raw`/`normalized` only, so the Today feed (parseRadarSessions on
+  // `raw`) is untouched and only the Recent tab gains them.
+  const taskIndex = new Map<string, RadarTaskRef>(
+    [...scanAllTasks(), ...scanArchivedTasks()].map((task) => [
+      task.frontmatter.id,
+      { title: task.frontmatter.title, filePath: task.filePath }
+    ])
+  );
+  const planTitles = new Map<string, string>(
+    reports.filter((report) => report.category === 'plans' && report.href).map((report) => [report.href, report.title])
+  );
+  const markdownUrl = collectMarkdownUrl();
+  // Read each transcript at most once; both feeds reuse the same meta rows.
+  const metaCache = new Map<string, string>();
+  const metaFor = (sessionId: string): string => {
+    const cached = metaCache.get(sessionId);
+    if (cached !== undefined) return cached;
+    const rows = sessionMetaRows(sessionId, taskIndex, planTitles, markdownUrl);
+    metaCache.set(sessionId, rows);
+    return rows;
+  };
   const { marked } = await import('marked');
-  // Wrap the resume line in a badge span so the dashboard can style it apart
-  // from the inline code that peppers the summaries.
-  const rendered = (await marked.parse(markdown)).replace(
-    /↳\s*<code>(claude --resume[^<]*)<\/code>/g,
-    '<span class="resume">↳ <code>$1</code></span>'
+  // Replace each rendered resume paragraph with a `.radar-meta` box that groups
+  // the session's tasks + plans (when any) and the resume command into one
+  // subsection, set apart from the summary. Done post-marked so the box is a
+  // block sibling (a <div> can't live inside the <p> marked emits) and a single
+  // pass — no double-wrapping.
+  const rendered = (await marked.parse(normalized)).replace(
+    /<p>↳\s*<code>claude --resume ([0-9a-fA-F-]+)<\/code><\/p>/g,
+    (_full, sessionId: string) => composeMetaBox(metaFor(sessionId), `claude --resume ${sessionId}`)
   );
   // Wrap each session run (its `<strong>N. …</strong>` title paragraph through
-  // its summary and resume badge) in a `data-row` div so the Recent tab's
-  // filterbox can show/hide whole sessions by matching title + summary text.
-  const html = wrapRadarSessions(await sanitizeHtml(rendered));
-  return { date: ref.date, time: ref.time, title: ref.title, href: ref.href, html, footer, sessions: parseRadarSessions(raw) };
-}
+  // its summary and meta box) in a `data-row` div so the Recent tab's filterbox
+  // can show/hide whole sessions by matching title + summary text. Allow the
+  // opener scheme so the injected task/plan links keep their href.
+  const scheme = markdownUrl.match(/^([a-z][a-z0-9.+-]*):/i)?.[1];
+  const html = wrapRadarSessions(await sanitizeHtml(rendered, scheme ? { allowSchemes: [scheme] } : undefined));
+  // Enrich the Today-feed rows with the same per-session meta (tasks + plans).
+  const sessions = parseRadarSessions(raw).map((session) => {
+    const sessionId = session.resume.match(/claude --resume ([0-9a-fA-F-]+)/)?.[1];
+    return { ...session, meta: sessionId ? metaFor(sessionId) : '' };
+  });
+  return {
+    date: ref.date,
+    time: ref.time,
+    title: ref.title,
+    href: ref.href,
+    html,
+    footer,
+    sessions
+  };
+};
 
 /** Wrap each rendered session run in `<div class="radar-session" data-row>` so
  *  the Recent tab's session filter can match against the row's full text (title
  *  + summary) and hide non-matches. A run spans from a numbered title paragraph
  *  up to the next one, the next `<h2>` section header, or the end. */
 const wrapRadarSessions = (html: string): string =>
-  html.replace(
-    /(<p><strong>\d+\.[\s\S]*?)(?=<p><strong>\d+\.|<h2|$)/g,
-    '<div class="radar-session" data-row>$1</div>'
-  );
+  html.replace(/(<p><strong>\d+\.[\s\S]*?)(?=<p><strong>\d+\.|<h2|$)/g, '<div class="radar-session" data-row>$1</div>');
 
 /** Pull the digest's per-session blocks (`**N. Title** · *time ago*`, a summary,
  *  then a `↳ claude --resume …` line) into structured rows for the Today feed. */
@@ -1551,8 +1642,14 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
     sessions.push({
       title: stripMarkdown(block[1].trim()),
       timeAgo: block[2].trim(),
-      summary: stripMarkdown(body.replace(/↳\s*`?claude --resume[^\n`]+`?/g, '').replace(/\s+/g, ' ').trim()),
-      resume
+      summary: stripMarkdown(
+        body
+          .replace(/↳\s*`?claude --resume[^\n`]+`?/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+      ),
+      resume,
+      meta: ''
     });
   }
   return sessions;
