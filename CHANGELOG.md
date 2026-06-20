@@ -34,6 +34,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.1] - 2026-06-20
+
+### Fixed
+- `init` and `upgrade` skills: a literal leading `!` in a shell command can be mangled to `\!` by some interactive shells (zsh history expansion), which silently broke the `.gitignore` negations that keep `.kevin/version.json` and the compile cursor git-tracked. The `!` is now emitted via its octal code `\041` and existence is detected with `!`-free greps, so the negations land regardless of shell.
+
+### Upgrade
+None — code-only, no bun install or HOME changes.
+
 ## [0.2.0] - 2026-06-20
 
 Versioned release + upgrade tracking. `/plugin update` refreshes plugin code but
