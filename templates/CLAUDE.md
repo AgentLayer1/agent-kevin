@@ -274,6 +274,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Modern language features. No legacy patterns.
 - Simplicity and elegance, clarity and concise. Don't over-engineer.
 
+### Comments
+
+Code self-explains. A comment that restates what a well-named identifier already says is noise, and long machine-generated comment blocks are an AI tell that buries the code, often a signal the code itself is awkward or an abstraction is leaking. Default to no comment.
+
+- **Default: none.** If removing it wouldn't confuse a future reader, don't write it. Never narrate what the next line already says (`// validate input`, `// loop through items`).
+- **Keep only the *why*** — a non-obvious constraint, a subtle invariant, a bug workaround, behavior that would surprise a reader. One line is almost always enough.
+- **JSDoc is the exception** — short (one or two lines), always multi-line form (never one-line `/** … */`), on consumer-facing APIs where it tells the caller something the signature doesn't. No multi-paragraph bodies, no bullet lists, no "Edge cases" sections.
+- **No tombstones or archaeology** — no `// removed X`, no ownerless `// TODO`, no `// added for #123`; git history holds that. Delete dead code, never comment it out.
+- If a comment feels necessary to explain awkward code, fix the name or the abstraction instead.
+
 ### Code quality
 
 - SOLID principles. Clean Architecture for system design.
