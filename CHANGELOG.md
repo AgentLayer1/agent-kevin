@@ -34,6 +34,17 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.5] - 2026-06-21
+
+### Changed
+- `sync` now checks for a pending plugin upgrade as part of its needs-attention step: it compares the installed plugin version against the home's migrated baseline (`.kevin/version.json`) and surfaces a dedicated `⬆️ Upgrade` line in the report when they drift. The check is read-only: `sync` never runs `/upgrade`; the migration stays an operator-gated command. Mirrors the dashboard staleness-warning pattern.
+
+### Fixed
+- Dashboard persona-head no longer repeats the agent name + emoji next to the avatar (it already appears in the page title).
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.2.4] - 2026-06-20
 
 ### Changed
