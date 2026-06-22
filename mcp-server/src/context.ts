@@ -203,9 +203,9 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
   const upgrade = getUpgradeStatus();
   if (upgrade.state === 'pending') {
     const n = upgrade.releasesBehind;
-    head.splice(1, 0, `  ⬆ Upgrade ready — run /agent-kevin:upgrade (${n} release${n === 1 ? '' : 's'} behind)`);
+    head.splice(1, 0, `  ⬆️ Upgrade:   run /agent-kevin:upgrade (${n} release${n === 1 ? '' : 's'} behind)`);
   } else if (upgrade.state === 'onboard') {
-    head.splice(1, 0, '  ⬆ Run /agent-kevin:upgrade to enable update tracking');
+    head.splice(1, 0, '  ⬆️ Upgrade:   run /agent-kevin:upgrade to enable update tracking');
   }
   return [...head, ...lines].join('\n');
 }
