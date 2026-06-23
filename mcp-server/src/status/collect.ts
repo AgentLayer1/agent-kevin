@@ -290,6 +290,9 @@ export interface TaskRef {
   updated: string;
   dependsOn: string[];
   blockedBy: string;
+  /** Thread entry count — the comment counter (all entries, including
+   *  automated status-change markers). */
+  comments: number;
   /** Task file path relative to <HOME>, for clickable links. */
   path: string;
 }
@@ -388,6 +391,9 @@ export interface StatusSnapshot {
     queue: TaskRef[];
     /** Any task (any status) whose `updated:` is today — the activity trail. */
     touchedToday: TaskRef[];
+    /** Task id → relative path across every task (live + archived) — lets the
+     *  renderer turn `depends on` ids into links to the task file. */
+    pathById: Record<string, string>;
   };
   context: {
     staticImports: StaticImport[];
@@ -719,6 +725,7 @@ const toRef = (task: TaskFile): TaskRef => ({
   updated: task.frontmatter.updated,
   dependsOn: task.frontmatter.depends_on,
   blockedBy: task.frontmatter.blocked_by,
+  comments: task.thread.length,
   path: relative(FOLDERS.HOME, task.filePath)
 });
 
@@ -729,7 +736,11 @@ const projectDescription = (project: string): string => firstParagraph(resolve(F
 
 const collectTasks = (): StatusSnapshot['tasks'] => {
   const all = scanAllTasks();
-  const scan = resolveTasks(all, scanArchivedTasks());
+  const archived = scanArchivedTasks();
+  const scan = resolveTasks(all, archived);
+  const pathById = Object.fromEntries(
+    [...all, ...archived].map((task) => [task.frontmatter.id, relative(FOLDERS.HOME, task.filePath)])
+  );
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   const byStatus = (status: string) => all.filter((task) => task.frontmatter.status === status).length;
@@ -797,7 +808,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     // survives the stroke of midnight (the renderer labels it last-24h).
     touchedToday: all
       .filter((task) => task.frontmatter.updated === today || task.frontmatter.updated === yesterday)
-      .map(toRef)
+      .map(toRef),
+    pathById
   };
 };
 

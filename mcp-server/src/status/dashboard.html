@@ -220,6 +220,22 @@ details.task[open] .caret { transform: rotate(90deg); }
 details.task.radarrow .tid { min-width: 56px; color: var(--dim); font-size: 11px; }
 details.task.radarrow .ttl { color: var(--accent); }
 .taskbody .radarsum { line-height: 1.5; }
+/* Expanded task meta — quiet key/value pairs, dot-separated, instead of a
+ *  · -joined dim line. A tiny muted label sits over its value; items split by a
+ *  faint mid-dot so the block stays legible without boxing every pair. */
+.tb-meta { display: flex; flex-wrap: wrap; row-gap: 6px; margin-top: 3px; }
+.tb-item { display: inline-flex; align-items: baseline; gap: 6px; }
+.tb-item + .tb-item { padding-left: 13px; position: relative; }
+.tb-item + .tb-item::before { content: '·'; position: absolute; left: 3px; color: var(--border); }
+.tb-k { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); opacity: 0.7; }
+.tb-v { color: var(--dim); }
+.tb-v a { color: var(--accent); }
+/* Blocker reason — its own line (it's prose), flagged with a muted amber edge. */
+.tb-note { margin-top: 8px; padding: 5px 10px; line-height: 1.5; color: var(--dim);
+  border-left: 2px solid rgba(210, 153, 34, 0.5); border-radius: 0 5px 5px 0; }
+.tb-note-k { text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.04em; color: var(--amber); margin-right: 7px; }
+/* Comment counter chip in the task summary — discussion at a glance. */
+.chip.cmt { font-size: 10.5px; padding: 1px 7px; }
 /* Meta subsection (shared by the Sessions → Recent digest and Today → Ongoing
  *  expanded rows): the session's tasks + plans + resume, grouped in one subtle
  *  dashed box set apart from the summary, in a smaller muted type. One item per

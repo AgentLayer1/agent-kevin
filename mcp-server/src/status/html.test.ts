@@ -16,6 +16,7 @@ const taskRef = (overrides: Partial<TaskRef> = {}): TaskRef => ({
   updated: '2026-06-10',
   dependsOn: [],
   blockedBy: '',
+  comments: 0,
   path: 'projects/life-os/tasks/lo-001-a-perfectly-normal-task.md',
   ...overrides
 });
@@ -206,7 +207,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         blockedBy: 'Awaiting CIMB HQ approval'
       })
     ],
-    touchedToday: [taskRef({ id: 'lo-002', title: 'Due today task', updated: '2026-06-11' })]
+    touchedToday: [taskRef({ id: 'lo-002', title: 'Due today task', updated: '2026-06-11' })],
+    pathById: {}
   },
   context: {
     staticImports: [

@@ -34,6 +34,20 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.9] - 2026-06-23
+
+### Added
+- Dashboard Tasks page now has project filter chips (All + one per project, busiest first, with the project's color dot), mirroring the Reports page. They appear on both the agenda and the Needs-attention view, and stay hidden when there's only one project to filter between.
+- Task rows show a 💬 comment counter chip (thread entry count) in the summary, and `depends on` ids in the expanded body now link to their task files (live or archived).
+
+### Changed
+- Redesigned the expanded task-detail body: a quiet, dot-separated key/value meta block (status · due · updated · depends on) replaces the old `·`-joined dim line, with the blocker reason on its own amber-edged note line. The id itself is now the open-the-file link (no separate footer).
+- Needs-attention view rebuilt: Blocked and Going-stale are filterable grouped rows under one filter box (Blocked reads as a single id · why · project row) instead of two separate tables.
+- Plugin description updated to engine-agnostic tool wording (headless browser / web search, not Playwright / Perplexity) and a stable "20+ skills" count.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.2.8] - 2026-06-23
 
 ### Fixed

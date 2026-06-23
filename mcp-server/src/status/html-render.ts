@@ -219,31 +219,66 @@ interface TaskRowOptions {
   noProject?: boolean;
 }
 
-/** Expandable task row: linked id · title · project · due badge · priority. */
+/** Expandable task row: linked id · title · project · comments · due · priority.
+ *  `data-cat` carries the project so the page's filter chips can narrow by it.
+ *  The id is the open-the-file link (no separate footer); the expanded body is a
+ *  quiet, dot-separated key/value meta block with `depends on` ids linked to
+ *  their task files. */
 const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {}): string => {
   const todayIso = snap.runtime.isoDate;
   const due = dueLabel(ref.due, todayIso);
   const dueHtml = due.text ? `<span class="meta ${due.cls}">${esc(due.text)}</span>` : '';
-  const details = [
-    `project ${ref.project}`,
-    `status ${ref.status}`,
-    ref.due && `due ${ref.due}`,
-    ref.updated && `updated ${ref.updated}`,
-    ref.dependsOn.length && `depends on ${ref.dependsOn.join(', ')}`,
-    ref.blockedBy && `blocked by: ${ref.blockedBy}`
+  const cmtHtml = ref.comments
+    ? `<span class="chip cmt" title="${ref.comments} thread comment${ref.comments === 1 ? '' : 's'}">💬 ${ref.comments}</span>`
+    : '';
+  const metaItem = (key: string, valueHtml: string): string =>
+    `<span class="tb-item"><span class="tb-k">${esc(key)}</span><span class="tb-v">${valueHtml}</span></span>`;
+  // `depends on` ids link to their task files when the id resolves (live or
+  // archived); unknown ids fall back to plain text.
+  const depsHtml = ref.dependsOn
+    .map((id) => (snap.tasks.pathById[id] ? mdLink(snap, snap.tasks.pathById[id], id) : esc(id)))
+    .join(', ');
+  const items = [
+    metaItem('status', esc(ref.status)),
+    ref.due && metaItem('due', esc(ref.due)),
+    ref.updated && metaItem('updated', esc(ref.updated)),
+    ref.dependsOn.length && metaItem('depends on', depsHtml)
   ].filter((part): part is string => Boolean(part));
-  const open = ref.path ? ` · ${mdLink(snap, ref.path, 'open file')}` : '';
-  return `<details class="task" data-row><summary><span class="tid nowrap">${
+  const note = ref.blockedBy
+    ? `<div class="tb-note"><span class="tb-note-k">blocked by</span>${esc(ref.blockedBy)}</div>`
+    : '';
+  return `<details class="task" data-row data-cat="${esc(ref.project)}"><summary><span class="tid nowrap">${
     ref.path ? mdLink(snap, ref.path, ref.id) : esc(ref.id)
-  }</span><span class="ttl">${esc(ref.title)}</span>${options.noProject ? '' : projChip(ref.project)}${dueHtml}<span class="pri ${esc(
+  }</span><span class="ttl">${esc(ref.title)}</span>${options.noProject ? '' : projChip(ref.project)}${cmtHtml}${dueHtml}<span class="pri ${esc(
     ref.priority.toLowerCase()
-  )}">${esc(ref.priority)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody">${esc(details.join(' · '))}${open}</div></details>`;
+  )}">${esc(ref.priority)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody"><div class="tb-meta">${items.join('')}</div>${note}</div></details>`;
 };
 
 const taskGroup = (title: string, refs: TaskRef[], snap: StatusSnapshot, options: TaskRowOptions = {}): string =>
   refs.length
     ? `<h3 class="group">${esc(title)} · ${refs.length}</h3>${refs.map((ref) => taskRow(ref, snap, options)).join('')}`
     : '';
+
+/** Project filter chips for the Tasks page — All + one per project present in
+ *  `refs`, each carrying its stable project-color dot. Mirrors `reportChips`
+ *  and wires the same client filter (`data-catchips` → `data-catfilter`),
+ *  matched against each row's `data-cat` (the project). Busiest projects first;
+ *  hidden when there's only one project to filter between. */
+const projectFilterChips = (refs: TaskRef[]): string => {
+  const counts = refs.reduce<Record<string, number>>((acc, ref) => {
+    acc[ref.project] = (acc[ref.project] ?? 0) + 1;
+    return acc;
+  }, {});
+  const present = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+  if (present.length < 2) return '';
+  const chip = (filter: string, label: string, count: number, dot: string, active: boolean): string =>
+    `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${
+      dot ? `<i style="background:${dot}"></i>` : ''
+    }${esc(label)} <span class="dim">${count}</span></button>`;
+  return `<div class="chips" data-catchips>${chip('all', 'All', refs.length, '', true)}${present
+    .map((project) => chip(project, project, counts[project], projectColor(project), false))
+    .join('')}</div>`;
+};
 
 /** Radar-derived session row for the Today › Ongoing feed: time-ago in the
  *  first column, title second, expanding (like a task row) to the full summary
@@ -514,7 +549,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
     const key = horizon(ref);
     groups.set(key, [...(groups.get(key) ?? []), ref]);
   }
-  const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${[
+  const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue)}${[
     taskGroup('⏰ Overdue', groups.get('overdue') ?? [], snap),
     taskGroup('📅 Today', groups.get('today') ?? [], snap),
     taskGroup('🗓 This week', groups.get('week') ?? [], snap),
@@ -524,29 +559,25 @@ const pageTasks = (snap: StatusSnapshot): string => {
   ].join('')}</div>`;
 
   const blocked = tasks.queue.filter((ref) => ref.status === 'blocked');
-  const attention = [
-    section(
-      'Blocked',
-      String(blocked.length),
-      blocked.length
-        ? table(
-            [],
-            blocked.map((ref) => [
-              `<span class="nowrap">${mdLink(snap, ref.path, ref.id)}</span>`,
-              `<span class="dim">${esc(ref.blockedBy || `depends on ${ref.dependsOn.join(', ') || '?'}`)}</span>`,
-              projChip(ref.project)
-            ])
-          )
-        : hint('Nothing blocked.')
-    ),
-    section(
-      'Going stale',
-      String(tasks.stale),
-      tasks.staleList.length
-        ? tasks.staleList.map((ref) => taskRow(ref, snap)).join('')
-        : hint('Nothing rotting. Nice.')
-    )
-  ].join('');
+  // A blocked task reads as a single row (id · why · project), filterable by
+  // project via data-cat — the reason stays inline rather than behind a toggle.
+  const blockedRow = (ref: TaskRef): string =>
+    `<div class="row" data-row data-cat="${esc(ref.project)}"><span class="nowrap" style="flex:none">${mdLink(
+      snap,
+      ref.path,
+      ref.id
+    )}</span><span class="grow dim">${esc(
+      ref.blockedBy || `depends on ${ref.dependsOn.join(', ') || '?'}`
+    )}</span>${projChip(ref.project)}</div>`;
+  const attentionBody =
+    (blocked.length ? `<h3 class="group">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}` : '') +
+    (tasks.staleList.length
+      ? `<h3 class="group">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
+      : '');
+  const attention = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([
+    ...blocked,
+    ...tasks.staleList
+  ])}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
 
   return page(
     'tasks',
