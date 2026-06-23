@@ -34,6 +34,18 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.2.8] - 2026-06-23
+
+### Fixed
+- Task prefix resolution is now consistent end-to-end. `buildPrefixMap` gives a project whose prefix is inferred from existing task files precedence over an empty project that derives the same prefix, so an empty project can no longer displace a tasked project's IDs (which would misroute `findTaskById`). `getNextId` now mints IDs through the same collision-resolved prefix that `findTaskById` looks up, removing a second source of truth.
+- `create-project` and `archive-project` skills: removed references to the deleted hardcoded `TASKS.PREFIX_MAP` (prefixes are now filesystem-derived), corrected stale `app/` paths to `mcp-server/`, fixed malformed MCP tool invocations, and dropped the dead `HEARTBEAT.md` cleanup step.
+
+### Changed
+- Pure task-prefix logic extracted to `mcp-server/src/tasks/prefix.ts` (`derivePrefix`, `assignPrefixes`), keeping `scan.ts` as the filesystem wiring and making the logic unit-testable without a config-backed HOME.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.2.7] - 2026-06-22
 
 ### Fixed

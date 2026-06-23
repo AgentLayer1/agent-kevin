@@ -3,6 +3,7 @@ import { createLogger } from '@/shared/log';
 import type { TaskFile } from '@/shared/types';
 import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { assignPrefixes, derivePrefix } from './prefix';
 import { parseTaskFile } from './schema';
 
 const log = createLogger('tasks.scan');
@@ -16,23 +17,6 @@ export const discoverProjects = (): string[] => {
     .filter((e) => e.isDirectory() && existsSync(join(FOLDERS.PROJECTS, e.name, 'tasks')))
     .map((e) => e.name)
     .sort();
-};
-
-/**
- * Derive a project prefix from its slug as a fallback for projects with no
- * existing tasks yet.
- *   - Two-or-more hyphen-separated parts: first letter of each, capped at 2
- *     (`agent-layer` → `al`, `prophetic-day-routine` → `pd`)
- *   - Single word: first 2 letters (`homestead` → `ho`)
- */
-const derivePrefix = (slug: string): string => {
-  const parts = slug.toLowerCase().split('-').filter(Boolean);
-  if (parts.length >= 2)
-    return parts
-      .slice(0, 2)
-      .map((p) => p[0])
-      .join('');
-  return slug.slice(0, 2).toLowerCase();
 };
 
 /**
@@ -55,28 +39,25 @@ const inferPrefixFromTasks = (project: string): string | null => {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 };
 
-/** Resolve a project's task-id prefix. Prefers existing tasks; falls back to slug derivation. */
-export const getProjectPrefix = (project: string): string => inferPrefixFromTasks(project) ?? derivePrefix(project);
-
 /**
- * Build the prefix → project map by walking the filesystem. On collisions
- * (two projects yield the same prefix), the later one (alphabetical) gets a
- * numeric suffix: `hs` → `hs2`. Memoized per call; rebuild is cheap.
+ * Build the prefix → project map by walking the filesystem. Pure assignment
+ * logic (precedence, collision suffixing) lives in `assignPrefixes`.
  */
-export const buildPrefixMap = (): Map<string, string> => {
-  const map = new Map<string, string>();
-  const used = new Set<string>();
-  for (const project of discoverProjects()) {
-    let prefix = getProjectPrefix(project);
-    if (used.has(prefix)) {
-      let n = 2;
-      while (used.has(`${prefix}${n}`)) n++;
-      prefix = `${prefix}${n}`;
-    }
-    used.add(prefix);
-    map.set(prefix, project);
-  }
-  return map;
+export const buildPrefixMap = (): Map<string, string> =>
+  assignPrefixes(
+    discoverProjects().map((project) => ({ project, inferred: inferPrefixFromTasks(project) })),
+    (prefix, project) =>
+      log.warn(
+        `Two projects resolve to task prefix "${prefix}" from existing task files; "${project}" was suffixed. Rename its task files to resolve the conflict.`
+      )
+  );
+
+/** Resolve a project's effective task-id prefix — the collision-resolved value
+ *  from `buildPrefixMap`, so IDs minted by `getNextId` match what `findTaskById`
+ *  later resolves. Falls back to raw derivation for a project not yet on disk. */
+export const getProjectPrefix = (project: string): string => {
+  for (const [prefix, slug] of buildPrefixMap()) if (slug === project) return prefix;
+  return inferPrefixFromTasks(project) ?? derivePrefix(project);
 };
 
 // ── Task scanning ────────────────────────────────────────────────────

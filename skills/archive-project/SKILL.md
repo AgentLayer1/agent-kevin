@@ -25,17 +25,17 @@ Retire a completed or cancelled project so it's preserved for history but no lon
 
 Do these in order. Steps 1-3 are reversible; after step 4 (move), be deliberate.
 
-> **Path note:** `projects/` paths shown below are conceptual — the actual folder location follows `PROJECTS_ROOT` from `app/.env` (default `<repo>/projects/`). For shell commands, resolve the absolute path once at the top of your session:
+> **Path note:** Resolve the absolute path once at the top of your session:
 > ```bash
-> PROJECTS=$(cd app && bun -e 'import {FOLDERS} from "@/config"; console.log(FOLDERS.PROJECTS)')
+> PROJECTS=$(bun -e 'import { FOLDERS } from "'"$CLAUDE_PLUGIN_ROOT"'/mcp-server/src/config"; console.log(FOLDERS.PROJECTS)')
 > ```
-> Then use `$PROJECTS/<project>/...` in any file operation. If `projects/` lives at the repo root, both forms resolve to the same place.
+> Then use `$PROJECTS/<project>/...` in any file operation.
 
 ### 1. Confirm the archive is warranted
 - Read `$PROJECTS/<project>/README.md` and list `$PROJECTS/<project>/tasks/`
 - Check for open tasks:
   ```
-  cd app && mcp__plugin_agent-kevin_kevin__task_query --project <project> --status open
+  mcp__plugin_agent-kevin_kevin__task_query with {project: "<project>", status: "open"}
   ```
 - If open tasks exist, ask the user whether to close, cancel, or carry them forward before continuing. **Read the task threads before recommending** — if prior thread notes already say "should be closed / superseded / no longer applies", cancel-with-pointer-note is almost always the right call, even if the user's first instinct is "move them". Don't silently carry stale scope into the successor project.
 - If the archive is a pivot (e.g., "going with X route instead"), consider creating a single *fresh* replacement task in the successor project — scoped to the new regime — rather than copy-pasting old tasks. Copy-pasted tasks tend to get closed on first review.
@@ -60,9 +60,7 @@ Do these in order. Steps 1-3 are reversible; after step 4 (move), be deliberate.
 ### 3. Strip references from active surfaces
 Check and edit each of these. Skip any that don't contain the project:
 
-- **HEARTBEAT.md** — remove the project name from any hardcoded project lists (e.g., the `weekly-goals` prompt). If a task exists solely for this project (its own `###` block), remove the whole task block, not just a list entry.
-- **CLAUDE.md** — remove the row from the prefix map table (`## Task Management` → Prefix Map).
-- **app/src/config.ts** — remove the entry from `TASK_PREFIX_MAP` (feeds the exported `TASKS.PREFIX_MAP`).
+- **No prefix de-registration needed** — the task prefix is derived from the filesystem (`getProjectPrefix()` in `mcp-server/src/tasks/scan.ts`), not stored in config. Once the folder moves to `archive/`, `discoverProjects()` stops seeing it and the prefix is gone automatically. There is no `PREFIX_MAP` to edit (the old hardcoded map in `config.ts` was removed).
 - Grep for stragglers across the repo. Expected survivors (leave alone):
   - `knowledge/raw/sessions/*.md` — point-in-time records
   - `knowledge/raw/archive/` — historical archive
@@ -84,22 +82,22 @@ Append to `knowledge/raw/sessions/YYYY-MM-DD.md` (or `YYYY-MM-DD-cli.md` for CLI
 - Reason: <one-line>
 - Moved to: archive/<project>
 - Final deliverable: <what shipped>
-- References removed from: HEARTBEAT.md, CLAUDE.md, config.ts
+- References repointed in: compiled knowledge (concepts), session logs
 - Reusable patterns: <list or "none">
 ```
 
 ### 6. Refresh the knowledge index
 ```
-cd app && mcp__plugin_agent-kevin_kevin__compile_next
+mcp__plugin_agent-kevin_kevin__compile_next
 ```
-This runs `syncProjectIndex()` (see `app/src/knowledge/utils.ts`) which regenerates the `## Projects` table in `knowledge/index.md` from the current contents of `projects/` — the archived project drops off automatically. `syncProjectIndex()` is deterministic and will update the index even if the LLM-backed session compile fails (e.g., "Not logged in").
+This runs `syncProjectIndex()` (see `mcp-server/src/knowledge/utils.ts`) which regenerates the `## Projects` table in `knowledge/index.md` from the current contents of `projects/` — the archived project drops off automatically. `syncProjectIndex()` is deterministic and will update the index even if the LLM-backed session compile fails (e.g., "Not logged in").
 
 If the whole compile command errors, fall back to manually editing `knowledge/index.md` (delete the row from the Projects table).
 
 ### 6a. Repoint dangling project links in compiled knowledge
-Compiled articles under `knowledge/concepts/` and `knowledge/concepts/` may still link to `../projects/<project>/README.md`. Those 404 now.
+Compiled articles under `knowledge/concepts/` and `knowledge/memory/` may still link to `../projects/<project>/README.md`. Those 404 now.
 
-- Use Grep with path `knowledge/concepts/` and `knowledge/concepts/`, pattern `Projects/<project>`
+- Use Grep with path `knowledge/concepts/` and `knowledge/memory/`, pattern `Projects/<project>`
 - For each hit, rewrite the path from `.../projects/<project>/` to `.../archive/<project>/` and add an inline `_Archived YYYY-MM-DD._` marker so readers see the status at a glance
 - Wikilinks of the form `[[Projects/<project>]]` in compiled articles need the same treatment — rewrite to `[[archive/<project>]]` or to an explicit markdown link
 
@@ -110,18 +108,18 @@ Run all of these. Anything red = stop and fix.
 
 - Grep the project name across active paths — should return zero hits:
   ```
-  CLAUDE.md HEARTBEAT.md app/ .claude/ knowledge/index.md knowledge/memory/ knowledge/concepts/ knowledge/concepts/
+  CLAUDE.md .claude/ knowledge/index.md knowledge/memory/ knowledge/concepts/
   ```
 - `archive/<project>/` exists, `$PROJECTS/<project>/` does not.
 - `knowledge/index.md` Projects table no longer lists the project.
 - Task scanner runs clean:
   ```
-  cd app && mcp__plugin_agent-kevin_kevin__task_scan
-  mcp__plugin_agent-kevin_kevin__task_query --project <project>    # should return "No tasks match"
+  mcp__plugin_agent-kevin_kevin__task_scan
+  mcp__plugin_agent-kevin_kevin__task_query with {project: "<project>"}    # should return "No tasks match"
   ```
 - No new lint regressions (optional but recommended):
   ```
-  cd app && mcp__plugin_agent-kevin_kevin__lint_structural:structural
+  mcp__plugin_agent-kevin_kevin__knowledge_lint
   ```
   Compare issue count to before the archive. New broken-link errors mean step 6a missed something.
 
@@ -141,4 +139,4 @@ Report to the user:
 ## Edge cases and gotchas
 - **`USER.md` references**: if `<HOME>/USER.md` mentions the project, repoint or remove the reference manually.
 - **Dangling wikilinks**: post-archive, any `[[Projects/<slug>]]` references in the wiki won't resolve. Run `mcp__plugin_agent-kevin_kevin__links_rewrite` to surface and patch them.
-- **Shared-prefix conflicts**: removing a prefix from `TASKS.PREFIX_MAP` in `mcp-server/src/config.ts` is safe — existing archived task files keep their IDs (stored in frontmatter), and no new tasks for that project can be created accidentally.
+- **Prefix reuse after archival**: once a project moves to `archive/`, its prefix is no longer claimed by `buildPrefixMap()`, so a future project could derive the same prefix. Existing archived task files keep their IDs (stored in filenames + frontmatter), so this is safe — but if you want the old prefix to stay reserved, keep that in mind when naming new projects.
