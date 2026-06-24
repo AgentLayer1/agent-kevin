@@ -23,6 +23,7 @@ HOME_DIR="${KEVIN_HOME:-$PWD}"
 SKILLS_DIR="$HOME_DIR/.claude/skills"
 PROJECT_SETTINGS="$HOME_DIR/.claude/settings.json"
 SETTINGS_FILE="$HOME_DIR/.claude/settings.local.json"
+SECRETS_ENV="$HOME_DIR/.kevin/secrets/.env"
 MCP_FILE="$HOME_DIR/.mcp.json"
 
 mkdir -p "$HOME_DIR/.claude"
@@ -31,7 +32,8 @@ mkdir -p "$HOME_DIR/.claude"
 **File-purpose summary** (wrong file = leaked secrets or unportable config):
 
 - `$PROJECT_SETTINGS` → permission allow-list (so configured tools don't trigger a confirm prompt on each use). Committable, non-secret.
-- `$SETTINGS_FILE` → API keys + other secrets in an `env` block. **Gitignored.**
+- `$SECRETS_ENV` → **API keys + DB connection strings** (dotenv `KEY=value` lines), `.kevin/secrets/.env`. 0600, deny-gated, gitignored; Kevin's config loader surfaces these into `process.env` at boot. This is where every credential goes.
+- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`KEVIN_CODE_PATH`, `KEVIN_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
 - `$MCP_FILE` → `<HOME>/.mcp.json` at the project root (NOT inside `.claude/`). Claude Code reads project MCP servers from this exact location. A file at `.claude/mcp.json` is silently ignored.
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 
@@ -85,28 +87,29 @@ If nothing is ticked, cancel and return to Step 1. Otherwise run the matching su
 
 The walk handles three concrete tasks per skill:
 1. Add SEO-gated MCP tool grants to `$PROJECT_SETTINGS` → `permissions.allow` (§E).
-2. Ensure empty env placeholders exist in `$SETTINGS_FILE` for `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` (§D — write `""` if absent; do **not** overwrite non-empty existing values).
+2. Ensure the secret store exists and tell the user which lines to add: the **secret** keys `SERPAPI_KEY` + `OPENPAGERANK_API_KEY` → `.kevin/secrets/.env` (§D.1 — Claude can't read/edit the gated file; the user adds the lines); the **non-secret** `GSC_SITE_URL` → `$SETTINGS_FILE` `env` (§D.2, Claude-writable). Never overwrite a filled value.
 3. Surface the Google OAuth file-drop flow (no value passes through chat).
 4. If `GSC_SITE_URL` is set, add host-scoped curl grants for `wordpress-rest` (locked to the user's actual site, not blanket `Bash(curl *)`).
 
-> **Never prompt for API key values in chat.** Even with the session-capture redaction hook, pasted keys touch the transcript and the Anthropic API. The walk surfaces *which keys are needed* and *where to fill them* (`<HOME>/.claude/settings.local.json` → `env` block); the user fills the value via editor. The session-capture redactor (exact-match against `settings.local.json` env values + known prefixes `pplx-…`, `sk-…`, `AIza…`) is a defense-in-depth net, not a license to ask.
+> **Never prompt for API key values in chat.** Even with the session-capture redaction hook, pasted keys touch the transcript and the Anthropic API. The walk surfaces *which keys are needed* and *where to fill them* (secrets → `.kevin/secrets/.env`; `GSC_SITE_URL` → `settings.local.json` `env`); the user fills the value via editor. The session-capture redactor (exact-match against `.kevin/secrets/.env` values, plus known prefixes `pplx-…`, `sk-…`, `AIza…`) is a defense-in-depth net, not a license to ask.
 
 Walk the 4 skills that *need keys* one at a time. For each, `AskUserQuestion`:
 
 > **Activate `<skill-name>`?**
 > Description: `<one-line summary from the SKILL.md frontmatter>`
-> Requires: `<key name(s)>` — value goes in `.claude/settings.local.json` env block (you fill after init via editor)
+> Requires: `<key name(s)>` — secrets go in `.kevin/secrets/.env`, `GSC_SITE_URL` in `.claude/settings.local.json` (you fill after init via editor)
 >
-> - Yes — grant tool permissions + ensure env placeholder exists
+> - Yes — grant tool permissions + ensure placeholder exists
 > - Skip (no permission grant, no placeholder)
 
 If yes:
-- For env-var keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`): ensure key exists in `$SETTINGS_FILE` env block with empty-string value if missing (§D). Never overwrite a non-empty value. **Don't ask the user to paste the value.**
+- For secret keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`): ensure the secret store exists (§D.1) and surface the `KEY=value` lines for the user to add in their editor. Claude doesn't read or write the gated file's contents. **Don't ask the user to paste the value.**
+- For `GSC_SITE_URL` (non-secret): ensure it exists in `$SETTINGS_FILE` `env` (§D.2), empty if missing.
 - For Google OAuth: walk the user through obtaining a client JSON, then placing it. Surface these steps verbatim:
   1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
   2. Pick (or create) a project. Under **Library**, enable the **Search Console API** and **PageSpeed Insights API**.
   3. **Credentials** → **Create Credentials** → **OAuth client ID** → application type **Desktop app** → Create → download the JSON.
-  4. Move the file to `$HOME_DIR/.kevin/config/google-oauth-client.json` (`mkdir -p` the dir if missing).
+  4. Move the file to `$HOME_DIR/.kevin/secrets/google/google-oauth-client.json` (`mkdir -p` the dir if missing).
   5. Set `GSC_SITE_URL` in `$SETTINGS_FILE` env block via editor.
   6. Inside Claude Code (after relaunch), run `mcp__plugin_agent-kevin_kevin__google_auth`. A browser tab opens, the user grants access, the refresh token is minted and persisted alongside the client JSON.
 
@@ -142,11 +145,11 @@ After all keyed skills processed, print a summary:
 ✅ SEO pack activated.
 
 Tool permissions granted:  <list of MCP tools added to settings.json>
-Env placeholders ready:    <list of empty keys in settings.local.json — fill these via editor>
-                           SERPAPI_KEY, OPENPAGERANK_API_KEY, GSC_SITE_URL
-Google OAuth:              <pending: drop client JSON to .kevin/config/google-oauth-client.json, then run `mcp__plugin_agent-kevin_kevin__google_auth` after relaunch>
+Secret lines to add:       SERPAPI_KEY, OPENPAGERANK_API_KEY  (add to .kevin/secrets/.env)
+Config placeholder ready:  GSC_SITE_URL  (in .claude/settings.local.json)
+Google OAuth:              <pending: drop client JSON to .kevin/secrets/google/google-oauth-client.json, then run `mcp__plugin_agent-kevin_kevin__google_auth` after relaunch>
 
-Fill the values in <HOME>/.claude/settings.local.json — never paste them into chat.
+Fill SERPAPI_KEY + OPENPAGERANK_API_KEY in <HOME>/.kevin/secrets/.env, GSC_SITE_URL in <HOME>/.claude/settings.local.json — never paste them into chat.
 ```
 
 ### A.2b — Browser pack walk
@@ -162,14 +165,14 @@ Neither is pre-granted by `/init` anymore — they only land when the user activ
 `AskUserQuestion`:
 
 > **Activate Perplexity search?**
-> Adds `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` and ensures `PERPLEXITY_API_KEY` slot exists in `.claude/settings.local.json` env block. You fill the key value via your editor after this completes (sign up at https://perplexity.ai/settings/api). The tool stays callable but returns "missing env var" until you fill it.
+> Adds `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` and ensures `.kevin/secrets/.env` exists. You add the `PERPLEXITY_API_KEY=<value>` line via your editor after this completes (sign up at https://perplexity.ai/settings/api). The tool stays callable but returns "missing env var" until you fill it.
 >
 > - Yes — grant permission + ensure placeholder
 > - Skip (no permission grant, no placeholder)
 
 If yes:
 - Add `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` via §E.
-- Ensure `PERPLEXITY_API_KEY: ""` exists in `$SETTINGS_FILE` env block via §D (only writes empty string if key is absent — never overwrites a non-empty existing value).
+- Ensure the secret store exists via §D.1 and tell the user to add a `PERPLEXITY_API_KEY=<value>` line to `.kevin/secrets/.env` (Claude doesn't read/write the gated file).
 - **Do not** ask the user to paste the key value.
 - **Do not** touch `$MCP_FILE` — `web_search` lives inside the `kevin` MCP server, not a separate project-registered server.
 
@@ -211,9 +214,9 @@ After both pieces processed, print Browser pack summary.
 
 ### A.2c — Database pack walk
 
-Connects Kevin to one or more Postgres databases. The `db_list`, `db_schema`, and `db_query` MCP tools (all read-only) are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is an env var `KEVIN_DB_<NAME>` whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — the walk only plants the empty placeholder key; the user fills the value in their editor, never in chat.
+Connects Kevin to one or more Postgres databases. The `db_list`, `db_schema`, and `db_query` MCP tools (all read-only) are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `KEVIN_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.kevin/secrets/.env` (loaded into the environment at boot, where `db_*` discovers it); the walk only ensures that store exists, and the user adds the `KEVIN_DB_<NAME>=<connection string>` line in their editor, never in chat.
 
-> **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `KEVIN_DB_<NAME>` keys to fill in `<HOME>/.claude/settings.local.json` → `env`. The session-capture redactor masks DB URLs as defense-in-depth, but the safe move is to keep the value off the wire entirely.
+> **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `KEVIN_DB_<NAME>` keys to fill in `<HOME>/.kevin/secrets/.env`. The session-capture redactor masks DB URLs (and exact-matches `.kevin/secrets/.env` values) as defense-in-depth, but the safe move is to keep the value off the wire entirely.
 
 **(1) Grant the db tool permissions.** Add all three to `permissions.allow` via §E (read-only, so granting them together is fine):
 - `mcp__plugin_agent-kevin_kevin__db_list`
@@ -227,7 +230,7 @@ Connects Kevin to one or more Postgres databases. The `db_list`, `db_schema`, an
 
 For each name the user gives:
 - Normalize it the way the tool resolves connections: upper-case and replace every non-alphanumeric character with `_`, then prefix `KEVIN_DB_`. So `analytics` → `KEVIN_DB_ANALYTICS`, `read-replica` → `KEVIN_DB_READ_REPLICA`. (This matches `envKeyFor` in the plugin's `mcp-server/src/tools/database.ts`; the tool lowercases the suffix back to the connection name.)
-- Plant the placeholder via §D "ensure placeholder" — `env[KEVIN_DB_<NAME>] = ""` only if absent. **Never overwrite a value the user already filled** (re-running to add a connection is safe).
+- Ensure the secret store exists (§D.1) and tell the user to add a `KEVIN_DB_<NAME>=<connection string>` line to `.kevin/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
 
 If the user adds zero connections, still grant the tool permissions and note that `db_list` will report none until they add a `KEVIN_DB_<NAME>` env var.
 
@@ -237,12 +240,12 @@ If the user adds zero connections, still grant the tool permissions and note tha
 ✅ Database pack activated.
 
 Tool permissions granted:  db_list, db_query, db_schema  (read-only)
-Connection placeholders:   KEVIN_DB_<NAME1>, KEVIN_DB_<NAME2>  (empty — fill these via editor)
+Connection lines to add:   KEVIN_DB_<NAME1>, KEVIN_DB_<NAME2>  (add to .kevin/secrets/.env)
 
-Each placeholder takes a Postgres connection string, e.g.:
-  "KEVIN_DB_APP": "postgres://user:pass@localhost:5432/app_dev"
+Each line is a Postgres connection string, e.g.:
+  KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
 
-Fill the values in <HOME>/.claude/settings.local.json — never paste them into chat.
+Add these lines in <HOME>/.kevin/secrets/.env — never paste them into chat.
 Relaunch Claude Code, then run db_list to confirm Kevin sees them.
 Add more connections any time by re-running this walk.
 ```
@@ -336,7 +339,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 > **Which pack's configuration to remove?**
 > - SEO (clears API keys + permissions; skill files stay loaded but tool calls will error)
-> - Browser (removes the Perplexity API key; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
+> - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `KEVIN_DB_*` connection keys)
 
 ### C.2 Deconfigure actions
@@ -344,59 +347,71 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 **SEO deconfigure:**
 - Revoke SEO-gated MCP tool grants from `$PROJECT_SETTINGS` → `permissions.allow` (§E remove helper): `serpapi_search`, `open_page_rank`, `gsc_inspect`, `gsc_query`, `gsc_sites`, `page_speed_audit`, `page_speed_psi`, `google_auth`. These were added by the SEO activation walk; the always-on core (`ping`, `compile_*`, `task_*`, `links_rewrite`, `memory_prune`) stays.
 - Revoke any `Bash(curl https://<host>/*)` or `Bash(curl * https://<host>/*)` entries — those were the host-scoped curl grants written when SEO was activated. To know which host, read `GSC_SITE_URL` from `$SETTINGS_FILE` before deciding (next step) and normalise the same way the configure flow did. If `GSC_SITE_URL` is already empty, fall back to scanning `permissions.allow` for any `Bash(curl *)` entry and ask the user before removing.
-- `AskUserQuestion`: "Also remove `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` from `$SETTINGS_FILE`?" (Yes/No)
-- If yes: read `$SETTINGS_FILE`, delete those keys from `env`, write back.
+- `AskUserQuestion`: "Also remove `SERPAPI_KEY`, `OPENPAGERANK_API_KEY` (from `.kevin/secrets/.env`) and `GSC_SITE_URL` (from `settings.local.json`)?" (Yes/No)
+- If yes: tell the user to delete the `SERPAPI_KEY` + `OPENPAGERANK_API_KEY` lines from `.kevin/secrets/.env` in their editor (§D.1 — Claude can't edit the gated file), and delete `GSC_SITE_URL` from `$SETTINGS_FILE` `env` directly (§D.2 remove, Claude-writable).
 
 **Browser deconfigure:**
 - Revoke Browser-gated MCP tool grants from `permissions.allow` (§E remove helper): `web_search`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`. Always-on core stays.
-- `AskUserQuestion`: "Remove `PERPLEXITY_API_KEY` from `$SETTINGS_FILE`?" (Yes/No). If yes, delete via §D.
+- `AskUserQuestion`: "Remove `PERPLEXITY_API_KEY` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file).
 - Do **not** touch `$MCP_FILE` — `web_search` lives inside the `kevin` MCP server, not a project-registered server.
 - Remind user: playwright + chromium stay installed (part of plugin base deps); only the permission grants get removed.
 
 **Database deconfigure:**
 - Revoke the db tool grants from `permissions.allow` (§E remove helper): `db_list`, `db_query`, `db_schema`. Always-on core stays.
-- Read `$SETTINGS_FILE` and scan `env` for keys matching `KEVIN_DB_*`. List them back to the user (names only, never the values).
-- `AskUserQuestion`: "Also remove these `KEVIN_DB_*` connection keys from `$SETTINGS_FILE`?" (Yes / No). If any key holds a non-empty value, warn that removing it discards a connection string the user pasted. If yes, delete the matched keys from `env` via §D and write back. If no, leave them (they're harmless once the perms are revoked).
+- `AskUserQuestion`: "Also remove your `KEVIN_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `KEVIN_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 Print summary of what was removed.
 
 ---
 
-## Section D — Helper: write keys to `settings.local.json`
+## Section D — Helper: write keys (secrets → `.kevin/secrets/.env`, private config → `settings.local.json`)
 
-Two variants — **ensure placeholder** (used by pack activation walks) vs. **set value** (only used when migrating an existing config; **never** in response to a chat paste).
+**Route by sensitivity.** Credentials (API keys, DB connection strings) go to the deny-gated
+dotenv `$SECRETS_ENV` (the secret store); private config (`GSC_SITE_URL`, codebase paths,
+tunables) goes to the `env` block of `$SETTINGS_FILE`. Each store has an **ensure placeholder**
+(used by pack walks) and a **set value** variant (migration only — **never** in response to a chat paste).
 
-**Ensure placeholder** (`KEY` exists with empty-string value if missing):
+### D.1 — Secrets → `$SECRETS_ENV` (dotenv) — for every API key + `KEVIN_DB_*`
 
-1. Read `$SETTINGS_FILE`. If it doesn't exist, start with `{}`.
-2. Ensure `env` is an object — initialize if missing.
-3. If `env[KEY]` is **undefined**, set `env[KEY] = ""`. If it exists with **any** value (even empty), do nothing.
-4. Write back with 2-space indent.
+`$SECRETS_ENV` is **deny-gated**: once `/init`'s rules are active, both the Read tool and Bash
+`cat`/`grep` on `.kevin/secrets/**` are blocked — Claude cannot read it, by design. So this walk
+does **not** read or rewrite the file. It only ensures the store **exists** (a write-only op) and
+then tells the **user** which lines to add or remove in their editor. This extends the standing
+"secret *values* are user-filled via editor, never in chat" rule to the key lines themselves.
 
-This is what every pack activation walk uses — it never overwrites a value the user already filled, and never solicits a value via chat.
+**Ensure the store exists** (idempotent, write-only — never reads content):
 
-**Set value** (used only for non-secret migrations, sanitized inputs):
-
-1–2. Same as above.
-3. Set `env[KEY] = value`. Use only when the value did not pass through the chat transcript.
-4. Write back.
-
-Example final shape — what the user fills via their editor after pack activation:
-
-```json
-{
-  "env": {
-    "SERPAPI_KEY": "...",
-    "OPENPAGERANK_API_KEY": "...",
-    "GSC_SITE_URL": "https://example.com/",
-    "PERPLEXITY_API_KEY": "pplx-..."
-  }
-}
+```bash
+mkdir -p "$HOME_DIR/.kevin/secrets" && chmod 700 "$HOME_DIR/.kevin/secrets"
+touch "$HOME_DIR/.kevin/secrets/.env" && chmod 600 "$HOME_DIR/.kevin/secrets/.env"
 ```
 
-Claude Code loads this file when opening CC in `$HOME_DIR` (or any subdirectory). Keys become env vars in every CC session there.
+`touch` creates an empty file if absent and leaves an existing one's contents untouched — no
+clobber, no read. (`chmod` is a no-op on Windows — `TODO(windows)`.)
 
-To remove a key: same flow, `delete env[KEY]`. If `env` ends up empty, you can remove the `env` key or leave it as `{}` — both work.
+**Tell the user what to add** — surface the exact `KEY=value` lines for `.kevin/secrets/.env`, e.g.:
+
+```
+SERPAPI_KEY=<your key>
+OPENPAGERANK_API_KEY=<your key>
+KEVIN_DB_MAIN=<postgres connection string>
+```
+
+Never paste the values in chat. Kevin's config loader reads the file at boot and surfaces the keys
+into `process.env`; ad-hoc Bash that Claude spawns never loads it — that's the point.
+
+**Deactivation** — tell the user to delete the matching `KEY=` line(s) from `.kevin/secrets/.env`
+in their editor. Claude can't edit (or even read) the gated file, so this is always a user step.
+
+### D.2 — Private config → `$SETTINGS_FILE` `env` (JSON) — `GSC_SITE_URL` + tunables only
+
+**Ensure placeholder**: read `$SETTINGS_FILE` (start `{}` if absent); ensure `env` is an object; if `env[KEY]` is undefined set `env[KEY] = ""`; write back 2-space indent. **Set value**: set `env[KEY] = value`. **Remove**: `delete env[KEY]`.
+
+```json
+{ "env": { "GSC_SITE_URL": "https://example.com/", "KEVIN_CODE_PATH": "..." } }
+```
+
+Claude Code loads `$SETTINGS_FILE` when opening CC in `$HOME_DIR` (or a subdir); its `env` keys become env vars in every session there — which is exactly why secrets must NOT live here.
 
 ---
 

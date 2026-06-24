@@ -86,8 +86,26 @@ A new always-on core tool, or a new model-invocable skill, needs a grant in cons
 `mcp__plugin_agent-kevin_kevin__foo`, `Skill(agent-kevin:foo)`). Match the canonical
 list in `skills/init/SKILL.md`.
 
-**Manual** — anything a consumer must do by hand that can't be automated (a one-time
-data migration, an external re-auth) → `` `manual: none` `` with clear instructions.
+**Scripts** — did this release add a version-pinned migration script?
+
+```bash
+git diff --name-only --diff-filter=A $RANGE -- skills/upgrade/scripts/ || true
+```
+
+A new `skills/upgrade/scripts/<X.Y.Z>.ts` is a heavy one-time HOME migration. Emit
+`` `script: required` `` (or `optional`) naming the version, e.g.
+`` `script: required` — run skills/upgrade/scripts/0.3.0.ts (moves secrets to .kevin/secrets/). ``
+The script's filename **must** equal the version you bump to in Step 3 — that's the
+naming convention (filename = the release the migration is applied when upgrading to)
+and how `/agent-kevin:upgrade` finds it. So decide the bump (Step 3) and the filename
+together: if you rename the bump, rename the script. A migration that relocates files or
+strips settings is a **breaking** change — pre-1.0 that's a **minor** bump (`0.x` → `0.(x+1).0`),
+post-1.0 a **major**; flag it in Step 3. Prefer a `script` over `manual` when the move
+can be automated and verified.
+
+**Manual** — anything a consumer must do by hand that *can't* be automated (an external
+re-auth, a decision only they can make) → `` `manual: none` `` with clear instructions.
+If a migration can be scripted, use `script`, not `manual`.
 
 If none of the above apply, the Upgrade block is the single line:
 `None — code-only, no bun install or HOME changes.`

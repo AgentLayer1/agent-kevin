@@ -441,7 +441,7 @@ rm "$CLAUDE_DEST.bak"
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows Kevin wrote to `CLAUDE.local.md`. Claude Code auto-loads `.local.md` files alongside the main `CLAUDE.md`, so the user's existing instructions and Kevin's coexist — Kevin's `@-imports` cascade still pulls in the identity stack.
 
-Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds API keys, `.kevin/*` ignores runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
+Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds local config, `.kevin/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets (`.kevin/secrets/` lives under `.kevin/*`) / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
 
 Two records inside `.kevin/` must survive a clone or restore, so we un-ignore them while keeping the rest (tokens, logs) ignored: the compile cursor (`.kevin/knowledge.json`) is the *only* record of what's been ingested — rolled back (iCloud, restore, fresh clone), the next blind compile re-ingests everything and corrupts memory; the template baseline (`.kevin/version.json`) records which plugin version this home's scaffolded files are reconciled to — lost, upgrade-tracking resets to onboarding and the "you're behind" signal breaks.
 
@@ -517,8 +517,17 @@ Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resol
   "Bash(git push --force*)",
   "Bash(git push *--force*)",
   "Bash(git reset --hard*)",
+  "Bash(curl *|sh*)",
+  "Bash(curl *| sh*)",
   "Edit(~/.bashrc)",
   "Edit(~/.zshrc)",
+  "Read(**/.env)",
+  "Read(**/.env.*)",
+  "Read(**/.kevin/secrets/**)",
+  "Read(**/secrets/**)",
+  "Read(**/credentials/**)",
+  "Read(**/*.pem)",
+  "Read(**/*.key)",
   "Read(~/.ssh/id_*)",
   "Read(~/.ssh/*.pem)",
   "Read(~/.ssh/authorized_keys)",
@@ -587,6 +596,11 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "failIfUnavailable": true,
   "autoAllowBashIfSandboxed": true,
   "allowUnsandboxedCommands": false,
+  "filesystem": {
+    "read": {
+      "denyOnly": ["**/.kevin/secrets/**", "**/.env", "**/.env.*"]
+    }
+  },
   "network": {
     "allowedDomains": [
       "github.com",
@@ -601,6 +615,12 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   }
 }
 ```
+
+The `filesystem.read.denyOnly` glob is the **second** layer protecting secrets: it
+blocks `cat`/`grep` of `.kevin/secrets/` (and any `.env`) via the **Bash** tool, which
+a `permissions.deny Read(...)` rule does **not** cover (that gates the Read tool only).
+Both layers are needed. (Sandbox is unavailable on native Windows — there the Read-tool
+deny is the only layer; flag that secrets aren't OS-protected on Windows.)
 
 **Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
 
@@ -659,6 +679,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__memory_prune",
       "mcp__plugin_agent-kevin_kevin__ping",
       "mcp__plugin_agent-kevin_kevin__report_write",
+      "mcp__plugin_agent-kevin_kevin__run_upgrade",
       "mcp__plugin_agent-kevin_kevin__setup_worktree",
       "mcp__plugin_agent-kevin_kevin__task_close",
       "mcp__plugin_agent-kevin_kevin__task_create",
@@ -683,13 +704,13 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **Bucket model** (which flow writes which permissions):
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `db_list`, `db_query`, `db_schema` | configure-skills A.2c (Database walk) |
@@ -830,7 +851,9 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The only env keys init owns are the **optional** primary-codebase pair from Step 4b — and only when a path was actually captured. Pack-gated env keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`) are planted by `/agent-kevin:configure-skills` when the operator activates the matching pack — Step 8 inline or later standalone — via the §D ensure-placeholder helper (which creates `env` if missing). This keeps `settings.local.json` an accurate audit trail of what the operator opted into — no orphan empty slots for packs they never touched.
+Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The only env keys init owns are the **optional** primary-codebase pair from Step 4b — and only when a path was actually captured.
+
+**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `KEVIN_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
 The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's only universal-infra keys are the optional codebase pair, so:
 
@@ -853,7 +876,7 @@ We intentionally do **not** prompt for any secret values in chat (see the rule b
 
 **Never solicit values via chat** — secrets must not enter the session transcript or the Anthropic API. The session-capture hook redacts known prefixes (`pplx-…`, `sk-…`, `AIza…`, etc.) as defense-in-depth, but the safer move is to keep values off the wire entirely.
 
-The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants) and plant pack-gated env placeholders, but defer all *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
+The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants), plant the non-secret `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists — but defer all secret lines and *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
 
 **Write `knowledge/index.md` — preservation-aware.** Operators add catalog bullets over time (linking to concepts they've authored manually).
 
@@ -982,7 +1005,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 `AskUserQuestion` (**multi-select**, so the user can tick any combination):
 
 > **Activate skill packs now?**
-> Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt) and ensures empty env placeholders exist in `settings.local.json` for the keys you'll fill via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
+> Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt), plants the non-secret `GSC_SITE_URL` placeholder in `settings.local.json`, and ensures `.kevin/secrets/.env` exists for the secret keys you'll add via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
 >
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
@@ -992,7 +1015,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
 
 Behavior on the response:
-- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they only add MCP grants to `settings.json` and ensure empty placeholder slots exist in `settings.local.json`. The user fills values via their editor after relaunch.
+- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
 - **Nothing ticked**: skip — note "skill packs not activated — run `/agent-kevin:configure-skills` after relaunch" for Step 9's status block. Don't touch settings files.
 
 For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow the matching section. Honor every per-skill skip option inside that flow; don't force the user through items they don't want.
@@ -1029,9 +1052,9 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > `<SKILL_PACK_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
-For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions + placeholders, not key values (those come from the user editing `settings.local.json`).
+For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY + GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY), Database (perms granted; fill KEVIN_DB_<NAME> connection strings)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill KEVIN_DB_<NAME> in .kevin/secrets/.env)">`
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
@@ -1044,14 +1067,15 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 
 > 🚀 **Next**
 >
-> **Fill any env values.** Open `<HOME_DIR>/.claude/settings.local.json` in your editor. Init wrote `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b, otherwise an empty `{}` — pack-gated keys only appear after you activate the matching pack. If you ticked SEO or Browser at Step 8, the activation walk already planted their empty placeholder slots; fill the values you need:
+> **Fill any secret/env values.** Two files, by sensitivity:
+> - **Secrets → `<HOME_DIR>/.kevin/secrets/.env`** (0600, deny-gated, gitignored; Kevin loads it into the environment at boot). If you ticked SEO / Browser / Database at Step 8, the walk created this file — add the lines you need (it's deny-gated, so you fill it yourself):
+>   - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
+>   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
+>   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
+>   - `KEVIN_DB_<NAME>` — Database pack: one Postgres connection string per line
+> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b (else `{}`). Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
-> - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
-> - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
-> - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
-> - `GSC_SITE_URL` — SEO pack: your Search Console property (set this before running `mcp__plugin_agent-kevin_kevin__google_auth` for GSC/PageSpeed)
->
-> Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions + plants the matching placeholder slots, then you fill via editor. Tools whose key is empty stay loaded but return "missing env var" if called — fill the value any time later and the next session picks it up.
+> Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >
 > **Always launch Kevin from its home — `<HOME_DIR>` — and set `KEVIN_HOME` as a safety net.** Kevin's MCP server resolves all paths from `cwd` by default, so the simplest habit is `cd <HOME_DIR> && claude` every time. But if you ever open Claude from somewhere else — a subdir of the home, a sibling repo, the user-level session-capture hook from the README, or just by accident — Kevin silently resolves to the wrong place. To make it robust no matter where you launch, add this to your **user-level** settings at `~/.claude/settings.json` under `env` (create the file if it doesn't exist):
 >

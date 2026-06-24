@@ -110,4 +110,4 @@ If commands fail with "Tokens not minted" — the one-time OAuth dance hasn't be
 mcp__plugin_agent-kevin_kevin__google_auth
 ```
 
-This opens a browser, captures Google's consent, and persists the refresh token to `app/.config/google-tokens.json` — **the same token is used by every google-* plugin**, so you only run `auth` once, not once per plugin. You handle this once per install; Kevin should not normally need to run `auth`.
+This opens a browser, captures Google's consent, and persists the refresh token to `.kevin/secrets/google/google-tokens.json` (alongside the OAuth client JSON, in the deny-gated secrets dir) — **the same token is used by every google-* plugin**, so you only run `auth` once, not once per plugin. You handle this once per install; Kevin should not normally need to run `auth`.

@@ -1,8 +1,10 @@
 /**
  * Generic Postgres MCP tools. Unlike a hardcoded list of named environments,
  * connections are discovered at call time from any `KEVIN_DB_<NAME>` env var —
- * add a connection by adding an env line to `.claude/settings.local.json`,
- * no code change. Connections are pooled per (env var, database) and lazy: a
+ * add a connection by adding a `KEVIN_DB_<NAME>=<connection-string>` line to
+ * `.kevin/secrets/.env` (connection strings carry credentials, so they live in the
+ * deny-gated secret store; config loads it into the env at boot), no code change.
+ * Connections are pooled per (env var, database) and lazy: a
  * connection string may pin a database in its path or omit it entirely, and any
  * call may target a different database on the same server via the optional
  * `database` argument (e.g. a per-worktree `app_<branch>` DB) — no new env var,
@@ -96,7 +98,7 @@ const getPool = (name: string, database?: string): pg.Pool => {
     const available = discoverConnections().map((connection) => connection.name);
     const hint = available.length
       ? `Available connections: ${available.join(', ')}.`
-      : `No connections configured. Add a KEVIN_DB_<NAME> env var to .claude/settings.local.json.`;
+      : `No connections configured. Add a KEVIN_DB_<NAME> connection string to .kevin/secrets/.env.`;
     throw new Error(`Unknown database connection "${name}" (looked for ${envKey}). ${hint}`);
   }
   const pool = new Pool({ connectionString: resolveConnectionString(url, database), max: 4 });
@@ -150,7 +152,7 @@ export const tools: ToolDef[] = [
       if (!connections.length) {
         return {
           connections: [],
-          hint: 'No connections configured. Add a KEVIN_DB_<NAME> env var (e.g. KEVIN_DB_APP) to .claude/settings.local.json under "env".'
+          hint: 'No connections configured. Add a KEVIN_DB_<NAME> connection string (e.g. KEVIN_DB_APP) to .kevin/secrets/.env.'
         };
       }
       return { connections };

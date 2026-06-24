@@ -1,6 +1,6 @@
-import { FILES, FOLDERS } from '@/config';
+import { FILES, FOLDERS, scrubValues } from '@/config';
 import { createHash } from 'crypto';
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
 import { dirname, relative, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -186,19 +186,18 @@ export async function listRawFiles(): Promise<string[]> {
 }
 
 /**
- * Redact secrets from text before it goes anywhere persistent. Two passes:
+ * Redact secrets from text before it goes anywhere persistent. Three passes:
  *
- * 1. **Exact-match redaction** — pull every value from `<HOME>/.claude/settings.local.json`
- *    `env` block and replace literal occurrences in the text with `<REDACTED:KEY_NAME>`.
- *    This is the deterministic path — anything actually saved as a key gets scrubbed.
+ * 1. **Exact-match redaction** — delegated to `config.scrubValues`, which reads the
+ *    `.kevin/secrets/.env` secret store behind config's gate and replaces literal
+ *    occurrences with `<REDACTED:KEY_NAME>`. The raw values never leave config. This is
+ *    the deterministic path — anything saved as a secret gets scrubbed. (`settings.local.json`
+ *    isn't scrubbed: by design it holds only private, non-secret config.)
  *
  * 2. **Heuristic prefix redaction** — catch keys the user typed but hasn't saved yet
  *    (e.g. during a configure-skills walk where they pasted a value just before the
  *    session ended). Matches well-known prefixes: `sk-…`, `pplx-…`, `AIza…`, generic
  *    `<KEY>=value` env-var assignments. Limits length to avoid eating prose.
- *
- * Skipping values shorter than 12 chars to avoid scrubbing common short strings
- * that happen to match a key's value. Real API keys are long.
  *
  * 3. **Base64 blob redaction** — pasted PNG/JPEG/PDF payloads make session logs
  *    unreadable and choke Obsidian's indexer. Catches `data:<mime>;base64,XXXX`
@@ -208,23 +207,8 @@ export async function listRawFiles(): Promise<string[]> {
  *    identifiers pass through untouched.
  */
 export function redactSecrets(text: string): string {
-  let out = text;
-
-  // Pass 1: exact-match scrub from settings.local.json
-  const settingsPath = resolve(FOLDERS.HOME, '.claude', 'settings.local.json');
-  if (existsSync(settingsPath)) {
-    try {
-      const settings = JSON.parse(readFileSync(settingsPath, 'utf-8')) as { env?: Record<string, string> };
-      for (const [name, value] of Object.entries(settings.env ?? {})) {
-        if (typeof value !== 'string' || value.length < 12) continue;
-        // Escape regex special chars in the value before substituting.
-        const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        out = out.replace(new RegExp(escaped, 'g'), `<REDACTED:${name}>`);
-      }
-    } catch {
-      // malformed settings.local.json — fall through to prefix pass
-    }
-  }
+  // Pass 1: exact-match scrub from the on-disk secret stores (gated in config).
+  let out = scrubValues(text);
 
   // Pass 2: prefix heuristics for common API key formats.
   // Order matters — the more specific patterns must run before the generic
