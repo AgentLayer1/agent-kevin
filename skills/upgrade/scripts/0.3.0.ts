@@ -16,7 +16,7 @@
  * file ships in v0.3.0, so it is `0.3.0.ts`). The runtime never carries this logic —
  * it's quarantined here and pruned once the minimum supported baseline passes it.
  */
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const HOME = process.env.KEVIN_HOME?.trim() || process.cwd();
@@ -25,6 +25,7 @@ const isWindows = process.platform === 'win32';
 const SETTINGS_LOCAL = resolve(HOME, '.claude', 'settings.local.json');
 const SETTINGS_PROJECT = resolve(HOME, '.claude', 'settings.json');
 const OLD_CONFIG_DIR = resolve(HOME, '.kevin', 'config');
+const UPDATES_DIR = resolve(HOME, '.kevin', 'updates');
 const SECRETS_DIR = resolve(HOME, '.kevin', 'secrets');
 const SECRETS_ENV = resolve(SECRETS_DIR, '.env');
 const GOOGLE_DIR = resolve(SECRETS_DIR, 'google');
@@ -61,6 +62,40 @@ const readJson = (path: string): Record<string, unknown> =>
 const chmodSafe = (path: string, mode: number): void => {
   if (!isWindows) chmodSync(path, mode);
 };
+
+/**
+ * Sweep the upgrade skill's pre-strip backups. Step 3 of `/agent-kevin:upgrade`
+ * snapshots touched HOME files into `.kevin/updates/` (which nothing deny-gates)
+ * BEFORE this script runs in Step 4 — so on this one transition it captures a
+ * `settings.local.json` that still holds the secrets we're centralizing. Delete any
+ * such copy. Self-limiting: post-migration `settings.local.json` carries no secret
+ * keys, so future skill backups never match. Idempotent and failure-tolerant.
+ */
+function purgeLeakedSettingsBackups(): string[] {
+  if (!existsSync(UPDATES_DIR)) return [];
+  const removed: string[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(UPDATES_DIR, { recursive: true }) as string[];
+  } catch {
+    return removed;
+  }
+  for (const rel of entries) {
+    if (!rel.endsWith('settings.local.json')) continue;
+    const path = resolve(UPDATES_DIR, rel);
+    try {
+      const json = JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>;
+      const env = (json.env && typeof json.env === 'object' ? json.env : {}) as Record<string, unknown>;
+      if (Object.keys(env).some(isSecretKey)) {
+        rmSync(path);
+        removed.push(path);
+      }
+    } catch {
+      continue; // unreadable / not JSON — leave it untouched
+    }
+  }
+  return removed;
+}
 
 function main(): void {
   const manualNotes: string[] = [];
@@ -117,26 +152,19 @@ function main(): void {
     }
   }
 
-  // ── 4. Back up settings.local.json, then strip the moved secret keys ────────
-  let backup = '';
+  // ── 4. Strip the moved secret keys from settings.local.json ─────────────────
+  // No pre-strip backup needed: Step 3 verified every secret round-tripped to
+  // secrets/.env, so the values are already safely persisted there before we delete.
   let settingsStripped = false;
   if (existsSync(SETTINGS_LOCAL) && detected.length > 0) {
-    // The backup is taken BEFORE stripping, so it still holds the secrets — it must
-    // live INSIDE the deny-gated secrets dir (0600), not .kevin/updates/ which nothing
-    // denies, or the backup itself would be a Claude-readable copy of the secrets.
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupDir = resolve(SECRETS_DIR, 'backups');
-    mkdirSync(backupDir, { recursive: true });
-    chmodSafe(backupDir, 0o700);
-    backup = resolve(backupDir, `settings.local.${stamp}.json`);
-    copyFileSync(SETTINGS_LOCAL, backup);
-    chmodSafe(backup, 0o600);
-
     for (const key of detected) delete env[key];
     settings.env = env;
     writeFileSync(SETTINGS_LOCAL, JSON.stringify(settings, null, 2) + '\n');
     settingsStripped = true;
   }
+
+  // ── 4b. Purge the upgrade skill's pre-strip settings.local.json backup ──────
+  const leakedBackupsRemoved = purgeLeakedSettingsBackups();
 
   // ── 5. Write both deny layers into HOME .claude/settings.json (union, dedupe) ──
   // Layer 1 (Read tool): `permissions.deny`. Layer 2 (Bash cat/grep): the OS sandbox
@@ -190,9 +218,9 @@ function main(): void {
     skipped,
     googleMoved,
     settingsStripped,
+    leakedBackupsRemoved,
     denyAdded,
     sandboxDenyAdded,
-    backup,
     manualNotes,
     restart: 'Restart/reload Claude Code so the MCP server reloads with secrets/.env.'
   };

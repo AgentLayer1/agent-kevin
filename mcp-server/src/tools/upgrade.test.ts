@@ -62,10 +62,27 @@ describe('0.3.0 migration script (end-to-end on a temp HOME)', () => {
     expect(project.permissions.deny).toContain('Read(**/.kevin/secrets/**)');
     expect(report.sandboxDenyAdded).toBe(true);
     expect(project.sandbox.filesystem.read.denyOnly).toContain('**/.kevin/secrets/**');
-    // The pre-strip backup still holds the secrets, so it must land inside the
-    // deny-gated secrets dir — not somewhere Claude can read it back.
-    expect(report.backup.startsWith(resolve(home, '.kevin', 'secrets'))).toBe(true);
-    expect(readFileSync(report.backup, 'utf-8')).toContain('pplx-secretvalue1234567890');
+  });
+
+  test('purges the upgrade skill pre-strip settings.local.json backup, keeps non-secret ones', () => {
+    const home = seedHome();
+    // The upgrade skill's Step 3 snapshots settings.local.json (still with secrets)
+    // into the non-deny-gated .kevin/updates/ before this script runs.
+    const leakyDir = resolve(home, '.kevin', 'updates', '0.2.1-to-0.3.1-stamp', '.claude');
+    mkdirSync(leakyDir, { recursive: true });
+    const leaky = resolve(leakyDir, 'settings.local.json');
+    writeFileSync(leaky, readFileSync(resolve(home, '.claude', 'settings.local.json'), 'utf-8'));
+    // A backup with no secret keys (post-migration shape) must survive.
+    const cleanDir = resolve(home, '.kevin', 'updates', 'later-run', '.claude');
+    mkdirSync(cleanDir, { recursive: true });
+    const clean = resolve(cleanDir, 'settings.local.json');
+    writeFileSync(clean, JSON.stringify({ env: { KEVIN_CODE_PATH: '/Users/x/code' } }));
+
+    const report = lastJson(run(home).stdout);
+    expect(report.ok).toBe(true);
+    expect(report.leakedBackupsRemoved).toContain(leaky);
+    expect(existsSync(leaky)).toBe(false);
+    expect(existsSync(clean)).toBe(true);
   });
 
   test('is idempotent — re-run moves nothing and stays ok', () => {
