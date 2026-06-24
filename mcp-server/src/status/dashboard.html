@@ -329,7 +329,7 @@ pre.logtail .logline.lvl-error { color: var(--red); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; color: var(--dim); font-weight: normal; font-size: 11px; text-transform: uppercase;
      letter-spacing: 0.06em; padding: 4px 10px 6px 0; border-bottom: 1px solid var(--border); }
-td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; overflow-wrap: anywhere; }
 tr:last-child td { border-bottom: none; }
 /* Context tables: pin icon + size columns to content so the middle column
    absorbs all slack — keeps the two stacked tables column-aligned regardless
@@ -339,6 +339,9 @@ tr:last-child td { border-bottom: none; }
 /* Env + secrets tables: middle columns absorb the slack so the last column
    (scope / status) pins to the right edge. */
 :is(.env-table, .secrets-table) :is(th, td):last-child { width: 1%; white-space: nowrap; text-align: right; }
+/* Long paths/values render as links; the global `td a { white-space: nowrap }`
+   would force them off-screen, so let them wrap (and break) inside these tables. */
+:is(.env-table, .secrets-table, .layers-table) td a { white-space: normal; }
 
 /* ── persona / profile ─────────────────────────────────────────────── */
 .persona-head { display: flex; align-items: center; gap: 20px; margin: 22px 0 6px; }

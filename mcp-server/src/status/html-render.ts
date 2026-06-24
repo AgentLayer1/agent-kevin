@@ -1474,7 +1474,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
     section(
       'Settings layers',
       `${settings.allow} allow · ${settings.deny} deny total`,
-      table(['scope', 'file', 'allow', 'deny', 'env'], layerRows)
+      `<div class="layers-table">${table(['scope', 'file', 'allow', 'deny', 'env'], layerRows)}</div>`
     ),
     section(
       'Plugin',
