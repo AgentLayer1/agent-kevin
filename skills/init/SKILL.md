@@ -523,7 +523,7 @@ Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resol
   "Edit(~/.zshrc)",
   "Read(**/.env)",
   "Read(**/.env.*)",
-  "Read(**/.kevin/secrets/**)",
+  "Read(//**/.kevin/secrets/**)",
   "Read(**/secrets/**)",
   "Read(**/credentials/**)",
   "Read(**/*.pem)",
@@ -598,7 +598,7 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "allowUnsandboxedCommands": false,
   "filesystem": {
     "read": {
-      "denyOnly": ["**/.kevin/secrets/**", "**/.env", "**/.env.*"]
+      "denyOnly": [".kevin/secrets/**", "**/.env", "**/.env.*"]
     }
   },
   "network": {

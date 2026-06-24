@@ -33,8 +33,12 @@ const GOOGLE_DIR = resolve(SECRETS_DIR, 'google');
 const SECRET_KEYS = ['PERPLEXITY_API_KEY', 'SERPAPI_KEY', 'OPENPAGERANK_API_KEY'];
 const SECRET_PREFIXES = ['KEVIN_DB_'];
 const GOOGLE_FILES = ['google-oauth-client.json', 'google-tokens.json'];
-const SECRETS_GLOB = '**/.kevin/secrets/**';
-const DENY_GLOBS = [`Read(${SECRETS_GLOB})`];
+// Read-tool deny uses gitignore matching, where `**` will NOT descend into a dot-dir
+// like `.kevin` — so the secrets deny must be absolute-anchored (`//`) to bite. The
+// sandbox (Bash) matcher takes a project-root-relative path, sidestepping it entirely.
+const SECRETS_READ_DENY = 'Read(//**/.kevin/secrets/**)';
+const SECRETS_SANDBOX_GLOB = '.kevin/secrets/**';
+const DENY_GLOBS = [SECRETS_READ_DENY];
 
 const isSecretKey = (key: string): boolean =>
   SECRET_KEYS.includes(key) || SECRET_PREFIXES.some((prefix) => key.startsWith(prefix));
@@ -193,12 +197,12 @@ function main(): void {
     unknown
   >;
   const denyOnly = Array.isArray(read.denyOnly) ? (read.denyOnly as string[]) : [];
-  const sandboxDenyAdded = !denyOnly.includes(SECRETS_GLOB);
+  const sandboxDenyAdded = !denyOnly.includes(SECRETS_SANDBOX_GLOB);
 
   if (denyAdded.length > 0 || sandboxDenyAdded) {
     permissions.deny = [...deny, ...denyAdded];
     project.permissions = permissions;
-    read.denyOnly = sandboxDenyAdded ? [...denyOnly, SECRETS_GLOB] : denyOnly;
+    read.denyOnly = sandboxDenyAdded ? [...denyOnly, SECRETS_SANDBOX_GLOB] : denyOnly;
     filesystem.read = read;
     sandbox.filesystem = filesystem;
     project.sandbox = sandbox;

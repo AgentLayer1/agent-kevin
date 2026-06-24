@@ -22,19 +22,14 @@ import { resolve } from 'node:path';
 const HOME = process.env.KEVIN_HOME?.trim() || process.cwd();
 const SETTINGS_PROJECT = resolve(HOME, '.claude', 'settings.json');
 
-const SECRETS_GLOB = '**/.kevin/secrets/**';
-const READ_DENY_GLOBS = [
-  '**/.env',
-  '**/.env.*',
-  SECRETS_GLOB,
-  '**/secrets/**',
-  '**/credentials/**',
-  '**/*.pem',
-  '**/*.key'
-];
+// The secrets deny needs the `//` absolute anchor: gitignore-style `**` won't descend
+// into the `.kevin` dot-dir, so a bare `**/.kevin/secrets/**` never matches. The sandbox
+// (Bash) layer takes a project-root-relative path, which sidesteps the dot-dir entirely.
+const SECRETS_READ_DENY = 'Read(//**/.kevin/secrets/**)';
+const READ_DENY_GLOBS = ['**/.env', '**/.env.*', '**/secrets/**', '**/credentials/**', '**/*.pem', '**/*.key'];
 const BASH_DENY_RULES = ['Bash(curl *|sh*)', 'Bash(curl *| sh*)'];
-const PERM_DENY_RULES = [...READ_DENY_GLOBS.map((glob) => `Read(${glob})`), ...BASH_DENY_RULES];
-const SANDBOX_DENY_GLOBS = [SECRETS_GLOB, '**/.env', '**/.env.*'];
+const PERM_DENY_RULES = [SECRETS_READ_DENY, ...READ_DENY_GLOBS.map((glob) => `Read(${glob})`), ...BASH_DENY_RULES];
+const SANDBOX_DENY_GLOBS = ['.kevin/secrets/**', '**/.env', '**/.env.*'];
 
 const readJson = (path: string): Record<string, unknown> =>
   existsSync(path) ? (JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>) : {};

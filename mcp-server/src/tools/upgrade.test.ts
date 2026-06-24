@@ -58,10 +58,11 @@ describe('0.3.0 migration script (end-to-end on a temp HOME)', () => {
     expect(existsSync(resolve(home, '.kevin', 'secrets', 'google', 'google-tokens.json'))).toBe(true);
     expect(existsSync(resolve(home, '.kevin', 'config', 'google-tokens.json'))).toBe(false);
     const project = JSON.parse(readFileSync(resolve(home, '.claude', 'settings.json'), 'utf-8'));
-    // Both deny layers: Read tool (permissions.deny) + Bash cat/grep (sandbox read-deny).
-    expect(project.permissions.deny).toContain('Read(**/.kevin/secrets/**)');
+    // Both deny layers: Read tool (permissions.deny, // absolute-anchored so gitignore's
+    // `**` bites the .kevin dot-dir) + Bash cat/grep (sandbox read-deny, project-relative).
+    expect(project.permissions.deny).toContain('Read(//**/.kevin/secrets/**)');
     expect(report.sandboxDenyAdded).toBe(true);
-    expect(project.sandbox.filesystem.read.denyOnly).toContain('**/.kevin/secrets/**');
+    expect(project.sandbox.filesystem.read.denyOnly).toContain('.kevin/secrets/**');
   });
 
   test('purges the upgrade skill pre-strip settings.local.json backup, keeps non-secret ones', () => {
