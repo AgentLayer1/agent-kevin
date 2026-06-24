@@ -747,21 +747,21 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated env keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every API key above is a pack-gated key that `configure-skills` plants as an empty placeholder when you activate the matching pack. **You fill the secret values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
 
-### Database connections (`db_*` tools)
+### Database connections (`database_*` tools)
 
-The `db_list`, `db_schema`, and `db_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `KEVIN_DB_<NAME>` entry in the `settings.local.json` `env` block becomes a connection named `<name>` (lowercased). Add or remove connections by editing that block, with no code change:
+The `database_list`, `database_schema`, and `database_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `KEVIN_DB_<NAME>` entry in `<HOME>/.kevin/secrets/.env` (since v0.3.0 connection strings, like all credentials, live in the deny-gated secrets store — not `settings.local.json`) becomes a connection named `<name>` (lowercased). Add or remove connections by editing that file, with no code change:
 
-```jsonc
-// <HOME>/.claude/settings.local.json
-"env": {
-  "KEVIN_DB_APP": "postgres://user:pass@localhost:5432/app_dev",
-  "KEVIN_DB_ANALYTICS": "postgres://user:pass@host:5432/analytics"
-}
+```sh
+# <HOME>/.kevin/secrets/.env
+KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
+KEVIN_DB_ANALYTICS=postgres://user:pass@host:5432/analytics
 ```
 
-That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `db_*` tool permissions and plants an empty `KEVIN_DB_<NAME>` placeholder for each connection name you give. You then fill the connection string in your editor, never in chat (it carries a password). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `KEVIN_DB_<NAME>` key regardless of how it got there. `db_list` only ever reports host/port/database, never the credentials.
+That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `database_*` tool permissions and ensures `.kevin/secrets/.env` exists for the `KEVIN_DB_<NAME>` lines you add. You then fill the connection string in your editor, never in chat (it carries a password, and the secrets file is deny-gated so Kevin can't read it). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `KEVIN_DB_<NAME>` key regardless of how it got there. `database_list` only ever reports host/port/database, never the credentials.
 
-Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout and is then rolled back, so Postgres itself rejects any write: the tools are read-only by construction. For tighter control (row or column limits), point the connection string at a SELECT-only database role.
+Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout and is then rolled back, so Postgres itself rejects any write: the read tools are read-only by construction. For tighter control (row or column limits), point the connection string at a SELECT-only database role.
+
+The pack also grants one **write** tool, `database_fork`: it clones a database into a private copy via `CREATE DATABASE <fork> TEMPLATE <source>` (pure SQL — no `pg_dump`/`pg_restore`, no dump file, cross-platform), so you can run risky or destructive schema changes against a scratch copy instead of a shared/live DB. It refuses remote hosts (local servers only), defaults to the first connection and its database, names the fork after the current git branch, and can repoint an env file at the fork; `drop: true` tears it back down. This is what the `setup-worktree` skill uses to give a worktree its own database on demand.
 
 ---
 

@@ -65,7 +65,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 >
 > - ☐ SEO — 6 SEO skills + the `google-search-audit` composite (already loaded; this walks API key + permission setup)
 > - ☐ Browser **(recommended)** — Perplexity research + Playwright tool permissions
-> - ☐ Database — connect Kevin to one or more Postgres databases (read-only `db_list`/`db_schema`/`db_query` tools)
+> - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
 If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → Third-party (Section F).
@@ -214,14 +214,15 @@ After both pieces processed, print Browser pack summary.
 
 ### A.2c — Database pack walk
 
-Connects Kevin to one or more Postgres databases. The `db_list`, `db_schema`, and `db_query` MCP tools (all read-only) are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `KEVIN_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.kevin/secrets/.env` (loaded into the environment at boot, where `db_*` discovers it); the walk only ensures that store exists, and the user adds the `KEVIN_DB_<NAME>=<connection string>` line in their editor, never in chat.
+Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`database_list`, `database_schema`, `database_query`) plus one write tool, `database_fork` (clones a database via `CREATE DATABASE ... TEMPLATE` so you can make risky schema changes off a scratch copy — local servers only, remote hosts refused), are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `KEVIN_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.kevin/secrets/.env` (loaded into the environment at boot, where the db tools discover it); the walk only ensures that store exists, and the user adds the `KEVIN_DB_<NAME>=<connection string>` line in their editor, never in chat.
 
 > **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `KEVIN_DB_<NAME>` keys to fill in `<HOME>/.kevin/secrets/.env`. The session-capture redactor masks DB URLs (and exact-matches `.kevin/secrets/.env` values) as defense-in-depth, but the safe move is to keep the value off the wire entirely.
 
-**(1) Grant the db tool permissions.** Add all three to `permissions.allow` via §E (read-only, so granting them together is fine):
-- `mcp__plugin_agent-kevin_kevin__db_list`
-- `mcp__plugin_agent-kevin_kevin__db_query`
-- `mcp__plugin_agent-kevin_kevin__db_schema`
+**(1) Grant the db tool permissions.** Add all four to `permissions.allow` via §E. The first three are read-only; `database_fork` is the one write tool — it only acts on a local server (remote hosts refused) and clones rather than mutating existing data, so granting it with the pack is fine:
+- `mcp__plugin_agent-kevin_kevin__database_list`
+- `mcp__plugin_agent-kevin_kevin__database_query`
+- `mcp__plugin_agent-kevin_kevin__database_schema`
+- `mcp__plugin_agent-kevin_kevin__database_fork`
 
 **(2) Collect connection names.** `AskUserQuestion` (or free-text):
 
@@ -232,21 +233,21 @@ For each name the user gives:
 - Normalize it the way the tool resolves connections: upper-case and replace every non-alphanumeric character with `_`, then prefix `KEVIN_DB_`. So `analytics` → `KEVIN_DB_ANALYTICS`, `read-replica` → `KEVIN_DB_READ_REPLICA`. (This matches `envKeyFor` in the plugin's `mcp-server/src/tools/database.ts`; the tool lowercases the suffix back to the connection name.)
 - Ensure the secret store exists (§D.1) and tell the user to add a `KEVIN_DB_<NAME>=<connection string>` line to `.kevin/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
 
-If the user adds zero connections, still grant the tool permissions and note that `db_list` will report none until they add a `KEVIN_DB_<NAME>` env var.
+If the user adds zero connections, still grant the tool permissions and note that `database_list` will report none until they add a `KEVIN_DB_<NAME>` env var.
 
 **(3) Summary:**
 
 ```
 ✅ Database pack activated.
 
-Tool permissions granted:  db_list, db_query, db_schema  (read-only)
+Tool permissions granted:  database_list, database_query, database_schema  (read-only) + database_fork  (local clone)
 Connection lines to add:   KEVIN_DB_<NAME1>, KEVIN_DB_<NAME2>  (add to .kevin/secrets/.env)
 
 Each line is a Postgres connection string, e.g.:
   KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
 
 Add these lines in <HOME>/.kevin/secrets/.env — never paste them into chat.
-Relaunch Claude Code, then run db_list to confirm Kevin sees them.
+Relaunch Claude Code, then run database_list to confirm Kevin sees them.
 Add more connections any time by re-running this walk.
 ```
 
@@ -357,7 +358,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Remind user: playwright + chromium stay installed (part of plugin base deps); only the permission grants get removed.
 
 **Database deconfigure:**
-- Revoke the db tool grants from `permissions.allow` (§E remove helper): `db_list`, `db_query`, `db_schema`. Always-on core stays.
+- Revoke the db tool grants from `permissions.allow` (§E remove helper): `database_list`, `database_query`, `database_schema`, `database_fork`. Always-on core stays.
 - `AskUserQuestion`: "Also remove your `KEVIN_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `KEVIN_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 Print summary of what was removed.

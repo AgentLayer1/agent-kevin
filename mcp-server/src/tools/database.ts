@@ -11,9 +11,9 @@
  * no reload.
  *
  * Three read-only tools:
- *   db_list   — names + credential-stripped host/db of configured connections
- *   db_schema — list tables, or describe one table's columns
- *   db_query  — arbitrary read-only SQL
+ *   database_list   — names + credential-stripped host/db of configured connections
+ *   database_schema — list tables, or describe one table's columns
+ *   database_query  — arbitrary read-only SQL
  *
  * Every query runs inside a `BEGIN READ ONLY` transaction with a
  * `statement_timeout`, always rolled back — Postgres itself rejects any
@@ -140,9 +140,9 @@ const COLUMNS_SQL = `
 
 export const tools: ToolDef[] = [
   defineTool({
-    name: 'db_list',
+    name: 'database_list',
     description:
-      'List the Postgres connections available to query. Each is configured via a KEVIN_DB_<NAME> env var. Returns name + host/port/database only — never credentials or the connection string. A blank `database` means the connection pins no default — pass `database` to db_query/db_schema to pick one; either tool can also override a pinned database per call to reach another DB on the same server.',
+      'List the Postgres connections available to query. Each is configured via a KEVIN_DB_<NAME> env var. Returns name + host/port/database only — never credentials or the connection string. A blank `database` means the connection pins no default — pass `database` to database_query/database_schema to pick one; either tool can also override a pinned database per call to reach another DB on the same server.',
     inputSchema: {},
     handler: async () => {
       const connections = discoverConnections().map((connection) => ({
@@ -159,11 +159,11 @@ export const tools: ToolDef[] = [
     }
   }),
   defineTool({
-    name: 'db_schema',
+    name: 'database_schema',
     description:
-      'Inspect a Postgres database structure (read-only). Without `table`, lists all user tables {schema, name, type}. With `table`, describes its columns {name, type, nullable, default}. Use this before db_query to learn table and column names.',
+      'Inspect a Postgres database structure (read-only). Without `table`, lists all user tables {schema, name, type}. With `table`, describes its columns {name, type, nullable, default}. Use this before database_query to learn table and column names.',
     inputSchema: {
-      connection: z.string().describe('Connection name from db_list (e.g. "app").'),
+      connection: z.string().describe('Connection name from database_list (e.g. "app").'),
       table: z.string().optional().describe('Table name to describe. Omit to list all tables.'),
       schema: z
         .string()
@@ -194,11 +194,11 @@ export const tools: ToolDef[] = [
     }
   }),
   defineTool({
-    name: 'db_query',
+    name: 'database_query',
     description:
       'Run a read-only SQL query against a configured Postgres connection. Executes inside a READ ONLY transaction with a statement timeout — writes (INSERT/UPDATE/DELETE/DDL) are rejected by Postgres. Returns rows + column metadata as JSON.',
     inputSchema: {
-      connection: z.string().describe('Connection name from db_list (e.g. "app").'),
+      connection: z.string().describe('Connection name from database_list (e.g. "app").'),
       sql: z.string().describe('The SQL statement. Read-only — DML/DDL is rejected by the transaction.'),
       params: z
         .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
