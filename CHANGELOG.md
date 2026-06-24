@@ -20,9 +20,18 @@ backticked tag plus a human note:
 - `<kind>: <severity>` — <note>
 ```
 
-- **kind** — `deps` · `settings` · `template/<file>` · `file` · `manual`
-- **severity** — `required` (deps) · `mandatory` (auto-applied) · `optional`
+- **kind** — `deps` · `settings` · `template/<file>` · `file` · `script` · `manual`
+- **severity** — `required` (deps/script) · `mandatory` (auto-applied) · `optional`
   (the upgrade asks first, with a diff) · `additive` (copy if absent) · `none`
+
+A `script: <severity>` line means the release ships a one-time migration at
+`skills/upgrade/scripts/<version>.ts` (named for this release). `/agent-kevin:upgrade`
+runs it via the `run_upgrade` MCP tool — outside the Bash sandbox, so it can
+touch deny-gated paths. The script is self-contained, idempotent, and prints a JSON
+report; it carries no permanent footprint in the server and may be pruned once the
+minimum supported baseline passes it (a `script:` whose file is absent is treated as
+already-applied). Use it for heavy data moves; use `manual` for steps a human must do
+by hand.
 
 A code-only release writes a single line: `None — code-only, no bun install or HOME changes.`
 

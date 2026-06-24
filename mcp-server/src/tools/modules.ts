@@ -20,6 +20,7 @@ export const TOOL_MODULES = [
   'serpapi',
   'status',
   'tasks',
+  'upgrade',
   'web-search',
   'worktree'
 ] as const;

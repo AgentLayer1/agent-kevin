@@ -1,10 +1,12 @@
 /**
  * Shared Google OAuth2 client for plugin-side google-* tools.
- * Tokens live under <KEVIN_HOME>/.kevin/config/ so they persist across plugin updates.
+ * Client JSON + tokens live under <KEVIN_HOME>/.kevin/secrets/google/ (0700,
+ * deny-gated) so they persist across plugin updates and stay off Claude's Read
+ * tool + the Bash sandbox.
  *
  * One-time setup:
  *   1. Google Cloud Console → APIs & Services → Credentials → OAuth client (Desktop app)
- *   2. Download the JSON, save as `<KEVIN_HOME>/.kevin/config/google-oauth-client.json`
+ *   2. Download the JSON, save as `<KEVIN_HOME>/.kevin/secrets/google/google-oauth-client.json`
  *   3. Run mcp__plugin_agent-kevin_kevin__google_auth — opens browser for consent, mints + persists tokens
  */
 import { FOLDERS } from '@/config';
@@ -17,9 +19,9 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
-const CONFIG_DIR = FOLDERS.CONFIG;
-export const CLIENT_FILE = join(CONFIG_DIR, 'google-oauth-client.json');
-const TOKENS_FILE = join(CONFIG_DIR, 'google-tokens.json');
+const GOOGLE_DIR = join(FOLDERS.SECRETS, 'google');
+export const CLIENT_FILE = join(GOOGLE_DIR, 'google-oauth-client.json');
+const TOKENS_FILE = join(GOOGLE_DIR, 'google-tokens.json');
 
 const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly', 'openid'];
 
@@ -44,9 +46,9 @@ function readClient(): ClientCredentials {
 }
 
 function writeTokens(tokens: object): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-    chmodSync(CONFIG_DIR, 0o700);
+  if (!existsSync(GOOGLE_DIR)) {
+    mkdirSync(GOOGLE_DIR, { recursive: true });
+    chmodSync(GOOGLE_DIR, 0o700);
   }
   writeJsonAtomic(TOKENS_FILE, tokens, 0o600);
 }

@@ -2,7 +2,7 @@
 name: upgrade
 description: Apply pending HOME migrations after a plugin code update. `/plugin update` refreshes plugin code (skills, hooks, MCP server, templates) but never touches a home's scaffolded files (CLAUDE.md, SOUL.md, settings, rules) or runs bun install. This skill reads the CHANGELOG's Upgrade blocks from the home's recorded baseline up to the installed version, backs up, runs bun install when needed, auto-applies functionality-critical changes, and asks before touching anything you may have personalized. Use when the SessionStart banner / dashboard shows "upgrade available" or "enable update tracking", or the user says "upgrade kevin", "apply the update", "I just ran /plugin update".
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync)
+allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__run_upgrade
 ---
 
 # Upgrade — apply pending HOME migrations
@@ -72,7 +72,7 @@ From the selected entries, collect every `### Upgrade` action line. Each is:
 - `<kind>: <severity>` — <note>
 ```
 
-- **kinds:** `deps` · `settings` · `template/<file>` · `file` · `manual`
+- **kinds:** `deps` · `settings` · `template/<file>` · `file` · `script` · `manual`
 - **severity:** `required` · `mandatory` · `optional` · `additive` · `none`
 
 Coalesce across the selected releases (latest wins; the goal is the *current*
@@ -83,6 +83,9 @@ template state, not a replay of every intermediate edit):
 - **template/&lt;file&gt;** — dedupe by file; reconcile each file **once** against its
   *current* template. Severity = the strictest seen (mandatory beats optional).
 - **file (additive)** — dedupe by path.
+- **script** — keep **one per version** (these are version-pinned, not coalesced):
+  each `script: <severity>` runs the migration at `skills/upgrade/scripts/<version>.ts`.
+  Run them in ascending version order in Step 4.
 - **manual** — collect and surface to the user at the end (these are notes the
   skill cannot automate; never silently skip them).
 
@@ -93,6 +96,7 @@ Upgrade vBASELINE → vINSTALLED (N releases)
   deps:      bun install (new: pg, foo)              [auto]
   settings:  +2 permissions                          [auto]
   files:     +1 new rule (.claude/rules/python.md)   [auto]
+  script:    run scripts/0.3.0.ts (secrets move)     [auto, required]
   CLAUDE.md: 1 new section "Upgrades"                 [auto, mandatory]
   SOUL.md:   1 changed section "Writing Style"        [ask]
 ```
@@ -119,6 +123,19 @@ Tell the user the backup path. If anything looks wrong afterward, they restore f
 ```bash
 ( cd "$PLUGIN_ROOT/mcp-server" && bun install )
 ```
+
+**script** — run each version's migration via the `run_upgrade` MCP tool,
+in ascending version order, **after the backup (Step 3)** and after any `deps`
+install above. Call `run_upgrade` with `{ version: "<x.y.z>" }` for each
+`script:` action. The tool runs the migration outside the Bash sandbox (so it can
+write the deny-gated paths) and returns a JSON report — surface it in Step 6. A
+`found: false` result means the script was pruned / already applied; note it and
+move on (not an error). If a migration returns `ok: false`, **stop**: show the
+error + stderr, do not stamp the baseline past that version, and tell the user to
+fix and re-run. Migrations are idempotent, so a re-run after a partial failure is
+safe. (If `deps` ran or MCP-server code changed this session, the running server
+still holds old code — see Step 7's restart ordering; `run_upgrade` is part
+of the server, so a deps/code change means restart **before** the script can run.)
 
 **settings (mandatory)** — merge the named entries into
 `$HOME_DIR/.claude/settings.json`. Read it, add only entries **not already present**

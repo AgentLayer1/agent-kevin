@@ -13,6 +13,78 @@ const fromEnv = (key: string, fallback: string) => tildify(process.env[key]?.tri
 const KEVIN_HOME = fromEnv('KEVIN_HOME', process.cwd());
 const KNOWLEDGE_ROOT = fromEnv('KEVIN_KNOWLEDGE', resolve(KEVIN_HOME, 'knowledge'));
 const DATA_ROOT = resolve(KEVIN_HOME, '.kevin');
+const SECRETS_ROOT = resolve(DATA_ROOT, 'secrets');
+
+/**
+ * Minimal dotenv parser — PRIVATE to config. Kept unexported on purpose: handing
+ * a raw env-file parser (or raw secret values) to other modules is a leak vector.
+ * `KEY=value` lines; `#` comments and blanks ignored; surrounding quotes stripped.
+ */
+function parseDotenv(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (!key) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      value.length >= 2 &&
+      ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1);
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Single secrets-ingestion point. Loads `<HOME>/.kevin/secrets/.env` into
+ * `process.env` (secrets win over inherited values) so every entry point that
+ * imports config — the MCP server, the CLI — gets the keys, while ad-hoc Bash
+ * spawned by Claude never does. Absent file is the normal pre-migration state:
+ * keys still ride in from the settings `env` block until the migration moves
+ * them. Read-only and failure-tolerant — never throws at boot.
+ */
+function loadSecretsEnv(secretsRoot: string): void {
+  let raw: string;
+  try {
+    raw = readFileSync(resolve(secretsRoot, '.env'), 'utf-8');
+  } catch {
+    return;
+  }
+  for (const [key, value] of Object.entries(parseDotenv(raw))) {
+    process.env[key] = value;
+  }
+}
+
+loadSecretsEnv(SECRETS_ROOT);
+
+/**
+ * Exact-match redaction. Replaces every value in `.kevin/secrets/.env` (≥12 chars, to
+ * avoid scrubbing short common strings) with `<REDACTED:KEY_NAME>`. Read and matched
+ * entirely inside config — the gatekeeper — so callers (the session-capture redactor)
+ * scrub text without ever holding a raw secret value. `settings.local.json` is NOT
+ * scrubbed: by design it holds only private, non-secret config.
+ */
+export function scrubValues(text: string): string {
+  let secrets: Record<string, string>;
+  try {
+    secrets = parseDotenv(readFileSync(resolve(SECRETS_ROOT, '.env'), 'utf-8'));
+  } catch {
+    return text; // no/unreadable secrets/.env — prefix heuristics in the caller still run
+  }
+  let out = text;
+  for (const [name, value] of Object.entries(secrets)) {
+    if (value.length < 12) continue;
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(escaped, 'g'), `<REDACTED:${name}>`);
+  }
+  return out;
+}
 
 export const TIMEZONE = process.env.KEVIN_TIMEZONE?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
@@ -44,6 +116,7 @@ export const FOLDERS = {
   TEMPLATES: resolve(PLUGIN_ROOT, 'templates'),
   DATA: DATA_ROOT,
   CONFIG: resolve(DATA_ROOT, 'config'),
+  SECRETS: SECRETS_ROOT, // Deny-gated secrets dir (0700)
   LOGS: resolve(DATA_ROOT, 'logs'),
   KNOWLEDGE: KNOWLEDGE_ROOT,
   USER_KNOWLEDGE: resolve(KNOWLEDGE_ROOT, 'user'),
