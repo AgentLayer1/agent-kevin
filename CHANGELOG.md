@@ -43,6 +43,18 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.4] - 2026-06-25
+
+### Added
+- Read-only GitHub pack: nine MCP tools that shell out to `gh --json` — `github_pr_list` / `github_pr_view` / `github_pr_diff` / `github_pr_checks`, `github_run_list` / `github_run_view` / `github_run_log`, and `github_issue_list` / `github_issue_view`. Lets Kevin review PRs and issues, pull diffs and check status, and diagnose failing GitHub Actions runs (failed-step logs). No write subcommands — commenting, merging, and re-running workflows stay human-in-terminal by design. Runs from inside the MCP server (outside the Bash sandbox, where `gh`'s keychain TLS would otherwise fail), authenticating via a `GITHUB_TOKEN` from `.kevin/secrets/.env`. Repo defaults to `origin` of `KEVIN_CODE_PATH` / first `KEVIN_GIT_REPOS` entry; override per-call with `repo="owner/repo"`.
+- GitHub is now an opt-in pack in `/init` and `configure-skills` (new A.2d walk), alongside SEO / Browser / Database.
+
+### Changed
+- `self-review` and `yearly-goals` skills now persist their summaries via the `report_write` MCP tool, so each run leaves a durable report in the audit trail.
+
+### Upgrade
+- `settings: optional` — the GitHub pack is opt-in. To activate, run `/agent-kevin:configure-skills` (GitHub walk): it grants the nine `github_*` tool permissions, ensures `.kevin/secrets/.env`, and surfaces the steps to mint a fine-grained read-only PAT (`GITHUB_TOKEN`). Requires the `gh` CLI on PATH (`brew install gh`). Existing homes are unaffected until they opt in.
+
 ## [0.3.3] - 2026-06-25
 
 ### Added
