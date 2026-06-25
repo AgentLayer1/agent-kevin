@@ -1078,10 +1078,22 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
     ' data-row'
   )}</div>`;
 
-  const skillTiles = `<div data-filterbox>${filterInput('filter skills…')}<div class="tiles">${skills.details
+  const autoCount = skills.details.filter((skill) => skill.auto).length;
+  const skillChip = (filter: string, label: string, count: number, active: boolean): string =>
+    `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${esc(label)} <span class="dim">${count}</span></button>`;
+  const skillChips =
+    autoCount && autoCount < skills.details.length
+      ? `<div class="chips" data-catchips>${skillChip('all', 'All', skills.details.length, true)}${skillChip(
+          'auto',
+          'Auto',
+          autoCount,
+          false
+        )}${skillChip('manual', 'Manual', skills.details.length - autoCount, false)}</div>`
+      : '';
+  const skillTiles = `<div data-filterbox>${filterInput('filter skills…')}${skillChips}<div class="tiles">${skills.details
     .map(
       (skill) =>
-        `<div class="tile" data-row><div class="tname"><span class="good">/${esc(snap.runtime.pluginName)}:${esc(skill.name)}</span>${
+        `<div class="tile" data-row data-cat="${skill.auto ? 'auto' : 'manual'}"><div class="tname"><span class="good">/${esc(snap.runtime.pluginName)}:${esc(skill.name)}</span>${
           skill.custom ? ' <span class="chip">custom</span>' : ''
         }${skill.auto ? ' <span class="chip auto" title="the model may invoke this on its own">auto</span>' : ''}</div><div class="tdesc">${esc(skill.description || '—')}</div></div>`
     )
