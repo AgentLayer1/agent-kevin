@@ -45,6 +45,16 @@ and prompts per optional one. The new template files are the source of truth for
 
 ## [0.3.3] - 2026-06-25
 
+### Added
+- Sync now surfaces cadence nudges: planning and review skills (the weekly/monthly/yearly-goals trio + self-review) that have come due are listed with the exact slash command to run, driven by a `cadence` block in each skill and a shared `skills/sync/scripts/cadence.ts`.
+- Dashboard Skills tab gained auto/manual filter chips so you can split model-invocable skills from slash-only ones.
+- `kevin` CLI gained a `database` command group (list/schema/query/fork) mirroring the Database MCP tools for use outside Claude Code.
+
+### Changed
+- Consolidated every `process.env` read into a single config-free `shared/env.ts` module. Secret-reading tools (web-search, serpapi, open-page-rank, gsc, database, database_fork) now self-load `.kevin/secrets/.env` on first access regardless of import order, instead of relying on a sibling importing `config.ts` first. A build-time guard test fails if any module outside `shared/env.ts` reads `process.env` directly.
+- self-review skill: fixed path drift, added an output watermark and a template-promotion track.
+- Dashboard settings/env/secrets tables now wrap long values instead of overflowing.
+
 ### Fixed
 - Sandbox secrets deny never bit. v0.3.0/v0.3.1 wrote the secrets deny under `sandbox.filesystem.read.denyOnly` — the harness's internal *resolved* shape, not a real settings input key — so Claude Code silently ignored it and files nested under `.kevin/secrets/` (Google OAuth tokens, `.kevin/secrets/.env`) stayed readable by sandboxed Bash, even though `ls` of the dir was blocked. The real key is `sandbox.filesystem.denyRead`; pointing it at the directory (no glob) denies it and everything under it at the OS level, which also sidesteps the gitignore `**`-won't-descend-into-`.kevin` dot-dir trap. `/init` now scaffolds `denyRead` plus a forward-compatible `sandbox.credentials.files` entry (honored on Claude Code v2.1.187+, ignored on older).
 
