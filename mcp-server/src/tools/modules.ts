@@ -12,6 +12,7 @@ export const TOOL_MODULES = [
   'compile',
   'database',
   'database-fork',
+  'github',
   'google-page-speed',
   'google-search-console',
   'knowledge',
