@@ -1,6 +1,6 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *)
 ---
@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 # Configure Skills
 
 This skill manages Kevin's optional capabilities. Use it to:
-1. **Configure a pack** (SEO, Browser, or Database) — writes API keys, registers MCP servers, sets up database connections, grants tool permissions
+1. **Configure a pack** (SEO, Browser, Database, or GitHub) — writes API keys, registers MCP servers, sets up database connections, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
@@ -66,9 +66,10 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ SEO — 6 SEO skills + the `google-search-audit` composite (already loaded; this walks API key + permission setup)
 > - ☐ Browser **(recommended)** — Perplexity research + Playwright tool permissions
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
+> - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs and diagnose failing CI builds
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → Third-party (Section F).
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
@@ -251,6 +252,67 @@ Relaunch Claude Code, then run database_list to confirm Kevin sees them.
 Add more connections any time by re-running this walk.
 ```
 
+### A.2d — GitHub pack walk
+
+Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, see check status, and diagnose failing GitHub Actions runs (the failed-step logs). Nine MCP tools, all `gh --json`, no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design.
+
+**Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.kevin/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
+
+> **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.kevin/secrets/.env` exists, and surfaces the `GITHUB_TOKEN=` line + minting steps. The user fills the value in their editor.
+
+**(1) Grant the GitHub tool permissions.** Add all nine to `permissions.allow` via §E (all read-only):
+
+- `mcp__plugin_agent-kevin_kevin__github_pr_list`
+- `mcp__plugin_agent-kevin_kevin__github_pr_view`
+- `mcp__plugin_agent-kevin_kevin__github_pr_diff`
+- `mcp__plugin_agent-kevin_kevin__github_pr_checks`
+- `mcp__plugin_agent-kevin_kevin__github_run_list`
+- `mcp__plugin_agent-kevin_kevin__github_run_view`
+- `mcp__plugin_agent-kevin_kevin__github_run_log`
+- `mcp__plugin_agent-kevin_kevin__github_issue_list`
+- `mcp__plugin_agent-kevin_kevin__github_issue_view`
+
+**(2) Surface the PAT minting steps.** `AskUserQuestion`:
+
+> **Activate GitHub (read-only)?**
+> Grants the `github_pr_*` / `github_run_*` tool permissions and ensures `.kevin/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. The tools stay callable but return "GITHUB_TOKEN not set" until you fill it.
+>
+> - Yes — grant permissions + ensure placeholder
+> - Skip (no permission grant, no placeholder)
+
+If yes, surface these steps verbatim:
+
+1. Open [GitHub → Settings → Developer settings → Fine-grained tokens](https://github.com/settings/tokens?type=beta).
+2. **Generate new token.** Set **Resource owner** to the org/user that owns the repos Kevin will read (e.g. your org — self-approval is instant if you own it).
+3. **Repository access:** select the specific repos (or all repos under that owner) — keep it as tight as the work needs.
+4. **Permissions → Repository permissions**, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Checks** · **Actions**. Grant **no** write permissions — read-only is the second wall behind the read-only tool surface.
+   - **Actions (Read)** is the one that covers workflow **runs**, logs, and artifacts — that's what "did this PR build pass / debug the red build" needs.
+   - Do **NOT** add **Workflows** — despite the name, that permission grants *write* access to the `.github/workflows/*.yml` files (editing the CI definitions), which Kevin never does. `Actions: Read` is the correct one for reading run status.
+   - You don't need **Contents** — PR diffs come through the Pull requests permission (verified).
+5. Generate, copy the `github_pat_…` value.
+6. Ensure the secret store exists (§D.1) and add the line in your editor:
+   ```
+   GITHUB_TOKEN=github_pat_...
+   ```
+
+**(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope the PAT to whatever those paths point at (plus any repo you'll name explicitly).
+
+**(4) Summary:**
+
+```
+✅ GitHub pack activated (read-only).
+
+Tool permissions granted:  github_pr_list, github_pr_view, github_pr_diff, github_pr_checks,
+                           github_run_list, github_run_view, github_run_log,
+                           github_issue_list, github_issue_view
+Secret line to add:        GITHUB_TOKEN  (add to .kevin/secrets/.env)
+Default repo:              resolved from KEVIN_CODE_PATH / KEVIN_GIT_REPOS; override per-call with repo="owner/repo"
+
+Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows),
+add it to <HOME>/.kevin/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
+Requires the `gh` CLI on PATH (`brew install gh`).
+```
+
 ---
 
 ## Section F — Install third-party skill libraries
@@ -342,6 +404,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - SEO (clears API keys + permissions; skill files stay loaded but tool calls will error)
 > - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `KEVIN_DB_*` connection keys)
+> - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
 
 ### C.2 Deconfigure actions
 
@@ -360,6 +423,10 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 **Database deconfigure:**
 - Revoke the db tool grants from `permissions.allow` (§E remove helper): `database_list`, `database_query`, `database_schema`, `database_fork`. Always-on core stays.
 - `AskUserQuestion`: "Also remove your `KEVIN_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `KEVIN_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
+
+**GitHub deconfigure:**
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`. Always-on core stays.
+- `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
 
 Print summary of what was removed.
 
@@ -494,7 +561,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ```
 
 **Prefix rule** (use this whenever you need to know how a tool surfaces to permissions.allow):
-- Plugin-bundled MCP tools (from the plugin's own `.mcp.json` → any `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (25 tools, including `web_search` which wraps the Perplexity Search API).
+- Plugin-bundled MCP tools (from the plugin's own `.mcp.json` → any `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the read-only `github_*` PR/Actions tools).
 - Standalone MCP servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs, but users can add their own): `mcp__<server>__<tool>`
 
 **Revoke** (remove entries — deconfigure path):

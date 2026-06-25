@@ -113,7 +113,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
 > ❓ Communication style and values
 > ❓ Signal topics to track in your briefings (Kevin proposes a starter set)
-> ❓ Optional: configure skill packs (SEO, Browser, third-party libraries)
+> ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, third-party libraries)
 > ❓ Confirm + scaffold
 >
 > A few of the steps will prompt Claude Code for permission to run Bash commands, write files, or fetch URLs.
@@ -719,6 +719,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
+| GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*` | configure-skills A.2d (GitHub walk) |
 
 The allow list also carries nine **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:humanizer)`, and `Skill(agent-kevin:sync)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
@@ -1015,12 +1016,13 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
+> - ☐ GitHub pack (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
 
 Behavior on the response:
-- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
+- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
 - **Nothing ticked**: skip — note "skill packs not activated — run `/agent-kevin:configure-skills` after relaunch" for Step 9's status block. Don't touch settings files.
 
 For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow the matching section. Honor every per-skill skip option inside that flow; don't force the user through items they don't want.
@@ -1059,7 +1061,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill KEVIN_DB_<NAME> in .kevin/secrets/.env)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill KEVIN_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
@@ -1078,6 +1080,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
 >   - `KEVIN_DB_<NAME>` — Database pack: one Postgres connection string per line
+>   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows). Needs the `gh` CLI on PATH (`brew install gh`).
 > - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b (else `{}`). Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.

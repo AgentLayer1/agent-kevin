@@ -597,7 +597,7 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (31)
+### MCP tools (40)
 
 | Group | Tools |
 |---|---|
@@ -605,9 +605,10 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Dashboard** (1) | `dashboard` |
+| **GitHub** (9) | `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view` |
 | **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`, `web_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -763,6 +764,18 @@ Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout
 
 The pack also grants one **write** tool, `database_fork`: it clones a database into a private copy via `CREATE DATABASE <fork> TEMPLATE <source>` (pure SQL — no `pg_dump`/`pg_restore`, no dump file, cross-platform), so you can run risky or destructive schema changes against a scratch copy instead of a shared/live DB. It refuses remote hosts (local servers only), defaults to the first connection and its database, names the fork after the current git branch, and can repoint an env file at the fork; `drop: true` tears it back down. This is what the `setup-worktree` skill uses to give a worktree its own database on demand.
 
+### GitHub pack (`github_*` tools)
+
+Nine **read-only** GitHub tools let Kevin review pull requests and issues and diagnose failing CI without leaving the session: `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, and `github_issue_view`. `github_run_log` defaults to the **failed steps only** (`gh run view --log-failed`) — the right altitude for "why is this build red" without dumping a megabyte of green log. Diffs and logs are truncated to a character budget you can override per call.
+
+They wrap the [`gh` CLI](https://cli.github.com) (`brew install gh`), shelled out from inside the MCP server. That matters: under the Claude Code sandbox `gh` dies during TLS setup (its macOS build verifies certs through the keychain, which the seatbelt blocks), but the MCP server runs **outside** that sandbox, so the same `gh` works. There are **no write subcommands** — commenting, creating PRs, merging, and re-running workflows stay a deliberate human-in-terminal activity.
+
+Auth is a fine-grained, **read-only** personal access token in `<HOME>/.kevin/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain). The easiest setup is the **GitHub pack**: `/agent-kevin:configure-skills` → tick GitHub (or tick it at `/agent-kevin:init` Step 8). It grants the nine tool permissions, ensures `.kevin/secrets/.env` exists, and walks you through minting the PAT — resource owner set to the repos' owner, repository permissions all read-only (**Pull requests · Issues · Metadata · Checks · Actions**). You paste the value into your editor, never into chat. The read-only token is a second wall behind the read-only tool surface.
+
+One gotcha worth calling out: grant **Actions: Read** (which GitHub describes as "Workflows, workflow runs and artifacts") — that's what lets Kevin see CI run status and logs. Do **not** grant the separate **Workflows** permission: despite the name it's *write* access to the `.github/workflows/*.yml` files, which Kevin never touches. You don't need **Contents** either — PR diffs come through the Pull requests permission.
+
+When a call omits `repo`, Kevin resolves `owner/repo` from the `origin` remote of your `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry — the same codebase pair init configures. An explicit `repo="owner/repo"` always wins, so you can point any call at another repo the token can see.
+
 ---
 
 ## 🔼 How upgrades & releases work
@@ -853,11 +866,12 @@ A code-only release writes a single line: `None — code-only, no bun install or
 
 ## 🔑 External accounts & costs
 
-Kevin's core needs **zero external accounts**: tasks, knowledge compile, dashboard, session capture, and all four Playwright web tools (bundled chromium) run entirely on your machine against your Claude Code subscription. External accounts only enter the picture when you activate the **SEO** or **Browser** packs via `/agent-kevin:configure-skills`. Everything below is optional; skip this section if you don't need web search or SEO tooling.
+Kevin's core needs **zero external accounts**: tasks, knowledge compile, dashboard, session capture, and all four Playwright web tools (bundled chromium) run entirely on your machine against your Claude Code subscription. External accounts only enter the picture when you activate the **SEO**, **Browser**, or **GitHub** packs via `/agent-kevin:configure-skills`. Everything below is optional; skip this section if you don't need web search, SEO tooling, or PR/CI access.
 
 | Account | What it unlocks | Pack | Credential | Cost |
 |---|---|---|---|---|
 | [Perplexity](https://perplexity.ai/settings/api) | `web_search`: live web research with citations | Browser | `PERPLEXITY_API_KEY` | Pay-as-you-go, $5 per 1,000 requests. A $5 credit lasts most personal users days to weeks. |
+| [GitHub](https://github.com/settings/tokens?type=beta) | `github_pr_*` / `github_issue_*` / `github_run_*`: read-only PR + issue review + CI diagnosis (needs the `gh` CLI) | GitHub | `GITHUB_TOKEN` (fine-grained, read-only PAT) | Free |
 | [Google Cloud](https://console.cloud.google.com) | `gsc_*` (Search Console data) + `page_speed_*` (Lighthouse audits) | SEO | OAuth client JSON at `<HOME>/.kevin/config/google-oauth-client.json` | Free. PSI quota is 25k requests/day per project. |
 | [Google Search Console](https://search.google.com/search-console) | The site data behind `gsc_query`, `gsc_inspect`, and the audit skill | SEO | Your site verified under the same Google account | Free |
 | [SerpAPI](https://serpapi.com) | `serpapi_search`: live Google SERP positions for rank tracking | SEO | `SERPAPI_KEY` | Free tier: 250 searches/month. Paid from $25/month (1,000 searches). |
