@@ -2,7 +2,7 @@
 name: yearly-goals
 description: Plan the year quarter by quarter — reads the full task board, projects, and goal history, then interviews you before drafting per-quarter outcomes. Run quarterly: mid-year it shapes the remaining quarters; in Q4 it drafts next year starting from Q1.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, AskUserQuestion, Read, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Edit, Bash
 ---
 
 # Yearly Goals
@@ -53,6 +53,23 @@ _<Year> theme: <one line> · planned <YYYY-MM-DD>_
 ```
 
 Past quarters stay listed with a ✅/❌/↪ verdict instead of a check, so the year reads as a record, not just a plan.
+
+After updating `TASKS.md`, **also persist a snapshot** via the
+`mcp__plugin_agent-kevin_kevin__report_write` MCP tool so the year's plan
+survives when `TASKS.md` is overwritten next quarter:
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'yearly-goals',
+  title: <e.g. 'Yearly goals — 2026 (Q3-Q4)'>,
+  skill: 'yearly-goals',
+  body: <the full per-quarter outcomes + year theme + past-quarter verdicts as shown to the user>,
+  status: 'draft'
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
 
 ## Stamp the cadence watermark
 

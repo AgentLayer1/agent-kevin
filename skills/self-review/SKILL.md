@@ -147,6 +147,23 @@ Summarise:
 - W themes parked on watch
 - N aging plans surfaced
 
+Then **persist that summary** via the `mcp__plugin_agent-kevin_kevin__report_write`
+MCP tool so each cycle leaves an audit trail of what changed (HOME git doesn't run
+in-session, so this report is the only narrative record of the run):
+
+```
+report_write({
+  category: 'briefings',
+  slug: 'self-review',
+  title: <e.g. 'Self-review — 2026-06-25 (3 edits, 1 plan, 2 watched)'>,
+  skill: 'self-review',
+  body: <the summary above, with each Track A edit, Track B plan path, and watched theme named>,
+  status: 'draft'
+});
+```
+
+Surface `📄 Saved to <relPath>` to the operator. Skip the report only when the run cleared the bar with nothing to change (step 2 stopped early) — there's no cycle to record.
+
 Then **update the watermark** at `<HOME>/.kevin/review.json` so the next run doesn't re-litigate what you just triaged:
 
 ```
@@ -166,7 +183,7 @@ Then **update the watermark** at `<HOME>/.kevin/review.json` so the next run doe
 - **Never edit `<HOME>/knowledge/memory/index.md` or `<HOME>/knowledge/raw/user/feedback.md`.** Inputs, not outputs. The compile pipeline owns them.
 - **Never install a skill without explicit in-session approval.**
 - **Never edit `templates/` (Track D) without a fresh explicit go on that specific diff,** and never commit, push, `/release`, or tag from this skill. Outward-facing release ops are maintainer-gated.
-- **The one HOME file this skill writes is `<HOME>/.kevin/review.json`** (the watermark, step 6). Everything else under `<HOME>/` is read-only except the Track A prompt edits and Track B plans.
+- **The HOME files this skill writes are `<HOME>/.kevin/review.json`** (the watermark, step 6) **and the cycle-summary report** under `<HOME>/reports/briefings/` (also step 6). Everything else under `<HOME>/` is read-only except the Track A prompt edits and Track B plans.
 
 ## Quality gate before proposing
 
