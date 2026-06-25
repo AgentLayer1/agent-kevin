@@ -25,6 +25,11 @@
  *   kevin worktree <repoPath> --branch=BRANCH [--base=REF] [--slug=SLUG] [--extra=sub1,sub2]
  *
  *   kevin knowledge lint [--fix]
+ *
+ *   kevin database list
+ *   kevin database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
+ *   kevin database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
+ *   kevin database fork [--connection=NAME] [--source=DB] [--fork=NAME] [--cwd=PATH] [--repoint-env] [--env-var=DATABASE_URL] [--force] [--terminate-source] [--drop]
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -85,6 +90,10 @@ function flagArr(name: string): string[] {
     : [];
 }
 
+function bool(name: string): boolean {
+  return args.includes(`--${name}`);
+}
+
 interface HookInput {
   session_id?: string;
   transcript_path?: string;
@@ -123,6 +132,7 @@ Groups:
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
   worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build)
+  database                          Query/inspect/fork local Postgres via KEVIN_DB_<NAME> connections (real terminal — outside the Bash sandbox)
 
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
@@ -170,6 +180,17 @@ Worktree commands:
                                     NOTE: blocked by the Bash sandbox when run from inside Claude Code (git can't write
                                     .git/config) — use the setup_worktree MCP tool there; this CLI is for a real terminal.
 
+Database commands:
+  database list                     List configured KEVIN_DB_<NAME> connections (name + host/db, never credentials)
+  database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
+                                    List user tables, or describe one table's columns (read-only)
+  database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
+                                    Run read-only SQL (server-enforced READ ONLY tx; writes/DDL rejected)
+  database fork [--connection=NAME] [--source=DB] [--fork=NAME] [--cwd=PATH] [--repoint-env] [--env-var=DATABASE_URL] [--force] [--terminate-source] [--drop]
+                                    Clone a LOCAL database via CREATE DATABASE ... TEMPLATE. Fork name defaults to
+                                    <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
+                                    .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
+
 Environment:
   KEVIN_HOME=<path>                 Override agent home (default: cwd)
   KEVIN_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
@@ -188,6 +209,9 @@ Examples:
   kevin worktree /path/to/repo --branch=feat/my-thing
   kevin knowledge lint --fix
   kevin compile status
+  kevin database list
+  kevin database query --connection=app --sql="select count(*) from users"
+  kevin database fork --connection=app --cwd=/path/to/worktree --repoint-env
 `;
 
 async function run(): Promise<void> {
@@ -349,6 +373,67 @@ async function run(): Promise<void> {
       }
       default:
         throw new Error(`Unknown knowledge subcommand: ${command}`);
+    }
+  }
+
+  if (group === 'database') {
+    // The database tools live as MCP tool handlers; reuse them directly rather
+    // than duplicating the SQL. Importing config first triggers the one-time
+    // load of .kevin/secrets/.env into process.env, where the KEVIN_DB_*
+    // connection strings live. Like worktree/database_fork, these run outside
+    // the Bash sandbox — this CLI path is the real-terminal entry point.
+    await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
+    const { tools: readTools } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/tools/database'));
+    const { tools: forkTools } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/tools/database-fork'));
+    const byName = new Map([...readTools, ...forkTools].map((tool) => [tool.name, tool] as const));
+    const call = async (name: string, params: Record<string, unknown>): Promise<void> => {
+      const tool = byName.get(name);
+      if (!tool) throw new Error(`Tool not found: ${name}`);
+      console.log(JSON.stringify(await tool.handler(params), null, 2));
+    };
+
+    switch (command) {
+      case 'list':
+        await call('database_list', {});
+        return;
+      case 'schema':
+        await call('database_schema', {
+          connection: flag('connection'),
+          table: flag('table'),
+          schema: flag('schema'),
+          database: flag('database')
+        });
+        return;
+      case 'query': {
+        const connection = flag('connection');
+        const sql = flag('sql');
+        if (!connection || !sql) {
+          throw new Error('Usage: kevin database query --connection=NAME --sql="SELECT ..." [--database=X] [--timeout=MS]');
+        }
+        const timeout = flag('timeout');
+        await call('database_query', {
+          connection,
+          sql,
+          database: flag('database'),
+          timeout_ms: timeout ? Number(timeout) : undefined
+        });
+        return;
+      }
+      case 'fork':
+        await call('database_fork', {
+          connection: flag('connection'),
+          source: flag('source'),
+          fork: flag('fork'),
+          cwd: flag('cwd'),
+          repointEnv: bool('repoint-env'),
+          envVar: flag('env-var'),
+          force: bool('force'),
+          terminateSource: bool('terminate-source'),
+          drop: bool('drop')
+        });
+        return;
+      default:
+        throw new Error(`Unknown database subcommand: ${command}`);
     }
   }
 
