@@ -1,7 +1,7 @@
 ---
 name: sync
-description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), Read, Write, Edit, Glob, Grep, Bash
+description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
+allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -174,6 +174,22 @@ mcp__plugin_agent-kevin_kevin__dashboard
 
 Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent } }`. One call, no judgment needed.
 
+### 11. Closing interview — what's next (only when something's actionable)
+
+After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
+
+When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions:
+
+1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, the due cadence skill (`/weekly-goals`, `/monthly-goals`, `/yearly-goals`, `/self-review`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one.
+2. **"Act on it now, or queue it as a task?"** — options `Act now` / `Queue as a task`.
+
+Then honor the second answer:
+
+- **Act now** → do the chosen step this session. External/outbound actions (emails, messages, public posts, `git push`, anything that leaves the machine) still confirm first per the operating rules — an interview pick is not standing authorization for those.
+- **Queue as a task** → if the choice maps to an existing task, `task_thread` a note and bump priority/status as fitting; otherwise `task_create` one. Confirm the id/title back in a single line, then stop.
+
+**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation` and `/upgrade` is operator-gated, so sync can't run them either way. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
+
 ## Output
 
 One block, tight. Skip empty sections — don't pad.
@@ -227,6 +243,8 @@ A pending upgrade or a due cadence item is "something flagged" — if either fir
 ```
 
 If a briefing arg was supplied, append the briefing block below the sync block (or below the one-liner). Two blocks, one message — sync on top, briefing underneath. Don't merge them; the shapes are distinct on purpose.
+
+The output block is the last *text* of the run. The step-11 interview, when it fires, comes after it as the closing `AskUserQuestion` — emit the block, then ask. On a clean bill there's no interview; the block (or one-liner) is the end.
 
 ## Boundaries
 
