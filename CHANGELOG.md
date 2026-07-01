@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.5] - 2026-06-30
+
+### Added
+- `sync` now closes with a next-steps interview: after the dashboard render, it turns the surfaced backlog into a single `AskUserQuestion`. Pick a concrete next move (a suggested move, a flagged overdue/stale item, a due cadence skill, or a pending upgrade), then act on it now or queue it as a task. Gated to fire only when something is actually surfaced; a clean bill still ends on the `✅ Sync complete` one-liner. Cadence/upgrade picks collapse to surfacing the slash command (they stay operator-gated).
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.4] - 2026-06-25
 
 ### Added
