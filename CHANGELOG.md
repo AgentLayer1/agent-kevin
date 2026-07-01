@@ -49,7 +49,7 @@ and prompts per optional one. The new template files are the source of truth for
 - `.env` deny baseline in `/init` narrowed: the catch-all `Read(**/.env.*)` is replaced by explicit denies for the secret-bearing variants (`.env.local`, `.env.*.local`, `.env.development`, `.env.production`, `.env.staging`, `.env.test`). Template files (`.env.example`, `.env.sample`, `.env.template`) now read freely, since Claude Code evaluates deny before allow with no glob negation, so narrowing the deny is the only way to whitelist one file. The bare `.env` stays denied; secrets in `.kevin/secrets/` are unaffected.
 
 ### Upgrade
-- `script: optional` — run `skills/upgrade/scripts/0.3.6.ts` (swaps the broad `Read(**/.env.*)` deny in `.claude/settings.json` for the enumerated variants). Surgical and idempotent: acts only when the exact broad rule is present, so a customized deny list is left untouched. Skip if you don't need to read `.env.example` in an existing home.
+- `settings: optional` — in `.claude/settings.json` → `permissions.deny`, replace `Read(**/.env.*)` with `Read(**/.env.local)`, `Read(**/.env.*.local)`, `Read(**/.env.development)`, `Read(**/.env.production)`, `Read(**/.env.staging)`, `Read(**/.env.test)`. Purely a relaxation so `.env.example` becomes readable; skip if you prefer the broader deny.
 
 ## [0.3.5] - 2026-06-30
 
