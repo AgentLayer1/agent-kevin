@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.7] - 2026-07-06
+
+### Fixed
+- Report-writing skills (`where-am-i`, `flywheel`, `morning-briefing`, `evening-briefing`, `self-review`, `weekly-goals`, `monthly-goals`, `yearly-goals`) now surface the absolute `path` returned by `report_write` instead of the relative `relPath`, so the "📄 Saved to …" line is command-clickable in any terminal (e.g. cmux) without a base directory.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.6] - 2026-07-01
 
 ### Changed
