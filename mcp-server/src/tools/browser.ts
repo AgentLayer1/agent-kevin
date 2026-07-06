@@ -1,6 +1,8 @@
 /**
  * Browser MCP tools (browser_screenshot/pdf/markdown/record) — in-process
- * browser via the playwright npm package.
+ * browser via the playwright npm package. On native Windows the context comes
+ * from a CDP attach instead of an in-process launch (see shared/browser-deps.ts),
+ * and browser_record is unavailable there.
  *
  * Chromium is bundled inside the plugin's own `node_modules/playwright/.local-browsers/`
  * (via the `PLAYWRIGHT_BROWSERS_PATH=0` mode used in the package.json postinstall),
@@ -17,7 +19,7 @@
  */
 
 import { FOLDERS } from '@/config';
-import { withBrowserLaunch } from '@/shared/browser-deps';
+import { acquireContext, withBrowserLaunch, type ChromiumLike, type PageLike } from '@/shared/browser-deps';
 import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { log } from '@/shared/log';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -38,37 +40,6 @@ const StepSchema = z.object({
 });
 
 type Step = z.infer<typeof StepSchema>;
-
-interface ChromiumLike {
-  executablePath: () => string;
-  launch: (options?: { headless?: boolean }) => Promise<{
-    newContext: (options?: {
-      recordVideo?: { dir: string; size?: { width: number; height: number } };
-      viewport?: { width: number; height: number } | null;
-    }) => Promise<{
-      newPage: () => Promise<{
-        goto: (url: string, opts?: { waitUntil?: 'load' | 'networkidle' | 'domcontentloaded' }) => Promise<unknown>;
-        setContent: (
-          html: string,
-          opts?: { waitUntil?: 'load' | 'networkidle' | 'domcontentloaded' }
-        ) => Promise<unknown>;
-        content: () => Promise<string>;
-        screenshot: (opts?: { fullPage?: boolean; path?: string }) => Promise<Buffer>;
-        pdf: (opts?: { path?: string; format?: string }) => Promise<Buffer>;
-        evaluate: (fn: (px: number) => void, arg: number) => Promise<void>;
-        setViewportSize: (size: { width: number; height: number }) => Promise<void>;
-        video: () => { saveAs: (path: string) => Promise<void>; delete: () => Promise<void> } | null;
-        waitForTimeout: (ms: number) => Promise<void>;
-        waitForFunction: (
-          pageFunction: () => boolean,
-          options?: { timeout?: number; polling?: number | 'raf' }
-        ) => Promise<unknown>;
-      }>;
-      close: () => Promise<void>;
-    }>;
-    close: () => Promise<void>;
-  }>;
-}
 
 async function getChromium(): Promise<ChromiumLike> {
   // `PLAYWRIGHT_BROWSERS_PATH=0` is set by `.mcp.json` so playwright resolves
@@ -93,9 +64,6 @@ async function getChromium(): Promise<ChromiumLike> {
   }
   return chromium;
 }
-
-const launchChromium = (chromium: ChromiumLike): Promise<Awaited<ReturnType<ChromiumLike['launch']>>> =>
-  withBrowserLaunch(() => chromium.launch({ headless: true }));
 
 function captureFilename(action: string, ext: string, name?: string): string {
   mkdirSync(CAPTURES_DIR, { recursive: true });
@@ -194,13 +162,7 @@ async function renderMarkdownFile(filePath: string): Promise<RenderedMarkdown> {
 
 const MARKDOWN_EXT = /\.(md|markdown|mdown|mkdn)$/i;
 
-type Page = Awaited<
-  ReturnType<Awaited<ReturnType<ChromiumLike['launch']>>['newContext']>
->['newPage'] extends () => Promise<infer P>
-  ? P
-  : never;
-
-async function loadInto(page: Page, target: NormalizedInput): Promise<void> {
+async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> {
   if (target.isFile && target.filePath && MARKDOWN_EXT.test(target.filePath)) {
     const { html, hasMermaid } = await renderMarkdownFile(target.filePath);
     await page.setContent(html, { waitUntil: 'load' });
@@ -220,14 +182,7 @@ async function loadInto(page: Page, target: NormalizedInput): Promise<void> {
   await page.goto(target.url, { waitUntil: 'load' });
 }
 
-async function runStep(
-  page: Awaited<ReturnType<Awaited<ReturnType<ChromiumLike['launch']>>['newContext']>>['newPage'] extends () => Promise<
-    infer P
-  >
-    ? P
-    : never,
-  step: Step
-): Promise<void> {
+async function runStep(page: PageLike, step: Step): Promise<void> {
   switch (step.kind) {
     case 'navigate':
       if (!step.url) throw new Error('navigate step missing `url`');
@@ -259,15 +214,14 @@ export const tools: ToolDef[] = [
       const chromium = await getChromium();
       const target = normalizeInput(input);
       const outPath = captureFilename('screenshot', 'png', name);
-      const browser = await launchChromium(chromium);
+      const { context, close } = await acquireContext(chromium);
       try {
-        const context = await browser.newContext();
         const page = await context.newPage();
         await loadInto(page, target);
         await page.screenshot({ path: outPath, fullPage: fullPage ?? false });
         log.info(`screenshot -> ${outPath}`);
       } finally {
-        await browser.close();
+        await close();
       }
       return { path: outPath };
     }
@@ -283,15 +237,14 @@ export const tools: ToolDef[] = [
       const chromium = await getChromium();
       const target = normalizeInput(input);
       const outPath = captureFilename('pdf', 'pdf', name);
-      const browser = await launchChromium(chromium);
+      const { context, close } = await acquireContext(chromium);
       try {
-        const context = await browser.newContext();
         const page = await context.newPage();
         await loadInto(page, target);
         await page.pdf({ path: outPath, format: 'A4' });
         log.info(`pdf -> ${outPath}`);
       } finally {
-        await browser.close();
+        await close();
       }
       return { path: outPath };
     }
@@ -312,9 +265,8 @@ export const tools: ToolDef[] = [
       const chromium = await getChromium();
       const target = normalizeInput(input);
       const outPath = captureFilename('markdown', 'md', name);
-      const browser = await launchChromium(chromium);
+      const { context, close } = await acquireContext(chromium);
       try {
-        const context = await browser.newContext();
         const page = await context.newPage();
         if (target.isFile && target.filePath && MARKDOWN_EXT.test(target.filePath)) {
           // Local .md file → no extraction needed, just read as-is. We still
@@ -334,7 +286,7 @@ export const tools: ToolDef[] = [
         await writeFile(outPath, markdown, 'utf-8');
         log.info(`markdown -> ${outPath}`);
       } finally {
-        await browser.close();
+        await close();
       }
       return { path: outPath };
     }
@@ -350,9 +302,15 @@ export const tools: ToolDef[] = [
       viewport: z.object({ width: z.number().int(), height: z.number().int() }).optional()
     },
     handler: async ({ input, steps, name, viewport }) => {
+      if (process.platform === 'win32') {
+        throw new Error(
+          'browser_record is unavailable on native Windows: video needs a Playwright-launched browser, and bun ' +
+            'on win32 can only attach over CDP (oven-sh/bun#27977). Use browser_screenshot or browser_markdown instead.'
+        );
+      }
       const chromium = await getChromium();
       mkdirSync(CAPTURES_DIR, { recursive: true });
-      const browser = await launchChromium(chromium);
+      const browser = await withBrowserLaunch(() => chromium.launch({ headless: true }));
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const videoDir = resolve(CAPTURES_DIR, `${stamp}-${name ?? 'record'}-tmp`);
       mkdirSync(videoDir, { recursive: true });
