@@ -162,7 +162,7 @@ report_write({
 });
 ```
 
-Surface `📄 Saved to <relPath>` to the operator. Skip the report only when the run cleared the bar with nothing to change (step 2 stopped early) — there's no cycle to record.
+Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) to the operator. Skip the report only when the run cleared the bar with nothing to change (step 2 stopped early) — there's no cycle to record.
 
 Then **update the watermark** at `<HOME>/.kevin/review.json` so the next run doesn't re-litigate what you just triaged:
 

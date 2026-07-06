@@ -115,5 +115,5 @@ report_write({
 });
 ```
 
-Surface `📄 Saved to <relPath>` at the end of the digest. Skip the report only when the
+Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) at the end of the digest. Skip the report only when the
 scan returns zero sessions (nothing worth recording).

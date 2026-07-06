@@ -88,7 +88,7 @@ report_write({
 });
 ```
 
-Surface `📄 Saved to <relPath>` to the operator alongside the TASKS.md update.
+Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) to the operator alongside the TASKS.md update.
 
 ## Stamp the cadence watermark
 
