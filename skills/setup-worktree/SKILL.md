@@ -157,13 +157,13 @@ dump. A status header, then one aligned line per action that actually ran (skip 
 didn't apply rather than printing "n/a"). Terminal-native: ASCII + a light 🍌, no wall of tables.
 
 ```
-🍌 Worktree removed — vetra-mono-activation
+🍌 Worktree removed — acme-mono-darkmode
 
    remove     git worktree remove ✓
    clean      pnpm run clean ✓
-   workspace  unwired from vetra.code-workspace
+   workspace  unwired from acme.code-workspace
    db fork    shared DB — nothing to drop
-   branch     basem/activation — deleted
+   branch     basem/darkmode — deleted
 ```
 
 Always show the `branch` line as `kept` or `deleted` so its fate is explicit. For a `blocked-*`
@@ -205,12 +205,12 @@ fork isn't orphaned. Remote connections are refused; `database_fork` only acts o
 
 **Resolving the source connection (the generic seam):** the tool needs a `KEVIN_DB_<NAME>`
 connection pointing at the repo's local Postgres server (e.g.
-`KEVIN_DB_VETRA=postgresql://postgres:@localhost:5432/vetra` in **`.kevin/secrets/.env`** — since
+`KEVIN_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.kevin/secrets/.env`** — since
 v0.3.0 credential env vars live there, not in `.claude/settings.local.json`). It defaults to the
 first configured connection; when a repo has several, pick the right one in this order:
 
 1. A declaration in the **repo's root `CLAUDE.md`** — a line of the form
-   `Worktree DB connection: <kevin-db-name>` (e.g. `vetra`).
+   `Worktree DB connection: <kevin-db-name>` (e.g. `acme`).
 2. If the repo doesn't declare one and **`$KEVIN_CODE_PATH` is set**, check that repo's `CLAUDE.md`
    for the same line.
 3. Otherwise run `database_list` and, if exactly one connection matches the repo's local server, use it;
