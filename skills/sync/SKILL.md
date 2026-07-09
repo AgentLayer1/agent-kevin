@@ -181,6 +181,12 @@ After the output block (see below), turn the surfaced backlog into a decision. *
 When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions:
 
 1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, the due cadence skill (`/weekly-goals`, `/monthly-goals`, `/yearly-goals`, `/self-review`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one.
+
+   **Freshness gate — verify every candidate against current ground truth before offering it (do NOT skip).** The failure mode here is offering something the operator *already did*, often in the very sessions this sync just compiled. The Pending list in `memory/index.md`, the cadence watermarks, and even today's briefing are lagging views — a task can be closed, a bug already fixed, or a chore already handled between when that state was written and now. So for each candidate, confirm it's still open against the freshest source before it earns a slot:
+   - **Task-backed candidate** → re-read the task's frontmatter `status` (a `done`/`cancelled`/`blocked`-on-someone-else task is not a "tackle next"). Prefer items whose status/thread you touched *this run* (flywheel step 5) over anything read only from the stale Pending list.
+   - **"Did X get done already?" candidate** (a surfaced bug, a noisy log, a cleanup) → this is exactly the "derived state ≠ source of truth" trap. Check the actual artifact — grep the code, read the file, pull the live log/metric — or scan today's compiled sessions for the fix. If it was handled (even minutes before this sync), drop it. When you can't cheaply verify, phrase it as a *verification* step ("confirm X is still an issue"), never as a bare "do X".
+   - **Cadence/upgrade candidate** → only surface if the step-6 check *this run* said it's due (watermark null/stale) AND you didn't see it satisfied in today's sessions. A cadence the operator just ran or consciously skipped is not a fresh suggestion.
+   - **Prefer today's deltas.** The best next-move candidates come from what *moved* this run — a task closed today that unblocks a dependent, a follow-up the just-compiled sessions explicitly named as "next", a flag raised in the briefing. Rank those above anything lifted from long-standing Pending bullets. If freshness-checking empties the list, offer fewer options (or none — re-gate: a fully-verified-empty list means skip the interview).
 2. **"Act on it now, or queue it as a task?"** — options `Act now` / `Queue as a task`.
 
 Then honor the second answer:
@@ -227,7 +233,7 @@ One block, tight. Skip empty sections — don't pad.
   - <one line per error, with file path>
 
 💡 Suggested next moves
-  - <2-3 concrete tasks the user could pick up right now, based on what's actually open>
+  - <2-3 concrete tasks the user could pick up right now, based on what's actually open — each freshness-checked per step 11's gate; drop anything already handled (often in the sessions this sync just compiled), favour today's deltas over stale Pending bullets>
 ```
 
 If everything is clean: a one-liner is the right output.
