@@ -185,6 +185,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
 - "Phase 1 must be perfect before Phase 2" — willing to spend a session getting foundation right.
 - Commit per phase for tractable review; rejects megacommits.
+- Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed.
 - Compare options before committing — back-of-envelope across alternatives saves months.
 - Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know".
 - After any correction from me, write a lesson to memory so the same mistake doesn't repeat.
