@@ -1,7 +1,7 @@
 ---
 name: setup-worktree
 description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `$KEVIN_CODE_PATH` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists.
-allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, Bash, Read, Edit
+allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, mcp__plugin_agent-kevin_kevin__github_pr_list, Bash, Read, Edit
 ---
 
 # setup-worktree — parallel checkout, ready to code
@@ -113,8 +113,11 @@ Flow:
      can't be removed and they need to commit (or stash/discard) first. `force` does **not** override
      this — never pass it to bypass uncommitted work. The `uncommitted` array lists the dirty paths.
    - **`blocked-unpushed`** — everything's committed but the branch has `unpushed` commits on no
-     remote. **Warn and ask**: "That branch has N commit(s) not pushed anywhere — remove it anyway?"
-     Only on an explicit yes, carry `force: true` into the steps below.
+     remote. First check the branch's PR (see **PR status** below): if it's **merged**, those commits
+     are the merged work (typical after a squash-merge with the remote branch auto-deleted) — tell the
+     operator "PR #N was merged, safe to remove" and proceed with `force: true`, don't alarm them about
+     lost work. Otherwise **warn and ask**: "That branch has N commit(s) not pushed anywhere — remove
+     it anyway?" Only on an explicit yes, carry `force: true` into the steps below.
    - **`removable`** — the gates pass; go ahead.
 3. **Unwire it from the VS Code workspace, if it's there** (mirror of create Step 2). Only reached once
    the pre-check says `removable`, so you never yank a folder the operator is still working in. Glob the
@@ -150,6 +153,22 @@ too, or keep it?" — and only re-call with `deleteBranch` on a yes. (When the r
 tool force-deletes the branch with `-D`, since an unpushed branch won't `-d`; `branchDeleteError`
 carries any failure.)
 
+### PR status (GitHub pack, optional)
+
+If the GitHub pack is configured, enrich the teardown with the branch's PR state — it clarifies the
+unpushed gate and the branch's fate, but it is **never** required. Derive the repo `owner/name` from
+the worktree's `origin` remote (`git -C <worktreePath> remote get-url origin`), call `github_pr_list`
+with that `repo` and `state: 'all'`, and match the PR whose `headRefName` equals the branch. Use it to:
+
+- **reframe `blocked-unpushed`** when the PR is merged (the "unpushed" commits are the merged work);
+- **frame the branch-delete ask** — merged → "its PR #N is merged, delete the branch too?"; open →
+  "PR #N is still open — delete anyway?"; closed/none → ask plainly;
+- **annotate the report's `branch` line** (e.g. `deleted · PR #123 merged`).
+
+No pack configured, or the lookup errors → skip it silently and run the plain flow; never hard-fail on
+the pack being absent. No `-D` gymnastics are needed: a merged branch that `-d` can't see is always one
+the unpushed gate already routed through `force` (which force-deletes), so there's nothing extra to pass.
+
 ### Report the outcome
 
 Close with one tidy summary distilled from the result — never paste the raw JSON or the full `steps`
@@ -163,10 +182,11 @@ didn't apply rather than printing "n/a"). Terminal-native: ASCII + a light 🍌,
    clean      pnpm run clean ✓
    workspace  unwired from acme.code-workspace
    db fork    shared DB — nothing to drop
-   branch     basem/darkmode — deleted
+   branch     basem/darkmode — deleted · PR #123 merged
 ```
 
-Always show the `branch` line as `kept` or `deleted` so its fate is explicit. For a `blocked-*`
+Always show the `branch` line as `kept` or `deleted` so its fate is explicit, appending the PR state
+when the GitHub pack surfaced one. For a `blocked-*`
 status, lead with **why** it stopped and the one thing to do next (commit first / confirm the unpushed
 removal) — don't render the success block. For `failed`, say git refused (dirty/locked) or the husk
 couldn't be deleted, name it, and surface the failing `steps` line; never imply it was removed.
