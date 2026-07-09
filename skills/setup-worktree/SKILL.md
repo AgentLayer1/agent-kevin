@@ -1,7 +1,7 @@
 ---
 name: setup-worktree
 description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `$KEVIN_CODE_PATH` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists.
-allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__database_fork, Bash, Read, Edit
+allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, Bash, Read, Edit
 ---
 
 # setup-worktree — parallel checkout, ready to code
@@ -84,8 +84,92 @@ This is a plain JSON edit, not the MCP tool's job: do it with `Read` + `Edit`.
 ## Step 3 — confirm and hand off
 
 Report the `worktreePath`, `branch`, and the `baseBranch` it branched from, surface any failed
-`steps`, then point the next agent (or a cmux workspace) at it. When the branch lands, clean up
-with `git worktree remove <worktreePath>`.
+`steps`, then point the next agent (or a cmux workspace) at it. When the branch lands, tear it down
+with the drop flow below.
+
+## Dropping a worktree
+
+When the operator asks to **drop / delete / remove / tear down** a worktree, use the
+`remove_worktree` MCP tool — not raw `git worktree remove` in Bash (same sandbox block: removal
+rewrites the main repo's `.git/config`). The tool does the authoritative safety checks; you own the
+conversational gates around them.
+
+**Always confirm before removing — it's destructive.** Even when the tree looks clean, never call
+`remove_worktree` on an inferred or ambient go-ahead: get an explicit yes for *this* removal. Two
+gates back you up here — your confirmation, and the fact that `remove_worktree` is intentionally
+**not** in the pre-granted permissions, so Claude Code shows its own approval prompt before the tool
+runs. Keep it that way (don't add it to any allowlist); the harness prompt is a deliberate second
+safety net on a destructive op.
+
+Flow:
+
+1. **Confirm first.** State what you're about to remove — the `worktreePath` and its `branch` — and
+   ask the operator to confirm. If they didn't mention the branch, ask in the same breath whether to
+   delete it too or keep it. Only proceed on an explicit yes.
+2. **Dry-run pre-check.** Call `mcp__plugin_agent-kevin_kevin__remove_worktree` with `dryRun: true`
+   (plus `worktreePath`). It reports the `status` **without touching anything** — so you learn whether
+   the removal is blocked before you unwire the workspace:
+   - **`blocked-uncommitted`** — the worktree has uncommitted changes. **Stop.** Tell the operator it
+     can't be removed and they need to commit (or stash/discard) first. `force` does **not** override
+     this — never pass it to bypass uncommitted work. The `uncommitted` array lists the dirty paths.
+   - **`blocked-unpushed`** — everything's committed but the branch has `unpushed` commits on no
+     remote. **Warn and ask**: "That branch has N commit(s) not pushed anywhere — remove it anyway?"
+     Only on an explicit yes, carry `force: true` into the steps below.
+   - **`removable`** — the gates pass; go ahead.
+3. **Unwire it from the VS Code workspace, if it's there** (mirror of create Step 2). Only reached once
+   the pre-check says `removable`, so you never yank a folder the operator is still working in. Glob the
+   worktree's parent dir (`dirname(worktreePath)`, the sibling level) for `*.code-workspace`. For each
+   one, `Read` it and check whether its `folders` array has an entry pointing at this worktree (a
+   `path` matching the worktree dir's basename). If so, `Edit` that single entry out, leaving every
+   other key (`settings`, `extensions`, the other folders) untouched — a surgical JSON edit, not the
+   MCP tool's job. Do this **before** the real removal so the workspace never references a folder that's
+   about to be cleaned and deleted. No workspace file, or no matching entry: skip silently.
+4. **Drop the DB fork, if there is one** (the teardown counterpart of create Step 4). Most worktrees run
+   on the shared DB — nothing to drop. A schema-work worktree got a private fork from `database_fork`,
+   and it must be dropped **before** the removal, while its `.env.local` override still exists. Detect it
+   **server-side** — do NOT read `<worktree>/.env.local` (it's covered by the secrets deny-read rule, so
+   the read just gets denied): `database_query` `pg_database` for a `<source>_<branch-slug>`-named
+   database matching this worktree's branch. Fork found → `database_fork` with
+   `{ drop: true, cwd: <worktreePath>, repointEnv: true }` (it runs outside the sandbox, so it removes
+   the `.env.local` override itself). No fork on the server → skip and say "shared DB, nothing to drop."
+   Teardown never touches the shared DB.
+5. **Remove for real.** Call `remove_worktree` again with the `worktreePath`, `force: true` if the
+   pre-check needed it, and `deleteBranch: true` only if the operator asked to delete the branch. It
+   runs the repo's `clean` script (e.g. `pnpm run clean`), then removes the worktree **without**
+   `git worktree remove --force` — so git's own dirty/lock check still applies:
+   - **`removed`** — success. Check `steps` for any `ok: false` (e.g. the `clean` run).
+   - **`failed`** — git refused the removal (worktree dirty or locked) or a leftover couldn't be
+     deleted; **nothing was force-removed**. Surface the `steps` output. On native Windows a leftover
+     usually means a locked dir — close any editor/dev server holding it and retry. (Process-lock
+     recovery and orphan sweep are out of scope; WSL2 is the tested path.)
+
+**The branch is never deleted by default.** `remove_worktree` only removes the worktree; the branch
+survives. Pass `deleteBranch: true` only when the operator explicitly asked to delete the branch too.
+If they **didn't** mention the branch, ask after a successful removal: "Delete the `<branch>` branch
+too, or keep it?" — and only re-call with `deleteBranch` on a yes. (When the removal took `force`, the
+tool force-deletes the branch with `-D`, since an unpushed branch won't `-d`; `branchDeleteError`
+carries any failure.)
+
+### Report the outcome
+
+Close with one tidy summary distilled from the result — never paste the raw JSON or the full `steps`
+dump. A status header, then one aligned line per action that actually ran (skip lines for things that
+didn't apply rather than printing "n/a"). Terminal-native: ASCII + a light 🍌, no wall of tables.
+
+```
+🍌 Worktree removed — vetra-mono-activation
+
+   remove     git worktree remove ✓
+   clean      pnpm run clean ✓
+   workspace  unwired from vetra.code-workspace
+   db fork    shared DB — nothing to drop
+   branch     basem/activation — deleted
+```
+
+Always show the `branch` line as `kept` or `deleted` so its fate is explicit. For a `blocked-*`
+status, lead with **why** it stopped and the one thing to do next (commit first / confirm the unpushed
+removal) — don't render the success block. For `failed`, say git refused (dirty/locked) or the husk
+couldn't be deleted, name it, and surface the failing `steps` line; never imply it was removed.
 
 ## Step 4 — optional: fork the database for schema work
 
@@ -136,9 +220,10 @@ first configured connection; when a repo has several, pick the right one in this
 ## Notes
 
 - The main checkout must already have its `.env*` files in place — that's the copy source.
-- The tool is **create-only**: it refuses if the worktree dir already exists. To rebuild an
-  existing worktree, remove it (`git worktree remove <path>`) and recreate.
+- `setup_worktree` is **create-only**: it refuses if the worktree dir already exists. To rebuild an
+  existing worktree, remove it (the drop flow above / `remove_worktree`) and recreate.
 - Repos without a `package.json` just get the file copy; install/build no-op.
 - Outside Claude Code, the same logic is on the CLI: `kevin worktree <repoPath> --branch=...
-  [--slug=...] [--extra=sub1,sub2]`. That path is for a real terminal — under the Bash sandbox the
-  MCP tool is the only way (the CLI would hit the same `.git/config` write block).
+  [--slug=...] [--extra=sub1,sub2]` to create, `kevin worktree remove <worktreePath>
+  [--delete-branch] [--force]` to drop. That path is for a real terminal — under the Bash sandbox
+  the MCP tools are the only way (the CLI would hit the same `.git/config` write block).

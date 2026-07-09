@@ -131,7 +131,7 @@ Groups:
   prune                             Delete memory/YYYY-MM-DD*.md older than 14 days
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
-  worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build)
+  worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build); \`worktree remove\` tears one down safely
   database                          Query/inspect/fork local Postgres via KEVIN_DB_<NAME> connections (real terminal — outside the Bash sandbox)
 
 Task commands:
@@ -179,6 +179,11 @@ Worktree commands:
                                     --extra lists relative subdirs with their own lockfile.
                                     NOTE: blocked by the Bash sandbox when run from inside Claude Code (git can't write
                                     .git/config) — use the setup_worktree MCP tool there; this CLI is for a real terminal.
+  worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]
+                                    Safely remove a worktree: refuses on uncommitted changes; needs --force when the
+                                    branch has committed-but-unpushed commits; runs the repo's \`clean\` script first.
+                                    Keeps the branch unless --delete-branch. --dry-run reports the status without
+                                    touching anything. Same sandbox note — use remove_worktree there.
 
 Database commands:
   database list                     List configured KEVIN_DB_<NAME> connections (name + host/db, never credentials)
@@ -603,8 +608,31 @@ async function run(): Promise<void> {
   if (group === 'worktree') {
     // <repoPath> is positional (argv[3] = command); flags land in args.
     // NOTE: from inside Claude Code's Bash tool this is sandboxed — git can't write
-    // .git/config, so it EPERMs. Use the setup_worktree MCP tool there. This CLI path
-    // is for a real terminal / automation where the process runs unsandboxed.
+    // .git/config, so it EPERMs. Use the setup_worktree/remove_worktree MCP tools there.
+    // This CLI path is for a real terminal / automation where the process runs unsandboxed.
+
+    // `worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]` — safe teardown.
+    if (command === 'remove') {
+      const worktreePath = args.find((a) => !a.startsWith('--'));
+      if (!worktreePath) {
+        throw new Error('Usage: kevin worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]');
+      }
+      const { removeWorktree } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/worktree/setup'));
+      console.log(
+        JSON.stringify(
+          removeWorktree({
+            worktreePath,
+            deleteBranch: bool('delete-branch'),
+            force: bool('force'),
+            dryRun: bool('dry-run')
+          }),
+          null,
+          2
+        )
+      );
+      return;
+    }
+
     const repoPath = command;
     const branch = flag('branch');
     if (!repoPath || !branch) {
