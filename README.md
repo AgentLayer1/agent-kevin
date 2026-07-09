@@ -24,8 +24,8 @@ Kevin is a portable, file-based personal AI assistant that runs inside [Claude C
 
 This isn't a chat wrapper. It's an **operating system for personal AI**:
 
-- A 28-tool MCP server for tasks, knowledge compilation, reports, search, page-speed, Playwright, and Google Search Console.
-- A 20-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, and read-only SEO auditing.
+- A 47-tool MCP server for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page-speed, Playwright, and Google Search Console.
+- A 30-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
 - Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are two read-only orientation skills, `dashboard` (refresh the mission-control page) and `where-am-i` (session radar), which Kevin can run on its own when you ask to see the big picture or where you left off; neither mutates knowledge or task state.
@@ -209,7 +209,7 @@ Total time: ≈ 5 minutes. Each question's answer becomes the default for later 
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
 - `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `knowledge_lint`, `links_rewrite`, `memory_prune`, `report_write`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
-- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. Pack-gated keys like `PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL` are planted by `configure-skills` when you activate the matching pack; you fill the values in your editor, never via chat)
+- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. The one **non-secret** pack key, `GSC_SITE_URL`, is planted here by `configure-skills`; every **secret** credential (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`) goes in the deny-gated `.kevin/secrets/.env` instead. Either way you fill the values in your editor, never via chat)
 
 If you chose custom `KEVIN_KNOWLEDGE` or `KEVIN_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
 
@@ -260,7 +260,7 @@ Dynamic (per-session, injected by SessionStart hook):
   · today's reports (briefings, plans, audits written earlier today)
   · recent git activity in knowledge/
 
-Plugin: agent-kevin@agentlayer · 28 MCP tools loaded
+Plugin: agent-kevin@agentlayer · 47 MCP tools loaded
 
 > /agent-kevin:morning-briefing
 [Kevin reads your active threads, in-flight tasks, anything overdue, and surfaces what
@@ -277,7 +277,7 @@ Plugin: agent-kevin@agentlayer · 28 MCP tools loaded
 
 > /exit
 [SessionEnd hook captures the conversation to knowledge/raw/sessions/YYYY-MM-DD.md,
- redacting any API key values from settings.local.json before persisting.
+ redacting any secret values from .kevin/secrets/.env before persisting.
  Next time you run /agent-kevin:knowledge-compile, this session feeds into Kevin's
  long-term memory.]
 ```
@@ -305,7 +305,7 @@ graph LR
     MEM -.-> NEXT
 ```
 
-**The capture is automatic.** Every time you exit a session, or Claude Code auto-compacts mid-session, a hook calls `bin/kevin session-capture` which reads your transcript and appends it to today's session log under `knowledge/raw/sessions/YYYY-MM-DD.md`. The hook **redacts API key values** before writing (exact-match against `.claude/settings.local.json` env values, plus prefix heuristics for `sk-…`, `pplx-…`, `AIza…`, `sk-ant-…`, `gh[pous]_…`). The CLI is harness-agnostic — adding Codex (or any future host) is a one-file format adapter inside `mcp-server/src/knowledge/session-capture.ts`, not a new hook script.
+**The capture is automatic.** Every time you exit a session, or Claude Code auto-compacts mid-session, a hook calls `bin/kevin session-capture` which reads your transcript and appends it to today's session log under `knowledge/raw/sessions/YYYY-MM-DD.md`. The hook **redacts secret values** before writing (exact-match against `.kevin/secrets/.env` values, plus any in `.claude/settings.local.json`, plus prefix heuristics for `sk-…`, `pplx-…`, `AIza…`, `sk-ant-…`, `gh[pous]_…`). The CLI is harness-agnostic — adding Codex (or any future host) is a one-file format adapter inside `mcp-server/src/knowledge/session-capture.ts`, not a new hook script.
 
 **Capture anything else manually.** A thought, a meeting note, a clipped article, a file, a URL, a correction rule — anything you want compiled into the wiki goes in via the `capture` verb. Same destination, same compile pipeline; you just initiate it instead of a hook.
 
@@ -376,7 +376,7 @@ Local-only, secret-redacted (same heuristics as session capture), atomic write, 
 
 ## 🔄 Sync: end-to-end maintenance in one pass
 
-`/agent-kevin:sync` runs the whole maintenance chain — compile → lint → prune → links → **flywheel** → scan → dashboards — when you want every derived view brought current at once. Heavier than `quick-pulse`, lighter than running each skill manually.
+`/agent-kevin:sync` runs the whole maintenance chain — compile → lint → prune → links → **flywheel** → scan → dashboards → **closing interview** — when you want every derived view brought current at once. Heavier than `quick-pulse`, lighter than running each skill manually.
 
 ```mermaid
 flowchart TD
@@ -390,8 +390,11 @@ flowchart TD
     C3 --> C4[4\. Rewrite stale wikilinks]
     C4 --> C5[5\. Flywheel: advance · **archive** · **persist**]
     C5 --> C6[6\. Scan for overdue/stale]
-    C6 --> C7[7\. Refresh dashboards + read dust-settled state]
+    C6 --> C7[7\. Read dust-settled state + refresh dashboards]
     C7 --> OUT([🔄 Status block])
+    OUT --> GATE{Anything<br/>actionable?}
+    GATE -->|clean bill| DONE([done])
+    GATE -->|yes| ASK[8\. Closing interview:<br/>pick next move · **act now or queue**]
 
     C1 -.synthesis in your TUI turn.-> WIKI[(knowledge/<br/>user · concepts · memory)]
     C2 -.errors + warnings.-> LINT[/.kevin/lint.md/]
@@ -399,9 +402,12 @@ flowchart TD
     C5 -.unconditional sweep.-> ARCHIVE[(projects/&lt;slug&gt;/<br/>tasks/archive/)]
     C5 -.unconditional snapshot.-> FLYREP[/reports/briefings/<br/>flywheel/&lt;slug&gt;.md/]
     C7 -.one call, both views.-> TASKS[/projects/TASKS.md<br/>+ dashboard.html/]
+    ASK -.act now.-> TASKMUT
 ```
 
 The dependency order is the point: compile feeds the wiki state that lint operates on; lint's auto-fix touches the same articles the dashboard's task-link rewriter needs to be clean. Flywheel runs *after* the wiki is clean (so it reads a current memory index) and *before* scan + dashboard refresh (so both views reflect post-flywheel task state). Running steps out of order makes you re-reconcile.
+
+The run closes with a **gated interview**: only when sync actually surfaced something to act on (an overdue/stale item, a due cadence skill, a pending upgrade, or a concrete next move) does it end with a single `AskUserQuestion` — pick what to tackle next, then act on it this session or queue it as a task. On a clean bill there's no interview; the status block is the end.
 
 Two sub-steps of flywheel run **every sync, unconditionally**: the archive sweep (moves `done`/`cancelled` task files into `tasks/archive/` so the active dir stays scannable) and the snapshot persist (`report_write` to `reports/briefings/flywheel/` so the next morning brief can pick up the cross-session trail). Advance · update · close · concepts · decisions fire only when there's real work to do.
 
@@ -552,7 +558,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (17), always loaded
+### Core skills (23), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -561,11 +567,15 @@ graph LR
 | `knowledge-compile` | Synthesise raw sessions/feedback/inbox items into the wiki |
 | `create-project` / `archive-project` | Project lifecycle |
 | `flywheel` | Cross-project work session |
-| `sync` | End-to-end maintenance: compile → lint+fix → memory-prune → dashboard refresh → briefing in one pass |
+| `sync` | End-to-end maintenance: compile → lint+fix → prune → flywheel → scan → dashboards → closing interview in one pass |
 | `morning-briefing` / `evening-briefing` | Daily orient + wrap |
 | `weekly-goals` / `monthly-goals` / `yearly-goals` | Goal-setting cadences — weeks, monthly themes, and the year planned quarter by quarter |
 | `quick-pulse` | 60-second status check |
 | `self-review` | Process feedback into skill refinements |
+| `dashboard` | Refresh + open the Agent OS mission-control page (auto-invocable) |
+| `where-am-i` | Radar over recent Claude Code sessions — what you were working on, where you left off (auto-invocable) |
+| `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
+| `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
 | `plan-spec` | Deep-dive spec writer — Socratic interview → standalone, plan-compatible spec saved to the plans directory (`/plan-spec`) |
 | `simple-simplify` | Review a script/app/area/change and simplify it: elegance, dead-code removal, no over-engineering (`/simple-simplify`) |
@@ -581,7 +591,7 @@ Four need API keys (SerpAPI, OpenPageRank, Google OAuth + `GSC_SITE_URL` for the
 
 ### Browser pack, configured on demand
 
-- **Perplexity**, live web search with citations (`mcp__plugin_agent-kevin_kevin__web_search`). Built into the `kevin` MCP server — direct call to the Perplexity Search API, no extra subprocess. Activate the tool via `/agent-kevin:configure-skills` (grants the permission + ensures a `PERPLEXITY_API_KEY` placeholder in `settings.local.json`), then fill the key value in your editor — `configure-skills` never asks for it in chat, since pasted secrets touch the transcript and the Anthropic API. Way better answers than vanilla web-search and dirt-cheap on pay-as-you-go: $5 of credit lasts most personal users several days to several weeks depending on query volume. Get a key at [perplexity.ai/settings/api](https://perplexity.ai/settings/api).
+- **Perplexity**, live web search with citations (`mcp__plugin_agent-kevin_kevin__web_search`). Built into the `kevin` MCP server — direct call to the Perplexity Search API, no extra subprocess. Activate the tool via `/agent-kevin:configure-skills` (grants the permission + ensures the `.kevin/secrets/.env` store exists for a `PERPLEXITY_API_KEY` line), then fill the key value in your editor — `configure-skills` never asks for it in chat, since pasted secrets touch the transcript and the Anthropic API. Way better answers than vanilla web-search and dirt-cheap on pay-as-you-go: $5 of credit lasts most personal users several days to several weeks depending on query volume. Get a key at [perplexity.ai/settings/api](https://perplexity.ai/settings/api).
 - **Browser tools**, four web tools backed by a bundled Playwright + chromium (drops in via the one-time `bun install`). See [Browser web tools](#-browser-web-tools) below for the full set, or here's the short of it:
   - `browser_screenshot` — PNG of any URL or local HTML/MD file
   - `browser_pdf` — styled PDF (markdown + mermaid rendered)
@@ -597,7 +607,7 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (40)
+### MCP tools (47)
 
 | Group | Tools |
 |---|---|
@@ -605,10 +615,13 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Dashboard** (1) | `dashboard` |
+| **Worktree** (2) | `setup_worktree`, `remove_worktree` |
+| **Upgrade** (1) | `run_upgrade` |
+| **Database** (4) | `database_list`, `database_schema`, `database_query`, `database_fork` |
 | **GitHub** (9) | `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view` |
 | **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`, `web_search`, `ping` |
 
-**Always-on core** (`ping`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `capture`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. `remove_worktree` is deliberately **never** pre-granted — it deletes a worktree, so every call surfaces a confirm prompt. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -633,14 +646,17 @@ agent-kevin/
 ├── mcp-server/              # the kevin MCP server (Bun)
 │   ├── src/
 │   └── package.json
-├── scripts/                 # one-off migration scripts (session-capture/start now live in bin/kevin)
-├── skills/                  # 21 skills (15 core + 6 SEO) auto-load with plugin
+├── skills/                  # 30 skills (23 core + 6 SEO + 1 Browser) auto-load with plugin
+│                            #   (per-version upgrade migrations live in skills/upgrade/scripts/<v>.ts)
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
 │   ├── IDENTITY.md          # Kevin's role (includes Kevin's avatar)
 │   ├── SOUL.md              # Kevin's character
-│   └── USER.md              # YOUR headline + links to knowledge/user/
+│   ├── USER.md              # YOUR headline + links to knowledge/user/
+│   ├── rules/              # path-scoped coding rules, auto-applied by file glob
+│   └── knowledge/          # seed wiki (index.md, memory scaffold)
 ├── .mcp.json                # declares the `kevin` MCP server
+├── CHANGELOG.md             # release contract (### Upgrade blocks drive /upgrade)
 ├── LICENSE                  # Apache 2.0
 └── NOTICE                   # Apache 2.0 attribution
 ```
@@ -653,10 +669,14 @@ agent-kevin/
 │   ├── assets/              # Kevin's avatar (kept out of the home root)
 │   ├── skills/              # third-party skill libraries installed via skills.sh (lazy)
 │   ├── settings.json        # enabledPlugins + pre-granted permissions
-│   └── settings.local.json  # API keys, gitignored
+│   └── settings.local.json  # non-secret env (GSC_SITE_URL, KEVIN_CODE_PATH), gitignored
 ├── .kevin/                  # plugin runtime state (hidden)
-│   ├── config/              # OAuth tokens
+│   ├── secrets/             # deny-gated credential store — gitignored, Kevin can't read it
+│   │   ├── .env             # API keys + KEVIN_DB_<NAME> connection strings
+│   │   └── google/          # Google OAuth client JSON + cached tokens
+│   ├── updates/             # per-upgrade file backups (<from>-to-<to>/)
 │   ├── logs/
+│   ├── version.json         # template baseline (drives upgrade tracking)
 │   └── knowledge.json       # compile state
 ├── knowledge/               # (or KEVIN_KNOWLEDGE elsewhere)
 │   ├── concepts/            # cross-cutting articles
@@ -746,7 +766,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 `KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
-API keys (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GSC_SITE_URL`, `PERPLEXITY_API_KEY`) live in `<HOME>/.claude/settings.local.json` `env` block, gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated env keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every API key above is a pack-gated key that `configure-skills` plants as an empty placeholder when you activate the matching pack. **You fill the secret values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
+Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `KEVIN_CODE_PATH`, `KEVIN_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
 
 ### Database connections (`database_*` tools)
 
@@ -872,7 +892,7 @@ Kevin's core needs **zero external accounts**: tasks, knowledge compile, dashboa
 |---|---|---|---|---|
 | [Perplexity](https://perplexity.ai/settings/api) | `web_search`: live web research with citations | Browser | `PERPLEXITY_API_KEY` | Pay-as-you-go, $5 per 1,000 requests. A $5 credit lasts most personal users days to weeks. |
 | [GitHub](https://github.com/settings/tokens?type=beta) | `github_pr_*` / `github_issue_*` / `github_run_*`: read-only PR + issue review + CI diagnosis (needs the `gh` CLI) | GitHub | `GITHUB_TOKEN` (fine-grained, read-only PAT) | Free |
-| [Google Cloud](https://console.cloud.google.com) | `gsc_*` (Search Console data) + `page_speed_*` (Lighthouse audits) | SEO | OAuth client JSON at `<HOME>/.kevin/config/google-oauth-client.json` | Free. PSI quota is 25k requests/day per project. |
+| [Google Cloud](https://console.cloud.google.com) | `gsc_*` (Search Console data) + `page_speed_*` (Lighthouse audits) | SEO | OAuth client JSON at `<HOME>/.kevin/secrets/google/google-oauth-client.json` | Free. PSI quota is 25k requests/day per project. |
 | [Google Search Console](https://search.google.com/search-console) | The site data behind `gsc_query`, `gsc_inspect`, and the audit skill | SEO | Your site verified under the same Google account | Free |
 | [SerpAPI](https://serpapi.com) | `serpapi_search`: live Google SERP positions for rank tracking | SEO | `SERPAPI_KEY` | Free tier: 250 searches/month. Paid from $25/month (1,000 searches). |
 | [OpenPageRank](https://www.domcop.com/openpagerank/) | `open_page_rank`: domain-authority proxy (0–10) for competitor tracking | SEO | `OPENPAGERANK_API_KEY` | Free (1,000 requests/day; DomCop pledges to keep it free) |
@@ -883,7 +903,7 @@ No account needed for the rest of the SEO pack: `wordpress-rest` reads the publi
 
 ### Setting each one up
 
-For every keyed service the flow is the same: `/agent-kevin:configure-skills` activates the pack and plants an empty placeholder in `settings.local.json`; you paste the key value **in your editor**, never in chat.
+For every keyed service the flow is the same: `/agent-kevin:configure-skills` activates the pack and ensures the placeholder exists (secret keys → `.kevin/secrets/.env`; the non-secret `GSC_SITE_URL` → `settings.local.json`); you paste the value **in your editor**, never in chat.
 
 **Perplexity** (web search): create an account at [perplexity.ai](https://perplexity.ai), go to Settings → API, load a small credit block ($5 is plenty to start), and generate a key. Note the API bills separately from a Perplexity Pro chat subscription (Pro only includes $5/month of API credit).
 
@@ -892,7 +912,7 @@ For every keyed service the flow is the same: `/agent-kevin:configure-skills` ac
 1. [console.cloud.google.com](https://console.cloud.google.com) → create a project (any name).
 2. APIs & Services → Library → enable **Search Console API** and **PageSpeed Insights API**.
 3. APIs & Services → Credentials → Create credentials → OAuth client ID → application type **Desktop app**. (First time, Google forces you through the consent-screen setup: choose External, add your own email as a test user.)
-4. Download the client JSON and save it as `<HOME>/.kevin/config/google-oauth-client.json`.
+4. Download the client JSON and save it as `<HOME>/.kevin/secrets/google/google-oauth-client.json`.
 5. Verify your site in [Search Console](https://search.google.com/search-console) under the same Google account, and set `GSC_SITE_URL` in `settings.local.json` (e.g. `https://example.com/` or `sc-domain:example.com`).
 6. Run the `google_auth` MCP tool once (or `bun run dispatch google-search-console auth` from the plugin dir). A browser consent flow mints tokens that are cached and shared across all `google-*` tools; you won't be asked again.
 
@@ -972,8 +992,8 @@ After editing `~/.claude/settings.json`, launch `claude` from any directory, hav
 ## 🔐 Privacy
 
 - **All data stays local.** Your agent home is markdown on your disk. No cloud sync unless you choose to commit it to git.
-- **API keys live in `.claude/settings.local.json` and data in `.kevin/`**, gitignored by default. The plugin's `.gitignore` includes them.
-- **Transcripts are redacted before persisting.** The session-capture hook scrubs all values present in `settings.local.json` and runs prefix heuristics for common key formats.
+- **Secrets live in the deny-gated `.kevin/secrets/.env`** (API keys, DB connection strings, Google OAuth), non-secret config in `.claude/settings.local.json`, runtime state in `.kevin/` — all gitignored by default. The plugin's `.gitignore` includes them, and Kevin's own tools are blocked from reading `.kevin/secrets/`.
+- **Transcripts are redacted before persisting.** The session-capture hook exact-matches every value in `.kevin/secrets/.env` (plus any in `settings.local.json`) and runs prefix heuristics for common key formats.
 - **Anthropic training opt-out + telemetry disable** is recommended on your Claude Code install. See [docs.claude.com](https://docs.claude.com).
 - **The folder is the product.** If anything goes wrong, the markdown + git history is the complete backup.
 
