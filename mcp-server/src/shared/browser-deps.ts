@@ -167,6 +167,11 @@ export const acquireContext = async (chromium: ChromiumLike): Promise<AcquiredCo
     return acquireViaCdp(chromium);
   }
   const browser = await withBrowserLaunch(() => chromium.launch({ headless: true }));
-  const context = await browser.newContext();
-  return { context, close: () => browser.close() };
+  try {
+    const context = await browser.newContext();
+    return { context, close: () => browser.close() };
+  } catch (error) {
+    await browser.close().catch(() => {});
+    throw error;
+  }
 };
