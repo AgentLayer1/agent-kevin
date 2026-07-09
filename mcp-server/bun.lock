@@ -13,8 +13,9 @@
         "linkedom": "~0.18.0",
         "marked": "~15.0.12",
         "pg": "~8.13.1",
-        "playwright": "~1.60.0",
+        "playwright": "1.60.0",
         "turndown": "~7.2.0",
+        "ws": "~8.21.0",
         "zod": "~4.4.3",
       },
       "devDependencies": {
@@ -26,6 +27,9 @@
         "typescript": "~5.9.3",
       },
     },
+  },
+  "patchedDependencies": {
+    "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch",
   },
   "packages": {
     "@asamuzakjp/css-color": ["@asamuzakjp/css-color@3.2.0", "", { "dependencies": { "@csstools/css-calc": "^2.1.3", "@csstools/css-color-parser": "^3.0.9", "@csstools/css-parser-algorithms": "^3.0.4", "@csstools/css-tokenizer": "^3.0.3", "lru-cache": "^10.4.3" } }, "sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw=="],
