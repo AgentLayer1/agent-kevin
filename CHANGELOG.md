@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.10] - 2026-07-09
+
+### Added
+- `CLAUDE.md` template now carries a **truncated-read verification** rule in `## Workflow`: a partial file read is never a basis for a conclusion — when a Read returns a partial view (or you've only seen part of a query, match-set, or config), page through or grep the rest before asserting, labeling, or acting on it.
+
+### Upgrade
+- `template/CLAUDE.md: mandatory` — add the truncated-read verification bullet to your HOME `CLAUDE.md` → `## Workflow` (right after the "Verify before claim" line).
+
 ## [0.3.9] - 2026-07-09
 
 ### Added
