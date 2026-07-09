@@ -46,16 +46,12 @@ and prompts per optional one. The new template files are the source of truth for
 ## [0.3.8] - 2026-07-09
 
 ### Added
-- `remove_worktree` MCP tool — safe git-worktree teardown that runs outside the Bash sandbox (so `git worktree remove` can write the main repo's `.git/config`). Refuses on uncommitted changes (`blocked-uncommitted`), gates committed-but-unpushed work behind an explicit `force` (`blocked-unpushed`), supports a `dryRun` pre-check, never `--force`-removes, runs the repo's `clean` script when present, and leaves the branch intact unless `deleteBranch` is set.
+- `remove_worktree` MCP tool — safe git-worktree teardown that runs outside the Bash sandbox (so `git worktree remove` can write the main repo's `.git/config`). Refuses on uncommitted changes (`blocked-uncommitted`), gates committed-but-unpushed work behind an explicit `force` (`blocked-unpushed`), supports a `dryRun` pre-check, never `--force`-removes, runs the repo's `clean` script when present, and leaves the branch intact unless `deleteBranch` is set. Deliberately **not** granted in `settings.json`: it's destructive, so each call prompts for confirmation.
 - `setup-worktree` skill gained a **drop/teardown flow** (dry-run pre-check → unwire the VS Code workspace → remove) and, when the GitHub pack is configured, surfaces the branch's PR state to reframe a merged-branch "unpushed" result and frame the branch-delete ask.
 - Native-Windows headless-browser support: Chromium is driven over CDP with a `ws` transport, working around a Bun pipe-transport hang; ships a pinned `playwright` (`1.60.0`) with a `playwright-core` patch.
 
-### Changed
-- `skills/init/SKILL.md` canonical always-on-core permission list now includes `remove_worktree`, so fresh installs grant it (no confirm prompt on teardown).
-
 ### Upgrade
 - `deps: required` — new dependency `ws`; `playwright` pinned to `1.60.0` with a `playwright-core@1.60.0` patch. Run `bun install` in `mcp-server`.
-- `settings: mandatory` — add permission `mcp__plugin_agent-kevin_kevin__remove_worktree`.
 
 ## [0.3.7] - 2026-07-06
 
