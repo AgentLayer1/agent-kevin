@@ -716,6 +716,8 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
+**`remove_worktree` is deliberately not granted.** It deletes a worktree (a destructive filesystem action), so it's left off the allow list on purpose — every call surfaces a confirm prompt the operator has to approve. Don't "fix" the asymmetry with `setup_worktree` by adding it here; the prompt is the safeguard.
+
 **Bucket model** (which flow writes which permissions):
 
 | Bucket | Tools | Granted when |
