@@ -43,6 +43,17 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.9] - 2026-07-09
+
+### Added
+- `CLAUDE.md` template now carries a **forward-only git** rule in `## Workflow`: fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed.
+
+### Changed
+- `sync` skill's step-11 closing interview + "Suggested next moves" now freshness-check every candidate against current ground truth (task frontmatter, live artifacts, today's deltas) before offering it, so it stops surfacing next-moves the operator already completed.
+
+### Upgrade
+- `template/CLAUDE.md: mandatory` — add the forward-only git bullet to your HOME `CLAUDE.md` → `## Workflow`.
+
 ## [0.3.8] - 2026-07-09
 
 ### Added
