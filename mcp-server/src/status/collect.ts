@@ -68,7 +68,7 @@ export interface ReportRef {
   skill: string;
   /** Status emoji from the index line (🟢/🟠/🔴/⏳); '' if absent. */
   status: string;
-  /** Category derived from the href path: `briefings` | `plans` | `radar` | ''. */
+  /** Category derived from the href path: `briefings` | `plans` | `radar` | `permissions` | ''. */
   category: string;
 }
 
@@ -1414,7 +1414,7 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
   };
 };
 
-const REPORT_CATEGORIES = ['briefings', 'plans', 'radar'] as const;
+const REPORT_CATEGORIES = ['briefings', 'plans', 'radar', 'permissions'] as const;
 const REPORT_FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 
 /** Category segment from an href like `reports/plans/2026-…md` → `plans`. */

@@ -72,7 +72,7 @@ Answer    <Yes / Yes + don't-ask-again / No, paste this back: "...">
 
 Write via `report_write`:
 
-- `category`: `radar` (a dedicated `permissions` category is a future `report_write` enum change)
+- `category`: `permissions` (its own dashboard filter chip on the Reports page)
 - `skill`: `permission-check`
 - `slug`: `permission-<tool>-<short-subject>` (e.g. `permission-webfetch-example-com`)
 - `status`: `clean` for 🟢, `findings` for 🟡, `critical` for 🔴

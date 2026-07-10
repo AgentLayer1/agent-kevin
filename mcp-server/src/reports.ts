@@ -21,7 +21,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 
-export type ReportCategory = 'briefings' | 'plans' | 'radar';
+export type ReportCategory = 'briefings' | 'plans' | 'radar' | 'permissions';
 
 export type ReportStatus = 'clean' | 'findings' | 'critical' | 'draft';
 
