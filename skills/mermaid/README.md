@@ -17,9 +17,9 @@ Tier 1 proves it renders. Tier 2 proves it looks right (dark-theme legibility, l
 
 ## Files
 
-- `SKILL.md` — the procedure (trigger, Tier 1, Tier 2, boundaries).
-- `references.md` — diagram-type selection, authoring rules, and parse/render failure modes with fixes.
-- `scripts/validate.ts` — the Tier 1 validator. Extracts ```mermaid blocks from files, parses each, exits non-zero on any failure.
+- `SKILL.md`: the procedure (trigger, Tier 1, Tier 2, boundaries).
+- `references.md`: diagram-type selection, authoring rules, and parse/render failure modes with fixes.
+- `scripts/validate.ts`: the Tier 1 validator. Extracts ```mermaid blocks from files, parses each, exits non-zero on any failure.
 
 ## Validator, run directly
 
