@@ -1,7 +1,6 @@
 ---
 name: mermaid
-description: Validate and iterate on a Mermaid diagram before it ships. Use whenever Kevin authors or edits a ```mermaid block in a plan, spec, report, task, or knowledge file, so a diagram that fails to render never reaches review. Tier 1 parse-checks every block (fast, headless); Tier 2 renders and visually critiques diagrams headed to a rendered surface. Also runs on /mermaid.
-allowed-tools: Read, Write, Edit, Bash, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__browser_pdf
+description: Validate and iterate on a Mermaid diagram before it ships. Use whenever authoring or editing a ```mermaid block in a plan, spec, report, task, or knowledge file, so a diagram that fails to render never reaches review. Tier 1 parse-checks every block (fast, headless); Tier 2 renders and visually critiques diagrams headed to a rendered surface. Also runs on /mermaid.
 ---
 
 # Mermaid
@@ -17,7 +16,7 @@ Terminal and chat replies use ASCII, never Mermaid (it does not render in a term
 
 ## When it fires
 
-Kevin is about to write or edit a ```mermaid block into a file: a plan-spec, a report, a task thread, a knowledge article, a README. Fire before the file is handed back for review, not after.
+Fires when a ```mermaid block is about to be written or edited into a file: a plan-spec, a report, a task thread, a knowledge article, a README. Fire before the file is handed back for review, not after.
 
 Chat-only diagrams are out of scope: a Mermaid block pasted into a chat reply renders live in the user's client, so a broken one is visible immediately and self-corrects. The gate is for files, where a broken diagram sits unseen until someone opens it.
 

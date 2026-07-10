@@ -1,6 +1,6 @@
 # mermaid skill
 
-Gate that keeps broken Mermaid diagrams out of files. Model-invocable: fires when Kevin authors or edits a ```mermaid block in a plan, spec, report, task, or knowledge file, and on `/mermaid`.
+Gate that keeps broken Mermaid diagrams out of files. Model-invocable: fires when authoring or editing a ```mermaid block in a plan, spec, report, task, or knowledge file, and on `/mermaid`.
 
 ## Why
 
