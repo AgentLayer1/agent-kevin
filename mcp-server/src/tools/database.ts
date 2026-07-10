@@ -30,6 +30,19 @@ const { Pool } = pg;
  *  so the status collector's dynamic `import('database')` keeps finding it. */
 export const discoverConnections = dbConnections;
 
+/**
+ * Percent-decode a database name read from a URL pathname. A name that was
+ * never encoded — or carries a stray "%" — passes through raw rather than
+ * throwing, since it came from a config value we don't control.
+ */
+export const decodeDbName = (raw: string): string => {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
+
 /** Parse a connection URL into display metadata, dropping all credentials. */
 export const safeConnectionInfo = (url: string): { host: string; port: string; database: string } => {
   try {
@@ -37,15 +50,24 @@ export const safeConnectionInfo = (url: string): { host: string; port: string; d
     return {
       host: parsed.hostname,
       port: parsed.port || '5432',
-      database: parsed.pathname.replace(/^\//, '') || ''
+      database: decodeDbName(parsed.pathname.replace(/^\//, '')) || ''
     };
   } catch {
     return { host: '(unparseable URL)', port: '', database: '' };
   }
 };
 
-/** A valid Postgres database identifier, safe to carry in a URL pathname. */
-const DB_NAME_RE = /^[A-Za-z0-9_]{1,63}$/;
+/**
+ * Assert `name` is a legal Postgres database name — the server's actual rule
+ * (1-63 bytes, no NUL), not an ASCII-only subset, so real names like
+ * "vetra-db" pass. Callers that embed the name in a URL or in DDL are
+ * responsible for encoding/quoting it for that context.
+ */
+export const assertDbName = (name: string, label = 'database name'): void => {
+  if (name.length === 0 || name.includes('\0') || new TextEncoder().encode(name).length > 63) {
+    throw new Error(`Invalid ${label} "${name}". Expected a 1-63 byte name without NUL.`);
+  }
+};
 
 /**
  * Resolve the connection string to actually dial: the base as-is, or with its
@@ -57,10 +79,8 @@ const DB_NAME_RE = /^[A-Za-z0-9_]{1,63}$/;
 export const resolveConnectionString = (url: string, database?: string): string => {
   const parsed = new URL(url);
   if (database !== undefined) {
-    if (!DB_NAME_RE.test(database)) {
-      throw new Error(`Invalid database name "${database}". Expected 1–63 chars of [A-Za-z0-9_].`);
-    }
-    parsed.pathname = `/${database}`;
+    assertDbName(database);
+    parsed.pathname = `/${encodeURIComponent(database)}`;
     return parsed.toString();
   }
   if (!parsed.pathname.replace(/^\//, '')) {

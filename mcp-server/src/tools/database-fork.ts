@@ -23,12 +23,16 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { dbConnections, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
-import { resolveConnectionString } from '@/tools/database';
+import { assertDbName, decodeDbName, resolveConnectionString } from '@/tools/database';
 import pg from 'pg';
 import { z } from 'zod';
 
-/** A valid Postgres database identifier — interpolated into DDL, so charset-locked. */
-const DB_NAME_RE = /^[A-Za-z0-9_]{1,63}$/;
+/**
+ * Quote a database name for interpolation into DDL (CREATE/DROP DATABASE take
+ * identifiers, not bind params). Doubling embedded quotes is the complete
+ * escape rule for quoted identifiers, so any legal name is injection-safe.
+ */
+export const quoteIdent = (name: string): string => `"${name.replaceAll('"', '""')}"`;
 
 /** Hosts a write/DDL tool may act on. Empty host = unix-socket connection (local). */
 const LOCAL_HOSTS = new Set(['', 'localhost', '127.0.0.1', '::1']);
@@ -63,7 +67,7 @@ export const configuredDatabases = (): Set<string> => {
       continue;
     }
     try {
-      const database = new URL(url).pathname.replace(/^\//, '');
+      const database = decodeDbName(new URL(url).pathname.replace(/^\//, ''));
       if (database) {
         databases.add(database);
       }
@@ -234,21 +238,15 @@ export const tools: ToolDef[] = [
         );
       }
 
-      const defaultDb = new URL(sourceUrl).pathname.replace(/^\//, '');
+      const defaultDb = decodeDbName(new URL(sourceUrl).pathname.replace(/^\//, ''));
       const sourceDb = source ?? defaultDb;
       if (!sourceDb) {
         throw new Error(`Connection "${resolved.name}" pins no database — pass source.`);
       }
       const branch = fork ? null : cwd ? branchOf(cwd) : null;
       const forkDb = fork ?? (branch ? deriveForkName(sourceDb, branch) : `${sourceDb}_fork`.slice(0, 63));
-      for (const [label, name] of [
-        ['source', sourceDb],
-        ['fork', forkDb]
-      ] as const) {
-        if (!DB_NAME_RE.test(name)) {
-          throw new Error(`Invalid ${label} "${name}". Expected 1–63 chars of [A-Za-z0-9_].`);
-        }
-      }
+      assertDbName(sourceDb, 'source');
+      assertDbName(forkDb, 'fork');
       if (forkDb === sourceDb) {
         throw new Error(`Fork "${forkDb}" equals the source — nothing to fork.`);
       }
@@ -271,7 +269,7 @@ export const tools: ToolDef[] = [
       try {
         if (drop) {
           await terminateSessions(client, forkDb);
-          await client.query(`DROP DATABASE IF EXISTS "${forkDb}"`);
+          await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(forkDb)}`);
           const overrideCleared = repointEnv && cwd ? clearEnvOverride(cwd, envVar) : undefined;
           return { dropped: forkDb, connection: resolved.name, overrideCleared: overrideCleared ?? undefined };
         }
@@ -281,7 +279,7 @@ export const tools: ToolDef[] = [
             throw new Error(`Database "${forkDb}" already exists. Pass force:true to recreate it.`);
           }
           await terminateSessions(client, forkDb);
-          await client.query(`DROP DATABASE IF EXISTS "${forkDb}"`);
+          await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(forkDb)}`);
         }
         if (!(await dbExists(client, sourceDb))) {
           throw new Error(`Source database "${sourceDb}" does not exist on connection "${resolved.name}".`);
@@ -291,7 +289,7 @@ export const tools: ToolDef[] = [
           await terminateSessions(client, sourceDb);
         }
         try {
-          await client.query(`CREATE DATABASE "${forkDb}" TEMPLATE "${sourceDb}"`);
+          await client.query(`CREATE DATABASE ${quoteIdent(forkDb)} TEMPLATE ${quoteIdent(sourceDb)}`);
         } catch (error) {
           // 55006 = object_in_use: the template DB has live sessions. Trust the
           // SQLSTATE over the message text (locale/version-independent).
