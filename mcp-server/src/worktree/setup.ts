@@ -401,21 +401,25 @@ const samePath = (first: string, second: string): boolean => {
  * Terminate any process still rooted in the worktree before tearing it down. On native Windows a
  * leftover dev server (`pnpm dev` / turbo, an esbuild service, a file watcher) keeps the directory
  * locked, so `pnpm clean` and `git worktree remove` fail with EPERM/EBUSY and strand a husk. A
- * process launched from the worktree carries that absolute path in its command line, so match on it
- * and kill each process tree (`taskkill /T`). Scoped to the worktree's unique path — never a blanket
- * kill. No-op on Unix, which frees a directory even while a process sits inside it. Runs from the main
- * checkout so it never opens a fresh handle on the directory it's clearing.
+ * dev server runs out of the worktree's `node_modules`, so match command lines containing
+ * `<worktree>\node_modules\` and kill each process tree (`taskkill /T`). That subpath is the filter
+ * that matters: it catches the build tools that lock the dir while skipping an editor or shell that
+ * merely has the folder open (their command line holds the worktree path but not that subpath). No-op
+ * on Unix, which frees a directory even while a process sits inside it. Runs from the main checkout so
+ * it never opens a fresh handle on the directory it's clearing.
  */
 const releaseHolders = (worktreePath: string, cwd: string): StepResult => {
   if (process.platform !== 'win32') {
     return { step: 'release holders', ok: true, output: 'skipped (not windows)' };
   }
-  const path = worktreePath.replace(/\//g, '\\').toLowerCase().replace(/'/g, "''");
+  // Match only processes running out of the worktree's own node_modules (dev servers, esbuild,
+  // watchers) — not an editor or shell that merely has the folder open.
+  const needle = `${worktreePath.replace(/\//g, '\\').toLowerCase().replace(/'/g, "''")}\\node_modules\\`;
   const script = [
     `$holders = Get-CimInstance Win32_Process |`,
-    `  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.ToLower().Contains('${path}') }`,
+    `  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.ToLower().Contains('${needle}') }`,
     `foreach ($h in $holders) { taskkill /F /T /PID $h.ProcessId | Out-Null }`,
-    `if ($holders) { "killed $($holders.Count)" } else { 'no holders found' }`
+    `if ($holders) { "killed $(@($holders).Count)" } else { 'no holders found' }`
   ].join('\n');
   // execFileSync directly (no shell) so the script's pipes and braces reach PowerShell intact —
   // routing through a Windows shell would let cmd.exe interpret them.
