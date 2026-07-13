@@ -23,6 +23,7 @@ export const TOOL_MODULES = [
   'status',
   'tasks',
   'upgrade',
+  'video',
   'web-search',
   'worktree'
 ] as const;

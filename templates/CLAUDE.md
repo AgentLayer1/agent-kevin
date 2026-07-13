@@ -188,6 +188,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed.
 - Compare options before committing — back-of-envelope across alternatives saves months.
 - Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know".
+- A truncated / partial file read is never a basis for a conclusion — when a Read returns a partial view (or you've only seen part of a query, match-set, or config), page through or grep the rest before asserting, labeling, or acting on it.
 - After any correction from me, write a lesson to memory so the same mistake doesn't repeat.
 
 ## Engineering Standards

@@ -3,14 +3,31 @@ import {
   configuredDatabases,
   deriveForkName,
   isLocalHost,
+  quoteIdent,
   readEnvLine,
   removeEnvLine,
   upsertEnvLine
 } from '@/tools/database-fork';
 
+describe('quoteIdent', () => {
+  test('wraps a plain name in double quotes', () => {
+    expect(quoteIdent('vetra-db')).toBe('"vetra-db"');
+    expect(quoteIdent('app_fork')).toBe('"app_fork"');
+  });
+
+  test('doubles embedded quotes — the complete identifier escape rule', () => {
+    expect(quoteIdent('we"ird')).toBe('"we""ird"');
+    expect(quoteIdent('a""b')).toBe('"a""""b"');
+  });
+});
+
 describe('deriveForkName', () => {
   test('slugifies the branch and prefixes the source DB', () => {
     expect(deriveForkName('vetra', 'basem/ve-002-shared-db')).toBe('vetra_basem_ve_002_shared_db');
+  });
+
+  test('keeps a hyphenated source name verbatim in the prefix', () => {
+    expect(deriveForkName('vetra-db', 'kimo/vsub-redemption')).toBe('vetra-db_kimo_vsub_redemption');
   });
 
   test('collapses runs of non-alphanumerics and trims edges', () => {

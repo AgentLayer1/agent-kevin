@@ -43,6 +43,31 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.11] - 2026-07-12
+
+### Added
+- `video_frames` MCP tool — extracts still frames from a local video for visual analysis, running outside the Bash sandbox so it can read videos in `~/Downloads`, `~/Desktop`, `~/Documents` (which ffmpeg-under-Bash can't). Modes: `scene` (default — one frame per visual change, ideal for screen recordings of a flow), `interval`, `count`. Requires `ffmpeg` on PATH.
+- `mermaid` skill — validates and iterates on a Mermaid diagram before it ships (Tier 1 parse-check every block; Tier 2 render + visual critique for diagrams headed to a rendered surface). Runs on `/mermaid`.
+- `permission-check` skill — interprets a Claude Code permission prompt from a screenshot (or text) and grades how safe it is to allow (🟢/🟡/🔴), then writes a graded report so repeated decisions build a corpus for future allowlist automation.
+- `permissions` report category — home for `permission-check` output; surfaces as a dashboard filter chip.
+
+### Changed
+- Database tools (`database_query`, `database_schema`, `database_fork`) now accept any legal Postgres database name, not just a fixed pattern.
+- README refresh.
+
+### Upgrade
+- `deps: required` — new dep `mermaid` (~11.16.0); run `bun install` in `mcp-server`.
+- `settings: mandatory` — add to `permissions.allow`: `mcp__plugin_agent-kevin_kevin__video_frames`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:permission-check)`.
+- `manual: none` — `video_frames` needs `ffmpeg` on PATH to run (`brew install ffmpeg`); only required if you use the tool.
+
+## [0.3.10] - 2026-07-09
+
+### Added
+- `CLAUDE.md` template now carries a **truncated-read verification** rule in `## Workflow`: a partial file read is never a basis for a conclusion — when a Read returns a partial view (or you've only seen part of a query, match-set, or config), page through or grep the rest before asserting, labeling, or acting on it.
+
+### Upgrade
+- `template/CLAUDE.md: mandatory` — add the truncated-read verification bullet to your HOME `CLAUDE.md` → `## Workflow` (right after the "Verify before claim" line).
+
 ## [0.3.9] - 2026-07-09
 
 ### Added
