@@ -419,12 +419,13 @@ const releaseHolders = (worktreePath: string, cwd: string): StepResult => {
     `$holders = Get-CimInstance Win32_Process |`,
     `  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.ToLower().Contains('${needle}') }`,
     `foreach ($h in $holders) { taskkill /F /T /PID $h.ProcessId | Out-Null }`,
-    `if ($holders) { "killed $(@($holders).Count)" } else { 'no holders found' }`
+    `if ($holders) { "killed $($holders.Count)" } else { 'no holders found' }`
   ].join('\n');
-  // execFileSync directly (no shell) so the script's pipes and braces reach PowerShell intact —
-  // routing through a Windows shell would let cmd.exe interpret them.
+  // pwsh (PowerShell 7+, required on native Windows) run via execFileSync directly (no shell) so the
+  // script's pipes and braces reach it intact — routing through a Windows shell would let cmd.exe
+  // interpret them.
   try {
-    const out = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { cwd, encoding: 'utf8' });
+    const out = execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], { cwd, encoding: 'utf8' });
     return { step: 'release holders', ok: true, output: tail(out.trim()) };
   } catch (error) {
     const failure = error as { stdout?: string; stderr?: string; message?: string };

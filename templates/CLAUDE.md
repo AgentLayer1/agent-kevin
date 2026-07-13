@@ -124,6 +124,8 @@ Drive tasks via MCP tools (`mcp__plugin_agent-kevin_kevin__task_*`) inside Claud
 
 This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
 
+- **On native Windows, PowerShell 7+ (`pwsh`) is required.** Scripts and tooling invoke `pwsh`, never the built-in Windows PowerShell 5.1 (`powershell.exe`) — its parsing and single-object `.Count` quirks aren't supported. Call `pwsh` and let it fail loud if absent.
+
 ## Engineering the Codebase
 
 When writing or editing code in this project (MCP server, hooks, CLI, skills):
