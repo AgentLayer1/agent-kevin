@@ -94,6 +94,13 @@ When the operator asks to **drop / delete / remove / tear down** a worktree, use
 rewrites the main repo's `.git/config`). The tool does the authoritative safety checks; you own the
 conversational gates around them.
 
+**"Full tear down" means all four:** VS Code workspace entry **+** worktree **+** branch **+** DB
+fork. When the operator says "full tear down" (or "remove everything"), run the whole flow below and
+treat it as a standing yes to deleting the branch (Step 5, `deleteBranch: true`) and dropping the fork
+(Step 4) — no need to ask about each piece separately. You still **confirm once**, stating all four
+actions plainly, before anything destructive runs. A plain "drop / remove" *without* "full" keeps the
+branch unless they say otherwise.
+
 **Always confirm before removing — it's destructive.** Even when the tree looks clean, never call
 `remove_worktree` on an inferred or ambient go-ahead: get an explicit yes for *this* removal. Two
 gates back you up here — your confirmation, and the fact that `remove_worktree` is intentionally
@@ -142,9 +149,11 @@ Flow:
    `git worktree remove --force` — so git's own dirty/lock check still applies:
    - **`removed`** — success. Check `steps` for any `ok: false` (e.g. the `clean` run).
    - **`failed`** — git refused the removal (worktree dirty or locked) or a leftover couldn't be
-     deleted; **nothing was force-removed**. Surface the `steps` output. On native Windows a leftover
-     usually means a locked dir — close any editor/dev server holding it and retry. (Process-lock
-     recovery and orphan sweep are out of scope; WSL2 is the tested path.)
+     deleted; **nothing was force-removed**. Surface the `steps` output. On native Windows the tool
+     first auto-kills processes running out of the worktree's own `node_modules` (a leftover dev
+     server / turbo / esbuild — see the `release holders` step), so a `failed` here usually means a
+     holder it deliberately won't touch: an **editor with the folder open**, or a shell sitting in the
+     dir. Close that and retry. (Orphan sweep across stale worktrees is still out of scope.)
 
 **The branch is never deleted by default.** `remove_worktree` only removes the worktree; the branch
 survives. Pass `deleteBranch: true` only when the operator explicitly asked to delete the branch too.

@@ -10,9 +10,11 @@
  * `removeWorktree` tears one down safely: it refuses outright on uncommitted changes, gates
  * committed-but-unpushed removal behind an explicit `force`, runs the repo's `clean` script when
  * present, then `git worktree remove`s it. The branch is left alone unless `deleteBranch` is set.
- * It never passes `--force` — a git refusal (dirty/locked) fails loud. On native Windows, once git
- * has deregistered the worktree, it clears the pnpm-junction husk git leaves behind (see deleteHusk);
- * process-lock recovery and orphan sweep are out of scope (WSL2 is the tested path).
+ * It never passes `--force` — a git refusal (dirty/locked) fails loud. On native Windows it first
+ * kills any process tree still rooted in the worktree (a lingering dev server locks the dir, so clean
+ * and `git worktree remove` would otherwise fail — see releaseHolders), and once git has deregistered
+ * the worktree, clears the pnpm-junction husk git leaves behind (see deleteHusk). Orphan sweep across
+ * stale worktrees is still out of scope.
  *
  * Runs git/package-manager via execFileSync (argv arrays, no shell). When invoked through
  * the MCP server this executes OUTSIDE the Bash command sandbox, so `git worktree add` can
@@ -396,6 +398,43 @@ const samePath = (first: string, second: string): boolean => {
 };
 
 /**
+ * Terminate any process still rooted in the worktree before tearing it down. On native Windows a
+ * leftover dev server (`pnpm dev` / turbo, an esbuild service, a file watcher) keeps the directory
+ * locked, so `pnpm clean` and `git worktree remove` fail with EPERM/EBUSY and strand a husk. A
+ * dev server runs out of the worktree's `node_modules`, so match command lines containing
+ * `<worktree>\node_modules\` and kill each process tree (`taskkill /T`). That subpath is the filter
+ * that matters: it catches the build tools that lock the dir while skipping an editor or shell that
+ * merely has the folder open (their command line holds the worktree path but not that subpath). No-op
+ * on Unix, which frees a directory even while a process sits inside it. Runs from the main checkout so
+ * it never opens a fresh handle on the directory it's clearing.
+ */
+const releaseHolders = (worktreePath: string, cwd: string): StepResult => {
+  if (process.platform !== 'win32') {
+    return { step: 'release holders', ok: true, output: 'skipped (not windows)' };
+  }
+  // Match only processes running out of the worktree's own node_modules (dev servers, esbuild,
+  // watchers) — not an editor or shell that merely has the folder open.
+  const needle = `${worktreePath.replace(/\//g, '\\').toLowerCase().replace(/'/g, "''")}\\node_modules\\`;
+  const script = [
+    `$holders = Get-CimInstance Win32_Process |`,
+    `  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.ToLower().Contains('${needle}') }`,
+    `foreach ($h in $holders) { taskkill /F /T /PID $h.ProcessId | Out-Null }`,
+    `if ($holders) { "killed $($holders.Count)" } else { 'no holders found' }`
+  ].join('\n');
+  // pwsh (PowerShell 7+, required on native Windows) run via execFileSync directly (no shell) so the
+  // script's pipes and braces reach it intact — routing through a Windows shell would let cmd.exe
+  // interpret them.
+  try {
+    const out = execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], { cwd, encoding: 'utf8' });
+    return { step: 'release holders', ok: true, output: tail(out.trim()) };
+  } catch (error) {
+    const failure = error as { stdout?: string; stderr?: string; message?: string };
+    const output = [failure.stdout, failure.stderr, failure.message].filter(Boolean).join('\n');
+    return { step: 'release holders', ok: false, output: tail(output) };
+  }
+};
+
+/**
  * Delete a leftover worktree dir on native Windows, where `git worktree remove` can't traverse
  * pnpm's `node_modules` junctions (it errors "Directory not empty" and leaves a husk). `rmdir /s /q`
  * clears the reparse points cmd-side — a single quoted `/c` string (shell:false) keeps paths with
@@ -480,6 +519,10 @@ export const removeWorktree = ({
   }
 
   const steps: StepResult[] = [];
+
+  // Kill any process tree still rooted in the worktree first (win32-only, no-op elsewhere). A lingering
+  // dev server locks the dir, so both the clean step below and `git worktree remove` would fail.
+  steps.push(releaseHolders(resolvedWorktree, mainCheckout));
 
   // Run the repo's own teardown (`pnpm clean` et al.) before the checkout disappears.
   let cleaned: string | null = null;
