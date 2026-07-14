@@ -43,6 +43,17 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.12] - 2026-07-13
+
+### Added
+- `browser_flows` now discovers flow definitions from the HOME's `.claude/browser-flows/` directory, so an operator can author reusable browser flows in their own home alongside the plugin-shipped ones.
+
+### Fixed
+- Robust worktree teardown on native Windows: kills processes holding the worktree, requires PowerShell 7+ (`pwsh`), and fully tears down the checkout instead of leaving a husk.
+
+### Upgrade
+- `template/CLAUDE.md: mandatory` — new note under the Platform section: on native Windows, PowerShell 7+ (`pwsh`) is required (scripts never use the built-in 5.1 `powershell.exe`).
+
 ## [0.3.11] - 2026-07-12
 
 ### Added
