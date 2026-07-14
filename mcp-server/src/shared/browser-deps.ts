@@ -26,6 +26,7 @@ export interface PageLike {
   goto: (url: string, opts?: { waitUntil?: 'load' | 'networkidle' | 'domcontentloaded' }) => Promise<unknown>;
   setContent: (html: string, opts?: { waitUntil?: 'load' | 'networkidle' | 'domcontentloaded' }) => Promise<unknown>;
   content: () => Promise<string>;
+  addStyleTag: (opts: { content: string }) => Promise<unknown>;
   screenshot: (opts?: { fullPage?: boolean; path?: string }) => Promise<Buffer>;
   pdf: (opts?: { path?: string; format?: string }) => Promise<Buffer>;
   evaluate: (fn: (px: number) => void, arg: number) => Promise<void>;
