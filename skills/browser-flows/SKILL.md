@@ -55,6 +55,27 @@ Harness-level params (every flow): `env` (target key), `confirm-prod` (required 
 
 The dispatcher lists any `flows/<dir>/index.ts`. Compose a flow from small blocks so variants reuse the overlap. Screenshots are scoped per run under `reports/captures/browser/<env>/<flow>/<run>/`.
 
+## Where flows live — built-in vs HOME-local
+
+Flows resolve from two roots; a HOME flow **shadows** a built-in of the same name:
+
+| Root | Path | For |
+|---|---|---|
+| Built-in | `skills/browser-flows/flows/<name>/` (this repo) | shipped, generic flows (e.g. `hacker-news`) |
+| HOME-local | `<HOME>/.claude/browser-flows/<name>/` | private, per-operator flows — anything that drives a **specific or client app**; never distributed |
+
+Put app-specific / client flows in **HOME**, not here — same principle as HOME skills and the memory tree. The only code difference: a HOME flow imports the shared harness as a **bare specifier** (the dispatcher puts `skills/browser-flows` on `NODE_PATH`):
+
+```ts
+import { runFlow } from 'lib/flow';          // HOME-local flow
+import { log, type Target } from 'lib/browser';
+```
+
+Built-in flows use the relative form (`../../lib/flow`). Everything else — `targets`, `step()`, params, `index.md` — is identical. Bash fallback for a HOME flow adds the extra root:
+`NODE_PATH="$PWD/mcp-server/node_modules:$PWD/skills/browser-flows" … bun run <HOME>/.claude/browser-flows/<flow>/index.ts …`
+
+Editing an existing flow needs no restart (spawned fresh per run); **adding the HOME root or changing the dispatcher does** — restart the session so the MCP server reloads.
+
 ## Adding a flow
 
 Create `flows/<name>/index.ts` (+ `index.md`) — no tool edit; the dispatcher discovers any folder with an `index.ts`. The entry owns its `targets` and composes blocks:
