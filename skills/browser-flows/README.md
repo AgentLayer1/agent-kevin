@@ -60,6 +60,15 @@ A flow is just a folder with an `index.ts`. **No tool edit and no restart** — 
 
 Copy **`flows/hacker-news/`** as the reference — it shows the full shape (entry → a building-block module → structured output), a single no-auth target, params, and navigate → extract → interact.
 
+### Built-in vs HOME-local flows
+
+Flows resolve from two roots, HOME shadowing built-in on a name clash:
+
+- **Built-in** — `flows/<name>/` in this repo, shipped with the plugin (generic, no client specifics). Imports the harness relatively: `import { runFlow } from '../../lib/flow'`.
+- **HOME-local** — `<HOME>/.claude/browser-flows/<name>/`, private to the operator and never distributed. The place for flows that drive a **specific or client app**. Imports the harness as a bare specifier: `import { runFlow } from 'lib/flow'` (the dispatcher adds `skills/browser-flows` to `NODE_PATH`).
+
+Same `targets` / `step()` / params / `index.md` shape either way. Adding the HOME root or editing the dispatcher requires a session restart; editing a flow itself does not.
+
 ### Targets: auth vs no-auth
 
 - **With `auth`** (`{ loginPath, homePath }`): `runFlow` pauses for a manual login, then continues. Use for any site you sign into.
