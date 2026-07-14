@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { BROWSER } from '../../../mcp-server/src/config';
@@ -43,6 +43,82 @@ const ensureDir = (path: string): string => {
   return path;
 };
 
+const CDP_PORT_TIMEOUT_MS = 30_000;
+
+/**
+ * Acquire a persistent, headed context on native Windows, where bun can't drive Playwright's pipe
+ * transport (oven-sh/bun#27977) and `launchPersistentContext` hangs. Mirrors the capture tools'
+ * win32 seam (`mcp-server/src/shared/browser-deps.ts`): spawn chromium ourselves on a CDP port with
+ * the persistent user-data dir, then attach over CDP. The default context carries the persisted
+ * login. `context.close()` only disconnects a CDP session, so we override it to also kill the
+ * chromium tree — the flow harness calls `session.context.close()` in its `finally`.
+ */
+const launchWin32ViaCdp = async (userDataDir: string, headless: boolean): Promise<BrowserContext> => {
+  const portFile = join(userDataDir, 'DevToolsActivePort');
+  // A persistent profile keeps a stale port file from the last run; delete it so we only ever read
+  // the port the fresh chromium writes (otherwise connectOverCDP hits a dead port — ECONNREFUSED).
+  rmSync(portFile, { force: true });
+  const proc = Bun.spawn(
+    [
+      chromium.executablePath(),
+      ...(headless ? ['--headless'] : []),
+      '--remote-debugging-port=0',
+      `--user-data-dir=${userDataDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--no-sandbox',
+      ...BROWSER.INTERACTIVE_ARGS,
+      'about:blank'
+    ],
+    { stdin: 'ignore', stdout: 'ignore', stderr: 'ignore' }
+  );
+
+  const deadline = Date.now() + CDP_PORT_TIMEOUT_MS;
+  let port = 0;
+  while (Date.now() < deadline) {
+    if (proc.exitCode !== null) {
+      throw new Error(`chromium exited (code ${proc.exitCode}) before opening its CDP port.`);
+    }
+    if (existsSync(portFile)) {
+      const parsed = Number(readFileSync(portFile, 'utf8').split('\n')[0]);
+      if (parsed > 0) {
+        port = parsed;
+        break;
+      }
+    }
+    await Bun.sleep(100);
+  }
+  if (port === 0) {
+    throw new Error(`chromium did not open a CDP port within ${CDP_PORT_TIMEOUT_MS}ms.`);
+  }
+
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+  const context = browser.contexts()[0] ?? (await browser.newContext());
+  const forceKill = async (): Promise<void> => {
+    const killer = Bun.spawn(['taskkill', '/PID', String(proc.pid), '/T', '/F'], { stdout: 'ignore', stderr: 'ignore' });
+    await killer.exited;
+  };
+  context.close = async () => {
+    // Quit chromium gracefully via CDP so it flushes cookies/prefs to the persistent profile. A
+    // force-kill (and even `taskkill` without /F) skips the flush, and a flow that runs only a few
+    // seconds never hits chromium's periodic cookie commit — so the login would be lost between
+    // runs. Force-kill only as a fallback if it doesn't exit on its own.
+    try {
+      const cdp = await browser.newBrowserCDPSession();
+      void cdp.send('Browser.close').catch(() => undefined);
+    } catch {
+      // CDP session unavailable — fall through to the force-kill fallback.
+    }
+    const exited = await Promise.race([proc.exited.then(() => true), Bun.sleep(5_000).then(() => false)]);
+    if (!exited) {
+      await browser.close().catch(() => undefined);
+      await forceKill().catch(() => undefined);
+    }
+    await proc.exited;
+  };
+  return context;
+};
+
 /**
  * Launches a persistent browser for the given target. The user-data dir is keyed per environment
  * so sessions never mix; screenshots are scoped per flow + run. Headed by default (manual login
@@ -56,14 +132,17 @@ export const launch = async (target: Target, flowName: string, options: { headle
   const shotsDir = ensureDir(join(CAPTURES_ROOT, target.name, flowName, runStamp));
   log(`screenshots → ${shotsDir}${headless ? ' (headless)' : ''}`);
 
-  const context = await withBrowserLaunch(() =>
-    chromium.launchPersistentContext(userDataDir, {
-      headless,
-      viewport: headless ? { width: 1280, height: 900 } : null,
-      permissions: ['clipboard-read', 'clipboard-write'],
-      args: [...BROWSER.INTERACTIVE_ARGS]
-    })
-  );
+  const context =
+    process.platform === 'win32'
+      ? await launchWin32ViaCdp(userDataDir, headless)
+      : await withBrowserLaunch(() =>
+          chromium.launchPersistentContext(userDataDir, {
+            headless,
+            viewport: headless ? { width: 1280, height: 900 } : null,
+            permissions: ['clipboard-read', 'clipboard-write'],
+            args: [...BROWSER.INTERACTIVE_ARGS]
+          })
+        );
 
   const page = context.pages()[0] ?? (await context.newPage());
   return { context, page, shotsDir, headless };
