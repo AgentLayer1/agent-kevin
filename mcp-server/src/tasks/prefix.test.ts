@@ -7,7 +7,7 @@ const entry = (project: string, inferred: string | null = null) => ({ project, i
 
 describe('derivePrefix', () => {
   test('single word → first two letters', () => {
-    expect(derivePrefix('vetra')).toBe('ve');
+    expect(derivePrefix('acme')).toBe('ac');
     expect(derivePrefix('homestead')).toBe('ho');
   });
 
@@ -20,8 +20,8 @@ describe('derivePrefix', () => {
 
 describe('assignPrefixes', () => {
   test('assigns derived prefixes to empty projects', () => {
-    const map = assignPrefixes([entry('vetra'), entry('agent-layer')]);
-    expect(map.get('ve')).toBe('vetra');
+    const map = assignPrefixes([entry('acme'), entry('agent-layer')]);
+    expect(map.get('ac')).toBe('acme');
     expect(map.get('al')).toBe('agent-layer');
   });
 

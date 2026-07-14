@@ -46,7 +46,7 @@ Steps 1–2 are reversible. After step 3 (folder creation), stay deliberate.
 ### 2. Compute the derived prefix (so you can tell the user)
 The prefix is whatever `getProjectPrefix()` will return for an empty project — derived from the slug:
 - **2+ hyphen-separated parts:** first letter of the first two parts (`halal-finance` → `hf`, `pray-watch` → `pw`, `agent-layer` → `al`).
-- **Single word:** first two letters (`vetra` → `ve`, `homestead` → `ho`).
+- **Single word:** first two letters (`acme` → `ac`, `homestead` → `ho`).
 
 You don't write this anywhere — it's computed at runtime. Just surface it in the confirmation and summary. Status line: `Created <YYYY-MM-DD> — <one-line vision>.`
 

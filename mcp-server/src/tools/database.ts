@@ -60,7 +60,7 @@ export const safeConnectionInfo = (url: string): { host: string; port: string; d
 /**
  * Assert `name` is a legal Postgres database name — the server's actual rule
  * (1-63 bytes, no NUL), not an ASCII-only subset, so real names like
- * "vetra-db" pass. Callers that embed the name in a URL or in DDL are
+ * "acme-db" pass. Callers that embed the name in a URL or in DDL are
  * responsible for encoding/quoting it for that context.
  */
 export const assertDbName = (name: string, label = 'database name'): void => {
