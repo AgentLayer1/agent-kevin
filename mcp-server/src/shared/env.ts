@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 
 /**
  * The ONE place the codebase reads `process.env`.
@@ -53,6 +53,38 @@ function parseDotenv(raw: string): Record<string, string> {
     out[key] = value;
   }
   return out;
+}
+
+/** `<HOME>/.kevin/secrets` — the deny-gated store holding the agent's own secrets. */
+const secretsDir = (): string => dirname(secretsEnvFile());
+
+/**
+ * Parse a standalone `.env` file into a plain map — for callers that inject
+ * scoped secrets into a *child* process's env WITHOUT polluting this process's
+ * `process.env` (which would leak them into the global secret inventory and
+ * every other tool). The browser-flows dispatcher uses it to hand one flow its
+ * own credentials, so they never travel as tool params through the conversation.
+ * Returns `{}` when the file is absent or unreadable — the normal case for a
+ * flow that needs no secrets. Never throws. Values are raw: the caller must not
+ * log them.
+ *
+ * Guard: this reader can NEVER touch the agent's own secret store
+ * (`<HOME>/.kevin/secrets/`). That dir holds Kevin's operational keys (GitHub,
+ * Google, DB URLs); a flow-scoped loader must not be a path back into it. Any
+ * path resolving inside the secrets dir returns `{}` — those secrets flow only
+ * through `env()`, never this seam.
+ */
+export function readEnvFile(path: string): Record<string, string> {
+  const resolved = resolve(path);
+  const gated = secretsDir();
+  if (resolved === gated || resolved.startsWith(gated + sep)) {
+    return {};
+  }
+  try {
+    return parseDotenv(readFileSync(resolved, 'utf-8'));
+  } catch {
+    return {};
+  }
 }
 
 const secretKeyNames: string[] = [];

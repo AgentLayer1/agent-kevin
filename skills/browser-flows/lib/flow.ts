@@ -1,14 +1,22 @@
-import { basename, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 import { ensureLoggedIn, launch, log, type Session, type Target } from './browser';
 
 /**
  * Portable flow harness. A flow is `runFlow(targets, handler)` — it owns its own `targets` map;
- * the harness parses CLI args into `params`, picks `targets[params.env]` (default `local`),
- * launches the headed browser, waits for manual login if the target needs it, runs the handler,
- * and always closes the context. Targets + handlers live in each flow.
+ * the harness parses CLI args into `params`, loads the flow's `config.json` (QA fixtures — test
+ * personas, scenarios, sandbox cards; readable + committed, unlike the deny-gated `.env` the
+ * dispatcher injects for real secrets), picks `targets[params.env]` (default `local`), launches the
+ * headed browser, waits for manual login if the target needs it, runs the handler, and always
+ * closes the context. Targets + handlers live in each flow.
+ *
+ * Precedence a flow should apply per field: `params.x ?? process.env.SECRET ?? config.x ?? default`
+ * — a one-off CLI override wins, then a secret overlay, then the committed fixture, then the fallback.
  */
-export interface FlowContext {
+export interface FlowContext<Config = Record<string, unknown>> {
   params: Record<string, string>;
+  /** Parsed `config.json` sitting beside the flow's `index.ts` (`{}` if absent) — QA fixture data. */
+  config: Config;
   target: Target;
   session: Session;
 }
@@ -32,9 +40,18 @@ const parseArgs = (argv: readonly string[]): Record<string, string> => {
   return params;
 };
 
-export const runFlow = async (
+/** Load the flow's `config.json` (fixtures) from the given dir. `{}` if absent/unparseable. */
+const loadConfig = <Config>(scriptDir: string): Config => {
+  try {
+    return JSON.parse(readFileSync(resolve(scriptDir, 'config.json'), 'utf-8')) as Config;
+  } catch {
+    return {} as Config;
+  }
+};
+
+export const runFlow = async <Config = Record<string, unknown>>(
   targets: Record<string, Target>,
-  handler: (context: FlowContext) => Promise<void>
+  handler: (context: FlowContext<Config>) => Promise<void>
 ): Promise<void> => {
   try {
     const params = parseArgs(process.argv.slice(2));
@@ -54,10 +71,11 @@ export const runFlow = async (
     // Flows live in folders (`flows/<name>/index.ts`) — name the run after the folder.
     const script = process.argv[1] ?? '';
     const flowName = /index\.[tj]s$/.test(script) ? basename(dirname(script)) : basename(script).replace(/\.[tj]s$/, '') || 'flow';
+    const config = loadConfig<Config>(dirname(script));
     const session = await launch(target, flowName, { headless: params.headless === 'true' });
     try {
       await ensureLoggedIn(session, target);
-      await handler({ params, target, session });
+      await handler({ params, config, target, session });
       log('✅ flow complete.');
     } finally {
       await session.context.close();

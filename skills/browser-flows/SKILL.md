@@ -42,6 +42,26 @@ Each flow declares its own params, defaults, and `targets` in `index.ts`'s heade
 
 Harness-level params (every flow): `env` (target key), `confirm-prod` (required for guarded targets), and `headless: true` — runs without a window, reusing the persisted login. Headless can't *acquire* a session: if the login expired, it fails fast with "run once without --headless to log in".
 
+### Test data & credentials — three inputs, one axis
+
+The axis is **fixture vs secret**, not a single file. A flow reads from three places, in precedence order:
+
+| Input | Where | For | Readable? |
+|---|---|---|---|
+| `--param` | the tool call | one-off overrides typed for a single run | yes — lands in the transcript |
+| `.env` | `<HOME>/.claude/browser-flows/<flow>/.env` | **secrets** — real cards, passwords, tokens | **no** — deny-gated + gitignored |
+| `config.json` | `<flow>/config.json` (beside `index.ts`) | **QA fixtures** — personas, scenarios, sandbox cards, defaults | yes — committed, agent-readable |
+
+A flow resolves each field `params.x ?? process.env.SECRET ?? config.x ?? default`.
+
+**config.json** is the everyday QA surface — structured test data you (and Kevin) can see and edit. Most sandbox QA lives entirely here; `.env` stays empty. The harness auto-loads it beside the flow's `index.ts` and hands it to the flow as `config` (declare a `Config` interface and call `runFlow<Config>(...)` for type safety). It's committed, so keep only non-secret fixtures in it.
+
+**`.env`** is the thin secret overlay for the day a value must NOT be readable or committed (a real card against staging, a live password). The dispatcher loads it and injects it into **that flow's child alone** (scoped — one flow's secrets never reach another); the flow reads it from `process.env`. Values never pass through a param, never enter the conversation, and are unreadable by the agent's own Read/Bash. The run result lists the loaded key **names** only.
+
+- `.env` is always in **HOME**, never the plugin repo — beside a HOME flow's `index.ts`, or a same-named folder holding just `.env` for a built-in flow. The loader **refuses** anything under `.kevin/secrets/`, so a flow can't reach Kevin's own operational keys (genuinely-shared secrets go in `.kevin/secrets/.env`, inherited by all flows and overridden by a flow's own `.env`).
+- Ship a committed `.env.example` (the one `.env*` git tracks) listing the secret keys a flow expects; the real `.env` stays local.
+- A flow author's one rule: read secrets from `process.env`, and **never `log()` a secret value** — flow stdout is captured into the result.
+
 ## Layout — portable core vs per-agent
 
 `lib/` and the dispatcher are portable (mirror across agents); everything site-specific lives in `flows/<flow>/`.
