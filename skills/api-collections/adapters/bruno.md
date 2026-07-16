@@ -44,7 +44,7 @@ extensions:
 
 ## Bruno-specific rules
 
-- **Secrets**: reference as `{{process.env.KEY}}` in environment files; Bruno auto-loads the collection-root `.env`. (`secret: true` env vars are the GUI-managed alternative; the `.env` route is what keeps values off your side.)
+- **Secrets**: reference as `{{process.env.KEY}}` in environment files; Bruno auto-loads the collection-root `.env`. (`secret: true` env vars are the GUI-managed alternative; the `.env` route is what keeps values off your side.) Two soft-failure traps: Bruno reads `.env` at **collection-open**, so a freshly created one needs a reload; and an **unresolved** placeholder is sent as the literal string `{{process.env.KEY}}`, which a permissive endpoint will accept (a false green). So a secret-bearing request's test should assert the value actually **resolved** — e.g. `expect(res.body.token).to.not.match(/\{\{|process\.env/)` — not just that auth passed.
 - **Environments are collection-wide** — if two apps need different hosts, give them distinct var names (`acmeBaseUrl`) or folder-scoped variables (see the context file's variable scopes); don't over-engineer it.
 - **Tests** are Chai assertions under `runtime: scripts:` with `type: tests` — the GUI shows pass/fail on Send. **Chain** with `bru.setVar` in an `after-response` script when a sequence needs it (login stores `{{token}}`, later requests use it).
 - **`seq` orders requests** within a folder — number them in the order the operator should fire them.
