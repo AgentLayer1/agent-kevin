@@ -50,6 +50,7 @@ extensions:
 - **`seq` orders requests** within a folder — number them in the order the operator should fire them.
 - **Docs** render in the GUI: `docs:` block with `type: text/markdown`.
 - Bruno watches the folder: new or edited files appear in an open collection without re-importing. **Exception:** changing the collection's root marker (adding/removing `opencollection.yml`) needs a collection reload (remove + re-open in Bruno).
+- **A malformed request `.yml` vanishes silently** — Bruno drops any file it can't parse from the sidebar with no error, so a request that "doesn't show up" almost always has broken YAML (usual culprits: a duplicate key, a tab, wrong indentation). **Parse-check every file you write** before handing off — don't trust that it rendered. `ruby -ryaml -e 'YAML.load_file(ARGV[0])' "<file>"` (mac/Linux) is a quick gate; if a request is missing after a reload, that's the first thing to check.
 
 ## Flows — multi-step chains (sign-in → onboarding → checkout → activation)
 
