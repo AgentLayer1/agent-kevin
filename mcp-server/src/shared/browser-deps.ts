@@ -103,36 +103,43 @@ const readDevToolsPort = async (proc: Bun.Subprocess, profileDir: string): Promi
   throw new Error(`chromium did not open a CDP port within ${CDP_PORT_TIMEOUT_MS}ms.`);
 };
 
-const acquireViaCdp = async (chromium: ChromiumLike): Promise<AcquiredContext> => {
-  const profileDir = mkdtempSync(join(tmpdir(), 'kevin-cdp-'));
+export interface CdpChromium<B extends BrowserLike> {
+  browser: B;
+  /** Resolves when chromium exits — on its own (graceful CDP quit) or via `killTree`. */
+  exited: Promise<number>;
+  /** Force-kill the chromium process tree; a CDP-attached `browser.close()` only disconnects. */
+  killTree: () => Promise<void>;
+}
+
+/**
+ * Spawn chromium on an OS-assigned CDP port and attach over it — the win32 seam bun forces on us
+ * (it can't drive Playwright's pipe transport, oven-sh/bun#27977). The caller owns the profile dir
+ * and the close policy; this only spawns, attaches, and hands back a process-tree killer.
+ */
+export const spawnChromiumCdp = async <B extends BrowserLike>(
+  chromium: Omit<ChromiumLike, 'connectOverCDP'> & { connectOverCDP: (endpoint: string) => Promise<B> },
+  { profileDir, headless, extraArgs = [] }: { profileDir: string; headless: boolean; extraArgs?: readonly string[] }
+): Promise<CdpChromium<B>> => {
+  // A reused (persistent) profile can hold a stale port file from a prior run; drop it so we only
+  // read the port the fresh chromium writes (a dead port → connectOverCDP ECONNREFUSED).
+  rmSync(join(profileDir, 'DevToolsActivePort'), { force: true });
   const proc = Bun.spawn(
     [
       chromium.executablePath(),
-      '--headless',
+      ...(headless ? ['--headless'] : []),
       // port 0 = OS-assigned; chromium writes it to <profileDir>/DevToolsActivePort
       '--remote-debugging-port=0',
       `--user-data-dir=${profileDir}`,
       '--no-first-run',
-      '--hide-scrollbars'
+      ...extraArgs
     ],
     { stdin: 'ignore', stdout: 'ignore', stderr: 'ignore' }
   );
 
-  // A CDP-attached browser.close() only disconnects — the chromium child (and
-  // its helper processes) are ours to kill. Await the kill before removing the
-  // profile dir, or chrome's file locks make the rm silently fail.
-  const killChromium = async () => {
-    const killer = Bun.spawn(['taskkill', '/PID', String(proc.pid), '/T', '/F'], {
-      stdout: 'ignore',
-      stderr: 'ignore'
-    });
+  const killTree = async () => {
+    const killer = Bun.spawn(['taskkill', '/PID', String(proc.pid), '/T', '/F'], { stdout: 'ignore', stderr: 'ignore' });
     await killer.exited;
     await proc.exited;
-    try {
-      rmSync(profileDir, { recursive: true, force: true });
-    } catch {
-      // a straggler crashpad handler can hold the dir for a beat; harmless
-    }
   };
 
   try {
@@ -146,16 +153,46 @@ const acquireViaCdp = async (chromium: ChromiumLike): Promise<AcquiredContext> =
           }`
       );
     });
+    return { browser, exited: proc.exited, killTree };
+  } catch (error) {
+    await killTree();
+    throw error;
+  }
+};
+
+const acquireViaCdp = async (chromium: ChromiumLike): Promise<AcquiredContext> => {
+  const profileDir = mkdtempSync(join(tmpdir(), 'kevin-cdp-'));
+  const removeProfile = () => {
+    try {
+      rmSync(profileDir, { recursive: true, force: true });
+    } catch {
+      // a straggler crashpad handler can hold the dir for a beat; harmless
+    }
+  };
+
+  let handle: CdpChromium<BrowserLike>;
+  try {
+    handle = await spawnChromiumCdp(chromium, { profileDir, headless: true, extraArgs: ['--hide-scrollbars'] });
+  } catch (error) {
+    removeProfile();
+    throw error;
+  }
+
+  const { browser, killTree } = handle;
+  try {
     const context = await browser.newContext();
     return {
       context,
+      // A CDP-attached browser.close() only disconnects — kill the chromium tree, then the profile.
       close: async () => {
         await browser.close().catch(() => {});
-        await killChromium();
+        await killTree();
+        removeProfile();
       }
     };
   } catch (error) {
-    await killChromium();
+    await killTree();
+    removeProfile();
     throw error;
   }
 };
