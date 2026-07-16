@@ -66,7 +66,6 @@ const launchWin32ViaCdp = async (userDataDir: string, headless: boolean): Promis
       `--user-data-dir=${userDataDir}`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--no-sandbox',
       ...BROWSER.INTERACTIVE_ARGS,
       'about:blank'
     ],
@@ -109,7 +108,14 @@ const launchWin32ViaCdp = async (userDataDir: string, headless: boolean): Promis
     } catch {
       // CDP session unavailable — fall through to the force-kill fallback.
     }
-    const exited = await Promise.race([proc.exited.then(() => true), Bun.sleep(5_000).then(() => false)]);
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    const exited = await Promise.race([
+      proc.exited.then(() => true),
+      new Promise<false>((resolve) => {
+        fallback = setTimeout(() => resolve(false), 5_000);
+      })
+    ]);
+    clearTimeout(fallback);
     if (!exited) {
       await browser.close().catch(() => undefined);
       await forceKill().catch(() => undefined);
