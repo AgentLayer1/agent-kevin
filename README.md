@@ -25,10 +25,10 @@ Kevin is a portable, file-based personal AI assistant that runs inside [Claude C
 This isn't a chat wrapper. It's an **operating system for personal AI**:
 
 - A 47-tool MCP server for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page-speed, Playwright, and Google Search Console.
-- A 31-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, and read-only SEO auditing.
+- A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are three read-only helper skills, `dashboard` (refresh the mission-control page), `where-am-i` (session radar), and `permission-check` (translate + safety-grade a permission prompt you paste from another session), which Kevin can run on its own when you ask; none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are four helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), and `bruno-api` (draft API requests for you to fire in the GUI — authoring only, never sends; triggers only when you name Bruno); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -558,7 +558,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (24), always loaded
+### Core skills (25), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -575,6 +575,7 @@ graph LR
 | `dashboard` | Refresh + open the Agent OS mission-control page (auto-invocable) |
 | `where-am-i` | Radar over recent Claude Code sessions — what you were working on, where you left off (auto-invocable) |
 | `permission-check` | Paste a permission-dialog screenshot from another session → plain-language translation, 🟢/🟡/🔴 safety grade, recommended answer, graded report (auto-invocable) |
+| `bruno-api` | Draft API requests as a Bruno collection in `<HOME>/.claude/api/` — you visualize and fire them in the Bruno app; Kevin authors, never sends (triggers when you name Bruno) |
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
@@ -647,7 +648,7 @@ agent-kevin/
 ├── mcp-server/              # the kevin MCP server (Bun)
 │   ├── src/
 │   └── package.json
-├── skills/                  # 31 skills (24 core + 6 SEO + 1 Browser) auto-load with plugin
+├── skills/                  # 32 skills (25 core + 6 SEO + 1 Browser) auto-load with plugin
 │                            #   (per-version upgrade migrations live in skills/upgrade/scripts/<v>.ts)
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
