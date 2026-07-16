@@ -9,9 +9,17 @@
  * flows that drive a specific/local app). A HOME flow shadows a built-in of the same name. HOME
  * flows import the harness as a bare specifier (`import { runFlow } from 'lib/flow'`) — the plugin's
  * `browser-flows` dir is added to NODE_PATH so that resolves wherever the flow lives.
+ *
+ * Credentials: a flow that needs secrets (a card, a password, an API key) reads them from
+ * `process.env`, never from `params`. The dispatcher loads `<HOME>/.claude/browser-flows/<flow>/.env`
+ * (always HOME, gitignored, deny-gated from the agent's own Read/Bash) and injects it into ONLY that
+ * flow's child process — scoped, so one flow's secrets don't reach another, and never routed through
+ * a tool param into the conversation. Flow secrets override inherited env; the harness vars
+ * (NODE_PATH/KEVIN_HOME/…) always win over both. The reader refuses `.kevin/secrets/` by construction.
  */
 
 import { FOLDERS } from '@/config';
+import { readEnvFile } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { delimiter, resolve } from 'node:path';
@@ -58,7 +66,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'browser_flows',
     description:
-      'Run a browser-flows flow that drives a site in a VISIBLE browser (the operator can log in manually when a flow needs it — no API keys). Runs inside the MCP server so the headed browser launches outside the Bash sandbox. flow = a folder with an index.ts, resolved from the plugin\'s skills/browser-flows/flows/ (built-in, e.g. hacker-news) or the operator\'s HOME .claude/browser-flows/ (private, e.g. an app-specific flow); HOME shadows built-in. params map to --key value. Long-running for interactive flows. Screenshots land in reports/captures/browser/<env>/<flow>/<run>/.',
+      'Run a browser-flows flow that drives a site in a VISIBLE browser (the operator can log in manually when a flow needs it — no API keys). Runs inside the MCP server so the headed browser launches outside the Bash sandbox. flow = a folder with an index.ts, resolved from the plugin\'s skills/browser-flows/flows/ (built-in, e.g. hacker-news) or the operator\'s HOME .claude/browser-flows/ (private, e.g. an app-specific flow); HOME shadows built-in. params map to --key value — use params ONLY for non-secret knobs (env, tier, count). SECRETS (cards, passwords, tokens) go in <HOME>/.claude/browser-flows/<flow>/.env, which the tool loads and injects into that flow alone; never pass a credential as a param. Long-running for interactive flows. Screenshots land in reports/captures/browser/<env>/<flow>/<run>/.',
     inputSchema: {
       flow: z.string().describe('Flow name — a folder with an index.ts under the plugin flows/ or HOME .claude/browser-flows/ (e.g. "hacker-news")'),
       params: z
@@ -78,9 +86,12 @@ export const tools: ToolDef[] = [
       const nodeModules = resolve(FOLDERS.ROOT, 'mcp-server', 'node_modules');
       // browser-flows dir on NODE_PATH lets any flow (built-in or HOME) resolve the shared harness.
       const nodePath = [nodeModules, BROWSER_FLOWS_DIR].join(delimiter);
+      // Flow secrets: always from HOME (never the distributed plugin repo), scoped to this flow's
+      // child. Flow env overrides inherited values; the harness vars below win over the flow env.
+      const flowEnv = readEnvFile(resolve(LOCAL_FLOWS_DIR, flow, '.env'));
       const proc = Bun.spawn(['bun', 'run', resolve(flowRoot, flow, 'index.ts'), ...toFlags(params)], {
         cwd: FOLDERS.ROOT,
-        env: { ...process.env, NODE_PATH: nodePath, PLAYWRIGHT_BROWSERS_PATH: '0', KEVIN_HOME: FOLDERS.HOME },
+        env: { ...process.env, ...flowEnv, NODE_PATH: nodePath, PLAYWRIGHT_BROWSERS_PATH: '0', KEVIN_HOME: FOLDERS.HOME },
         stdout: 'pipe',
         stderr: 'pipe'
       });
@@ -91,6 +102,7 @@ export const tools: ToolDef[] = [
       return {
         flow,
         exitCode,
+        envKeys: Object.keys(flowEnv), // names only — the injected secret values never leave the child
         guidance: readGuidance(resolve(flowRoot, flow)),
         output: tail(`${stdout}${stderr}`.trim(), MAX_OUTPUT_CHARS)
       };

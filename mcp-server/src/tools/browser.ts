@@ -208,9 +208,15 @@ export const tools: ToolDef[] = [
     inputSchema: {
       input: z.string().describe('URL, file:// URL, or absolute/relative path'),
       name: z.string().optional().describe('Optional output filename hint'),
-      fullPage: z.boolean().optional().describe('Capture full scrolling page')
+      fullPage: z.boolean().optional().describe('Capture full scrolling page'),
+      css: z
+        .string()
+        .optional()
+        .describe(
+          'Extra CSS injected after load, before capture — e.g. ".sticky{position:static!important}" to unstick sticky headers, which repeat down full-page shots (Chromium captureBeyondViewport glitch)'
+        )
     },
-    handler: async ({ input, name, fullPage }) => {
+    handler: async ({ input, name, fullPage, css }) => {
       const chromium = await getChromium();
       const target = normalizeInput(input);
       const outPath = captureFilename('screenshot', 'png', name);
@@ -218,6 +224,9 @@ export const tools: ToolDef[] = [
       try {
         const page = await context.newPage();
         await loadInto(page, target);
+        if (css) {
+          await page.addStyleTag({ content: css });
+        }
         await page.screenshot({ path: outPath, fullPage: fullPage ?? false });
         log.info(`screenshot -> ${outPath}`);
       } finally {
@@ -231,9 +240,10 @@ export const tools: ToolDef[] = [
     description: 'Render a URL or local file (HTML or Markdown) to PDF. Requires the Browser pack installed.',
     inputSchema: {
       input: z.string(),
-      name: z.string().optional()
+      name: z.string().optional(),
+      css: z.string().optional().describe('Extra CSS injected after load, before rendering')
     },
-    handler: async ({ input, name }) => {
+    handler: async ({ input, name, css }) => {
       const chromium = await getChromium();
       const target = normalizeInput(input);
       const outPath = captureFilename('pdf', 'pdf', name);
@@ -241,6 +251,9 @@ export const tools: ToolDef[] = [
       try {
         const page = await context.newPage();
         await loadInto(page, target);
+        if (css) {
+          await page.addStyleTag({ content: css });
+        }
         await page.pdf({ path: outPath, format: 'A4' });
         log.info(`pdf -> ${outPath}`);
       } finally {

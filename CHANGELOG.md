@@ -43,6 +43,17 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.13] - 2026-07-16
+
+### Added
+- `api-collections` skill: draft API request collections the operator opens and fires from their own client. Client-agnostic core with per-client **adapters** (Bruno shipped; plain-`curl` fallback when no client is installed). The Bruno adapter warns about its silent soft-failures (malformed-YAML drop, `.env`-read-at-open, unresolved-placeholder false green) and parse-checks each file after authoring.
+- `curl_run` MCP tool: run an authored request end-to-end to verify it before handing it off (the api-collections verification path).
+- `browser_screenshot` and `browser_pdf` accept a CSS-injection input to tweak the page before capture (#16).
+- Flow-scoped secrets (`.env`) and QA fixtures (`config.json`) for HOME browser flows.
+
+### Upgrade
+- `settings: mandatory` — add two allow-list entries to the HOME's `.claude/settings.json`: `mcp__plugin_agent-kevin_kevin__curl_run` (new always-on core tool) and `Skill(agent-kevin:api-collections)` (new model-invocable skill).
+
 ## [0.3.12] - 2026-07-13
 
 ### Added

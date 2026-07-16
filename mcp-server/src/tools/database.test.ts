@@ -83,8 +83,8 @@ describe('resolveConnectionString', () => {
   });
 
   test('accepts a hyphenated name and round-trips it through the URL', () => {
-    const out = resolveConnectionString('postgres://u:p@h:5432/app', 'vetra-db');
-    expect(safeConnectionInfo(out).database).toBe('vetra-db');
+    const out = resolveConnectionString('postgres://u:p@h:5432/app', 'acme-db');
+    expect(safeConnectionInfo(out).database).toBe('acme-db');
   });
 
   test('URL-encodes names with reserved characters, round-tripping intact', () => {
@@ -102,7 +102,7 @@ describe('resolveConnectionString', () => {
 
 describe('assertDbName', () => {
   test('accepts legal names regardless of charset', () => {
-    for (const name of ['app', 'vetra-db', 'my db', 'Ünïcode', 'x'.repeat(63)]) {
+    for (const name of ['app', 'acme-db', 'my db', 'Ünïcode', 'x'.repeat(63)]) {
       expect(() => assertDbName(name)).not.toThrow();
     }
   });

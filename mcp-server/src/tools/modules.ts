@@ -10,6 +10,7 @@ export const TOOL_MODULES = [
   'browser-flows',
   'capture',
   'compile',
+  'curl',
   'database',
   'database-fork',
   'github',

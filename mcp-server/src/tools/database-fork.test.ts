@@ -11,7 +11,7 @@ import {
 
 describe('quoteIdent', () => {
   test('wraps a plain name in double quotes', () => {
-    expect(quoteIdent('vetra-db')).toBe('"vetra-db"');
+    expect(quoteIdent('acme-db')).toBe('"acme-db"');
     expect(quoteIdent('app_fork')).toBe('"app_fork"');
   });
 
@@ -23,11 +23,11 @@ describe('quoteIdent', () => {
 
 describe('deriveForkName', () => {
   test('slugifies the branch and prefixes the source DB', () => {
-    expect(deriveForkName('vetra', 'basem/ve-002-shared-db')).toBe('vetra_basem_ve_002_shared_db');
+    expect(deriveForkName('acme', 'basem/ac-002-shared-db')).toBe('acme_basem_ac_002_shared_db');
   });
 
   test('keeps a hyphenated source name verbatim in the prefix', () => {
-    expect(deriveForkName('vetra-db', 'kimo/vsub-redemption')).toBe('vetra-db_kimo_vsub_redemption');
+    expect(deriveForkName('acme-db', 'basem/feature-redemption')).toBe('acme-db_basem_feature_redemption');
   });
 
   test('collapses runs of non-alphanumerics and trims edges', () => {

@@ -1,6 +1,6 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *)
 ---
@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 # Configure Skills
 
 This skill manages Kevin's optional capabilities. Use it to:
-1. **Configure a pack** (SEO, Browser, Database, or GitHub) — writes API keys, registers MCP servers, sets up database connections, grants tool permissions
+1. **Configure a pack** (SEO, Browser, Database, GitHub, or API) — writes API keys, registers MCP servers, sets up database connections, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
@@ -46,7 +46,7 @@ If `$HOME_DIR/CLAUDE.md` doesn't exist, tell the user to run `/agent-kevin:init`
 `AskUserQuestion`:
 
 > **What would you like to do?**
-> - Configure a skill pack (SEO / Browser / Database)
+> - Configure a skill pack (SEO / Browser / Database / GitHub / API)
 > - Install third-party skill libraries (via skills.sh)
 > - Deconfigure a skill pack
 > - Cancel
@@ -67,9 +67,10 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ Browser **(recommended)** — Perplexity research + Playwright tool permissions
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs and diagnose failing CI builds
+> - ☐ API — draft API requests as file-based collections you fire yourself (Bruno visual client or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (Section F).
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
@@ -311,6 +312,32 @@ Default repo:              resolved from KEVIN_CODE_PATH / KEVIN_GIT_REPOS; over
 Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows),
 add it to <HOME>/.kevin/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
 Requires the `gh` CLI on PATH (`brew install gh`).
+```
+
+### A.2e — API pack walk
+
+The lightest pack: no API keys, no MCP tools, no permission grants. The `api-collections` skill authors request files the operator fires themselves; this walk picks which adapter(s) to set up.
+
+**(1) Pick adapter(s).** `AskUserQuestion` (multi-select):
+
+> **How do you want to fire drafted API requests?**
+>
+> - ☐ Bruno **(recommended)** — visual client: open the collection once, click Send, watch tests pass/fail
+> - ☐ curl — zero-install: requests come as terminal-runnable scripts
+
+**(2) Bruno picked →** check the install — macOS: `ls /Applications | grep -i Bruno || which bru` · Windows (pwsh): `where.exe bru` or `Test-Path` on `$env:ProgramFiles\Bruno\Bruno.exe` / `$env:LOCALAPPDATA\Programs\bruno\Bruno.exe` · Linux: `which bruno || which bru`. If missing, offer to walk the install: macOS `brew install --cask bruno` · Windows `winget install -e --id Bruno.Bruno` (or `choco install bruno` / `scoop install bruno`) · [usebruno.com/downloads](https://www.usebruno.com/downloads). Then scaffold `<HOME>/reports/api/bruno/` if it doesn't exist (per `skills/api-collections/adapters/bruno.md`: `opencollection.yml` + `environments/default.yml` + `.env.example`) and tell the user to **Open Collection** in Bruno once, pointing at that folder.
+
+**(3) curl picked →** nothing to install (curl ships with macOS, Linux, and Windows 10+). Confirm the default root `<HOME>/reports/api/curl/` — scripts arrive per platform (`requests.sh` for bash, `requests.ps1` using `curl.exe` for PowerShell) with run commands included. This adapter is also the automatic fallback whenever no client is detected, so picking nothing still leaves the skill working.
+
+**(4) Summary** (reflect what was picked):
+
+```
+✅ API pack ready.
+
+Adapters:            Bruno (installed | install offered) · curl (always available)
+Default collections: <HOME>/reports/api/bruno/  (open once in Bruno: Open Collection → this folder)
+                     <HOME>/reports/api/curl/   (terminal-runnable scripts)
+Permissions granted: none needed — authoring writes files only; Kevin never sends requests
 ```
 
 ---
