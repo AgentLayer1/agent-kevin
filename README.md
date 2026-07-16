@@ -24,11 +24,11 @@ Kevin is a portable, file-based personal AI assistant that runs inside [Claude C
 
 This isn't a chat wrapper. It's an **operating system for personal AI**:
 
-- A 47-tool MCP server for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page-speed, Playwright, and Google Search Console.
+- A 48-tool MCP server for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page-speed, Playwright, and Google Search Console.
 - A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are four helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), and `bruno-api` (draft API requests for you to fire in the GUI — authoring only, never sends; triggers only when you name Bruno); none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are four helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), and `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -260,7 +260,7 @@ Dynamic (per-session, injected by SessionStart hook):
   · today's reports (briefings, plans, audits written earlier today)
   · recent git activity in knowledge/
 
-Plugin: agent-kevin@agentlayer · 47 MCP tools loaded
+Plugin: agent-kevin@agentlayer · 48 MCP tools loaded
 
 > /agent-kevin:morning-briefing
 [Kevin reads your active threads, in-flight tasks, anything overdue, and surfaces what
@@ -575,7 +575,7 @@ graph LR
 | `dashboard` | Refresh + open the Agent OS mission-control page (auto-invocable) |
 | `where-am-i` | Radar over recent Claude Code sessions — what you were working on, where you left off (auto-invocable) |
 | `permission-check` | Paste a permission-dialog screenshot from another session → plain-language translation, 🟢/🟡/🔴 safety grade, recommended answer, graded report (auto-invocable) |
-| `bruno-api` | Draft API requests as a Bruno collection in `<HOME>/.claude/api/` — you visualize and fire them in the Bruno app; Kevin authors, never sends (triggers when you name Bruno) |
+| `api-collections` | Draft API requests as file-based collections in `<HOME>/reports/api/<adapter>/` (or a named location) — you visualize and fire them in your API client (Bruno adapter shipped, curl fallback); Kevin authors, never sends |
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
