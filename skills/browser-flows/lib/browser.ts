@@ -2,7 +2,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { BROWSER } from '../../../mcp-server/src/config';
-import { withBrowserLaunch } from '../../../mcp-server/src/shared/browser-deps';
+import { spawnChromiumCdp, withBrowserLaunch } from '../../../mcp-server/src/shared/browser-deps';
 
 /**
  * Portable browser harness for the browser-flows skill — no flow-specific coupling. Drives a
@@ -44,6 +44,46 @@ const ensureDir = (path: string): string => {
 };
 
 /**
+ * Acquire a persistent, headed context on native Windows, where bun can't drive Playwright's pipe
+ * transport (oven-sh/bun#27977) and `launchPersistentContext` hangs. Spawns chromium on a CDP port
+ * via the shared win32 seam and attaches; the default context carries the persisted login. Overrides
+ * `context.close()` to quit chromium gracefully so cookies flush to the profile — the flow harness
+ * calls `session.context.close()` in its `finally`.
+ */
+const launchWin32ViaCdp = async (userDataDir: string, headless: boolean): Promise<BrowserContext> => {
+  const { browser, exited, killTree } = await spawnChromiumCdp(chromium, {
+    profileDir: userDataDir,
+    headless,
+    extraArgs: [...BROWSER.INTERACTIVE_ARGS, '--no-default-browser-check', 'about:blank']
+  });
+  const context = browser.contexts()[0] ?? (await browser.newContext());
+  context.close = async () => {
+    // Quit chromium gracefully via CDP so it flushes cookies/prefs to the persistent profile. A
+    // force-kill skips the flush, and a flow that runs only a few seconds never hits chromium's
+    // periodic cookie commit — so the login would be lost between runs. Kill only as a fallback.
+    try {
+      const cdp = await browser.newBrowserCDPSession();
+      void cdp.send('Browser.close').catch(() => undefined);
+    } catch {
+      // CDP session unavailable — fall through to the force-kill fallback.
+    }
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    const gracefully = await Promise.race([
+      exited.then(() => true),
+      new Promise<false>((resolve) => {
+        fallback = setTimeout(() => resolve(false), 5_000);
+      })
+    ]);
+    clearTimeout(fallback);
+    if (!gracefully) {
+      await browser.close().catch(() => undefined);
+      await killTree();
+    }
+  };
+  return context;
+};
+
+/**
  * Launches a persistent browser for the given target. The user-data dir is keyed per environment
  * so sessions never mix; screenshots are scoped per flow + run. Headed by default (manual login
  * acquires the session); `headless` reuses the persisted session without a window — it needs an
@@ -56,14 +96,17 @@ export const launch = async (target: Target, flowName: string, options: { headle
   const shotsDir = ensureDir(join(CAPTURES_ROOT, target.name, flowName, runStamp));
   log(`screenshots → ${shotsDir}${headless ? ' (headless)' : ''}`);
 
-  const context = await withBrowserLaunch(() =>
-    chromium.launchPersistentContext(userDataDir, {
-      headless,
-      viewport: headless ? { width: 1280, height: 900 } : null,
-      permissions: ['clipboard-read', 'clipboard-write'],
-      args: [...BROWSER.INTERACTIVE_ARGS]
-    })
-  );
+  const context =
+    process.platform === 'win32'
+      ? await launchWin32ViaCdp(userDataDir, headless)
+      : await withBrowserLaunch(() =>
+          chromium.launchPersistentContext(userDataDir, {
+            headless,
+            viewport: headless ? { width: 1280, height: 900 } : null,
+            permissions: ['clipboard-read', 'clipboard-write'],
+            args: [...BROWSER.INTERACTIVE_ARGS]
+          })
+        );
 
   const page = context.pages()[0] ?? (await context.newPage());
   return { context, page, shotsDir, headless };
