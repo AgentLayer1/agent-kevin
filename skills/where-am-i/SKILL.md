@@ -47,11 +47,18 @@ than reading another 80KB.
 ## Step 3 — render the digest
 
 Lead with a one-line **through-line** (a `>` blockquote): the single sentence that ties
-today's sessions together. Then the buckets. No dated `# Where Am I` header — the
-through-line carries the open, and surfaces (chat, dashboard) stamp the time themselves.
+today's sessions together. Then a compact **index table** — the scan layer: one row per
+session, state emoji first. Then the buckets carry the substance. No dated `# Where Am I`
+header — the through-line carries the open, and surfaces stamp the time themselves.
 
 ```
 > The day was all Kevin tooling: a radar feature end-to-end, then a security pass and a docs sweep.
+
+|   | # | Session | Last |
+|---|---|---------|------|
+| ❓ | 1 | Weekly goals interview redesign | *7m* · asked which scope to grill on |
+| ✅ | 2 | Session capture cursor fix | *3h* · shipped, tests green |
+| 🚧 | 3 | Blog draft exploration | *9h* · mid-draft, parked |
 
 ## 🟢 In motion (last hour)
 
@@ -78,6 +85,11 @@ Formatting rules:
 
 - **Through-line first.** One `>` blockquote sentence synthesising the set, above the
   first bucket. It's what the operator reads if they read nothing else.
+- **Index table second** — one row per session, same order and numbering as the cards.
+  Columns: state emoji (❓ the last reply asks the operator something · ✅ clean stop,
+  work delivered · 🚧 mid-flight or stalled without a question), number, title, then
+  `*age*` + a ≤6-word fragment of where it left off. Keep cells short — the substance
+  lives in the cards, the table is the map. Skip the table when there are ≤2 sessions.
 - **Card = `**N. Title** · *time ago*` on one line, then a blank line, then the summary
   paragraph, then a blank line, then the resume line.** The blank lines matter — they
   render as separate blocks (title, summary, resume) instead of one run-on paragraph.
@@ -144,7 +156,20 @@ the full set rather than returning empty-handed.
 Batch duplicates: several sessions on one work-stream (same branch or topic) are ONE
 candidate — name the lead session and note the others in its description.
 
-**Interview.** Present the top 3–4 via AskUserQuestion: label = short session name,
+**Interview.** First render the ranked candidates as a table so the operator sees the
+whole field before choosing — short cells, reasoning stays in the interview:
+
+```
+## 🩺 Triage · 3 of 11 need you
+
+| # | Session | Why now | Tending |
+|---|---------|---------|---------|
+| 1 | ❓ MDEC application response | replies drafted, due Aug 14 | review & approve |
+| 2 | ❓ Payments query grammar PR | asked which option 46m ago | answer its question |
+| 3 | ✅ Radar feature | done, context going cold | skim & close out |
+```
+
+Then present the same top 3–4 via AskUserQuestion: label = short session name,
 description = *why now* (one sentence: what it's waiting on, any deadline) + *what
 tending means* (answer its question / review and approve / kick a stall / close it out).
 
