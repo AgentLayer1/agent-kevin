@@ -43,6 +43,19 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.14] - 2026-07-23
+
+### Added
+- `where-am-i` **triage mode** (`/agent-kevin:where-am-i triage [scope]`, or when the operator asks "what should I tend to / work on next / which session needs me"): ranks the live sessions by what most needs a human (decision-pending, importance, momentum), presents the top few via an `AskUserQuestion` interview, and hands back the `claude --resume` command for the chosen one. Ephemeral — no report.
+- `where-am-i` standard digest now leads with a compact index table (one row per session, state emoji first) above the buckets; skipped when there are ≤2 sessions.
+- `init` prerequisite check now notes `poppler` as an optional dependency — the Read tool renders PDF pages via its `pdftoppm` binary (`brew install poppler` / `poppler-utils`).
+
+### Changed
+- `init` engineering defaults: when a built-in tool reports a missing dependency, relay its install hint and stop rather than improvising a fragile fallback.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.13] - 2026-07-16
 
 ### Added
