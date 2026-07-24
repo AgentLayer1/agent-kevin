@@ -1165,7 +1165,8 @@ const collectOperatorInfo = (facetSizes: FacetSize[]): OperatorInfo => {
   const profilePath = resolve(FOLDERS.USER_KNOWLEDGE, 'profile.md');
   return {
     name: boldField(FILES.USER, 'Name'),
-    timezone: stripMarkdown(boldField(FILES.USER, 'Home timezone') || boldField(FILES.USER, 'Timezone')),
+    timezone:
+      stripMarkdown(boldField(FILES.USER, 'Home timezone') || boldField(FILES.USER, 'Timezone')).split(/\s+/)[0] ?? '',
     avatar: firstImage(FILES.USER),
     headline: firstParagraph(profilePath),
     profileSections: mdSections(profilePath),
