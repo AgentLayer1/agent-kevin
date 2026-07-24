@@ -51,6 +51,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   operator: {
     name: 'Basem',
     timezone: 'Asia/Kuala_Lumpur',
+    currentTimezone: '',
     avatar: 'knowledge/user/assets/avatar.jpg',
     headline: 'Software engineer and founder with 20+ years of experience.',
     profileSections: [{ title: 'Identity', lines: ['Full name: Basem Emara', 'Location: Cyberjaya, Malaysia'] }],
@@ -360,6 +361,18 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('Full name: Basem Emara');
     expect(html).toContain('bio, identity, family');
     expect(html).toContain(`obsidian://open?path=${encodeURIComponent('/tmp/home/knowledge/user/profile.md')}`);
+  });
+
+  test('operator card stacks home and current timezone when traveling, plain when not', () => {
+    const homeOnly = renderDashboardHtml(makeSnapshot());
+    expect(homeOnly).not.toContain('🏠');
+    expect(homeOnly).toContain('Asia/Kuala_Lumpur');
+
+    const snap = makeSnapshot();
+    snap.operator.currentTimezone = 'America/New_York';
+    const traveling = renderDashboardHtml(snap);
+    expect(traveling).toContain('🏠 Asia/Kuala_Lumpur');
+    expect(traveling).toContain('✈️ America/New_York');
   });
 
   test('daily memory renders as rows with manifest summaries', () => {

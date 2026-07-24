@@ -10,7 +10,16 @@
  * Paths in: always via FOLDERS/FILES (@/config). Paths out: callers render
  * through repoRelative()/tildify so absolute machine paths never leak.
  */
-import { FILES, FOLDERS, listSecretEntries, MARKDOWN_URL, PLUGIN_NAME, type SecretEntry, TIMEZONE } from '@/config';
+import {
+  FILES,
+  FOLDERS,
+  HOME_TIMEZONE,
+  listSecretEntries,
+  MARKDOWN_URL,
+  PLUGIN_NAME,
+  type SecretEntry,
+  TIMEZONE
+} from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
@@ -211,6 +220,8 @@ export interface ProfileSection {
 export interface OperatorInfo {
   name: string;
   timezone: string;
+  /** Live machine timezone when it differs from the home timezone; '' when not traveling. */
+  currentTimezone: string;
   /** Avatar path relative to <HOME>; '' when the file doesn't exist. */
   avatar: string;
   /** First paragraph of knowledge/user/profile.md; '' when absent. */
@@ -1167,6 +1178,7 @@ const collectOperatorInfo = (facetSizes: FacetSize[]): OperatorInfo => {
     name: boldField(FILES.USER, 'Name'),
     timezone:
       stripMarkdown(boldField(FILES.USER, 'Home timezone') || boldField(FILES.USER, 'Timezone')).split(/\s+/)[0] ?? '',
+    currentTimezone: HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? TIMEZONE : '',
     avatar: firstImage(FILES.USER),
     headline: firstParagraph(profilePath),
     profileSections: mdSections(profilePath),

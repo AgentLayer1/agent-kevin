@@ -1166,10 +1166,16 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
   );
 };
 
+/** Home timezone alone, or 🏠 home stacked over ✈️ current while traveling. */
+const operatorTimezone = (operator: StatusSnapshot['operator']): string =>
+  operator.currentTimezone
+    ? `🏠 ${esc(operator.timezone)}<br>✈️ ${esc(operator.currentTimezone)}`
+    : esc(operator.timezone || '');
+
 const pageProfile = (snap: StatusSnapshot): string => {
   const { operator } = snap;
   const avatar = operator.avatar ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">` : '';
-  const head = `<div class="persona-head">${avatar}<div><div class="p-name">${esc(operator.name || 'Operator')}</div><div class="p-kind">${esc(operator.timezone)}</div><div class="p-vibe">${esc(operator.headline || 'The operator profile grows as you work together.')}</div></div></div>`;
+  const head = `<div class="persona-head">${avatar}<div><div class="p-name">${esc(operator.name || 'Operator')}</div><div class="p-kind">${operatorTimezone(operator)}</div><div class="p-vibe">${esc(operator.headline || 'The operator profile grows as you work together.')}</div></div></div>`;
 
   // The compiled profile facet, section by section — the page Kevin would
   // write about you, not a list of file names.
@@ -1752,7 +1758,7 @@ const sidebarFoot = (snap: StatusSnapshot): string => {
   const avatar = operator.avatar
     ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">`
     : `<span class="op-fallback">👤</span>`;
-  const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${esc(operator.timezone || '')}</span></span></div>`;
+  const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${operatorTimezone(operator)}</span></span></div>`;
   return card + healthBadge(snap) + upgradeBadge(snap);
 };
 
