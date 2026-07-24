@@ -55,7 +55,7 @@ When including it, compute the Hijri date with this one-shot TypeScript conversi
 bun -e 'const tz="<USER_TZ>";const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric",timeZone:tz}).formatToParts(new Date());const g=(t)=>p.find((x)=>x.type===t).value;console.log(`${g("day")} ${g("month")} ${g("year")}`)'
 ```
 
-Substitute `<USER_TZ>` with the operator's IANA timezone from `USER.md` (e.g. `Asia/Kuala_Lumpur`); drop the `timeZone` field entirely if it's unknown. If the command fails for any reason, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (lunar months alternate 29/30 days, ±1 day), and if still unknown omit the Hijri half and ship the Gregorian header alone — don't guess.
+Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zone on the session context's `## Today` line (falls back to the home timezone in `USER.md` when that line is unavailable); drop the `timeZone` field entirely if it's unknown. If the command fails for any reason, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (lunar months alternate 29/30 days, ±1 day), and if still unknown omit the Hijri half and ship the Gregorian header alone — don't guess.
 
 ## Compose
 

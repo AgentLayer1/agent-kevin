@@ -45,6 +45,11 @@ export function listSecretEntries(): SecretEntry[] {
 
 export const TIMEZONE = env('KEVIN_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+/** The operator's home-base IANA timezone, set via `KEVIN_HOME_TIMEZONE` in
+ *  `.claude/settings.local.json` `env`. When set and different from `TIMEZONE`,
+ *  the SessionStart context flags the operator as traveling. */
+export const HOME_TIMEZONE = env('KEVIN_HOME_TIMEZONE') || '';
+
 /** URL template the dashboard uses to open markdown files in a native app.
  *  `{path}` is replaced with the URL-encoded absolute path. Set via the
  *  `MARKDOWN_URL` env var (e.g. in `.claude/settings.local.json` `env`);

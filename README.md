@@ -194,7 +194,7 @@ Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filt
 
 ❓ Kevin's character (SOUL): accept default, or refine?
 ❓ Kevin's role (IDENTITY): general / coding / research / planning / custom?
-❓ Your name and timezone?
+❓ Your name and home timezone?
 ❓ Paste any URLs about you (blog, LinkedIn, GitHub, etc.) so Kevin seeds your profile
 ❓ Paste a path or URL for your avatar (optional, gets linked to knowledge/user/profile.md)
 ❓ Should knowledge/ and projects/ live somewhere else? (e.g. ~/Documents/Agents/Kevin-Knowledge)
@@ -756,6 +756,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 |---|---|---|
 | `KEVIN_HOME` | Path to your agent home. **Required** when launching `claude` from anywhere other than the agent home itself (subdirs, other repos, the user-level capture hook). | current working directory at launch |
 | `KEVIN_TIMEZONE` | IANA timezone for date formatting | system timezone |
+| `KEVIN_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
 | `KEVIN_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
 | `KEVIN_PROJECTS` | Override projects dir | `$KEVIN_HOME/projects` |
 | `KEVIN_REPORTS` | Override reports dir | `$KEVIN_HOME/reports` |

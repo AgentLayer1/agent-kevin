@@ -5,7 +5,8 @@ Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of 
 ## Identity
 
 - **Name:** {{NAME}}
-- **Timezone:** {{TIMEZONE}}
+- **Home timezone:** {{TIMEZONE}}
+- **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone.
 
 ## How to Talk to Me
 

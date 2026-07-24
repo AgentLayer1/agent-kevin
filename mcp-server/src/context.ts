@@ -10,7 +10,7 @@
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -262,7 +262,8 @@ async function gatherContext(): Promise<GatheredContext> {
     }))
   ];
 
-  const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})`];
+  const traveling = HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? ` — ✈️ traveling (home: ${HOME_TIMEZONE})` : '';
+  const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})${traveling}`];
   if (tail.content) parts.push(`## Last Session Memory (archived — not this conversation)\n\n${tail.content}`);
   if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
 

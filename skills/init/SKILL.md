@@ -108,7 +108,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 >
 > ❓ Kevin's character, accept or refine
 > ❓ Kevin's role, accept or refine
-> ❓ Your basics: name, timezone
+> ❓ Your basics: name, home timezone
 > ❓ Optional: paste any URLs about you (blog, LinkedIn, GitHub, etc.)
 > ❓ Optional: paste a path or URL for your avatar (gets linked into knowledge/user/profile.md)
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
@@ -161,7 +161,7 @@ Adjust the staged IDENTITY's `## Core Role` to match. Leave `## Operational Patt
 
 ---
 
-## Step 4 — Your basics (name + timezone)
+## Step 4 — Your basics (name + home timezone)
 
 Infer defaults first:
 
@@ -179,7 +179,7 @@ esac
 `AskUserQuestion` (batched):
 
 > 1. **Your name** — what should Kevin call you? (Default: `<NAME_DEFAULT>`)
-> 2. **Your timezone** — IANA name like `America/New_York`. (System looks like: `<TZ_IANA>`)
+> 2. **Your home timezone** — IANA name like `America/New_York`, where you're normally based. (System looks like: `<TZ_IANA>`)
 
 When `TZ_IANA` is blank (Windows, or the probe found nothing), drop the "System looks like" hint and prompt for the IANA name outright with an example, e.g. *"IANA name like `Asia/Kuala_Lumpur` — couldn't auto-detect, so please type yours."*
 
@@ -750,7 +750,8 @@ Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of 
 ## Identity
 
 - **Name:** <NAME>
-- **Timezone:** <TIMEZONE>
+- **Home timezone:** <TIMEZONE>
+- **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone.
 
 ## How to Talk to Me
 
@@ -869,26 +870,27 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The only env keys init owns are the **optional** primary-codebase pair from Step 4b — and only when a path was actually captured.
+Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `KEVIN_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
 
 **Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `KEVIN_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
-The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's only universal-infra keys are the optional codebase pair, so:
+The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `KEVIN_HOME_TIMEZONE` and the optional codebase pair, so:
 
 - **Step 4b captured a real path:** write `KEVIN_CODE_PATH` and derive `KEVIN_GIT_REPOS` to the same path (it surfaces that repo's recent git activity in the SessionStart `## Recent Git Activity` block — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
 
   ```json
   {
     "env": {
+      "KEVIN_HOME_TIMEZONE": "<TIMEZONE>",
       "KEVIN_CODE_PATH": "<KEVIN_CODE_PATH>",
       "KEVIN_GIT_REPOS": "<KEVIN_CODE_PATH>"
     }
   }
   ```
 
-- **Step 4b returned `skip`:** write `{}` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
+- **Step 4b returned `skip`:** write only `KEVIN_HOME_TIMEZONE` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
 
-- **If the file already exists:** never overwrite existing values. Merge in the codebase pair only if (a) Step 4b captured a real path AND (b) `env.KEVIN_CODE_PATH` / `env.KEVIN_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
+- **If the file already exists:** never overwrite existing values. Merge in `KEVIN_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.KEVIN_CODE_PATH` / `env.KEVIN_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
 
 We intentionally do **not** prompt for any secret values in chat (see the rule below); the codebase path is not a secret — it's captured in Step 4b's plain-chat prompt.
 
@@ -1093,7 +1095,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
 >   - `KEVIN_DB_<NAME>` — Database pack: one Postgres connection string per line
 >   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows). Needs the `gh` CLI on PATH (`brew install gh`).
-> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b (else `{}`). Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
+> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >
