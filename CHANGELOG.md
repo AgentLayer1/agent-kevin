@@ -43,6 +43,20 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.15] - 2026-07-24
+
+### Added
+- Travel-aware timezone: set `KEVIN_HOME_TIMEZONE` (IANA name) in `.claude/settings.local.json` `env` — `init` now writes it from Step 4. When it differs from the machine's live timezone, the SessionStart `## Today` line appends `✈️ traveling (home: <tz>)`. Unset leaves output unchanged.
+
+### Changed
+- `templates/USER.md` + `init`: the single **Timezone** identity field splits into **Home timezone** (static home base) and **Current timezone** (read from the session context's `## Today` line, follows travel).
+- Morning/evening briefings compute the Hijri date in the operator's **current** timezone (the `## Today` line), falling back to the home timezone in `USER.md`.
+- Dashboard operator card reads the new **Home timezone** field, with fallback to the legacy **Timezone** label.
+
+### Upgrade
+- `template/USER.md: optional` — Timezone line splits into Home/Current timezone.
+- `script: required` — runs `skills/upgrade/scripts/0.3.15.ts`: seeds `KEVIN_HOME_TIMEZONE` in `.claude/settings.local.json` `env` from USER.md's home timezone (no-op if already set; reports when USER.md has no valid IANA name so the operator can set it by hand).
+
 ## [0.3.14] - 2026-07-23
 
 ### Added
