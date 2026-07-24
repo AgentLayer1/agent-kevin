@@ -43,6 +43,20 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.16] - 2026-07-24
+
+### Added
+- Dashboard operator card is travel-aware: when `KEVIN_HOME_TIMEZONE` differs from the machine's live timezone, the card (sidebar + Profile header) stacks `🏠 <home>` over `✈️ <current>`. At home it stays a single plain timezone line, unchanged.
+
+### Changed
+- `morning-briefing` and `sync` skills name the Perplexity `web_search` tool explicitly instead of built-in `WebSearch`, so the briefing's news pull uses the intended provider.
+
+### Fixed
+- Dashboard operator card renders only the IANA token of the home timezone, stripping any annotation carried on the timezone field.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.15] - 2026-07-24
 
 ### Added
