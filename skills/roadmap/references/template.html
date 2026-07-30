@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Acme — Product Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  // set theme before first paint to avoid a flash (dark is the default)
+  try {
+    var t = localStorage.getItem("acme-roadmap-theme");
+    if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #070d0b;
+    --bg-2: #0b1512;
+    --panel-a: #152420;
+    --panel-b: #101a17;
+    --ink: #e9f2ee;
+    --ink-2: #b3c4bc;
+    --ink-dim: #75897f;
+    --line: #2b3d35;
+    --line-soft: #1e2b26;
+
+    --brand: #3fbf9f;
+    --brand-bright: #6adfc0;
+    --brand-deep: #1c6b56;
+    --brand-glow: rgba(63,191,159,.18);
+
+    --cool: #5aa9f0;
+    --cool-deep: #2f4468;
+
+    --done: #64c78d;
+    --progress: var(--brand);
+    --planned: #6f8078;
+    --win: #9ad84a;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 44px -16px rgba(0,0,0,.85);
+    --grid-dot: rgba(255,255,255,.035);
+    --r: 16px;
+  }
+
+  /* light theme — cool paper, white cards, darker ink + accents for contrast */
+  html[data-theme="light"] {
+    --bg: #f5f3fb;
+    --bg-2: #ffffff;
+    --panel-a: #ffffff;
+    --panel-b: #efecf8;
+    --ink: #201d2b;
+    --ink-2: #565064;
+    --ink-dim: #8b8698;
+    --line: #e5e1f0;
+    --line-soft: #eeebf7;
+
+    --brand: #0e8a70;
+    --brand-bright: #0b6e59;
+    --brand-deep: #b5e6d9;
+    --brand-glow: rgba(14,138,112,.16);
+
+    --cool: #2f6bc4;
+    --cool-deep: #b7cdf0;
+
+    --done: #2f9a5e;
+    --progress: var(--brand);
+    --planned: #918ca0;
+    --win: #4f9a1e;
+
+    --shadow: 0 1px 2px rgba(30,20,50,.06), 0 14px 40px -20px rgba(30,20,50,.22);
+    --grid-dot: rgba(45,30,80,.05);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    background:
+      radial-gradient(900px 520px at 78% -8%, var(--brand-glow), transparent 60%),
+      radial-gradient(700px 480px at 8% 4%, rgba(154,216,74,.07), transparent 55%),
+      var(--bg);
+    background-attachment: fixed;
+    position: relative;
+    transition: color .35s ease, background-color .35s ease;
+  }
+  /* dotted grid texture — nod to the whiteboard origin */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), rgba(0,0,0,.15) 60%, transparent);
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 56px 32px 110px; }
+
+  /* theme toggle */
+  .theme-toggle {
+    position: fixed; top: 20px; right: 20px; z-index: 10;
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer;
+    background: var(--panel-a); border: 1px solid var(--line);
+    color: var(--ink-2); font-size: 16px; line-height: 1;
+    box-shadow: var(--shadow);
+    transition: transform .2s ease, border-color .2s ease, background-color .35s ease;
+  }
+  .theme-toggle:hover { transform: translateY(-2px) rotate(-12deg); border-color: var(--brand); color: var(--brand-bright); }
+  .theme-toggle .sun { display: none; }
+  .theme-toggle .moon { display: block; }
+  html[data-theme="light"] .theme-toggle .sun { display: block; }
+  html[data-theme="light"] .theme-toggle .moon { display: none; }
+
+  /* ---------- header ---------- */
+  header.page {
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 28px;
+    flex-wrap: wrap; padding-bottom: 26px; margin-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--brand); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--brand); opacity: .7; }
+  header.page h1 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800;
+    font-size: clamp(30px, 4.4vw, 46px); line-height: 1.02; margin: 0; letter-spacing: -0.025em;
+  }
+  header.page h1 em { font-style: normal; color: var(--brand-bright); }
+  .lede { color: var(--ink-2); font-size: 14.5px; margin-top: 14px; max-width: 52ch; }
+  .lede code { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--brand-bright);
+    background: color-mix(in srgb, var(--brand) 8%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 20%, transparent); padding: 1px 6px; border-radius: 5px; }
+  .legend { align-self: flex-start; margin-top: 34px; display: flex; flex-direction: column; gap: 9px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+  .legend span { display: flex; align-items: center; gap: 9px; }
+  .legend .ico { font-size: 13px; line-height: 1; filter: saturate(1.05); }
+
+  /* ---------- phase head ---------- */
+  section.phase { margin-top: 64px; }
+  #render .phase:first-child { margin-top: 22px; }
+  .phase + .phase { margin-top: 46px; padding-top: 46px; border-top: 1px solid var(--line); }
+  .phase-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; flex-wrap: wrap; }
+  .phase-head h2 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; letter-spacing: -0.02em;
+    font-size: 25px; margin: 0;
+  }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px;
+  }
+  .tag.done { color: var(--brand-bright); background: color-mix(in srgb, var(--brand) 10%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 32%, transparent); }
+  .tag.plan { color: var(--cool); background: rgba(90,169,240,.1); border: 1px solid rgba(90,169,240,.3); }
+  .tag.moon { color: var(--done); background: rgba(100,199,141,.1); border: 1px solid rgba(100,199,141,.3); }
+  .phase-head .range { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-dim); margin-left: auto; }
+  .phase-sub { color: var(--ink-dim); font-size: 13px; margin: 2px 0 30px; font-family: "IBM Plex Mono", monospace; letter-spacing: .02em; }
+
+  /* ---------- timeline track (interwoven above/below a directional rail) ---------- */
+  /* variant:"future" recolors a phase to the cool "planned" accent */
+  .phase.future {
+    --brand: var(--cool);
+    --brand-bright: #a4cdf9;
+    --brand-deep: #34486d;
+    --brand-glow: rgba(90,169,240,.18);
+  }
+  html[data-theme="light"] .phase.future { --brand-bright: #245699; --brand-deep: #a9c4ee; }
+
+  .track { position: relative; --gut: 34px; }
+
+  .tl {
+    position: relative; z-index: 1;
+    display: grid; grid-template-rows: 1fr auto 1fr; column-gap: 0;
+  }
+  /* dotted vertical dividers — real grid items, dead-centered in each gutter */
+  .divider { grid-row: 1 / -1; align-self: stretch; justify-self: center; width: 0;
+    border-left: 2px dotted var(--line); opacity: .7; }
+  .slot { position: relative; display: flex; }
+  .slot.top { grid-row: 1; align-items: flex-end; padding-bottom: 34px; }
+  .slot.bottom { grid-row: 3; align-items: flex-start; padding-top: 34px; }
+  .slot .ms { width: 100%; }
+  /* dotted connector stub from card to rail + node where it lands */
+  .slot::after { content: ""; position: absolute; left: 50%; width: 0; height: 34px; border-left: 2px dotted var(--brand); opacity: .55; }
+  .slot.top::after { bottom: 0; }
+  .slot.bottom::after { top: 0; }
+  .slot::before { content: ""; position: absolute; left: 50%; width: 7px; height: 7px; border-radius: 50%;
+    transform: translateX(-50%); background: var(--brand); box-shadow: 0 0 10px var(--brand-glow); z-index: 2; }
+  .slot.top::before { bottom: -3.5px; }
+  .slot.bottom::before { top: -3.5px; }
+  .slot.empty::before, .slot.empty::after { display: none; }
+
+  /* stacked milestones — several cards in one period slot, joined by a dashed link */
+  .stack { display: flex; flex-direction: column; width: 100%; }
+  .stack .join { align-self: center; height: 18px; border-left: 2px dashed var(--brand); opacity: .5; }
+
+  /* the rail itself — gradient line, period pills aligned to card columns, arrowhead forward */
+  .rail { grid-column: 1 / -1; grid-row: 2; position: relative; display: grid; align-items: center; height: 46px; }
+  .rail .line {
+    position: absolute; left: 0; right: 14px; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--brand-deep) 5%, var(--brand) 50%, var(--brand-bright) 95%);
+  }
+  .rail .arrow {
+    position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
+    width: 0; height: 0; border-left: 18px solid var(--brand-bright);
+    border-top: 11px solid transparent; border-bottom: 11px solid transparent;
+    filter: drop-shadow(0 0 8px var(--brand-glow));
+  }
+  .pill {
+    justify-self: center; position: relative; z-index: 1;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600; letter-spacing: .04em;
+    color: var(--brand-bright); background: var(--bg-2);
+    border: 1px solid color-mix(in srgb, var(--brand) 42%, transparent); border-radius: 999px; padding: 5px 15px;
+    box-shadow: 0 0 0 4px var(--bg), 0 0 18px var(--brand-glow); white-space: nowrap;
+  }
+
+  /* ---------- milestone card ---------- */
+  .ms {
+    background: linear-gradient(165deg, var(--panel-a), var(--panel-b));
+    border: 1px solid var(--line); border-radius: var(--r); padding: 16px 17px 15px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    opacity: 0; transform: translateY(14px); animation: rise .6s cubic-bezier(.2,.7,.2,1) forwards;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .ms::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(var(--brand-bright), var(--brand-deep)); opacity: .85; }
+  .ms:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--brand) 42%, transparent); }
+  .ms-head { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+  .chip {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+    color: var(--brand-bright); background: color-mix(in srgb, var(--brand) 12%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+    padding: 2px 9px; border-radius: 7px;
+  }
+  .ms-head .mtitle { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 14.5px; color: var(--ink-2); }
+  .ms ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .ms li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--ink); line-height: 1.45; }
+  .st { flex: 0 0 auto; font-size: 13px; line-height: 1.45; }
+  /* unlock line — what shipping this milestone buys; the sequence is the flywheel */
+  .ms .unlock { margin-top: 12px; padding-top: 9px; border-top: 1px dashed var(--line);
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .02em; color: var(--brand); }
+  .ms .unlock::before { content: "↳ "; opacity: .8; }
+
+  /* ---------- outcomes north-star band ---------- */
+  .outcomes-wrap { margin-top: 40px; }
+  .north .outcomes-wrap { margin-top: 34px; }
+  .outcomes-label {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--ink-dim); display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  }
+  .outcomes-label::before, .outcomes-label::after { content: ""; height: 1px; background: var(--line); flex: 1; }
+  .outcomes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .outcome {
+    position: relative; border-radius: 14px; padding: 20px 18px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--brand) 14%, transparent), color-mix(in srgb, var(--brand) 3%, transparent));
+    border: 1px solid color-mix(in srgb, var(--brand) 26%, transparent); overflow: hidden;
+  }
+  .outcome::after { content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120px 80px at 80% -10%, var(--brand-glow), transparent 70%); }
+  .outcome .oicon { font-size: 22px; }
+  .outcome .olabel { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 17px; margin-top: 12px; letter-spacing: -0.01em; }
+  .outcome .odesc { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+  .outcome .owhen { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--brand); margin-top: 10px; position: relative; z-index: 1; }
+
+  /* ---------- unplanned wins (off-roadmap, shipped) ---------- */
+  .wins-wrap { margin-top: 40px; }
+  .wins-label {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--win); display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  }
+  .wins-label::before, .wins-label::after { content: ""; height: 1px; background: rgba(154,216,74,.28); flex: 1; }
+  .wins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .wcard {
+    position: relative; border-radius: 14px; padding: 17px 18px; overflow: hidden;
+    background: linear-gradient(160deg, rgba(154,216,74,.12), rgba(154,216,74,.02));
+    border: 1px solid rgba(154,216,74,.28);
+  }
+  .wcard::after { content: "⭐"; position: absolute; top: 12px; right: 14px; font-size: 14px; opacity: .85; }
+  .wcard .wtitle { display: flex; align-items: center; gap: 9px; font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: 15.5px; letter-spacing: -0.01em; padding-right: 22px; }
+  .wcard .wnote { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+
+  /* ---------- card-grid strip (meta projects / long-term horizon / backlog) ---------- */
+  .backlog { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .backlog.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .bcard {
+    background: linear-gradient(165deg, var(--panel-a), var(--panel-b));
+    border: 1px solid var(--line); border-radius: var(--r); padding: 18px 18px 16px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    opacity: 0; transform: translateY(14px); animation: rise .6s cubic-bezier(.2,.7,.2,1) forwards;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .bcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(var(--cool), var(--cool-deep)); opacity: .8; }
+  .bcard:hover { transform: translateY(-3px); border-color: rgba(90,169,240,.4); }
+  .btheme { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--cool); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+  .bnote { font-size: 12px; font-style: italic; color: var(--ink-2); margin: -8px 0 13px; }
+  /* focus card — the priority theme, drawn brighter */
+  .bcard.focus { border-color: rgba(90,169,240,.55); box-shadow: var(--shadow), 0 0 26px rgba(90,169,240,.14); }
+  .bcard.focus::before { width: 4px; opacity: 1; background: linear-gradient(var(--cool), var(--cool)); }
+  .bcard ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .bcard li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--ink); line-height: 1.45; }
+
+  /* ---------- footer ---------- */
+  footer.note {
+    margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--ink-dim); font-size: 12.5px; line-height: 1.7; max-width: 78ch;
+  }
+  footer.note strong { color: var(--ink-2); }
+  footer.note code { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--brand-bright);
+    background: color-mix(in srgb, var(--brand) 7%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 16%, transparent); padding: 1px 6px; border-radius: 5px; }
+
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { .ms, .bcard { animation: none; opacity: 1; transform: none; } }
+
+  @media (max-width: 980px) {
+    .tl { grid-template-columns: 1fr !important; grid-template-rows: none; row-gap: 16px; }
+    .slot.top, .slot.bottom { grid-column: 1 !important; grid-row: auto !important; padding: 0 !important; align-items: stretch; }
+    .slot::after, .slot::before { display: none; }
+    .slot.empty { display: none; }
+    .rail { grid-column: 1 !important; grid-row: auto; height: auto; margin: 8px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+    .rail .line, .rail .arrow { display: none; }
+    .pill { justify-self: start; }
+    .divider { display: none; }
+    .outcomes { grid-template-columns: repeat(2, 1fr); }
+    .wins { grid-template-columns: 1fr; }
+    .backlog, .backlog.cols-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme">
+  <span class="moon">🌙</span><span class="sun">☀️</span>
+</button>
+<div class="wrap">
+  <header class="page">
+    <div>
+      <div class="eyebrow">Acme · Signal over noise</div>
+      <h1>The <em>Roadmap</em></h1>
+      <p class="lede">A living plan. Everything renders from the <code>ROADMAP</code> object at the bottom of this file — edit the data, reload.</p>
+    </div>
+    <div class="legend">
+      <span><span class="ico">✅</span>Shipped</span>
+      <span><span class="ico">⏳</span>In&nbsp;progress</span>
+      <span><span class="ico">📋</span>Planned</span>
+    </div>
+  </header>
+
+  <div id="render"></div>
+
+  <footer class="note">
+    <strong>How to read this.</strong> Each section is a phase or lane with its own timeline and finish line. Detail lives on the task board; this page tracks the arc. Edit the <code>ROADMAP</code> object below and reload; no build step.
+  </footer>
+</div>
+
+<script>
+  /* =========================================================================
+     ROADMAP — single source of truth. Sections render in object order.
+       kind: "north"    → outcomes band only (the year's finish lines, page top)
+             "timeline" → periods over a directional rail (the workhorse)
+             "cards"    → card-grid strip (meta projects, long-term horizon)
+     Timeline section: { title, tag, tagLabel, range, sub, variant?, periods,
+                         unplanned?, outcomes?, outcomesLabel? }
+       tag: 'done' | 'plan' | 'moon' (green finish-line accent)
+       variant: "future" recolors the rail to the cool "planned" accent
+       period: { name, milestones: [topRow, bottomRow?] }
+       each row is one milestone or an array of milestones — an array stacks
+       the cards in that slot, joined by a short dashed link (busy months)
+       milestone: { chip, title, items: [{ text, status }], unlocks? }
+       status: 'done' | 'progress' | 'planned'  (renders ✅ / ⏳ / 📋)
+       unlocks: what shipping this milestone buys — renders as an ↳ line
+       unplanned: [{ title, note }] — shipped off-roadmap wins
+     Cards section: { title, tag?, tagLabel?, range, sub, variant?, cols?,
+                      cards: [{ theme, note?, items?, focus? }] }
+     North section: { label, outcomes: [{ icon, label, desc, when? }] }
+     ========================================================================= */
+  const ROADMAP = {
+    north: {
+      kind: "north",
+      label: "The North Star · what the year is actually for",
+      outcomes: [
+        { icon: "🚀", label: "Launch complete", desc: "Checkout to activation live for real customers", when: "End of Q2" },
+        { icon: "📈", label: "Growth engine", desc: "Content and referral loops running weekly", when: "End of Q3" },
+        { icon: "🤖", label: "AI-multiplied team", desc: "Agent-authored PRs merging routinely", when: "End of year" },
+        { icon: "🧘", label: "Ops calm", desc: "Support and monitoring leaning on automation", when: "End of year" },
+      ],
+    },
+
+    h1: {
+      kind: "timeline",
+      title: "H1 — Foundation & Launch",
+      tag: "done", tagLabel: "Shipped",
+      range: "Jan – Jun",
+      sub: "monorepo to a launch-ready funnel, with AI in the loop",
+      periods: [
+        { name: "Jan – Feb", milestones: [
+          { chip: "M1", title: "Scaffolding & auth", items: [
+            { text: "Monorepo — API + web, CI pipeline", status: "done" },
+            { text: "Auth + email verification", status: "done" },
+          ]},
+          { chip: "M2", title: "Design system", items: [
+            { text: "Acme design tokens + UI package", status: "done" },
+            { text: "Marketing homepage + pricing", status: "done" },
+          ]},
+        ]},
+        { name: "Mar – Apr", milestones: [
+          { chip: "M3", title: "Checkout", items: [
+            { text: "Plan catalog + quote orchestration", status: "done" },
+            { text: "3-step funnel: plan → configure → pay", status: "done" },
+          ], unlocks: "revenue path live · activation next" },
+          { chip: "M4", title: "Member dashboard", items: [
+            { text: "Portal: usage, billing, payment methods", status: "done" },
+            { text: "Card-decline recovery + cart repair", status: "done" },
+          ]},
+        ]},
+        { name: "May – Jun", milestones: [
+          { chip: "M5", title: "Activation", items: [
+            { text: "Post-checkout activation + auto sign-in", status: "done" },
+            { text: "Device-compatibility gate", status: "done" },
+          ]},
+          { chip: "M6", title: "Launch prep", items: [
+            { text: "Legal pages + FAQ", status: "done" },
+            { text: "Structured logging → observability stack", status: "progress" },
+          ]},
+        ]},
+      ],
+      unplanned: [
+        { title: "Error taxonomy everywhere", note: "One error shape (code + status), API → web" },
+        { title: "Provider anti-corruption layer", note: "Vendor wire types kept private behind the service" },
+      ],
+      outcomes: [
+        { icon: "🚀", label: "Launch-ready funnel", desc: "Plan → checkout → activation → self-serve" },
+        { icon: "🔒", label: "Payments safe", desc: "No card data at rest, decline recovery" },
+        { icon: "🧰", label: "Platform to build on", desc: "Typed contracts + design tokens" },
+        { icon: "🤖", label: "AI in the loop", desc: "Agent workflow embedded in the team" },
+      ],
+    },
+
+    q3: {
+      kind: "timeline",
+      title: "Q3 — Stabilize & Grow",
+      tag: "plan", tagLabel: "Planning",
+      range: "Jul – Sep",
+      sub: "finish the launch surface, harden the perimeter, start the growth loops",
+      variant: "future",
+      outcomesLabel: "What Q3 delivers",
+      periods: [
+        { name: "July", milestones: [
+          { chip: "M7", title: "Launch features", items: [
+            { text: "Promo codes at checkout", status: "progress" },
+            { text: "Referral program v1", status: "planned" },
+          ]},
+          { chip: "M8", title: "Webhook hardening", items: [
+            { text: "Vendor webhook receiver + auth guard", status: "progress" },
+          ], unlocks: "provider events trusted · automation next" },
+        ]},
+        { name: "August", milestones: [
+          [
+            { chip: "M9", title: "Content loop", items: [
+              { text: "Content pipeline: draft → review → publish", status: "planned" },
+            ]},
+            { chip: "M10", title: "Email loop", items: [
+              { text: "Email onboarding automation", status: "planned" },
+            ]},
+          ],
+        ]},
+        { name: "September", milestones: [
+          { chip: "M11", title: "Security baseline", items: [
+            { text: "Session-inactivity auto-logout", status: "planned" },
+            { text: "MFA", status: "planned" },
+          ]},
+          { chip: "M12", title: "Quarter check", items: [
+            { text: "Growth loops running weekly without hand-holding", status: "planned" },
+          ]},
+        ]},
+      ],
+      outcomes: [
+        { icon: "🧹", label: "Clean core", desc: "Webhooks, env, providers refactored" },
+        { icon: "📈", label: "Loops live", desc: "Content + referral shipping weekly" },
+        { icon: "🔐", label: "Hardened", desc: "Auto-logout, MFA, guarded webhooks" },
+        { icon: "📊", label: "Measured", desc: "Funnel metrics on one dashboard" },
+      ],
+    },
+
+    meta: {
+      kind: "cards",
+      title: "🧩 Meta Projects — the machinery behind the lanes",
+      range: "ongoing",
+      sub: "long arcs, high level — details live on the task board, not here",
+      cards: [
+        { theme: "Company brain", items: [
+          { text: "Conventions + ADRs feeding the agent", status: "progress" },
+          { text: "House patterns greppable, not tribal", status: "planned" },
+        ]},
+        { theme: "Agent workflow", items: [
+          { text: "Worktree parallel workflow proven", status: "done" },
+          { text: "Agent-authored PRs merging routinely", status: "progress" },
+        ]},
+      ],
+    },
+
+    longterm: {
+      kind: "cards",
+      title: "Long-Term Goals",
+      tag: "plan", tagLabel: "Horizon",
+      range: "next year →",
+      sub: "parked deliberately — big bets to revisit each planning cycle",
+      variant: "future",
+      cols: 3,
+      cards: [
+        { theme: "Mobile app", note: "Concept exists; only scaffolding in the repo today", focus: true },
+        { theme: "Own the billing stack", note: "Shrink the vendor dependency in-house" },
+        { theme: "Sub-accounts", note: "Account hierarchy — owners managing members under one bill" },
+      ],
+    },
+  };
+
+  /* status → indicator emoji */
+  const STATUS_ICON = { done: "✅", progress: "⏳", planned: "📋" };
+
+  /* ---------- tiny render helpers ---------- */
+  const el = (tag, cls, html) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  };
+  let delay = 0;
+  const nextDelay = () => { delay += 0.07; return `${delay.toFixed(2)}s`; };
+
+  const milestoneCard = (m) => {
+    const card = el("article", "ms");
+    card.style.animationDelay = nextDelay();
+    const head = el("div", "ms-head");
+    head.appendChild(el("span", "chip", m.chip));
+    if (m.title) head.appendChild(el("span", "mtitle", m.title));
+    card.appendChild(head);
+    const ul = el("ul");
+    m.items.forEach((it) => ul.appendChild(
+      el("li", null, `<span class="st">${STATUS_ICON[it.status] || STATUS_ICON.planned}</span><span>${it.text}</span>`)
+    ));
+    card.appendChild(ul);
+    if (m.unlocks) card.appendChild(el("div", "unlock", m.unlocks));
+    return card;
+  };
+
+  /* a period row is one milestone or an array — arrays stack with dashed joins */
+  const slotCards = (row) => {
+    const cards = Array.isArray(row) ? row : [row];
+    if (cards.length === 1) return milestoneCard(cards[0]);
+    const stack = el("div", "stack");
+    cards.forEach((m, i) => {
+      if (i) stack.appendChild(el("div", "join"));
+      stack.appendChild(milestoneCard(m));
+    });
+    return stack;
+  };
+
+  const outcomesBand = (label, outcomes) => {
+    const ow = el("div", "outcomes-wrap");
+    ow.appendChild(el("div", "outcomes-label", label));
+    const grid = el("div", "outcomes");
+    outcomes.forEach((o) => {
+      const t = el("div", "outcome");
+      t.appendChild(el("div", "oicon", o.icon));
+      t.appendChild(el("div", "olabel", o.label));
+      t.appendChild(el("div", "odesc", o.desc));
+      if (o.when) t.appendChild(el("div", "owhen", o.when));
+      grid.appendChild(t);
+    });
+    ow.appendChild(grid);
+    return ow;
+  };
+
+  const phaseHead = (sec, p) => {
+    const head = el("div", "phase-head");
+    head.appendChild(el("h2", null, p.title));
+    if (p.tag) head.appendChild(el("span", `tag ${p.tag}`, p.tagLabel));
+    if (p.range) head.appendChild(el("span", "range", p.range));
+    sec.appendChild(head);
+    if (p.sub) sec.appendChild(el("div", "phase-sub", p.sub));
+  };
+
+  const renderNorth = (p) => {
+    const sec = el("section", "north");
+    sec.appendChild(outcomesBand(p.label, p.outcomes));
+    return sec;
+  };
+
+  const renderTimeline = (p) => {
+    const sec = el("section", "phase" + (p.variant ? " " + p.variant : ""));
+    phaseHead(sec, p);
+
+    const track = el("div", "track");
+    const cols = p.periods.length;
+    // columns: card | gutter | card | gutter | card ...  (gutters are real columns so dividers center exactly)
+    const tmpl = Array.from({ length: cols }, () => "1fr").join(" var(--gut) ");
+    const cardCol = (i) => 2 * i + 1;
+
+    const tl = el("div", "tl");
+    tl.style.gridTemplateColumns = tmpl;
+
+    // top row: first milestone of each period
+    p.periods.forEach((period, i) => {
+      const slot = el("div", "slot top" + (period.milestones[0] ? "" : " empty"));
+      slot.style.gridColumn = `${cardCol(i)}`;
+      if (period.milestones[0]) slot.appendChild(slotCards(period.milestones[0]));
+      tl.appendChild(slot);
+    });
+    // dotted dividers — one per gutter column (even columns)
+    for (let i = 1; i < cols; i++) {
+      const d = el("div", "divider");
+      d.style.gridColumn = `${2 * i}`;
+      tl.appendChild(d);
+    }
+    // rail spanning all columns, internal grid matches so pills sit on card-column centers
+    const rail = el("div", "rail");
+    rail.style.gridColumn = `1 / -1`;
+    rail.style.gridTemplateColumns = tmpl;
+    rail.appendChild(el("div", "line"));
+    rail.appendChild(el("div", "arrow"));
+    p.periods.forEach((period, i) => {
+      const pill = el("span", "pill", period.name);
+      pill.style.gridColumn = `${cardCol(i)}`;
+      rail.appendChild(pill);
+    });
+    tl.appendChild(rail);
+    // bottom row: second milestone of each period
+    p.periods.forEach((period, i) => {
+      const slot = el("div", "slot bottom" + (period.milestones[1] ? "" : " empty"));
+      slot.style.gridColumn = `${cardCol(i)}`;
+      if (period.milestones[1]) slot.appendChild(slotCards(period.milestones[1]));
+      tl.appendChild(slot);
+    });
+    track.appendChild(tl);
+    sec.appendChild(track);
+
+    // unplanned wins — off-roadmap work that shipped, above the outcomes band
+    if (p.unplanned && p.unplanned.length) {
+      const ww = el("div", "wins-wrap");
+      ww.appendChild(el("div", "wins-label", "Unplanned wins · shipped off-roadmap"));
+      const wgrid = el("div", "wins");
+      p.unplanned.forEach((w) => {
+        const c = el("div", "wcard");
+        c.appendChild(el("div", "wtitle", `<span>✅</span><span>${w.title}</span>`));
+        if (w.note) c.appendChild(el("div", "wnote", w.note));
+        wgrid.appendChild(c);
+      });
+      ww.appendChild(wgrid);
+      sec.appendChild(ww);
+    }
+
+    if (p.outcomes && p.outcomes.length) {
+      sec.appendChild(outcomesBand(p.outcomesLabel || "What this phase earns", p.outcomes));
+    }
+    return sec;
+  };
+
+  const renderCards = (p) => {
+    const sec = el("section", "phase" + (p.variant ? " " + p.variant : ""));
+    phaseHead(sec, p);
+    const grid = el("div", "backlog" + (p.cols === 3 ? " cols-3" : ""));
+    p.cards.forEach((c) => {
+      const card = el("div", "bcard" + (c.focus ? " focus" : ""));
+      card.style.animationDelay = nextDelay();
+      card.appendChild(el("div", "btheme", c.theme));
+      if (c.note) card.appendChild(el("div", "bnote", c.note));
+      if (c.items && c.items.length) {
+        const ul = el("ul");
+        c.items.forEach((it) => ul.appendChild(
+          el("li", null, `<span class="st">${STATUS_ICON[it.status] || STATUS_ICON.planned}</span><span>${it.text}</span>`)
+        ));
+        card.appendChild(ul);
+      }
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid);
+    return sec;
+  };
+
+  const RENDERERS = { north: renderNorth, timeline: renderTimeline, cards: renderCards };
+  const root = document.getElementById("render");
+  Object.values(ROADMAP).forEach((section) => {
+    root.appendChild(RENDERERS[section.kind](section));
+  });
+
+  // theme toggle — dark is default; choice persisted
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const toLight = document.documentElement.getAttribute("data-theme") !== "light";
+    if (toLight) {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    try { localStorage.setItem("acme-roadmap-theme", toLight ? "light" : "dark"); } catch (e) {}
+  });
+</script>
+</body>
+</html>

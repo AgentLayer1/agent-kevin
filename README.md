@@ -28,7 +28,7 @@ This isn't a chat wrapper. It's an **operating system for personal AI**:
 - A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are four helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), and `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends); none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are five helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -558,7 +558,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (25), always loaded
+### Core skills (26), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -579,6 +579,7 @@ graph LR
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
+| `roadmap` | Wizard-style roadmap builder → interviews for the frame (shape, horizons, lanes, palette), mines the task board / READMEs / git history for milestones, renders a themable timeline-and-lanes HTML surface (auto-invocable) |
 | `plan-spec` | Deep-dive spec writer — Socratic interview → standalone, plan-compatible spec saved to the plans directory (`/plan-spec`) |
 | `simple-simplify` | Review a script/app/area/change and simplify it: elegance, dead-code removal, no over-engineering (`/simple-simplify`) |
 | `humanizer` | Strip the tells of AI-generated prose — inflated symbolism, rule-of-three, em-dash overuse, AI vocabulary — to make writing read as human |
