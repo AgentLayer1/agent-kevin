@@ -54,7 +54,7 @@ Rules: a `done` status needs evidence from this session (task frontmatter, git, 
 1. Read `references/DESIGN.md`, then `references/template.html`; glance at `references/example.png` to see a full-featured build. The template is the aesthetic contract; compose its sections, don't redesign it.
 2. Copy the template's markup and renderers wholesale; replace the palette tokens (both themes), the header copy, the footer, the localStorage key (`<slug>-roadmap-theme`), and the `ROADMAP` data object. Sections render in object order — arrange them to tell the story (north band → lanes → meta, or history → future → horizon).
 3. Write to the path settled in Round 1. Creating alongside an existing roadmap for the same subject means a new versioned name, never an overwrite.
-4. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff.
+4. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff. In full-page shots, below-fold cards sit at opacity 0 mid entry-animation and read as blank sections — pass `css: ".ms, .bcard { animation: none !important; opacity: 1 !important; transform: none !important; }"` before concluding a section is broken.
 5. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
 
 ## Iterating
