@@ -14,15 +14,15 @@
 
 ## What varies per roadmap
 
-- **Accent palette** — one brand hue drives the whole page. Swap the `--brand*` tokens in both `:root` and `html[data-theme="light"]`, and tint the dark theme's `--bg` / `--panel-*` / `--line` toward the hue at low saturation (never leave gray panels under a warm brand). Proven sets:
+- **Accent palette** — one brand hue drives the whole page. The wizard offers these as named presets (purple is the default the template ships with; Other lets the user type any hue or brand color). Swap the `--brand*` tokens in both `:root` and `html[data-theme="light"]`, and tint the dark theme's `--bg` / `--panel-*` / `--line` toward the hue at low saturation (never leave gray panels under a warm brand). Proven sets:
 
-  | Hue | Dark `--brand` / bright / deep | Light `--brand` / bright / deep | Mood |
+  | Preset | Dark `--brand` / bright / deep | Light `--brand` / bright / deep | Mood |
   |---|---|---|---|
+  | Purple | `#8b7cf0` / `#ab9dff` / `#4a3d8f` | `#5b45d6` / `#4a35b8` / `#cabfff` | template default — product, engineering |
+  | Green | `#3fbf9f` / `#6adfc0` / `#1c6b56` | `#0e8a70` / `#0b6e59` / `#b5e6d9` | fresh, operational |
   | Gold | `#d9a441` / `#f0c46a` / `#8a6420` | `#9a6b12` / `#7d5408` / `#ecd9a8` | personal, north-star |
-  | Violet | `#8b7cf0` / `#ab9dff` / `#4a3d8f` | `#5b45d6` / `#4a35b8` / `#cabfff` | product, engineering |
-  | Teal | `#3fbf9f` / `#6adfc0` / `#1c6b56` | `#0e8a70` / `#0b6e59` / `#b5e6d9` | template default |
 
-  For a new hue, derive the same shape: mid-saturation brand, brighter tint, deep shade, an 18%-alpha glow, then re-tint the dark backgrounds. In light mode the neutrals (cool paper `#f5f3fb`, white panels, `#201d2b` ink) stay as the template ships them — only the brand triplet swaps.
+  Purple's dark neutrals ship in the template. For the other presets, re-tint the dark block: green = bg `#070d0b`/`#0b1512`, panels `#152420`/`#101a17`, lines `#2b3d35`/`#1e2b26`, ink `#e9f2ee`/`#b3c4bc`/`#75897f`, planned `#6f8078`; gold = bg `#0c0a07`/`#120f0a`, panels `#241d12`/`#1a1510`, lines `#3d3423`/`#2a2418`, ink `#f2ede2`/`#c4bcab`/`#877e6c`, planned `#80776b` (gold also earns warm light paper: `#faf6ee` bg, `#f5efe2` panel-b, `#2b2418` ink). For a typed hue, derive the same shape: mid-saturation brand, brighter tint, deep shade, an 18%-alpha glow, then re-tint the dark backgrounds. In light mode the neutrals (cool paper `#f5f3fb`, white panels, `#201d2b` ink) stay as the template ships them — only the brand triplet swaps.
 - **Title, eyebrow, lede, footer** — the framing copy. The lede states the horizons (or the north-star thesis) in one sentence and always mentions that the page renders from the `ROADMAP` object. When a narrative doc exists behind the roadmap (a north-star memo, a business plan), the lede links it as the cover doc — the page is the map, the doc is the territory.
 - **localStorage key** — both in the head snippet and the toggle handler.
 - **Which sections appear and in what order** (below).

@@ -31,7 +31,7 @@ Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from conte
 - **Where it lives**: HOME root for a personal/company north star, `projects/<slug>/references/` for a project, the repo's docs dir for a client codebase. Offer the inferred path as the recommended option.
 
 **Round 2: texture (build from Round 1 answers)**
-- **Accent palette**: gold (personal/north-star), violet (product/engineering), teal, or a hue matching the subject's brand. Use option descriptions to convey the mood; DESIGN.md has the token sets.
+- **Accent scheme**: offer the named presets — purple (template default; product/engineering), green (fresh/operational), gold (personal/north-star) — and let Other take a typed hue or brand color. Use option descriptions to convey the mood; DESIGN.md has the token sets and per-preset dark tints.
 - **History backfill** (phased shape only): should shipped work appear as a `done` phase? For repos, offer to backfill it from git history — it's the most credible part of the page.
 - **Optional sections** (multiSelect): north-star band up top, meta-projects strip, long-term horizon, unplanned-wins band.
 - **Cadence framing**: monthly periods vs quarters vs custom blocks — offer what the horizon implies (a 5-month runway reads best monthly; 18 months reads best quarterly).
