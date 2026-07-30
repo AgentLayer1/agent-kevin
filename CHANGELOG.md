@@ -43,6 +43,18 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.17] - 2026-07-30
+
+### Added
+- `roadmap` skill: wizard-built strategic roadmap surfaces — interviews for the frame (shape, horizons, lanes, accent scheme), harvests milestones from the task board / READMEs / git history, renders a self-contained dark/light HTML page from the house template (`references/template.html` + `DESIGN.md`). Model-invocable; fires on "roadmap", "north star", "plan-on-a-page" asks.
+- Accent-scheme presets in the roadmap wizard: purple (template default), green, gold, or a typed hue via Other; `DESIGN.md` carries the token sets and per-preset dark tints.
+
+### Changed
+- `init` allow list gains `Skill(agent-kevin:roadmap)` so auto-invocation never prompts.
+
+### Upgrade
+- `settings: mandatory` — add permission `Skill(agent-kevin:roadmap)`.
+
 ## [0.3.16] - 2026-07-24
 
 ### Added
