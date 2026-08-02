@@ -755,7 +755,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 | Env var | Purpose | Default |
 |---|---|---|
-| `KEVIN_HOME` | Path to your agent home. **Required** when launching `claude` from anywhere other than the agent home itself (subdirs, other repos, the user-level capture hook). | current working directory at launch |
+| `KEVIN_HOME` | Path to your agent home. **Export it in your shell rc** — required for anything launched outside the home (code-repo sessions, hooks, the CLI). Without it, Kevin walks up from `cwd` to the nearest directory carrying `.kevin/` (covers home subdirs) and otherwise fails loud (`NOT_AN_AGENT_HOME`) instead of writing into the wrong tree. | cwd at launch, via the `.kevin/` walk-up |
 | `KEVIN_TIMEZONE` | IANA timezone for date formatting | system timezone |
 | `KEVIN_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
 | `KEVIN_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
@@ -1244,25 +1244,25 @@ Kevin's entire memory is markdown with `[[wikilinks]]`, and so is almost everyth
 
 The payoff is a clean **Markdown → HTML → PDF** export pipeline for anything you want to look polished (a business plan, a one-pager, a report Kevin generated). I run mine through a custom **panda-doc stylesheet** — a CSS theme that styles the exported HTML (typography, spacing, headings, code blocks) so the resulting PDF looks designed, not dumped. Drop your own stylesheet in, export to HTML, then print/render to PDF (Kevin's `browser_pdf` tool can also do the HTML → PDF step with your CSS applied).
 
-### 9. Folder structure: home for the agent, tech for the repos
+### 9. Folder structure: brains in Documents, code in Developer
 
-The mental model that keeps multi-agent setups sane: **the agent's home is a knowledge+projects directory; your code repos live separately.**
+The mental model that keeps multi-agent setups sane: **agent brains are standalone vaults under `~/Documents/Agents/`; all code lives flat in a separate `~/Developer/` tree. Never nest one inside the other.**
 
 ```text
-~/Documents/Agents/Kevin/        # Kevin's HOME — knowledge/, projects/, SOUL.md, etc.
-                                 #   the brain. No source code here.
+~/Documents/Agents/              # every agent brain lives here
+├── Kevin/                       #   the personal agent — knowledge + projects, no code
+│   ├── knowledge/  projects/  reports/
+│   ├── SOUL.md / IDENTITY.md / USER.md
+│   └── .git  →  gitdir pointer (internals live in the code tree, see below)
+└── Acme/                        #   a forked company agent (fictitious "Acme"), same shape
 
-~/Developer/Acme/                # A forked company agent's HOME (fictitious "Acme")
-├── knowledge/                   #   same Kevin template, scoped to the company
-├── projects/
-├── SOUL.md / IDENTITY.md / USER.md
-└── tech/                        #   ALL the company's code lives under here
-    ├── repo-one/
-    ├── repo-two/
-    └── worktrees/               #   parallel worktrees for agents (tip #5)
+~/Developer/Acme/                # that company's code root — flat, no brain
+├── repo-one/                    #   main checkout
+├── repo-one-my-feature/         #   worktrees as siblings (tip #5)
+└── agent-acme-data.git          #   the brain's git internals, out of the vault
 ```
 
-The key idea: a company gets its **own fork of Kevin** whose HOME *is* the company directory (knowledge + projects scoped to that business), and a `tech/` subfolder holds every repo and worktree. So the agent's brain sits one level above the code it reasons about, the company's knowledge and its source live in one tree, and you can `cd ~/Developer/Acme && claude` to wake the company agent or `cd ~/Developer/Acme/tech/repo-one` to point a coding agent at a specific repo.
+Why the split earns its keep: the brain opens cleanly as an Obsidian vault (no thousands of source files to index or exclude), you can run many brains against one code tree, and `~/Documents` syncing (iCloud) never drags repos with it. The brain's git *internals* live outside the vault via `git init --separate-git-dir` — the vault keeps a one-line `.git` pointer file, so version control works normally while sync tools only ever see markdown. Wake an agent with `cd ~/Documents/Agents/<Name> && claude`; point a coding session at a repo with `cd ~/Developer/<Org>/<repo>`. One agent per role/company, each with its own brain; export `KEVIN_HOME` in your shell rc so hooks and the CLI resolve the brain from anywhere.
 
 ### 10. Tower for git review
 

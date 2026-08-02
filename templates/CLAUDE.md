@@ -51,7 +51,7 @@ The agent home directory is the single source of truth for memory.
 ## Knowledge Structure
 
 ```
-<HOME>/                              # Agent home (the directory you launched claude from)
+<HOME>/                              # Agent home — by convention ~/Documents/Agents/<AgentName> (the directory you launch claude from)
 ├── CLAUDE.md                        # this file — operating manual + @-imports
 ├── SOUL.md                          # Kevin's character
 ├── IDENTITY.md                      # Kevin's role
@@ -142,10 +142,10 @@ If you've set a primary codebase (`$KEVIN_CODE_PATH` — captured during `/agent
 
 When you (or a parallel agent) need an isolated checkout of a code repo to work a branch without disturbing the main checkout, use a [git worktree](https://git-scm.com/docs/git-worktree). Two conventions, always:
 
-- **Siblings, never nested.** A worktree lives one level up, alongside the main checkout, not inside it. If the repo is at `.../tech/acme`, the worktree is `.../tech/acme-my-feature`. From the main checkout, the `../` keeps it at the same level: `git worktree add ../acme-my-feature -b feat/my-feature`. A nested worktree lands under a tracked path and pollutes the parent's working tree.
+- **Siblings, never nested.** A worktree lives one level up, alongside the main checkout, not inside it. If the repo is at `~/Developer/<Org>/acme`, the worktree is `~/Developer/<Org>/acme-my-feature`. From the main checkout, the `../` keeps it at the same level: `git worktree add ../acme-my-feature -b feat/my-feature`. A nested worktree lands under a tracked path and pollutes the parent's working tree.
 - **Bootstrap before coding.** A fresh worktree has no gitignored local files (`.env*`, `.claude/settings.local.json`), no installed deps, and no built packages. Copy the machine-local config from the main checkout, install, and build before the branch is workable.
 
-Don't do this by hand. The `setup-worktree` skill does both steps: it pins which repo you mean (ask if a HOME holds several), creates the sibling worktree on a new branch, and bootstraps it (copies the gitignored local files, detects the package manager, installs, and runs the repo's build script). When asked to "make a worktree for X" or work a branch in parallel, reach for that skill.
+Don't do this by hand. The `setup-worktree` skill does both steps: it pins which repo you mean (asks when the code root holds several), creates the sibling worktree on a new branch, and bootstraps it (copies the gitignored local files, detects the package manager, installs, and runs the repo's build script). When asked to "make a worktree for X" or work a branch in parallel, reach for that skill.
 
 ## How Kevin Should Work With You
 

@@ -13,16 +13,31 @@ Guided onboarding. Follow the steps in order — each step's answers become defa
 
 ## Step 0 — Resolve HOME and check idempotency
 
-Kevin's home is **the current working directory** — whatever directory the user launched `claude` from. No home-picker prompt. Power users can override by setting `KEVIN_HOME` in their shell rc.
+Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (override via `KEVIN_HOME` in the shell rc). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
 if [ -f "$HOME_DIR/SOUL.md" ]; then
   echo "ALREADY_INITIALIZED at $HOME_DIR"
+elif git -C "$HOME_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "CWD_IS_A_REPO at $HOME_DIR"
 fi
+[ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Documents" ] && echo "ICLOUD_DOCUMENTS_SYNC=on"
 ```
 
 `SOUL.md` is Kevin's idempotency marker — its filename is unique to the plugin (unlike `CLAUDE.md`, which may pre-exist in any Claude Code project the plugin gets installed into).
+
+Act on the probes before anything else:
+
+- **`CWD_IS_A_REPO`** — cwd is inside a git work tree that isn't a Kevin home: almost certainly a code repo, and scaffolding a brain into a repo pollutes it (SOUL.md, knowledge/, `.kevin/` all land in the working tree). `AskUserQuestion`:
+
+  > **This looks like a code repo, not a home for Kevin's brain.** You launched `claude` in `<HOME_DIR>`, which is a git repository without a Kevin scaffold. Where should the home live?
+  > - **`~/Documents/Agents/<AgentName>` (recommended)** — exit, `mkdir -p` it, relaunch `claude` there, re-run `/agent-kevin:init`
+  > - **Here anyway** — I understand the scaffold lands inside this repo
+
+  On the recommended pick, print the exact `mkdir -p ~/Documents/Agents/<AgentName> && cd ~/Documents/Agents/<AgentName> && claude` line and **STOP** — the rest of the wizard runs in the relaunched session. Only "Here anyway" continues.
+
+- **`ICLOUD_DOCUMENTS_SYNC=on`** (macOS, and only relevant when the home is under `~/Documents`) — surface a one-line FYI and continue, never warn or block: *"Heads-up: your Documents folder syncs to iCloud, so the agent's knowledge and secrets will sync with it."*
 
 **Detect the operating system.** Several later steps scaffold OS-specific content — the timezone probe (Step 4), the external-storage suggestion (Step 5c), the security deny-list (Step 7), and the `{{PLATFORM}}` line recorded in CLAUDE.md. Resolve it once here. Claude Code's Bash tool runs under Git Bash on Windows, so `uname` is available everywhere.
 
@@ -877,14 +892,27 @@ Also write `.claude/settings.local.json` so the file exists with the correct git
 
 The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `KEVIN_HOME_TIMEZONE` and the optional codebase pair, so:
 
-- **Step 4b captured a real path:** write `KEVIN_CODE_PATH` and derive `KEVIN_GIT_REPOS` to the same path (it surfaces that repo's recent git activity in the SessionStart `## Recent Git Activity` block — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+- **Step 4b captured a real path:** write `KEVIN_CODE_PATH` and derive `KEVIN_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and where-am-i's session radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+
+  ```bash
+  GIT_REPOS=""
+  if [ -n "$KEVIN_CODE_PATH" ]; then
+    CODE_ROOT=$(dirname "$KEVIN_CODE_PATH")
+    for repo in "$CODE_ROOT"/*/; do
+      [ -d "$repo/.git" ] && GIT_REPOS="${GIT_REPOS:+$GIT_REPOS,}${repo%/}"
+    done
+    GIT_REPOS="${GIT_REPOS:-$KEVIN_CODE_PATH}"
+  fi
+  ```
+
+  Show the derived list to the operator before writing — one line, e.g. *"Git activity will cover: `<GIT_REPOS>` — trim any you don't want in your session context."* — and honour any trim they reply with.
 
   ```json
   {
     "env": {
       "KEVIN_HOME_TIMEZONE": "<TIMEZONE>",
       "KEVIN_CODE_PATH": "<KEVIN_CODE_PATH>",
-      "KEVIN_GIT_REPOS": "<KEVIN_CODE_PATH>"
+      "KEVIN_GIT_REPOS": "<GIT_REPOS>"
     }
   }
   ```
