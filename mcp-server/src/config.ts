@@ -1,4 +1,4 @@
-import { env, loadedSecretKeyNames } from '@/shared/env';
+import { agentHomePath, env, loadedSecretKeyNames } from '@/shared/env';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
@@ -8,10 +8,12 @@ const PLUGIN_ROOT = env('KEVIN_PLUGIN_ROOT') ?? resolve(import.meta.dir, '..', '
 const tildify = (p: string) => (p.startsWith('~/') ? resolve(homedir(), p.slice(2)) : p);
 const fromEnv = (key: string, fallback: string) => tildify(env(key) || fallback);
 
-// Default to the current working directory — wherever the user launched
-// claude is Kevin's home. Override via `KEVIN_HOME` env var if launching
-// claude from outside the agent dir (e.g. from a project subdir).
-const KEVIN_HOME = fromEnv('KEVIN_HOME', process.cwd());
+// `KEVIN_HOME` when set, else the nearest home above cwd carrying this
+// agent's data dir, else cwd (pre-init). The walk-up means a server or hook
+// launched inside a code repo still resolves the operator's home instead of
+// anchoring `.kevin/` state and session captures to the repo — see
+// agentHomePath.
+const KEVIN_HOME = agentHomePath();
 const KNOWLEDGE_ROOT = fromEnv('KEVIN_KNOWLEDGE', resolve(KEVIN_HOME, 'knowledge'));
 const DATA_ROOT = resolve(KEVIN_HOME, '.kevin');
 const SECRETS_ROOT = resolve(DATA_ROOT, 'secrets');

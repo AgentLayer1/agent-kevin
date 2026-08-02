@@ -39,12 +39,15 @@ import { dirname, resolve } from 'node:path';
 const PLUGIN_ROOT = resolve(import.meta.dir, '..');
 process.env.KEVIN_PLUGIN_ROOT ??= PLUGIN_ROOT;
 
-// Hydrate process.env from the nearest .claude/settings*.json `env` block so
-// the CLI honours per-project paths (KEVIN_HOME, KEVIN_KNOWLEDGE, ...) without
-// requiring the user to duplicate them in their shell rc. Order matches Claude
-// Code: settings.local.json (machine-specific) overrides settings.json
-// (committed). Existing shell env always wins.
-function loadProjectEnv(): void {
+// Stage process.env for the whole CLI run: hydrate every .claude/settings*.json
+// `env` block on the ancestor path (nearest wins) so per-project paths
+// (KEVIN_HOME, KEVIN_KNOWLEDGE, ...) apply without shell-rc duplication, then
+// anchor KEVIN_HOME through the shared resolver. Order matches Claude Code:
+// settings.local.json (machine-specific) overrides settings.json (committed);
+// existing shell env always wins. The resolver import is dynamic — like every
+// mcp-server import in this file — because a static import would hoist above
+// the hydration and load secrets before the settings env is staged.
+async function loadProjectEnv(): Promise<void> {
   let dir = process.cwd();
   while (true) {
     for (const file of ['settings.local.json', 'settings.json']) {
@@ -59,19 +62,14 @@ function loadProjectEnv(): void {
         // malformed settings file — skip silently; user can run `kevin ping` to see resolved paths
       }
     }
-    if (existsSync(resolve(dir, '.claude'))) {
-      // First .claude/ wins, mirroring Claude Code. Anchor KEVIN_HOME to the
-      // directory that owns this .claude/ so subsequent reads land in the right
-      // tree regardless of which subdirectory the user invoked from.
-      process.env.KEVIN_HOME ??= dir;
-      return;
-    }
     const parent = dirname(dir);
-    if (parent === dir) return;
+    if (parent === dir) break;
     dir = parent;
   }
+  const { agentHomePath } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
+  agentHomePath();
 }
-loadProjectEnv();
+await loadProjectEnv();
 
 const [, , group, command, ...args] = process.argv;
 

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, resolve, sep } from 'node:path';
 
@@ -23,11 +23,49 @@ import { dirname, resolve, sep } from 'node:path';
 
 const tildify = (path: string): string => (path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path);
 
+/**
+ * Resolve the agent HOME: `KEVIN_HOME` when set, else the nearest ancestor of
+ * cwd (cwd included) carrying this agent's data dir (`.kevin/`, created at
+ * init). A bare cwd fallback anchors to wherever the process happened to
+ * launch; for a session launched inside a code repo that puts session
+ * captures, `.kevin/` state, and logs INSIDE the repo, so the walk-up refuses
+ * to anchor on anything that isn't this agent's scaffolded home. The data dir
+ * (not SOUL.md) is the marker because it's agent-specific: every sibling
+ * agent's home carries a SOUL.md, but only this agent's carries `.kevin/`, so
+ * the walk can never anchor on another agent's brain. Falls back to cwd only
+ * when no home exists on the ancestor path (the pre-init case). A derived
+ * home is written back to `process.env.KEVIN_HOME` so the dependency-free
+ * logger and child processes inherit it; the cwd fallback is never written
+ * back.
+ */
+export function agentHomePath(): string {
+  const fromVar = process.env.KEVIN_HOME?.trim();
+  if (fromVar) {
+    return tildify(fromVar);
+  }
+  let dir = process.cwd();
+  for (;;) {
+    if (isAgentHome(dir)) {
+      process.env.KEVIN_HOME = dir;
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return process.cwd();
+    }
+    dir = parent;
+  }
+}
+
+/**
+ * True when `path` is this agent's scaffolded home — marked by its `.kevin/`
+ * data dir, which no sibling agent's home carries. Guards use this to fail
+ * loud instead of writing into a repo or another agent's tree.
+ */
+export const isAgentHome = (path: string): boolean => existsSync(resolve(tildify(path), '.kevin'));
+
 /** `<HOME>/.kevin/secrets/.env`, resolved live (never frozen) so a test that sets KEVIN_HOME is honoured. */
-const secretsEnvFile = (): string => {
-  const home = tildify(process.env.KEVIN_HOME?.trim() || process.cwd());
-  return resolve(home, '.kevin', 'secrets', '.env');
-};
+const secretsEnvFile = (): string => resolve(agentHomePath(), '.kevin', 'secrets', '.env');
 
 /**
  * Minimal dotenv parser — private. Handing a raw env-file parser (or raw secret

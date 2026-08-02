@@ -1,11 +1,78 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { readEnvFile } from './env';
+import { agentHomePath, readEnvFile } from './env';
 
 // KEVIN_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
+
+describe('agentHomePath', () => {
+  /** Run `fn` with KEVIN_HOME unset and cwd at `dir`, restoring both after. */
+  const withCwd = <T>(dir: string, fn: () => T): T => {
+    const originalHome = process.env.KEVIN_HOME;
+    const originalCwd = process.cwd();
+    delete process.env.KEVIN_HOME;
+    process.chdir(dir);
+    try {
+      return fn();
+    } finally {
+      process.chdir(originalCwd);
+      if (originalHome === undefined) {
+        delete process.env.KEVIN_HOME;
+      } else {
+        process.env.KEVIN_HOME = originalHome;
+      }
+    }
+  };
+
+  test('KEVIN_HOME wins when set', () => {
+    const original = process.env.KEVIN_HOME;
+    process.env.KEVIN_HOME = '/some/agent/home';
+    try {
+      expect(agentHomePath()).toBe('/some/agent/home');
+    } finally {
+      if (original === undefined) {
+        delete process.env.KEVIN_HOME;
+      } else {
+        process.env.KEVIN_HOME = original;
+      }
+    }
+  });
+
+  test('walks up to the nearest home carrying the agent data dir and writes it back to the env', () => {
+    // realpath because macOS tmpdir is a symlink (/var → /private/var) and the
+    // walk-up starts from the already-resolved process.cwd().
+    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-home-')));
+    mkdirSync(resolve(home, '.kevin'));
+    const repo = resolve(home, 'not-really-a-repo', 'src');
+    mkdirSync(repo, { recursive: true });
+    withCwd(repo, () => {
+      expect(agentHomePath()).toBe(home);
+      expect(process.env.KEVIN_HOME).toBe(home);
+    });
+  });
+
+  test('ignores a sibling agent home that lacks this agent data dir', () => {
+    const siblingHome = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-sibling-')));
+    writeFileSync(resolve(siblingHome, 'SOUL.md'), '# Soul\n');
+    mkdirSync(resolve(siblingHome, '.otheragent'));
+    const inner = resolve(siblingHome, 'projects');
+    mkdirSync(inner, { recursive: true });
+    withCwd(inner, () => {
+      expect(agentHomePath()).toBe(process.cwd());
+      expect(process.env.KEVIN_HOME).toBeUndefined();
+    });
+  });
+
+  test('falls back to cwd without writing the env when no home exists above', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'kevin-nohome-'));
+    withCwd(dir, () => {
+      expect(agentHomePath()).toBe(process.cwd());
+      expect(process.env.KEVIN_HOME).toBeUndefined();
+    });
+  });
+});
 
 describe('readEnvFile', () => {
   test('parses a standalone .env into a map', () => {
