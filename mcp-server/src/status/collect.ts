@@ -33,7 +33,7 @@ import {
 } from './radar-refs';
 import { sanitizeHtml } from '@/shared/sanitize-html';
 import type { TaskFile } from '@/shared/types';
-import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
+import { discoverProjects, scanAllTasks, scanArchivedTasks, scanMalformedTasks } from '@/tasks/scan';
 import { resolveTasks } from '@/tasks/resolve';
 import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -242,6 +242,8 @@ export interface Health {
   pendingCompiles: number;
   logErrors: number;
   missingImports: number;
+  /** Task files that won't parse — invisible everywhere else, so they page here. */
+  malformedTasks: number;
   ok: boolean;
 }
 
@@ -406,6 +408,9 @@ export interface StatusSnapshot {
     /** Task id → relative path across every task (live + archived) — lets the
      *  renderer turn `depends on` ids into links to the task file. */
     pathById: Record<string, string>;
+    /** Task files whose frontmatter won't parse — absent from every list above,
+     *  so they're surfaced rather than silently missing. */
+    malformed: string[];
   };
   context: {
     staticImports: StaticImport[];
@@ -822,7 +827,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     touchedToday: all
       .filter((task) => task.frontmatter.updated === today || task.frontmatter.updated === yesterday)
       .map(toRef),
-    pathById
+    pathById,
+    malformed: scanMalformedTasks().map((path) => relative(FOLDERS.HOME, path))
   };
 };
 
@@ -1732,12 +1738,14 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   const pendingCompiles = snap.compile.pending;
   const logErrors = snap.logs.errors;
   const missingImports = snap.context.staticImports.filter((item) => !item.present).length;
+  const malformedTasks = snap.tasks.malformed.length;
   return {
     overdue,
     pendingCompiles,
     logErrors,
     missingImports,
-    ok: overdue === 0 && pendingCompiles === 0 && logErrors === 0 && missingImports === 0
+    malformedTasks,
+    ok: overdue === 0 && pendingCompiles === 0 && logErrors === 0 && missingImports === 0 && malformedTasks === 0
   };
 };
 

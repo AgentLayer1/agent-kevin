@@ -62,15 +62,17 @@ export const getProjectPrefix = (project: string): string => {
 
 // ── Task scanning ────────────────────────────────────────────────────
 
+/** Task files are `<prefix>-<NNN>...md`; skips README.md and other non-task
+ *  markdown (archive/ dirs carry a README) so they don't log parse warnings. */
+const isTaskFile = (name: string): boolean => name.endsWith('.md') && !name.startsWith('.') && /^[a-z]+-\d+/.test(name);
+
 /** Parse every task markdown file directly inside `dir` (non-recursive — the
  *  `archive/` subdir is skipped here because it isn't a `.md` file). */
 const readTaskDir = (dir: string): TaskFile[] => {
   if (!existsSync(dir)) return [];
 
   return readdirSync(dir)
-    // Task files are `<prefix>-<NNN>...md`; skip README.md and other non-task
-    // markdown (archive/ dirs carry a README) so they don't log parse warnings.
-    .filter((f) => f.endsWith('.md') && !f.startsWith('.') && /^[a-z]+-\d+/.test(f))
+    .filter(isTaskFile)
     .flatMap<TaskFile>((file) => {
       const filePath = join(dir, file);
       const task = parseTaskFile(filePath);
@@ -95,6 +97,25 @@ const scanProjectArchive = (project: string): TaskFile[] =>
  *  absent from the status map its dependents read it as unresolved and get
  *  falsely auto-blocked. Not part of the active working set — status only. */
 export const scanArchivedTasks = (): TaskFile[] => discoverProjects().flatMap(scanProjectArchive);
+
+/**
+ * Task files that exist on disk but can't be parsed — malformed frontmatter
+ * (a stray indent before `---`, a truncated block) drops them from every scan.
+ * Without this they vanish from TASKS.md and the dashboard with only a log
+ * line, which reads as "task deleted" rather than "task broken".
+ */
+export const scanMalformedTasks = (): string[] =>
+  discoverProjects().flatMap((project) =>
+    ['tasks', join('tasks', 'archive')]
+      .map((sub) => join(FOLDERS.PROJECTS, project, sub))
+      .filter(existsSync)
+      .flatMap((dir) =>
+        readdirSync(dir)
+          .filter(isTaskFile)
+          .map((file) => join(dir, file))
+          .filter((filePath) => parseTaskFile(filePath) === null)
+      )
+  );
 
 /** Get the next available task ID for a project. Scans both active and archive dirs. */
 export const getNextId = (project: string): string => {

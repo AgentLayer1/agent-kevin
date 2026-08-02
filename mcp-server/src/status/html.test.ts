@@ -209,7 +209,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       })
     ],
     touchedToday: [taskRef({ id: 'lo-002', title: 'Due today task', updated: '2026-06-11' })],
-    pathById: {}
+    pathById: {},
+    malformed: []
   },
   context: {
     staticImports: [
@@ -270,7 +271,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   reportsTotal: 12,
   radarLatest: null,
   changelog: [],
-  health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, ok: true },
+  health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: true },
   ...overrides
 });
 
@@ -639,7 +640,7 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
         tasks: { ...base.tasks, overdue: 2, overdueList: [taskRef(), taskRef({ id: 'lo-009' })] },
-        health: { overdue: 2, pendingCompiles: 1, logErrors: 0, missingImports: 0, ok: false }
+        health: { overdue: 2, pendingCompiles: 1, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: false }
       })
     );
     expect(html).toContain('class="badge warn" data-nav="status"');

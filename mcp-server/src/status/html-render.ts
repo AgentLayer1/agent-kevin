@@ -1628,8 +1628,15 @@ const pageStatus = (snap: StatusSnapshot): string => {
     stat(health.pendingCompiles, 'pending compiles', health.pendingCompiles ? 'warn' : 'good'),
     stat(health.logErrors, 'log errors today', health.logErrors ? 'bad' : 'good'),
     stat(health.missingImports, 'missing imports', health.missingImports ? 'bad' : 'good'),
+    stat(health.malformedTasks, 'unreadable tasks', health.malformedTasks ? 'bad' : 'good'),
     stat(tasks.stale, 'stale · info only')
   ]);
+
+  const malformedBody =
+    hint('Task files whose frontmatter won’t parse. They are missing from every list on this dashboard and from TASKS.md — fix the frontmatter (it must open with `---` on line 1) and they reappear.') +
+    (tasks.malformed.length
+      ? tasks.malformed.map((path) => clearRow(path)).join('')
+      : clearRow('Every task file parses.'));
 
   const overdueBody =
     hint('Open tasks whose due date has passed — read straight from each task file’s frontmatter.') +
@@ -1672,21 +1679,26 @@ const pageStatus = (snap: StatusSnapshot): string => {
       ? `<div class="row"><span class="dim" style="flex:none">●</span><span class="grow">${tasks.stale} task(s) going stale</span>${navLink('tasks/attention', 'review them')}</div>`
       : clearRow('Nothing rotting.'));
 
-  const issueCount = [health.overdue, health.pendingCompiles, health.logErrors, health.missingImports].filter(
-    Boolean
-  ).length;
+  const issueCount = [
+    health.overdue,
+    health.pendingCompiles,
+    health.logErrors,
+    health.missingImports,
+    health.malformedTasks
+  ].filter(Boolean).length;
   return page(
     'status',
     `Status <span class="accent">${health.ok ? '🟢' : '🟠'}</span>`,
     health.ok
-      ? 'All systems nominal. The sidebar badge is green only when the four blocking signals below are all zero.'
-      : `${issueCount} signal(s) need attention. The sidebar badge is green only when the four blocking signals below are all zero.`,
+      ? 'All systems nominal. The sidebar badge is green only when the five blocking signals below are all zero.'
+      : `${issueCount} signal(s) need attention. The sidebar badge is green only when the five blocking signals below are all zero.`,
     stats +
       [
         section('Overdue tasks', String(health.overdue), overdueBody),
         section('Pending compiles', String(health.pendingCompiles), pendingBody),
         section('Log errors', String(health.logErrors), logsBody),
         section('Context imports', missing.length ? `${missing.length} missing` : 'all present', importsBody),
+        section('Unreadable tasks', String(health.malformedTasks), malformedBody),
         section('Going stale', `${tasks.stale} · informational`, staleBody)
       ].join('')
   );
