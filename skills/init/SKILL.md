@@ -618,7 +618,8 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "autoAllowBashIfSandboxed": true,
   "allowUnsandboxedCommands": false,
   "filesystem": {
-    "denyRead": [".kevin/secrets"]
+    "denyRead": [".kevin/secrets"],
+    "allowWrite": "<[CODE_ROOT] when the code tree is outside the home — see below; omit the key otherwise>"
   },
   "credentials": {
     "files": [{ "path": ".kevin/secrets", "mode": "deny" }]
@@ -648,12 +649,30 @@ unsetting) on Claude Code v2.1.187+, and is ignored on older versions. Both the 
 and sandbox layers are needed. (Sandbox is unavailable on native Windows — there the
 Read-tool deny is the only layer; flag that secrets aren't OS-protected on Windows.)
 
+**Reaching the code tree when it lives outside the home.** Under the convention the home is a standalone vault and repos live in a separate tree, so a session launched in the home reaches code across a directory boundary. Two grants make that work, and both are needed — they cover different tools:
+
+```bash
+CODE_ROOT=""
+case "$KEVIN_CODE_PATH" in
+  "") ;;                                  # no code path — skip both grants
+  "$HOME_DIR"/*) ;;                       # legacy nested layout — cwd already covers it
+  *) CODE_ROOT=$(dirname "$KEVIN_CODE_PATH") ;;
+esac
+```
+
+When `CODE_ROOT` is non-empty, add both to the scaffold:
+
+- `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
+- `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
+
+**Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
+
 **Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
 - **Scalars** (`model`, `effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace.
-- **Arrays** (`permissions.allow`, `permissions.deny`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
+- **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
 - **`enabledPlugins`**: special case — set `"agent-kevin@agentlayer": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). Other plugin entries pass through untouched.
 - **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
@@ -678,6 +697,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   },
   "permissions": {
     "deny": "<full baseline deny list above if global has no permissions.deny, else omit>",
+    "additionalDirectories": "<[CODE_ROOT] when the code tree is outside the home — see above; omit the key otherwise>",
     "allow": [
       "Bash(cat *)",
       "Bash(date)",
