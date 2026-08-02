@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 
 /**
  * Read-only cadence detector for sync. Prints a JSON array of the planning /
@@ -9,7 +10,11 @@ import { join } from "node:path";
  * Usage: bun cadence.ts
  */
 
-const home = process.env.KEVIN_HOME ?? process.cwd();
+const home = agentHomePath();
+if (!isAgentHome(home)) {
+  console.error(`not an agent home: ${home} — set KEVIN_HOME`);
+  process.exit(1);
+}
 
 const readJson = <T>(path: string): T | null => {
   try {

@@ -29,7 +29,8 @@ which one before doing anything:
 3. **Otherwise, ask. Always.** This covers an unset/empty `$KEVIN_CODE_PATH`. Do not infer the
    repo from cwd. The agent HOME is itself almost always a git repo (it versions `knowledge/` and
    `projects/`), so cwd being inside a git repo does NOT make it the intended code repo. List the
-   candidate code repos (e.g. the git repos under `tech/`) and let the user pick. The wrong repo
+   candidate code repos (the main-checkout git repos under the code root — the parent of
+   `$KEVIN_CODE_PATH` — or the `$KEVIN_GIT_REPOS` entries) and let the user pick. The wrong repo
    is an annoying cleanup.
 
 Resolve the chosen repo to the **absolute path of its main checkout**. (If you're standing in a

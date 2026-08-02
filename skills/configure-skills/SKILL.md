@@ -20,6 +20,11 @@ This skill manages Kevin's optional capabilities. Use it to:
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
+[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+# NOT_AN_AGENT_HOME → STOP before any write: no .kevin/ data dir means this
+# isn't this agent's scaffolded home. Tell the operator to set KEVIN_HOME or
+# relaunch from the agent home (or run /agent-kevin:init first on a fresh
+# machine).
 SKILLS_DIR="$HOME_DIR/.claude/skills"
 PROJECT_SETTINGS="$HOME_DIR/.claude/settings.json"
 SETTINGS_FILE="$HOME_DIR/.claude/settings.local.json"

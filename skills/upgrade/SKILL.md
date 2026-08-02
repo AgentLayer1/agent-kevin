@@ -26,9 +26,14 @@ ask before anything optional.
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
+[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 VERSION_FILE="$HOME_DIR/.kevin/version.json"
+# NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
+# dir, so it isn't this agent's scaffolded home (likely a code repo or a
+# mislaunched session). Tell the operator to set KEVIN_HOME or relaunch from
+# the agent home.
 if [ -f "$VERSION_FILE" ]; then
   BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 else

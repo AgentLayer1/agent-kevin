@@ -94,6 +94,11 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, stale, priorityBumps, pe
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
+[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+# NOT_AN_AGENT_HOME → STOP the whole sync: no .kevin/ data dir means $HOME_DIR
+# isn't this agent's scaffolded home, so every downstream read/write would hit
+# the wrong tree. Tell the operator to set KEVIN_HOME or relaunch from the
+# agent home.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -f "$HOME_DIR/.kevin/version.json" ]; then
@@ -152,7 +157,8 @@ To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 ### 9. Session radar
 
 Invoke the [where-am-i](../where-am-i/SKILL.md) skill (via the Skill tool, default 24h
-window) — a snapshot of the Claude Code sessions scoped to this HOME, so the sync run
+window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
+(where-am-i's default multi-root scope), so the sync run
 leaves behind a dated record of which threads were live and where each stood. It owns
 the radar end to end: scans the sessions, writes the per-session summaries, renders the
 digest, and persists the report (`category: 'radar'`). Skip only if it reports zero

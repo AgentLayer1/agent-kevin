@@ -14,15 +14,20 @@ which thread is which and where it stands.
 ## Step 1 — gather
 
 ```bash
-bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24
+SCOPE="$PWD"
+[ -n "$KEVIN_HOME" ] && SCOPE="$SCOPE,$KEVIN_HOME"
+[ -n "$KEVIN_CODE_PATH" ] && SCOPE="$SCOPE,$(dirname "$KEVIN_CODE_PATH")"
+bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
 ```
 
 - Default window is 24 hours; if the user gave a number (e.g. `/agent-kevin:where-am-i 48`),
   pass it as `--hours`.
-- **Scope:** by default only sessions launched in the current folder or beneath it are
-  included (running from Kevin's HOME picks up the HOME and any sub-project under it —
-  but not other agents' homes). If the user says "all" / "everywhere" / asks about other
-  projects, pass `--scope all`.
+- **Scope:** `--scope` takes comma-separated roots; a session counts when launched in any
+  root or beneath it. The default above covers the current folder, the agent HOME, and the
+  code tree (the parent of `$KEVIN_CODE_PATH` — repos and their sibling worktrees), so the
+  radar sees HOME sessions and code-repo sessions even though they live in separate trees.
+  Duplicate roots are fine (the script dedupes); other agents' homes stay out of scope. If
+  the user says "all" / "everywhere" / asks about other projects, pass `--scope all`.
 - Output is JSON, newest first. Each session has: `session_id`, `title` (Claude Code's
   auto-title), `cwd`, `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
   `last_assistant_text` (long excerpt of the final reply), `minutes_ago`, `file`.
