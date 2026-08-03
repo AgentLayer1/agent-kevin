@@ -1,7 +1,7 @@
 ---
 name: where-am-i
-description: Show the Claude Code sessions from the last 24 hours scoped to the folder Kevin runs from (the HOME and everything beneath it), with a substantive summary of what each was about, where it left off, and the resume command. Use whenever the operator asks "where am I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost / overwhelmed", "what did I leave off on", or wants to find/resume a recent session. Also useful at the start of a day or after a break to re-orient. Accepts an optional hours window (e.g. "/agent-kevin:where-am-i 48") and "all" to include every project on the machine. Also runs in triage mode — `/agent-kevin:where-am-i triage [scope]` or when the operator asks "what should I tend to / work on next / which session needs me" — ranking the sessions by urgency and importance, interviewing via AskUserQuestion, and handing back the resume command for the chosen one.
-allowed-tools: Bash, Read, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write
+description: Show the Claude Code sessions from the last 24 hours scoped to the folder Kevin runs from (the HOME and everything beneath it), with a substantive summary of what each was about, where it left off, and the resume command. Use whenever the operator asks "where am I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost / overwhelmed", "what did I leave off on", or wants to find/resume a recent session. Also useful at the start of a day or after a break to re-orient. Accepts an optional hours window (e.g. "/agent-kevin:where-am-i 48") and "all" to include every project on the machine. Also runs in triage mode — `/agent-kevin:where-am-i triage [scope]` or when the operator asks "what should I tend to / work on next / which session needs me" — ranking the sessions by urgency and importance, interviewing via AskUserQuestion, and handing back the resume command for the chosen one. And in checkpoint mode — `/agent-kevin:where-am-i checkpoint` or when the operator asks to "checkpoint this session / save where we are / write a handoff" — writing a short pickup note for THIS session (incremental since the last checkpoint) as a chat reply, so the SessionEnd capture files it into knowledge.
+allowed-tools: Bash, Read, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 
 # where-am-i — session radar
@@ -10,6 +10,14 @@ Re-orient the operator across their simultaneous Claude Code sessions. The deter
 work (scanning `~/.claude/projects/`) lives in a bundled script; your job is the
 synthesis: a per-session narrative good enough that the operator knows in one read
 which thread is which and where it stands.
+
+Three modes, all about session continuity:
+
+| Mode | Subject | Output |
+|---|---|---|
+| default | every session in scope | digest + saved report |
+| `triage` | every session in scope | ranked interview, ephemeral |
+| `checkpoint` | **this session only** | a pickup note as chat, captured on exit |
 
 ## Step 1 — gather
 
@@ -182,3 +190,44 @@ tending means* (answer its question / review and approve / kick a stall / close 
 one-line brief of what to do on arrival (the specific question to answer or thing to
 review). Never send input to the chosen session yourself — triage delivers the operator
 to the work, it doesn't do the work.
+
+## Checkpoint mode — `/where-am-i checkpoint`
+
+When the arguments contain `checkpoint` (any case), or the operator asks to "checkpoint
+this session / save where we are / write a handoff", the subject flips from *other*
+sessions to **this** one. The script never runs — you already have the context the
+script would be trying to infer from a transcript.
+
+**Scope: the current session only.** Never checkpoint another session. A transcript read
+from outside can only guess at what was verified versus assumed; the live session knows.
+If the operator names another session id, tell them to run the command inside it.
+
+**Incremental by construction.** Look back through this conversation for the most recent
+checkpoint you wrote. Cover only what happened *since* it — earlier ground is already
+recorded and re-summarising it buries the new material. No prior checkpoint means cover
+the whole session. This needs no state file: the previous checkpoint is in the context
+you're already reading.
+
+**Write it as your reply — never to a file.** The `SessionEnd` capture picks up assistant
+turns, so a checkpoint written as chat lands in `knowledge/raw/sessions/` on exit and
+compiles into knowledge from there. Writing a file instead is both redundant and often
+impossible: sessions launched in a code repo can't write to the agent home (outside cwd),
+and the plugin isn't loaded there at all.
+
+**Shape** — under ~10 lines, no preamble:
+
+- **Thread** — what this session is working on, one sentence
+- **State** — what's done; committed/pushed vs uncommitted; **verified vs assumed**
+- **Next** — the concrete next action for someone picking this up cold
+- **Watch** — what would bite them: a decision made, a trap found, a blocked dependency
+
+**Refer to things by task id, repo name, and branch — never absolute paths.** Paths go
+stale (layouts move, worktrees get pruned); a task id and a branch name don't.
+
+**Task thread.** When the work maps to a task and the task tools are available, also
+append the checkpoint to that task's thread via `task_thread` — that's the durable home
+for task-linked work. Skip when the thread already says it: a checkpoint that restates
+the last entry is noise in the one place that should stay signal.
+
+**Availability.** Plugin skills only exist where the plugin is enabled — the agent home,
+not code repos. In a repo session, paste the four bullets above as a prompt instead.
