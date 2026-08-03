@@ -36,8 +36,9 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
   radar sees HOME sessions and code-repo sessions even though they live in separate trees.
   Duplicate roots are fine (the script dedupes); other agents' homes stay out of scope. If
   the user says "all" / "everywhere" / asks about other projects, pass `--scope all`.
-- Output is JSON, newest first. Each session has: `session_id`, `title` (Claude Code's
-  auto-title), `cwd`, `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
+- Output is JSON, newest first. Each session has: `session_id`, `title` (the operator's
+  `/rename` name when set, else Claude Code's first-prompt auto-title), `cwd`,
+  `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
   `last_assistant_text` (long excerpt of the final reply), `minutes_ago`, `file`.
 
 ## Step 2 — write the summaries

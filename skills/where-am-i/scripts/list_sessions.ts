@@ -25,6 +25,7 @@ interface ContentBlock {
 interface SessionRecord {
   type?: string;
   aiTitle?: string;
+  customTitle?: string;
   isSidechain?: boolean;
   timestamp?: string;
   cwd?: string;
@@ -143,10 +144,16 @@ const lastTruthy = (
 const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
   const records = parseRecords(readFileSync(path, 'utf-8'));
 
-  const title = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle ?? null;
+  // `/rename` writes a custom-title record; Claude Code itself prefers it over the
+  // first-prompt ai-title, so an operator-set name wins here too.
+  const customTitle = records.filter((record) => record.type === 'custom-title' && record.customTitle).at(-1)?.customTitle;
+  const aiTitle = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle;
+  const title = customTitle ?? aiTitle ?? null;
 
   // Everything except title records and sidechains contributes timing/cwd/turns.
-  const body = records.filter((record) => record.type !== 'ai-title' && !record.isSidechain);
+  const body = records.filter(
+    (record) => record.type !== 'ai-title' && record.type !== 'custom-title' && !record.isSidechain
+  );
   const timestamps = body.map((record) => record.timestamp).filter((ts): ts is string => Boolean(ts));
 
   const userMessages = body
