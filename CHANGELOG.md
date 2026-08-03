@@ -43,6 +43,30 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.18] - 2026-08-03
+
+### Added
+- `where-am-i` checkpoint mode (`/agent-kevin:where-am-i checkpoint`): writes a short pickup note for the *current* session as a chat reply, so the SessionEnd capture files it into knowledge. Incremental by construction, no cursor or state file.
+- Dashboard **Surfaces** group in the sidebar, discovered from disk on every render: a HOME-root `roadmap.html` leads, then every `projects/<slug>/dashboard.html`, alphabetically. Zero config, no registry.
+- Malformed-task health signal: task files whose frontmatter won't parse are collected and surfaced as a warning callout in `TASKS.md` plus a fifth blocking dashboard signal, instead of silently vanishing from every scan.
+- `init` recommends the split layout (`~/Documents/Agents/<AgentName>` for the home, repos in a separate code tree), refuses to scaffold into a code repo without confirmation, and flags iCloud Documents sync.
+
+### Changed
+- Agent home resolution goes through a shared `.kevin`-marker walk-up (`agentHomePath()` / `isAgentHome()`): `KEVIN_HOME` wins, else walk up from cwd anchoring on this agent's data dir, else cwd (pre-init only). A session launched inside a code repo can no longer anchor `.kevin/` state, captures, or logs to that repo.
+- Mutating skills (`upgrade`, `sync`, `configure-skills`, the goals watermarks, cadence) fail loud with `NOT_AN_AGENT_HOME` rather than writing into whatever tree the session ran in. The goals skills' inline watermark one-liners collapse into a shared `watermark.ts`.
+- `init` writes `permissions.additionalDirectories` and `sandbox.filesystem.allowWrite` for the **code root** whenever `KEVIN_CODE_PATH` resolves outside the home, and derives `KEVIN_GIT_REPOS` from the main-checkout repos beside it (`.git` directories only, so sibling worktrees don't flood the list).
+- `where-am-i` takes comma-separated scope roots (cwd + home + code root) so the radar sees home and code-repo sessions across separate trees; `setup-worktree` guidance points at the code root.
+- `api-collections` Bruno adapter notes the Bruno v4 deltas (`setEnvVar` now persists → secrets rule); `roadmap` render check notes the entry-animation blank-section pitfall.
+
+### Fixed
+- Session radar prefers an operator's `/rename` custom title over the first-prompt auto-title (matching Claude Code's own `customTitle || aiTitle` precedence), so restored sessions stop being named after the "catch up and continue" instruction.
+
+### Upgrade
+- `template/CLAUDE.md: mandatory` — Knowledge Structure and Git Worktrees sections describe the split layout (`~/Documents/Agents/<AgentName>` home, repos in a separate code tree).
+- `settings: optional` — when your code tree lives outside the home, add `permissions.additionalDirectories: ["<CODE_ROOT>"]` and `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` (code root, not a single repo, so sibling worktrees and a separated agent git dir stay writable). Skip for nested homes or homes with no code path.
+- `manual: none` — **restart Claude Code after `/plugin update`, before syncing.** This release changes MCP-server code (home resolution, dashboard, task scan); the running server holds the old code until Claude Code reloads, so a sync before the restart runs against a stale server.
+- `manual: none` — optionally widen `KEVIN_GIT_REPOS` in `.claude/settings.local.json` to the repos beside `KEVIN_CODE_PATH` (comma-separated) for a fuller SessionStart git-activity block.
+
 ## [0.3.17] - 2026-07-30
 
 ### Added
