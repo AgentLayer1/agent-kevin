@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.3.19] - 2026-08-03
 
 ### Added
 - **`sync` step 0 — fast-forward the code checkouts.** Before the knowledge chain runs, sync fetches every repo in `KEVIN_CODE_PATH` + `KEVIN_GIT_REPOS` and fast-forwards whichever of `main` / `master` / `develop` / `dev` already exist locally. Makes `/agent-kevin:sync` the single command a non-technical operator ever has to run — code freshness rides along instead of being a git chore they'd have to remember. Engineers benefit too: default branches in reference checkouts stop drifting weeks behind. Both env vars are optional, so a Kevin with no codebase configured skips the step silently. Strictly forward-only and heavily guarded — only branches that already exist locally are touched (never conjures a `develop`), non-fast-forward updates are refused rather than forced, a dirty checked-out branch is reported as `SKIPPED_DIRTY` and left alone, main checkouts only (a worktree's `.git` is a file), and a failed fetch degrades to a report line instead of failing the sync. Outcomes surface in a new `🖥 Code` block.
@@ -53,8 +53,11 @@ and prompts per optional one. The new template files are the source of truth for
 ### Changed
 - **`init` grants the fast-forward git verbs** (`git fetch`, `git merge --ff-only`, `git rev-parse`, `git show-ref`) in the baseline `permissions.allow`, so sync's step 0 doesn't prompt mid-run. Nothing destructive is added — force/reset/rebase stay denied.
 
+### Fixed
+- **`upgrade` no longer reconciles a home against a stale template set when the loaded plugin is a version-pinned cache dir.** The version still comes from `CLAUDE_PLUGIN_ROOT` (never `installed_plugins.json`, whose record lags a directory-type marketplace), but when that root is a `plugins/cache/<mkt>/<plugin>/<version>` copy, the skill now reads the marketplace source's `plugin.json` and reports `available=`. A newer source version stops the run with the `/plugin marketplace update` → `/plugin update` → restart path, because the CHANGELOG bundled beside a pinned copy cannot describe migrations released after it. Advisory and best-effort: any lookup miss leaves `available` empty and changes nothing.
+
 ### Upgrade
-- `settings: additive` — add `Bash(git fetch *)`, `Bash(git merge --ff-only *)`, `Bash(git rev-parse *)`, `Bash(git show-ref *)` to `permissions.allow` so `/agent-kevin:sync` can refresh your checkouts without a prompt per repo. Skip if you'd rather approve each one.
+- `settings: additive` — add `Bash(git fetch *)`, `Bash(git merge --ff-only *)`, `Bash(git rev-parse *)`, `Bash(git show-ref *)` to `permissions.allow` so `/agent-kevin:sync` can refresh your checkouts without a prompt per repo. Union merge, nothing removed.
 
 ## [0.3.18] - 2026-08-03
 
