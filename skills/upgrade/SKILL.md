@@ -39,7 +39,33 @@ if [ -f "$VERSION_FILE" ]; then
 else
   BASELINE=""
 fi
-echo "installed=$INSTALLED baseline=${BASELINE:-<none>}"
+# `$INSTALLED` is the version of the copy that ACTUALLY loaded, because
+# CLAUDE_PLUGIN_ROOT is that copy. Never read the version from
+# ~/.claude/plugins/installed_plugins.json: for a directory-type marketplace its
+# record lags the live source, so trusting it fires the stale-code guard on a home
+# that is already current.
+#
+# When that loaded copy IS a version-pinned cache dir
+# (~/.claude/plugins/cache/<mkt>/<plugin>/<version>), the CHANGELOG bundled beside
+# it cannot mention a newer release — so check the marketplace source for one.
+# Advisory and best-effort: any miss leaves AVAILABLE empty and changes nothing.
+AVAILABLE=""
+case "${PLUGIN_ROOT%/}" in
+  */plugins/cache/*)
+    PLG=$(basename "$(dirname "${PLUGIN_ROOT%/}")")
+    MKT=$(basename "$(dirname "$(dirname "${PLUGIN_ROOT%/}")")")
+    SRC=$(MKT="$MKT" bun -e 'const fs=require("node:fs"),os=require("node:os"),p=require("node:path");
+      try{const j=JSON.parse(fs.readFileSync(p.join(os.homedir(),".claude/plugins/known_marketplaces.json"),"utf8"));
+      process.stdout.write(j[process.env.MKT]?.installLocation ?? "")}catch{}' 2>/dev/null)
+    for cand in "$SRC/.claude-plugin/plugin.json" "$SRC/$PLG/.claude-plugin/plugin.json" "$SRC/plugins/$PLG/.claude-plugin/plugin.json"; do
+      if [ -n "$SRC" ] && [ -f "$cand" ]; then
+        AVAILABLE=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$cand" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+        break
+      fi
+    done
+    ;;
+esac
+echo "installed=$INSTALLED baseline=${BASELINE:-<none>} available=${AVAILABLE:-<n/a>}"
 ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 ```
 
@@ -57,6 +83,13 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
   tell the user to run `/plugin marketplace update <marketplace>` then
   `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.
+- **`AVAILABLE` set and newer than `INSTALLED`** (the loaded copy is a pinned cache dir
+  and the marketplace source has a newer release) → the CHANGELOG next to that copy
+  predates the newer release, so its migrations can't be read from here and the home
+  would silently reconcile to an older template set. Tell the user to run
+  `/plugin marketplace update <marketplace>`, `/plugin update agent-kevin@<marketplace>`,
+  restart, then re-run this. Stop — unless they'd rather land the older baseline now
+  and upgrade again after.
 - **`BASELINE` present, `< INSTALLED`** → **range mode**: select entries with
   `baseline < version <= installed`.
 - **No `version.json`** → **onboard mode** (this home predates update tracking, e.g.
