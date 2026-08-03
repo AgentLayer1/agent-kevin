@@ -665,6 +665,8 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 - `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
 - `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
 
+The baseline `permissions.allow` list also carries the read-only-plus-fast-forward git verbs `sync` step 0 uses to keep the code checkouts current (`git fetch`, `git merge --ff-only`, `git rev-parse`, `git show-ref`). Granting them means a non-technical operator never sees a permission prompt mid-sync and never has to learn a git command — `/agent-kevin:sync` is the one thing they run. Nothing destructive is granted: `--ff-only` can't rewrite history, and force/reset/rebase stay denied.
+
 **Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
 
 **Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
@@ -707,7 +709,11 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Bash(git config user.email)",
       "Bash(git config user.name)",
       "Bash(git diff *)",
+      "Bash(git fetch *)",
       "Bash(git log *)",
+      "Bash(git merge --ff-only *)",
+      "Bash(git rev-parse *)",
+      "Bash(git show-ref *)",
       "Bash(git status)",
       "Bash(git status *)",
       "Bash(ls)",

@@ -43,6 +43,19 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Added
+- **`sync` step 0 — fast-forward the code checkouts.** Before the knowledge chain runs, sync fetches every repo in `KEVIN_CODE_PATH` + `KEVIN_GIT_REPOS` and fast-forwards whichever of `main` / `master` / `develop` / `dev` already exist locally. Makes `/agent-kevin:sync` the single command a non-technical operator ever has to run — code freshness rides along instead of being a git chore they'd have to remember. Engineers benefit too: default branches in reference checkouts stop drifting weeks behind. Both env vars are optional, so a Kevin with no codebase configured skips the step silently. Strictly forward-only and heavily guarded — only branches that already exist locally are touched (never conjures a `develop`), non-fast-forward updates are refused rather than forced, a dirty checked-out branch is reported as `SKIPPED_DIRTY` and left alone, main checkouts only (a worktree's `.git` is a file), and a failed fetch degrades to a report line instead of failing the sync. Outcomes surface in a new `🖥 Code` block.
+
+  **Safe for heavy multi-worktree work**, verified empirically against git 2.50 rather than assumed. The step runs only `fetch`, `merge --ff-only`, and read-only queries — it never checks out, stashes, resets, rebases, cleans or commits, so a current branch cannot be switched underneath the operator. A branch checked out in a linked worktree is refused *by git* (`refusing to fetch into branch … checked out at …`) and reported as the informational `CLAIMED_BY_WORKTREE` rather than being conflated with a real divergence; a live worktree holding uncommitted work came through a full run with its HEAD, tracked changes and untracked files untouched. An in-progress rebase is likewise refused and survives intact, detached HEAD only ever sees a ref move (no file, index or HEAD change), and `--prune` removes remote-tracking refs without deleting local branches.
+
+### Changed
+- **`init` grants the fast-forward git verbs** (`git fetch`, `git merge --ff-only`, `git rev-parse`, `git show-ref`) in the baseline `permissions.allow`, so sync's step 0 doesn't prompt mid-run. Nothing destructive is added — force/reset/rebase stay denied.
+
+### Upgrade
+- `settings: additive` — add `Bash(git fetch *)`, `Bash(git merge --ff-only *)`, `Bash(git rev-parse *)`, `Bash(git show-ref *)` to `permissions.allow` so `/agent-kevin:sync` can refresh your checkouts without a prompt per repo. Skip if you'd rather approve each one.
+
 ## [0.3.18] - 2026-08-03
 
 ### Added

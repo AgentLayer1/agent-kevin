@@ -1,6 +1,6 @@
 ---
 name: sync
-description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
+description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
 allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -23,6 +23,52 @@ The briefing reads the post-sync state, so it's strictly better than running the
 Most maintenance ops have a natural order: compile feeds lint feeds the wiki state that briefings read. Running them piecemeal works but leaves you reconciling: did I compile before I lint? Did the dashboard update? `sync` runs the full chain and tells you the outcome — pass, partial, or fail — with the report paths anchored.
 
 ## Protocol
+
+### 0. Refresh the code checkouts
+
+Fast-forward the default branches of every repo Kevin grounds against, so the rest of the run — and the operator's next question about how something works — reads current code instead of whatever was on disk the last time someone thought to pull. This is the whole reason a non-technical operator never has to learn git: sync is the one command, and code freshness rides along with it. Engineers get it too, so `main` isn't three weeks stale in a checkout they only use for reference.
+
+Repos come from `KEVIN_CODE_PATH` plus `KEVIN_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, in which case this step finds nothing and is skipped silently. Main checkouts only: a worktree's `.git` is a *file*, not a directory, and its default branches belong to the main checkout anyway.
+
+```bash
+{ printf '%s\n' "${KEVIN_CODE_PATH:-}"; printf '%s\n' "${KEVIN_GIT_REPOS:-}" | tr ',' '\n'; } \
+  | sed 's/[[:space:]]*$//' | sed '/^$/d' | sort -u |
+while IFS= read -r repo; do
+  [ -d "$repo/.git" ] || continue
+  git -C "$repo" fetch --prune --quiet origin 2>/dev/null || { printf '%s\t-\tFETCH_FAILED\n' "$repo"; continue; }
+  current=$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  dirty=$(git -C "$repo" status --porcelain 2>/dev/null)
+  for br in main master develop dev; do
+    git -C "$repo" show-ref --verify --quiet "refs/heads/$br" || continue
+    git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/$br" || continue
+    if [ "$br" = "$current" ]; then
+      if [ -n "$dirty" ]; then printf '%s\t%s\tSKIPPED_DIRTY\n' "$repo" "$br"; continue; fi
+      git -C "$repo" merge --ff-only --quiet "origin/$br" 2>/dev/null \
+        && printf '%s\t%s\tOK\n' "$repo" "$br" || printf '%s\t%s\tNOT_FAST_FORWARD\n' "$repo" "$br"
+    else
+      git -C "$repo" fetch --quiet origin "$br:$br" 2>/dev/null; rc=$?
+      case $rc in
+        0)   printf '%s\t%s\tOK\n' "$repo" "$br" ;;
+        128) printf '%s\t%s\tCLAIMED_BY_WORKTREE\n' "$repo" "$br" ;;
+        *)   printf '%s\t%s\tNOT_FAST_FORWARD\n' "$repo" "$br" ;;
+      esac
+    fi
+  done
+done
+```
+
+Why each guard is there — this step touches the operator's working repos, so it stays strictly forward-only. **This must stay safe for an engineer running many simultaneous branches and worktrees**, so the guarantees below were verified empirically against git 2.50, not assumed:
+
+- **Nothing is ever checked out, stashed, or committed.** The step runs exactly three verb families — `fetch`, `merge --ff-only`, and read-only queries (`rev-parse`, `show-ref`, `status`). There is no `checkout`, `stash`, `reset`, `rebase`, `clean`, or `commit` anywhere in it, so the operator's current branch and working tree cannot be switched or swept out from under them.
+- **A branch checked out in a linked worktree is refused by git itself.** `fetch origin <br>:<br>` fails with `refusing to fetch into branch '<br>' checked out at '<path>'` (exit 128) — verified with `develop` live in a sibling worktree holding uncommitted work: the ref didn't move, the worktree's HEAD didn't move, and the uncommitted work survived intact. This is the load-bearing protection for the multi-worktree case, and it's enforced by git, not by our own bookkeeping. Report it as `CLAIMED_BY_WORKTREE` — it means "someone's working on it," not "it's broken," so it must not be conflated with a real divergence.
+- **Only branches that already exist locally.** `show-ref` on `refs/heads/<br>` gates every update, so sync never conjures a `develop` an operator doesn't track. A fresh clone has just `main`, which is exactly what a non-technical operator needs.
+- **Fast-forward or nothing.** `fetch origin <br>:<br>` rejects a non-fast-forward ref update (exit 1, verified against a genuinely diverged branch), and the checked-out branch uses `merge --ff-only`. Local commits are never rewritten or discarded.
+- **A dirty tree is never touched.** If the checked-out default branch has uncommitted work, report `SKIPPED_DIRTY` and move on. `status --porcelain` counts untracked files as dirty, which is deliberately conservative. Other branches still fast-forward, because a ref update on a branch that isn't checked out anywhere cannot alter any working tree.
+- **Mid-rebase, mid-merge and detached HEAD are safe.** During a rebase git still reports the branch as checked out and refuses the ref update (verified — the in-progress rebase survived untouched). In a plain detached HEAD (bisect, `checkout <sha>`) the ref update *does* succeed, which is harmless: HEAD is a raw commit, so moving a branch pointer changes no file, no index, and no HEAD.
+- **`--prune` only removes remote-tracking refs.** Local branches whose upstream disappeared are left alone (verified) — pruning `origin/feature` never deletes `feature`.
+- **A failed fetch is not a failed sync.** No network, no `origin`, an auth prompt — report it and continue. Code freshness is a convenience here, not a precondition for the knowledge chain.
+
+Report the outcome in the `🖥 Code` line of the output block. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. A run where everything says `OK` collapses to a single "all current" line. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
 
 ### 1. Compile pending raw inputs
 
@@ -226,6 +272,9 @@ One block, tight. Skip empty sections — don't pad.
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
 
+🖥 Code (omit entirely when no repos are configured)
+  - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, or held by a worktree>
+
 🖥 Dashboard — <HOME>/dashboard.html refreshed
 
 📅 Cadence (only when something is due — omit entirely when the cadence check returns [])
@@ -264,6 +313,7 @@ The output block is the last *text* of the run. The step-11 interview, when it f
 - **Don't auto-close tasks based on lint output.** Lint reports orphan articles, not task health.
 - **Don't open new tasks from this skill.** Surface "needs attention" items in the summary; let the user choose what to file.
 - **One pass only.** If a step fails 3 times, surface the error and stop. Don't loop indefinitely.
+- **Step 0 is fast-forward only.** Never rebase, reset, force, stash, commit, or check out a different branch to make a pull succeed. A diverged, dirty, or worktree-held branch gets reported, not resolved — that's the operator's call. If a future edit to this step needs `checkout` or `stash` to work, the edit is wrong.
 
 ## Anti-patterns
 
