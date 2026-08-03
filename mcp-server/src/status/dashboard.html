@@ -64,6 +64,11 @@ aside nav { flex: 1; overflow-y: auto; padding: 10px; }
 .nav-item:hover { color: var(--text); background: rgba(29, 36, 46, 0.6); text-decoration: none; }
 .nav-item.active { background: var(--panel-2); color: var(--accent); }
 .nav-item .ico { width: 20px; text-align: center; flex: none; }
+/* Surface links: data-href rows navigated via location.assign — a trailing ↗
+   signals leaving the page. */
+.nav-item .out { margin-left: auto; color: var(--dim); font-size: 11px; opacity: 0.7; }
+.nav-group { margin: 14px 10px 4px; padding-top: 12px; border-top: 1px solid var(--border);
+  color: var(--dim); font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
 .side-foot { padding: 12px 14px 16px; border-top: 1px solid var(--border); display: grid; gap: 10px; }
 .op-card { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .op-card img, .op-card .op-fallback {
@@ -605,6 +610,15 @@ kbd {
   };
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', () => goto(el.dataset.nav));
+  });
+  // Surface links: same-frame location.assign is the ONLY navigation Obsidian's
+  // HTML viewer permits (verified 2026-07-26 via nav-test.html — relative
+  // anchors are swallowed, window.open is blocked, window.top.location silently
+  // no-ops; protocol anchors like obsidian:// work and stay plain <a> rows).
+  // Keep it a single call: a "fallback chain" that tries top.location first
+  // short-circuits on the silent no-op and never reaches this working one.
+  document.querySelectorAll('[data-href]').forEach((el) => {
+    el.addEventListener('click', () => location.assign(el.dataset.href));
   });
   const fromHash = () => open(location.hash.replace('#', ''));
   window.addEventListener('hashchange', fromHash);

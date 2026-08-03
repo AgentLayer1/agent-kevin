@@ -38,6 +38,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     releasesBehind: 0
   },
   markdownUrl: 'obsidian://open?path={path}',
+  surfaces: [],
   persona: {
     name: 'Kevin',
     kind: 'AI assistant (Claude Code plugin)',
@@ -676,5 +677,39 @@ describe('renderDashboardHtml', () => {
 describe('escapeHtml', () => {
   test('escapes all five significant characters', () => {
     expect(escapeHtml(`<a href="x" data-y='&'>`)).toBe('&lt;a href=&quot;x&quot; data-y=&#39;&amp;&#39;&gt;');
+  });
+});
+
+describe('surfaces', () => {
+  test('project surfaces render as location.assign rows under a Surfaces group', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        surfaces: [{ title: 'Financial Pack', href: 'projects/financial-pack/dashboard.html', icon: '📊', appTab: false }]
+      })
+    );
+    expect(html).toContain('<div class="nav-group">Surfaces</div>');
+    expect(html).toContain('<div class="nav-item" data-href="projects/financial-pack/dashboard.html">');
+    expect(html).toContain('Financial Pack<span class="out">↗</span>');
+  });
+
+  test('appTab surfaces open through the markdownUrl app template', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({ surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }] })
+    );
+    expect(html).toContain(`<a class="nav-item" href="obsidian://open?path=${encodeURIComponent('/home/kevin/roadmap.html')}">`);
+    expect(html).toContain('Roadmap<span class="out">↗</span>');
+  });
+
+  test('no discovered surfaces renders no Surfaces group', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).not.toContain('<div class="nav-group">');
+  });
+
+  test('title and href are escaped', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({ surfaces: [{ title: '<b>x</b>', href: 'a"b.html', icon: '📊', appTab: false }] })
+    );
+    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
+    expect(html).toContain('data-href="a&quot;b.html"');
   });
 });

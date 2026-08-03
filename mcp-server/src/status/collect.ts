@@ -316,6 +316,17 @@ export interface HookEntry {
   command: string;
 }
 
+export interface SurfaceLink {
+  title: string;
+  /** Relative to <HOME> (where dashboard.html renders) for same-frame
+   *  navigation; absolute when appTab is set. */
+  href: string;
+  icon: string;
+  /** Open through the markdownUrl app template (a new Obsidian tab) instead
+   *  of navigating the dashboard frame. */
+  appTab: boolean;
+}
+
 export interface StatusSnapshot {
   runtime: {
     version: string;
@@ -347,6 +358,9 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
+  /** Convention-discovered sub-dashboards: HOME-root roadmap.html first,
+   *  then projects with a dashboard.html. Empty renders nothing. */
+  surfaces: SurfaceLink[];
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };
   /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
@@ -1749,6 +1763,33 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   };
 };
 
+const titleize = (slug: string): string =>
+  slug
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+/** Surfaces are discovered by convention, never configured: a HOME-root
+ *  roadmap.html leads (opened as a new Obsidian tab), followed by every
+ *  project carrying a dashboard.html at its root. */
+const collectSurfaces = (): SurfaceLink[] => {
+  const roadmap: SurfaceLink[] = existsSync(FILES.ROADMAP)
+    ? [{ title: 'Roadmap', href: FILES.ROADMAP, icon: '🧭', appTab: true }]
+    : [];
+  const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
+    ? []
+    : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && existsSync(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')))
+        .map((entry) => ({
+          title: titleize(entry.name),
+          href: relative(FOLDERS.HOME, resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')),
+          icon: '📊',
+          appTab: false
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+  return [...roadmap, ...projects];
+};
+
 const MAX_REPORTS = 60;
 
 /** ISO-8601 (with current tz offset) of the newest briefings-category report.
@@ -1766,6 +1807,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     persona: collectPersona(),
     operator: collectOperatorInfo(knowledge.facets),
     markdownUrl: collectMarkdownUrl(),
+    surfaces: collectSurfaces(),
     skills: collectSkills(),
     mcp: await collectMcp(),
     goals: collectGoals(),

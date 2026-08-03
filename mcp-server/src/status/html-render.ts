@@ -1723,6 +1723,30 @@ const sidebarNav = (snap: StatusSnapshot): string =>
     })
     .join('\n');
 
+/** Convention-discovered sub-dashboards, grouped under a divider with an ↗ so
+ *  navigating away is never a surprise. appTab entries (the roadmap) go
+ *  through the markdownUrl app template — a new Obsidian tab, the same
+ *  mechanism as every markdown link. The rest are data-href rows navigated
+ *  by `location.assign` — empirically the ONLY same-frame mechanism
+ *  Obsidian's HTML viewer permits (nav-test 2026-07-26: relative `<a href>`
+ *  swallowed, window.open blocked, and window.top.location silently no-ops —
+ *  so no fallback chains, a silent no-op first hop short-circuits the working
+ *  call). Empty renders nothing. */
+const sidebarSurfaces = (snap: StatusSnapshot): string => {
+  if (snap.surfaces.length === 0) {
+    return '';
+  }
+  const items = snap.surfaces
+    .map((surface) => {
+      const inner = `<span class="ico">${esc(surface.icon)}</span>${esc(surface.title)}<span class="out">↗</span>`;
+      return surface.appTab
+        ? `<a class="nav-item" href="${esc(snap.markdownUrl.replace('{path}', encodeURIComponent(surface.href)))}">${inner}</a>`
+        : `<div class="nav-item" data-href="${esc(surface.href)}">${inner}</div>`;
+    })
+    .join('\n');
+  return `\n<div class="nav-group">Surfaces</div>\n${items}`;
+};
+
 /** Sidebar health badge — green "all nominal" or amber with the issue list.
  *  Both states open the Status page, which explains every signal. */
 const healthBadge = (snap: StatusSnapshot): string => {
@@ -1811,7 +1835,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     LAST_SYNC: esc(snap.runtime.lastSync),
     SYNC_CMD: esc(syncCmd),
     BANNER: sidebarBanner(snap),
-    NAV: sidebarNav(snap),
+    NAV: sidebarNav(snap) + sidebarSurfaces(snap),
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
     FOOTER: footer
