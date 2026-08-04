@@ -30,6 +30,8 @@ import { dirname, resolve, sep } from 'node:path';
  * forget.
  */
 
+let cachedEnvPrefix: string | undefined;
+
 /**
  * This agent's own env-var prefix (`KEVIN_` for the `agent-kevin` plugin),
  * derived once from the plugin manifest name — `agent-<name>` → `<NAME>_`.
@@ -42,8 +44,6 @@ export const agentEnvPrefix = (): string => {
   }
   return cachedEnvPrefix;
 };
-
-let cachedEnvPrefix: string | undefined;
 
 // Resolved relative to this file, never an env var: wherever this code runs
 // from (repo checkout, marketplace cache, fork) IS the plugin whose name it is.

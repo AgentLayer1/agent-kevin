@@ -1438,16 +1438,14 @@ const logTail = (tail: string): string => {
 // the shared AGENT_* names; `envKeyTip` maps a per-agent override (KEVIN_*,
 // WALLE_*, …) onto the same tip.
 const ENV_KEY_TIPS: Record<string, string> = {
-  AGENT_HOME:
-    'The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; set this in `~/.claude/settings.json` if you ever start Claude from elsewhere, so paths don’t silently resolve to the wrong place.',
+  AGENT_HOME: `The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; if you ever start Claude from elsewhere, set this agent's own spelling (${agentEnvPrefix() || 'AGENT_'}HOME) in \`~/.claude/settings.json\` — a machine-wide AGENT_HOME would point every agent at the same home.`,
   CLAUDE_CODE_NO_FLICKER:
     'Renders the prompt without the flicker-prone redraw. Upside: you can click anywhere in the prompt input box to move the cursor. Trade-off: to highlight/select text in Claude’s responses you have to hold Shift while dragging.',
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
     'Turns off non-essential network traffic (telemetry, auto-update pings, etc.) — keeps Claude Code quiet on the wire.',
   ANTHROPIC_DEFAULT_HAIKU_MODEL:
     'Remaps the lightweight “Haiku” tier the harness uses for small background tasks to a more capable model, so quick auxiliary calls aren’t under-powered.',
-  AGENT_CODE_PATH:
-    'Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as `$AGENT_CODE_PATH`.',
+  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$${agentEnvPrefix() || 'AGENT_'}CODE_PATH\` (init seeds the per-agent spelling).`,
   AGENT_GIT_REPOS:
     'Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to `AGENT_CODE_PATH`; append more with `,/path/to/other/repo`.',
   AGENT_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',
