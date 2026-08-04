@@ -124,6 +124,8 @@ Drive tasks via MCP tools (`mcp__plugin_agent-kevin_kevin__task_*`) inside Claud
 
 This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
 
+**Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` resolves to `/tmp/claude-<uid>` — it is per-**user**, not per-session, so every session running concurrently on this machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter like `$TMPDIR/pull-7d/`, gets silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox, and no session-id variable is exposed to key a name off instead. Corollary: when a file's content contradicts what you just wrote there, suspect a shared-path clobber before suspecting the tool, and re-read from the immutable source.
+
 - **On native Windows, PowerShell 7+ (`pwsh`) is required.** Scripts and tooling invoke `pwsh`, never the built-in Windows PowerShell 5.1 (`powershell.exe`) — its parsing and single-object `.Count` quirks aren't supported. Call `pwsh` and let it fail loud if absent.
 
 ## Engineering the Codebase

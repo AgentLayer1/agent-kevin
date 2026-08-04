@@ -64,7 +64,8 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
    ```
 2. Write the skill body as a markdown protocol the orchestrating Claude follows.
 3. If the skill uses an MCP tool that needs a permission grant, add the tool name to `skills/init/SKILL.md`'s `permissions.allow` list so new installs get it pre-granted.
-4. Test by re-running `/reload-plugins` and invoking the skill explicitly.
+4. **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` resolves to `/tmp/claude-<uid>` — it's per-**user**, not per-session, so every Claude Code session running concurrently on the machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter, will be silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox. No session-id env var is exposed, so there is nothing native to key off instead.
+5. Test by re-running `/reload-plugins` and invoking the skill explicitly.
 
 ## Adding an MCP tool
 
