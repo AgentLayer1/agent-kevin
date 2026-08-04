@@ -4,9 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
-// No @/config import: this file runs concurrently with pipeline.test.ts, which
-// owns the config singleton's hermetic KEVIN_HOME. The plugin root is derived
-// from this file's location; the migration runs in its own process (spawnSync).
+// The plugin root is derived from this file's location rather than from config, because the
+// migration runs in its own process (spawnSync) and needs a path it can pass across.
 const PLUGIN_ROOT = resolve(import.meta.dir, '..', '..', '..');
 const scriptPath = resolve(PLUGIN_ROOT, 'skills', 'upgrade', 'scripts', '0.3.0.ts');
 

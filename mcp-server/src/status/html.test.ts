@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { StatusSnapshot, TaskRef } from './collect';
-// Only config-free modules may be imported at runtime here: bun test shares
-// one module registry across test files, and the first @/config evaluation
-// freezes KEVIN_HOME for the whole process — clobbering pipeline.test.ts's
-// hermetic temp HOME. html-render is pure by design (see its header).
+// html-render is pure by design (see its header), so this suite needs no filesystem or HOME.
 import { PAGES, escapeHtml, renderDashboardHtml } from './html-render';
 
 const taskRef = (overrides: Partial<TaskRef> = {}): TaskRef => ({

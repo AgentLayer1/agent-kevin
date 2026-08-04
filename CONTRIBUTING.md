@@ -71,8 +71,10 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
 
 1. Add a file under `mcp-server/src/tools/<your-tool>.ts` exporting a `tools: ToolDef[]` array. Use `defineTool({ name, description, inputSchema, handler })` from `@/shared/types`.
 2. Register it in `mcp-server/src/server.ts` by adding an import and spreading the array into the `TOOLS` constant.
-3. Add the tool name to `skills/init/SKILL.md`'s `permissions.allow` list (use the `mcp__plugin_agent-kevin_kevin__<tool_name>` prefix).
+3. Add the tool name to `skills/init/SKILL.md`'s `permissions.allow` list (use the `mcp__plugin_agent-kevin_kevin__<tool_name>` prefix). Pack-gated tools go in the matching `configure-skills` walk instead of the init baseline.
 4. `bun run typecheck` must pass before submitting.
+
+**Tests never touch a real agent home.** `mcp-server/bunfig.toml` preloads `src/test.ts`, which pins `KEVIN_HOME` to a fresh throwaway tree for the whole run, so a suite that resolves a config path can't write into anyone's brain. A suite needing its own fixture home just sets `KEVIN_HOME` (paths and secrets both resolve live, so import order doesn't matter) — save the preload's value and restore it afterwards rather than deleting the variable, or later suites fall back to resolving from cwd.
 
 ## PR conventions
 

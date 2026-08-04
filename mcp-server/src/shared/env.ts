@@ -1,5 +1,5 @@
+import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, resolve, sep } from 'node:path';
 
 /**
@@ -10,18 +10,16 @@ import { dirname, resolve, sep } from 'node:path';
  * that must stay dependency-free. Everything else reads through `env()` (or a
  * helper here). A guard test enforces this — see `config.env-convention.test.ts`.
  *
- * Why this lives apart from `config.ts`: config resolves its FOLDERS layout once
- * at import (a frozen singleton), so importing it early in the shared test
- * process clobbers pipeline.test.ts's per-HOME isolation. This module is
- * config-free and resolves the secrets dir lazily from KEVIN_HOME at read time,
- * so tools (and their tests) can read env without dragging that singleton in.
+ * Why this lives apart from `config.ts`: config imports this module, so the
+ * dependency only runs one way — and keeping the env gate at the bottom of the
+ * stack means a tool (or its test) can read env without pulling the whole layout
+ * in. Both resolve from `KEVIN_HOME` at read time rather than at import.
  *
- * Robustness: `env()` triggers `loadSecretsEnv()` first, so secrets are
- * populated before any read no matter who imported what, in what order. There is
- * no "import config first" discipline to forget.
+ * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
+ * the resolved secrets file, so secrets are populated from the CURRENT home no
+ * matter who imported what, in what order. There is no import-order discipline to
+ * forget.
  */
-
-const tildify = (path: string): string => (path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path);
 
 /**
  * Resolve the agent HOME: `KEVIN_HOME` when set, else the nearest ancestor of
@@ -41,7 +39,7 @@ const tildify = (path: string): string => (path.startsWith('~/') ? resolve(homed
 export function agentHomePath(): string {
   const fromVar = process.env.KEVIN_HOME?.trim();
   if (fromVar) {
-    return tildify(fromVar);
+    return expandTilde(fromVar);
   }
   let dir = process.cwd();
   for (;;) {
@@ -62,7 +60,7 @@ export function agentHomePath(): string {
  * data dir, which no sibling agent's home carries. Guards use this to fail
  * loud instead of writing into a repo or another agent's tree.
  */
-export const isAgentHome = (path: string): boolean => existsSync(resolve(tildify(path), '.kevin'));
+export const isAgentHome = (path: string): boolean => existsSync(resolve(expandTilde(path), '.kevin'));
 
 /** `<HOME>/.kevin/secrets/.env`, resolved live (never frozen) so a test that sets KEVIN_HOME is honoured. */
 const secretsEnvFile = (): string => resolve(agentHomePath(), '.kevin', 'secrets', '.env');
@@ -126,21 +124,36 @@ export function readEnvFile(path: string): Record<string, string> {
 }
 
 const secretKeyNames: string[] = [];
-let secretsLoaded = false;
+let loadedFrom: string | undefined;
 
 /**
  * Loads `<HOME>/.kevin/secrets/.env` into `process.env` (secrets win over
  * inherited values) so every process that reads env gets the keys, while ad-hoc
- * Bash spawned by Claude never does. Idempotent and failure-tolerant — runs once
- * per process, never throws. An absent file is the normal case (homes without
- * secrets / pre-migration).
+ * Bash spawned by Claude never does. Failure-tolerant — never throws. An absent
+ * file is the normal case (homes without secrets / pre-migration).
+ *
+ * Keyed on the resolved file, not a boolean: a plain "already ran" latch made the
+ * FIRST import decide which home's secrets the process uses forever, so anything
+ * that set `KEVIN_HOME` afterwards silently got the wrong store (or none) and the
+ * per-read calls below could never correct it. Re-keying makes loading genuinely
+ * order-independent, which is what every caller here already assumes.
+ *
+ * Switching homes drops the keys the previous store injected, so its values can't
+ * leak into the new one. Only keys this function set are removed — but note that a
+ * same-named value inherited from the shell was already overwritten, so it does not
+ * come back. Homes don't change mid-process outside tests.
  */
 export function loadSecretsEnv(): void {
-  if (secretsLoaded) return;
-  secretsLoaded = true;
+  const file = secretsEnvFile();
+  if (loadedFrom === file) return;
+  for (const key of secretKeyNames) {
+    delete process.env[key];
+  }
+  secretKeyNames.length = 0;
+  loadedFrom = file;
   let raw: string;
   try {
-    raw = readFileSync(secretsEnvFile(), 'utf-8');
+    raw = readFileSync(file, 'utf-8');
   } catch {
     return;
   }

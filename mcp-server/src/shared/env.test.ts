@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { agentHomePath, readEnvFile } from './env';
+import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
 
 // KEVIN_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
@@ -106,6 +106,54 @@ describe('readEnvFile', () => {
       } else {
         process.env.KEVIN_HOME = original;
       }
+    }
+  });
+});
+
+describe('loadSecretsEnv', () => {
+  /** A home whose secrets store holds `key=value`. */
+  const homeWithSecret = (key: string, value: string): string => {
+    const home = mkdtempSync(resolve(tmpdir(), 'kevin-secrets-'));
+    mkdirSync(resolve(home, '.kevin', 'secrets'), { recursive: true });
+    writeFileSync(resolve(home, '.kevin', 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
+    return home;
+  };
+
+  // Synchronous, like the assertions above, so the KEVIN_HOME mutation can't interleave with
+  // the other suites sharing process.env.
+  test('re-reads when KEVIN_HOME changes instead of latching on the first home', () => {
+    const original = process.env.KEVIN_HOME;
+    const first = homeWithSecret('KEVIN_PROBE_SECRET', 'from-first-home');
+    const second = homeWithSecret('KEVIN_PROBE_SECRET', 'from-second-home');
+    try {
+      process.env.KEVIN_HOME = first;
+      loadSecretsEnv();
+      expect(env('KEVIN_PROBE_SECRET')).toBe('from-first-home');
+
+      process.env.KEVIN_HOME = second;
+      expect(env('KEVIN_PROBE_SECRET')).toBe('from-second-home');
+    } finally {
+      process.env.KEVIN_HOME = original;
+      loadSecretsEnv();
+      delete process.env.KEVIN_PROBE_SECRET;
+    }
+  });
+
+  test("a home with no secrets store drops the previous home's keys", () => {
+    const original = process.env.KEVIN_HOME;
+    const withSecret = homeWithSecret('KEVIN_PROBE_SECRET', 'present');
+    const bare = mkdtempSync(resolve(tmpdir(), 'kevin-bare-'));
+    mkdirSync(resolve(bare, '.kevin'), { recursive: true });
+    try {
+      process.env.KEVIN_HOME = withSecret;
+      expect(env('KEVIN_PROBE_SECRET')).toBe('present');
+
+      process.env.KEVIN_HOME = bare;
+      expect(env('KEVIN_PROBE_SECRET')).toBeUndefined();
+    } finally {
+      process.env.KEVIN_HOME = original;
+      loadSecretsEnv();
+      delete process.env.KEVIN_PROBE_SECRET;
     }
   });
 });

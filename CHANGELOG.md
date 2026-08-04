@@ -43,6 +43,21 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Fixed
+- **`config` froze every filesystem path at import time, so whichever module imported it first decided where the whole process wrote.** Anything that set `KEVIN_HOME` afterwards — a hook, the CLI, a test fixture — was silently ignored. `FOLDERS` and `FILES` are now getters that resolve live per access, so the existing call sites are unchanged and import order no longer decides anything.
+
+  The concrete hazard: because Bun runs every test file in one process, a single unrelated import in an early-loading test file could freeze config to the operator's real home and have the session-capture suite write fixture data into their actual `knowledge/raw/sessions/`. A new `bunfig.toml` preload now pins `KEVIN_HOME` to a throwaway tree for every suite, so that's structurally impossible regardless of import order, and `config.test.ts` pins the live-resolution behaviour.
+- **Secret loading had the same import-time freeze.** `loadSecretsEnv()` latched on a boolean and ran eagerly at import, so the first module to pull `shared/env` decided which home's `.kevin/secrets/.env` the process used forever — the per-read calls could never correct it, making the module's own "no import-order discipline to forget" promise untrue. It's now keyed on the resolved secrets file, so a changed `KEVIN_HOME` re-reads (and drops the previous store's keys so they can't leak across homes).
+
+### Changed
+- **`expandTilde` has one owner.** Three copies had accumulated in `config.ts`, `shared/env.ts`, and `shared/utils.ts` — every shared home for it blocked by an import cycle — and they had already drifted, with two handling `~/foo` but not a bare `~`. It now lives in `shared/paths.ts`, a stdlib-only leaf every layer can import.
+- **Five workaround rationales corrected, one simplification taken.** `curl.ts` no longer imports `@/config` lazily inside its handler to dodge the freeze; `status/html.ts`, `status/html.test.ts`, `tasks/prefix.test.ts`, `tools/upgrade.test.ts`, and `shared/env.ts`'s header all described a constraint that no longer exists. `bin/kevin` keeps its dynamic imports — the specifiers are computed from the plugin root, so they cannot be static, and they load one subsystem per invocation instead of all of them — but its comment now names those reasons instead of the env-ordering one.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.19] - 2026-08-03
 
 ### Added

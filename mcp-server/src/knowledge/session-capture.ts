@@ -23,7 +23,7 @@ import { redactSecrets } from '@/knowledge/utils';
 import { nowTime, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
 import type { TranscriptTurn } from '@/shared/types';
-import { expandTilde } from '@/shared/utils';
+import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';

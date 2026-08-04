@@ -13,12 +13,8 @@
  * the output before returning, so what lands in the conversation is shareable:
  * `authorization: Bearer {{ACME_API_KEY}}`. Scrubbing covers the injected
  * credentials only — a response body can still contain sensitive API data.
- *
- * NOTE: `@/config` is imported lazily inside the handler, never at module top.
- * config resolves its paths into a frozen singleton at import; importing this
- * file's pure helpers in a test must NOT freeze it before HOME-scoped tests set
- * KEVIN_HOME. The pure exports below stay config-free for exactly that reason.
  */
+import { FOLDERS } from '@/config';
 import { readEnvFile } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync } from 'node:fs';
@@ -109,7 +105,6 @@ export const tools: ToolDef[] = [
         throw new Error(`Flag ${blocked} is not allowed — curl_run returns response text; it never writes or reads local files/config.`);
       }
 
-      const { FOLDERS } = await import('@/config');
       const envPath = envFile ?? defaultEnvFile(FOLDERS.REPORTS);
       const env = envPath ? readEnvFile(envPath) : {};
       const argv = interpolateArgs(args, env);

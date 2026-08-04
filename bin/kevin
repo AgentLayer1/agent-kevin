@@ -44,9 +44,13 @@ process.env.KEVIN_PLUGIN_ROOT ??= PLUGIN_ROOT;
 // (KEVIN_HOME, KEVIN_KNOWLEDGE, ...) apply without shell-rc duplication, then
 // anchor KEVIN_HOME through the shared resolver. Order matches Claude Code:
 // settings.local.json (machine-specific) overrides settings.json (committed);
-// existing shell env always wins. The resolver import is dynamic — like every
-// mcp-server import in this file — because a static import would hoist above
-// the hydration and load secrets before the settings env is staged.
+// existing shell env always wins. Every mcp-server import in this file is dynamic
+// for two reasons that outlive any env-ordering concern: the specifiers are
+// computed from PLUGIN_ROOT (a static import can't take a computed specifier), and
+// it keeps each CLI invocation to the one subsystem it needs instead of loading
+// all of them. Staging env first is no longer load-bearing — config resolves paths
+// live and secret loading re-keys on the home — but it stays because it's the
+// order a reader expects.
 async function loadProjectEnv(): Promise<void> {
   let dir = process.cwd();
   while (true) {
