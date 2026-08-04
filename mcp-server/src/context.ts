@@ -10,7 +10,7 @@
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -244,7 +244,7 @@ async function gatherContext(): Promise<GatheredContext> {
 
   const repos: { label: string; path: string }[] = [
     { label: 'knowledge', path: FOLDERS.KNOWLEDGE },
-    ...EXTRA_GIT_REPOS.map((path) => ({ label: basename(path), path }))
+    ...extraGitRepos().map((path) => ({ label: basename(path), path }))
   ];
   const gitLogs = repos.map((repo) => ({
     ...repo,

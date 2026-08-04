@@ -1,7 +1,7 @@
 ---
 name: sync
 description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -28,47 +28,33 @@ Most maintenance ops have a natural order: compile feeds lint feeds the wiki sta
 
 Fast-forward the default branches of every repo Kevin grounds against, so the rest of the run — and the operator's next question about how something works — reads current code instead of whatever was on disk the last time someone thought to pull. This is the whole reason a non-technical operator never has to learn git: sync is the one command, and code freshness rides along with it. Engineers get it too, so `main` isn't three weeks stale in a checkout they only use for reference.
 
-Repos come from `KEVIN_CODE_PATH` plus `KEVIN_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, in which case this step finds nothing and is skipped silently. Main checkouts only: a worktree's `.git` is a *file*, not a directory, and its default branches belong to the main checkout anyway.
-
-```bash
-{ printf '%s\n' "${KEVIN_CODE_PATH:-}"; printf '%s\n' "${KEVIN_GIT_REPOS:-}" | tr ',' '\n'; } \
-  | sed 's/[[:space:]]*$//' | sed '/^$/d' | sort -u |
-while IFS= read -r repo; do
-  [ -d "$repo/.git" ] || continue
-  git -C "$repo" fetch --prune --quiet origin 2>/dev/null || { printf '%s\t-\tFETCH_FAILED\n' "$repo"; continue; }
-  current=$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null)
-  dirty=$(git -C "$repo" status --porcelain 2>/dev/null)
-  for br in main master develop dev; do
-    git -C "$repo" show-ref --verify --quiet "refs/heads/$br" || continue
-    git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/$br" || continue
-    if [ "$br" = "$current" ]; then
-      if [ -n "$dirty" ]; then printf '%s\t%s\tSKIPPED_DIRTY\n' "$repo" "$br"; continue; fi
-      git -C "$repo" merge --ff-only --quiet "origin/$br" 2>/dev/null \
-        && printf '%s\t%s\tOK\n' "$repo" "$br" || printf '%s\t%s\tNOT_FAST_FORWARD\n' "$repo" "$br"
-    else
-      git -C "$repo" fetch --quiet origin "$br:$br" 2>/dev/null; rc=$?
-      case $rc in
-        0)   printf '%s\t%s\tOK\n' "$repo" "$br" ;;
-        128) printf '%s\t%s\tCLAIMED_BY_WORKTREE\n' "$repo" "$br" ;;
-        *)   printf '%s\t%s\tNOT_FAST_FORWARD\n' "$repo" "$br" ;;
-      esac
-    fi
-  done
-done
+```
+mcp__plugin_agent-kevin_kevin__github_fast_forward
 ```
 
-Why each guard is there — this step touches the operator's working repos, so it stays strictly forward-only. **This must stay safe for an engineer running many simultaneous branches and worktrees**, so the guarantees below were verified empirically against git 2.50, not assumed:
+No arguments: repos default to `KEVIN_CODE_PATH` plus `KEVIN_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `🖥 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `🖥 Code` line.
 
-- **Nothing is ever checked out, stashed, or committed.** The step runs exactly three verb families — `fetch`, `merge --ff-only`, and read-only queries (`rev-parse`, `show-ref`, `status`). There is no `checkout`, `stash`, `reset`, `rebase`, `clean`, or `commit` anywhere in it, so the operator's current branch and working tree cannot be switched or swept out from under them.
-- **A branch checked out in a linked worktree is refused by git itself.** `fetch origin <br>:<br>` fails with `refusing to fetch into branch '<br>' checked out at '<path>'` (exit 128) — verified with `develop` live in a sibling worktree holding uncommitted work: the ref didn't move, the worktree's HEAD didn't move, and the uncommitted work survived intact. This is the load-bearing protection for the multi-worktree case, and it's enforced by git, not by our own bookkeeping. Report it as `CLAIMED_BY_WORKTREE` — it means "someone's working on it," not "it's broken," so it must not be conflated with a real divergence.
-- **Only branches that already exist locally.** `show-ref` on `refs/heads/<br>` gates every update, so sync never conjures a `develop` an operator doesn't track. A fresh clone has just `main`, which is exactly what a non-technical operator needs.
-- **Fast-forward or nothing.** `fetch origin <br>:<br>` rejects a non-fast-forward ref update (exit 1, verified against a genuinely diverged branch), and the checked-out branch uses `merge --ff-only`. Local commits are never rewritten or discarded.
+**Why an MCP tool and not Bash here.** The Claude Code seatbelt gives non-proxied clients no DNS at all, so a `git fetch` over an SSH remote dies at hostname resolution — under a sandboxed session the Bash version of this step was a guaranteed no-op for any repo with a `git@github.com:` remote, which is most of them. The MCP server runs outside that sandbox, the same reason the rest of the `github_*` family lives there. It authenticates with the fine-grained read-only PAT (`GITHUB_TOKEN`) over HTTPS rather than the operator's SSH key: a scoped, rotatable, fetch-only credential instead of one that can also push and force-push everywhere. The checkout's own remote is left exactly as it is, so the operator's pushes keep using their key.
+
+Branches are picked by **slot** — the first local match of `main` / `master`, and the first of `develop` / `dev` — so a vestigial `master` sitting beside a live `main` is never touched.
+
+Why each guard is there — this step touches the operator's working repos, so it stays strictly forward-only. **This must stay safe for an engineer running many simultaneous branches and worktrees**, so the guarantees below were verified empirically against git 2.50, not assumed, and are pinned by the guard-matrix tests in `mcp-server/src/tools/github.test.ts`:
+
+- **Exactly one authenticated network call per repo**, and it can only ever use the scoped PAT — the operator's keychain credential is never consulted, and a rejected token fails in about a second rather than hanging on a prompt. Every branch update after that fetch is local and needs no credential at all. (Mechanics live in the `CREDENTIAL_ARGS` docstring; they're maintainer detail, not something to restate in the report.)
+- **Nothing is ever checked out, stashed, or committed.** The step runs exactly three verb families — `fetch`, `merge --ff-only`, and read-only queries (`rev-parse`, `show-ref`, `status`, `rev-list`). There is no `checkout`, `stash`, `reset`, `rebase`, `clean`, or `commit` anywhere in it, so the operator's current branch and working tree cannot be switched or swept out from under them.
+- **A branch checked out in a linked worktree is refused by git itself.** `fetch . refs/remotes/origin/<br>:refs/heads/<br>` fails with `refusing to fetch into branch '<br>' checked out at '<path>'` (exit 128) — verified with a branch live in a sibling worktree holding uncommitted work: the ref didn't move, the worktree's HEAD didn't move, and the uncommitted file survived intact. The refusal lives in git's ref-update path, so it holds for a local fetch exactly as it does for a network one. Report it as `CLAIMED_BY_WORKTREE` — it means "someone's working on it," not "it's broken," so it must not be conflated with a real divergence.
+- **Only branches that already exist locally.** `show-ref` gates every update on both `refs/heads/<br>` and `refs/remotes/origin/<br>`, so sync never conjures a `develop` an operator doesn't track. A fresh clone has just `main`, which is exactly what a non-technical operator needs.
+- **Fast-forward or nothing.** The local `fetch` rejects a non-fast-forward ref update (exit 1, verified against a genuinely diverged branch), and the checked-out branch uses `merge --ff-only`. Local commits are never rewritten or discarded.
 - **A dirty tree is never touched.** If the checked-out default branch has uncommitted work, report `SKIPPED_DIRTY` and move on. `status --porcelain` counts untracked files as dirty, which is deliberately conservative. Other branches still fast-forward, because a ref update on a branch that isn't checked out anywhere cannot alter any working tree.
 - **Mid-rebase, mid-merge and detached HEAD are safe.** During a rebase git still reports the branch as checked out and refuses the ref update (verified — the in-progress rebase survived untouched). In a plain detached HEAD (bisect, `checkout <sha>`) the ref update *does* succeed, which is harmless: HEAD is a raw commit, so moving a branch pointer changes no file, no index, and no HEAD.
 - **`--prune` only removes remote-tracking refs.** Local branches whose upstream disappeared are left alone (verified) — pruning `origin/feature` never deletes `feature`.
-- **A failed fetch is not a failed sync.** No network, no `origin`, an auth prompt — report it and continue. Code freshness is a convenience here, not a precondition for the knowledge chain.
+- **A failed fetch is not a failed sync.** No pack, no grant, no network — report it and continue. Code freshness is a convenience here, not a precondition for the knowledge chain.
 
-Report the outcome in the `🖥 Code` line of the output block. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. A run where everything says `OK` collapses to a single "all current" line. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
+Report the outcome in the `🖥 Code` line of the output block. `UPDATED` collapses to a count (`main +12`); a run that's entirely `CURRENT` collapses to a single "all current" line. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
+
+`NOT_CONFIGURED` means the GitHub pack isn't set up in this home (no `GITHUB_TOKEN`): the tool reports it instead of failing, nothing was touched, and the right line is one neutral clause — `🖥 Code — skipped (GitHub pack not configured)` — plus `/agent-kevin:configure-skills` if the operator wants it on. Never dress this up as a problem; the rest of the chain is unaffected.
+
+`FETCH_FAILED` carries a `reason`, and the three cases need different words. `NO_ACCESS` means the token authenticated but isn't authorized for that repo — it needs `Contents: Read`, and for an org repo an admin has to approve it; say that plainly instead of implying the repo is broken. `AUTH` is narrower: GitHub rejected the credential itself (expired, revoked, malformed), so the fix is re-minting, not re-scoping. `NETWORK` is just no egress. `NO_ACCESS` covers two observed shapes — `403` for a PAT the org hasn't approved, `404 Repository not found` for a repo the token can't see, since GitHub hides private-repo existence — and neither says which, so don't guess.
 
 ### 1. Compile pending raw inputs
 

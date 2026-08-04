@@ -665,8 +665,6 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 - `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
 - `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
 
-The baseline `permissions.allow` list also carries the read-only-plus-fast-forward git verbs `sync` step 0 uses to keep the code checkouts current (`git fetch`, `git merge --ff-only`, `git rev-parse`, `git show-ref`). Granting them means a non-technical operator never sees a permission prompt mid-sync and never has to learn a git command — `/agent-kevin:sync` is the one thing they run. Nothing destructive is granted: `--ff-only` can't rewrite history, and force/reset/rebase stay denied.
-
 **Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
 
 **Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
@@ -709,11 +707,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Bash(git config user.email)",
       "Bash(git config user.name)",
       "Bash(git diff *)",
-      "Bash(git fetch *)",
       "Bash(git log *)",
-      "Bash(git merge --ff-only *)",
-      "Bash(git rev-parse *)",
-      "Bash(git show-ref *)",
       "Bash(git status)",
       "Bash(git status *)",
       "Bash(ls)",
@@ -772,7 +766,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
-| GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*` | configure-skills A.2d (GitHub walk) |
+| GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
 
 The allow list also carries twelve **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:permission-check)`, `Skill(agent-kevin:roadmap)`, and `Skill(agent-kevin:sync)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `permission-check` fires when the user pastes a permission-dialog screenshot from another session and asks what it means or whether to allow it; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
@@ -1085,7 +1079,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
-> - ☐ GitHub pack (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds)
+> - ☐ GitHub pack (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward` so `/agent-kevin:sync` keeps any code checkouts current)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.

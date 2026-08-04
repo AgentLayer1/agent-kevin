@@ -150,11 +150,21 @@ export const BROWSER = {
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
  * directory. Configure via `KEVIN_GIT_REPOS` env var (comma-separated paths,
  * `~` expanded). The basename of each path is used as its section label. */
-export const EXTRA_GIT_REPOS: readonly string[] = (env('KEVIN_GIT_REPOS') ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
-  .map(expandTilde);
+export const extraGitRepos = (): readonly string[] =>
+  (env('KEVIN_GIT_REPOS') ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(expandTilde);
+
+/**
+ * Every checkout this home is configured against — `KEVIN_CODE_PATH` first, then
+ * `KEVIN_GIT_REPOS` — deduped AFTER tilde expansion, so two spellings of one repo can't be
+ * treated as two.
+ */
+export const configuredRepoPaths = (): string[] => [
+  ...new Set([expandTilde(env('KEVIN_CODE_PATH')?.trim() ?? ''), ...extraGitRepos()].filter(Boolean))
+];
 
 /** Well-known files. Getters, for the same reason as FOLDERS. */
 export const FILES = {

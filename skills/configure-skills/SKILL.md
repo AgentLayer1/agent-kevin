@@ -260,7 +260,7 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, see check status, and diagnose failing GitHub Actions runs (the failed-step logs). Nine MCP tools, all `gh --json`, no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design.
+Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, see check status, and diagnose failing GitHub Actions runs (the failed-step logs). Ten MCP tools. Nine are `gh --json` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The tenth, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
 
 **Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.kevin/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
 
@@ -268,6 +268,7 @@ Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, s
 
 **(1) Grant the GitHub tool permissions.** Add all nine to `permissions.allow` via §E (all read-only):
 
+- `mcp__plugin_agent-kevin_kevin__github_fast_forward`
 - `mcp__plugin_agent-kevin_kevin__github_pr_list`
 - `mcp__plugin_agent-kevin_kevin__github_pr_view`
 - `mcp__plugin_agent-kevin_kevin__github_pr_diff`
@@ -281,7 +282,7 @@ Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, s
 **(2) Surface the PAT minting steps.** `AskUserQuestion`:
 
 > **Activate GitHub (read-only)?**
-> Grants the `github_pr_*` / `github_run_*` tool permissions and ensures `.kevin/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. The tools stay callable but return "GITHUB_TOKEN not set" until you fill it.
+> Grants the `github_pr_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Ensures `.kevin/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. The tools stay callable but return "GITHUB_TOKEN not set" until you fill it.
 >
 > - Yes — grant permissions + ensure placeholder
 > - Skip (no permission grant, no placeholder)
@@ -294,7 +295,7 @@ If yes, surface these steps verbatim:
 4. **Permissions → Repository permissions**, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Checks** · **Actions**. Grant **no** write permissions — read-only is the second wall behind the read-only tool surface.
    - **Actions (Read)** is the one that covers workflow **runs**, logs, and artifacts — that's what "did this PR build pass / debug the red build" needs.
    - Do **NOT** add **Workflows** — despite the name, that permission grants *write* access to the `.github/workflows/*.yml` files (editing the CI definitions), which Kevin never does. `Actions: Read` is the correct one for reading run status.
-   - You don't need **Contents** — PR diffs come through the Pull requests permission (verified).
+   - **Contents (Read)** is what `git fetch` authenticates against, so `github_fast_forward` (sync step 0) needs it. Without it the fetch fails as `NO_ACCESS` even though the PR and issue tools work fine. Verified against a live org: a fine-grained PAT awaiting org approval gets `403` on the git endpoint (a repo the token can't see at all gets `404 Repository not found`), so neither shape tells you *which* is missing — check the token's Contents grant and its org-approval state together. `Contents: Read` grants no ability to push: writing requires `Contents: Write`, which is never requested.
 5. Generate, copy the `github_pat_…` value.
 6. Ensure the secret store exists (§D.1) and add the line in your editor:
    ```
@@ -310,11 +311,11 @@ If yes, surface these steps verbatim:
 
 Tool permissions granted:  github_pr_list, github_pr_view, github_pr_diff, github_pr_checks,
                            github_run_list, github_run_view, github_run_log,
-                           github_issue_list, github_issue_view
+                           github_issue_list, github_issue_view, github_fast_forward
 Secret line to add:        GITHUB_TOKEN  (add to .kevin/secrets/.env)
 Default repo:              resolved from KEVIN_CODE_PATH / KEVIN_GIT_REPOS; override per-call with repo="owner/repo"
 
-Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows),
+Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions·Contents — NOT Workflows),
 add it to <HOME>/.kevin/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
 Requires the `gh` CLI on PATH (`brew install gh`).
 ```
@@ -457,7 +458,8 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove your `KEVIN_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `KEVIN_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
-- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`. Always-on core stays.
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_fast_forward`. Always-on core stays.
+- Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
 
 Print summary of what was removed.
