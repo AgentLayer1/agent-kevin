@@ -18,7 +18,7 @@
  * leaking the stack trace.
  */
 
-import { FOLDERS } from '@/config';
+import { BROWSER } from '@/config';
 import { acquireContext, withBrowserLaunch, type ChromiumLike, type PageLike } from '@/shared/browser-deps';
 import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { log } from '@/shared/log';
@@ -29,8 +29,6 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
-
-const CAPTURES_DIR = resolve(FOLDERS.REPORTS, 'captures');
 
 const StepSchema = z.object({
   kind: z.enum(['navigate', 'scroll', 'wait']),
@@ -66,10 +64,10 @@ async function getChromium(): Promise<ChromiumLike> {
 }
 
 function captureFilename(action: string, ext: string, name?: string): string {
-  mkdirSync(CAPTURES_DIR, { recursive: true });
+  mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const stem = name ? `${stamp}-${name}` : `${stamp}-${action}`;
-  return resolve(CAPTURES_DIR, `${stem}.${ext}`);
+  return resolve(BROWSER.CAPTURES_DIR, `${stem}.${ext}`);
 }
 
 interface NormalizedInput {
@@ -322,10 +320,10 @@ export const tools: ToolDef[] = [
         );
       }
       const chromium = await getChromium();
-      mkdirSync(CAPTURES_DIR, { recursive: true });
+      mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
       const browser = await withBrowserLaunch(() => chromium.launch({ headless: true }));
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const videoDir = resolve(CAPTURES_DIR, `${stamp}-${name ?? 'record'}-tmp`);
+      const videoDir = resolve(BROWSER.CAPTURES_DIR, `${stamp}-${name ?? 'record'}-tmp`);
       mkdirSync(videoDir, { recursive: true });
       try {
         const context = await browser.newContext({

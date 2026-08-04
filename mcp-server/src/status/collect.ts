@@ -1703,12 +1703,10 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
   return sessions;
 };
 
-const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');
-
 /** Goal lines under a TASKS.md heading. The scaffold's italic `_No … yet_`
  *  placeholders are dropped so unset goals render the dashboard's own hint. */
 const goalLines = (heading: string): string[] =>
-  sectionLines(TASKS_DASHBOARD, heading)
+  sectionLines(resolve(FOLDERS.PROJECTS, 'TASKS.md'), heading)
     .filter((line) => !/^_No .+_$/.test(line))
     .map(stripMarkdown);
 

@@ -132,7 +132,7 @@ export const FOLDERS = {
   get REPORTS() {
     return fromEnv('KEVIN_REPORTS', resolve(homeRoot(), 'reports'));
   }
-};
+} as const;
 
 /** Browser/Playwright settings shared by the `browser-flows` skill scripts (and any future
  * capture-tool consumers). Single source so paths + tunables don't drift. */
@@ -217,7 +217,7 @@ export const FILES = {
   get SESSION_INDEX() {
     return resolve(FOLDERS.SESSIONS, 'index.json');
   }
-};
+} as const;
 
 export const KNOWLEDGE = {
   MEMORY_PRUNE_DAYS: 14,

@@ -19,11 +19,10 @@
  */
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
+import { expandTilde } from '@/shared/paths';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { untrusted } from '@/shared/untrusted';
 import { execFile } from 'node:child_process';
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 
@@ -36,8 +35,6 @@ const GH_REMOTE_RE = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/;
 
 /** gh log/diff output is unbounded; cap text payloads so a giant CI log can't blow up context. */
 const DEFAULT_MAX_CHARS = 100_000;
-
-const expandTilde = (path: string): string => (path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path);
 
 /** Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. */
 const childEnv = (token: string): NodeJS.ProcessEnv => ({
