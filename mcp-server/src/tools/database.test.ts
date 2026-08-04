@@ -15,18 +15,27 @@ describe('discoverConnections', () => {
     for (const key of added) delete process.env[key];
   });
 
-  test('discovers KEVIN_DB_* vars, lowercases the name, sorts by name', () => {
-    setEnv('KEVIN_DB_ZED', 'postgres://u:p@h/z');
-    setEnv('KEVIN_DB_ANALYTICS', 'postgres://u:p@h/a');
+  test('discovers AGENT_DB_* vars, lowercases the name, sorts by name', () => {
+    setEnv('AGENT_DB_ZED', 'postgres://u:p@h/z');
+    setEnv('AGENT_DB_ANALYTICS', 'postgres://u:p@h/a');
     const names = discoverConnections().map((connection) => connection.name);
     expect(names).toContain('analytics');
     expect(names).toContain('zed');
     expect(names.indexOf('analytics')).toBeLessThan(names.indexOf('zed'));
   });
 
+  test('still discovers legacy KEVIN_DB_* vars; a same-named AGENT_DB_ one wins', () => {
+    setEnv('KEVIN_DB_LEGACYONLY', 'postgres://u:p@h/legacy');
+    setEnv('KEVIN_DB_SHARED', 'postgres://u:p@h/old');
+    setEnv('AGENT_DB_SHARED', 'postgres://u:p@h/new');
+    const connections = discoverConnections();
+    expect(connections.find((connection) => connection.name === 'legacyonly')?.envKey).toBe('KEVIN_DB_LEGACYONLY');
+    expect(connections.find((connection) => connection.name === 'shared')?.envKey).toBe('AGENT_DB_SHARED');
+  });
+
   test('ignores empty values and the bare prefix', () => {
-    setEnv('KEVIN_DB_EMPTY', '   ');
-    setEnv('KEVIN_DB_', 'postgres://u:p@h/x');
+    setEnv('AGENT_DB_EMPTY', '   ');
+    setEnv('AGENT_DB_', 'postgres://u:p@h/x');
     const names = discoverConnections().map((connection) => connection.name);
     expect(names).not.toContain('empty');
     expect(names).not.toContain('');

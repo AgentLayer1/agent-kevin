@@ -10,7 +10,7 @@
  * chromium with it. We mirror that env var at runtime so the runtime lookup
  * resolves to the same in-plugin location.
  *
- * Captures land in `<KEVIN_HOME>/reports/captures/<timestamp>-<name>.{png,pdf,webm}`.
+ * Captures land in `<HOME>/reports/captures/<timestamp>-<name>.{png,pdf,webm}`.
  *
  * macOS caveat: browser launch can fail inside sandboxed Claude Code subprocesses
  * (XPC/Crashpad walls). When that happens, the playwright launch promise

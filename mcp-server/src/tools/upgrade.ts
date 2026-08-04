@@ -5,7 +5,7 @@
  * named for the release that introduced them. The `/agent-kevin:upgrade` skill
  * delegates each `script:` action in the CHANGELOG to this tool. Like
  * `setup_worktree`, it runs OUTSIDE the Bash command sandbox, so a migration can
- * write the deny-gated `.kevin/secrets/`, read `settings.local.json`, and
+ * write the deny-gated data-dir `secrets/`, read `settings.local.json`, and
  * read-verify the result — none of which a sandboxed Bash script could do.
  *
  * The tool is GENERIC: it carries no per-version logic. It validates the version,
@@ -90,7 +90,14 @@ export const tools: ToolDef[] = [
 
       const proc = spawnSync(process.execPath, [scriptPath], {
         cwd: FOLDERS.HOME,
-        env: { ...process.env, KEVIN_HOME: FOLDERS.HOME, KEVIN_PLUGIN_ROOT: FOLDERS.ROOT },
+        // Legacy KEVIN_* names stay: frozen historical migration scripts read them directly.
+        env: {
+          ...process.env,
+          AGENT_HOME: FOLDERS.HOME,
+          KEVIN_HOME: FOLDERS.HOME,
+          AGENT_PLUGIN_ROOT: FOLDERS.ROOT,
+          KEVIN_PLUGIN_ROOT: FOLDERS.ROOT
+        },
         encoding: 'utf-8',
         timeout: SCRIPT_TIMEOUT_MS
       });

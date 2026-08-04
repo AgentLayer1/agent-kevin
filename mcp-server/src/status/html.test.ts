@@ -427,15 +427,25 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('wakes up with continuity');
   });
 
-  test('environment always lists KEVIN_HOME and shows "not set" when empty, with an info tooltip', () => {
+  test('environment always lists AGENT_HOME and shows "not set" when empty, with an info tooltip', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
-        settings: { ...makeSnapshot().settings, env: [{ key: 'KEVIN_HOME', value: '', scope: 'user' }] }
+        settings: { ...makeSnapshot().settings, env: [{ key: 'AGENT_HOME', value: '', scope: 'user' }] }
+      })
+    );
+    expect(html).toContain('AGENT_HOME');
+    expect(html).toContain('<span class="dim">not set</span>');
+    expect(html).toContain('The agent home directory');
+  });
+
+  test('a legacy KEVIN_* env key still carries its AGENT_* tooltip', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        settings: { ...makeSnapshot().settings, env: [{ key: 'KEVIN_HOME', value: '/tmp/home', scope: 'user' }] }
       })
     );
     expect(html).toContain('KEVIN_HOME');
-    expect(html).toContain('<span class="dim">not set</span>');
-    expect(html).toContain('Kevin’s home directory');
+    expect(html).toContain('The agent home directory');
   });
 
   test('markdown files open through Obsidian URIs', () => {
@@ -681,7 +691,9 @@ describe('surfaces', () => {
   test('project surfaces render as location.assign rows under a Surfaces group', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
-        surfaces: [{ title: 'Financial Pack', href: 'projects/financial-pack/dashboard.html', icon: '📊', appTab: false }]
+        surfaces: [
+          { title: 'Financial Pack', href: 'projects/financial-pack/dashboard.html', icon: '📊', appTab: false }
+        ]
       })
     );
     expect(html).toContain('<div class="nav-group">Surfaces</div>');
@@ -693,7 +705,9 @@ describe('surfaces', () => {
     const html = renderDashboardHtml(
       makeSnapshot({ surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }] })
     );
-    expect(html).toContain(`<a class="nav-item" href="obsidian://open?path=${encodeURIComponent('/home/kevin/roadmap.html')}">`);
+    expect(html).toContain(
+      `<a class="nav-item" href="obsidian://open?path=${encodeURIComponent('/home/kevin/roadmap.html')}">`
+    );
     expect(html).toContain('Roadmap<span class="out">↗</span>');
   });
 

@@ -1,12 +1,12 @@
 /**
  * Shared Google OAuth2 client for plugin-side google-* tools.
- * Client JSON + tokens live under <KEVIN_HOME>/.kevin/secrets/google/ (0700,
+ * Client JSON + tokens live under <HOME>/<data-dir>/secrets/google/ (0700,
  * deny-gated) so they persist across plugin updates and stay off Claude's Read
  * tool + the Bash sandbox.
  *
  * One-time setup:
  *   1. Google Cloud Console → APIs & Services → Credentials → OAuth client (Desktop app)
- *   2. Download the JSON, save as `<KEVIN_HOME>/.kevin/secrets/google/google-oauth-client.json`
+ *   2. Download the JSON, save as `<HOME>/<data-dir>/secrets/google/google-oauth-client.json`
  *   3. Run mcp__plugin_agent-kevin_kevin__google_auth — opens browser for consent, mints + persists tokens
  */
 import { FOLDERS } from '@/config';

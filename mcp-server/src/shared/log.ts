@@ -5,15 +5,17 @@
  *   - stderr = every level (MCP stdout is reserved for JSON-RPC; the hook
  *     scripts in `scripts/` reserve stdout for protocol payloads). We never
  *     write logs to stdout, so this module is safe to import from anywhere.
- *   - file   = every level (durable audit, <HOME>/.kevin/logs/app.log)
+ *   - file   = every level (durable audit, <HOME>/<data-dir>/logs/app.log)
  *
  * No setStderrOnly() toggle. There is no path that writes to stdout — so the
  * logger is hook-safe by construction. Override the file path via
- * `KEVIN_LOG_FILE`; disable file output entirely with `KEVIN_LOG_FILE=off`.
+ * `AGENT_LOG_FILE`; disable file output entirely with `AGENT_LOG_FILE=off`.
+ * Legacy `KEVIN_*` spellings are still honored (this module is dependency-free,
+ * so it reads both inline instead of going through `shared/env.ts`).
  *
  * File output rotates when it crosses MAX_LOG_BYTES (5MB) to a timestamped
  * sibling (`app.20260523-160300.log`). No auto-delete — operator prunes
- * `<HOME>/.kevin/logs/` when desired.
+ * `<HOME>/<data-dir>/logs/` when desired.
  *
  * Scopes are one per module, with chainable sub-scopes:
  *   log.knowledge.with('compile').warn('parse failed')
@@ -42,22 +44,25 @@ const LEVEL_ORDER: Record<Level, number> = {
 
 // ── Config ────────────────────────────────────────────────────────────
 
-let minLevel: Level = ((process.env.KEVIN_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
+let minLevel: Level =
+  ((process.env.AGENT_LOG_LEVEL ?? process.env.KEVIN_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 /**
  * Resolved at first write to avoid forcing a circular import on `@/config`
  * (which would drag the whole FOLDERS tree into hook scripts that just want
- * to log a line). `KEVIN_LOG_FILE` tells us where to write; `=off` disables.
+ * to log a line). `AGENT_LOG_FILE` tells us where to write; `=off` disables.
  */
 function resolveLogFile(): string | null {
-  const env = process.env.KEVIN_LOG_FILE?.trim();
+  const env = process.env.AGENT_LOG_FILE?.trim() || process.env.KEVIN_LOG_FILE?.trim();
   if (env === 'off') return null;
   if (env) return resolve(env);
-  // Default: <HOME>/.kevin/logs/app.log. KEVIN_HOME mirrors the MCP server's
-  // resolution; if neither is set, fall back to cwd so hooks still capture.
-  const home = (process.env.KEVIN_HOME?.trim() || process.cwd()).replace(/\/$/, '');
-  return resolve(home, '.kevin', 'logs', 'app.log');
+  // Default: <HOME>/<data-dir>/logs/app.log. AGENT_HOME mirrors the MCP server's
+  // resolution; if neither spelling is set, fall back to cwd so hooks still
+  // capture. The data-dir read mirrors `runtimeDirName()` in shared/env.ts —
+  // inlined so this module stays dependency-free.
+  const home = (process.env.AGENT_HOME?.trim() || process.env.KEVIN_HOME?.trim() || process.cwd()).replace(/\/$/, '');
+  return resolve(home, process.env.AGENT_RUNTIME_DIR?.trim() || '.kevin', 'logs', 'app.log');
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

@@ -8,7 +8,7 @@
  * deliberately NEVER pre-granted — every call goes through a permission prompt.
  *
  * Secrets flow: args carry `{{KEY}}` placeholders, never values. The tool loads
- * the collection `.env` (readEnvFile — refuses `.kevin/secrets/`), interpolates
+ * the collection `.env` (readEnvFile — refuses the data-dir secret store), interpolates
  * placeholders into the child's argv, then SCRUBS every loaded value back out of
  * the output before returning, so what lands in the conversation is shareable:
  * `authorization: Bearer {{ACME_API_KEY}}`. Scrubbing covers the injected
@@ -25,7 +25,18 @@ const MAX_OUTPUT_CHARS = 12_000;
 
 /** Flags that make curl write/read local files or config — refused outright.
  *  The tool returns response text; file I/O belongs to the operator's own shell. */
-const BLOCKED_LONG = ['--output', '--output-dir', '--remote-name-all', '--dump-header', '--cookie-jar', '--trace', '--trace-ascii', '--trace-config', '--config', '--libcurl'];
+const BLOCKED_LONG = [
+  '--output',
+  '--output-dir',
+  '--remote-name-all',
+  '--dump-header',
+  '--cookie-jar',
+  '--trace',
+  '--trace-ascii',
+  '--trace-config',
+  '--config',
+  '--libcurl'
+];
 const BLOCKED_SHORT = new Set(['o', 'O', 'D', 'c', 'K']);
 
 const PLACEHOLDER = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
@@ -60,7 +71,9 @@ export function interpolateArgs(args: string[], env: Record<string, string>): st
     })
   );
   if (missing.size > 0) {
-    throw new Error(`Unresolved placeholders: ${[...missing].join(', ')}. Fill these keys in the collection .env (or pass envFile).`);
+    throw new Error(
+      `Unresolved placeholders: ${[...missing].join(', ')}. Fill these keys in the collection .env (or pass envFile).`
+    );
   }
   return out;
 }
@@ -76,7 +89,8 @@ export function scrub(text: string, env: Record<string, string>): string {
   return entries.reduce((acc, [key, value]) => acc.replaceAll(value, `{{${key}}}`), text);
 }
 
-const tail = (text: string, limit: number): string => (text.length <= limit ? text : `… (truncated)\n${text.slice(-limit)}`);
+const tail = (text: string, limit: number): string =>
+  text.length <= limit ? text : `… (truncated)\n${text.slice(-limit)}`;
 
 /** First existing collection `.env` under the reports dir — bruno adapter first, then curl. */
 function defaultEnvFile(reportsDir: string): string | undefined {
@@ -95,14 +109,26 @@ export const tools: ToolDef[] = [
     description:
       'Fire ONE curl request with collection-scoped secrets, returning transcript-safe output. Args are curl arguments (no leading "curl"); reference secrets as {{KEY}} placeholders — the tool interpolates them from the collection .env (default: reports/api/bruno/.env, then reports/api/curl/.env; override with envFile) and scrubs every value back out of the returned command/output, so credentials never appear in the conversation. Response bodies are NOT scrubbed beyond that — prod data stays sensitive. File-writing curl flags (-o, -D, -c, --trace, …) are refused. This tool is never pre-granted: each call prompts the operator. Use it to verify drafts from the api-collections skill or debug an endpoint — not as a general download tool.',
     inputSchema: {
-      args: z.array(z.string()).min(1).describe('curl arguments, e.g. ["-X","POST","https://api.example.com/things","-H","authorization: Bearer {{ACME_API_KEY}}","-d","{\\"name\\":\\"x\\"}"]'),
-      envFile: z.string().optional().describe('Path to the dotenv holding {{KEY}} values. Defaults to the personal collection .env (bruno, then curl adapter root).'),
+      args: z
+        .array(z.string())
+        .min(1)
+        .describe(
+          'curl arguments, e.g. ["-X","POST","https://api.example.com/things","-H","authorization: Bearer {{ACME_API_KEY}}","-d","{\\"name\\":\\"x\\"}"]'
+        ),
+      envFile: z
+        .string()
+        .optional()
+        .describe(
+          'Path to the dotenv holding {{KEY}} values. Defaults to the personal collection .env (bruno, then curl adapter root).'
+        ),
       timeoutSeconds: z.number().int().min(1).max(300).default(30).describe('curl --max-time, default 30')
     },
     handler: async ({ args, envFile, timeoutSeconds }) => {
       const blocked = findBlockedFlag(args);
       if (blocked) {
-        throw new Error(`Flag ${blocked} is not allowed — curl_run returns response text; it never writes or reads local files/config.`);
+        throw new Error(
+          `Flag ${blocked} is not allowed — curl_run returns response text; it never writes or reads local files/config.`
+        );
       }
 
       const envPath = envFile ?? defaultEnvFile(FOLDERS.REPORTS);

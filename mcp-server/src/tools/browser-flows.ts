@@ -15,7 +15,7 @@
  * (always HOME, gitignored, deny-gated from the agent's own Read/Bash) and injects it into ONLY that
  * flow's child process — scoped, so one flow's secrets don't reach another, and never routed through
  * a tool param into the conversation. Flow secrets override inherited env; the harness vars
- * (NODE_PATH/KEVIN_HOME/…) always win over both. The reader refuses `.kevin/secrets/` by construction.
+ * (NODE_PATH/AGENT_HOME/…) always win over both. The reader refuses the data-dir secret store by construction.
  */
 
 import { FOLDERS } from '@/config';
@@ -100,6 +100,8 @@ export const tools: ToolDef[] = [
           ...flowEnv,
           NODE_PATH: nodePath,
           PLAYWRIGHT_BROWSERS_PATH: '0',
+          // Both spellings: operator-authored flow scripts may read either.
+          AGENT_HOME: FOLDERS.HOME,
           KEVIN_HOME: FOLDERS.HOME
         },
         stdout: 'pipe',

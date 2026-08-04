@@ -167,7 +167,7 @@ export interface LintIssue {
   text: string;
 }
 
-/** Parsed .kevin/lint.md — the last knowledge_lint run. */
+/** Parsed <data-dir>/lint.md — the last knowledge_lint run. */
 export interface LintReport {
   date: string;
   errors: number;
@@ -345,7 +345,7 @@ export interface StatusSnapshot {
      *  evening) — the last heavy refresh, distinct from the dashboard re-render
      *  that fires on every task mutation. '' when no briefing exists yet. */
     lastSync: string;
-    /** HOME template baseline from .kevin/version.json; null on a pre-feature
+    /** HOME template baseline from <data-dir>/version.json; null on a pre-feature
      *  or uninitialized home. */
     baselineVersion: string | null;
     /** Local upgrade signal: `current` | `pending` | `onboard`. See version.ts. */
@@ -379,7 +379,7 @@ export interface StatusSnapshot {
   sessions: SessionRef[];
   /** Headlines from the most recent briefing reports, newest first. */
   news: NewsItem[];
-  /** Last knowledge-lint run, parsed from .kevin/lint.md. */
+  /** Last knowledge-lint run, parsed from <data-dir>/lint.md. */
   lint: LintReport;
   /** The bin CLI's HELP text, parsed into sections. */
   cli: CliSection[];
@@ -463,7 +463,7 @@ export interface StatusSnapshot {
 
 const MARKDOWN_RE = /\.md$/;
 const SECRET_KEY_RE =
-  /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|KEVIN_DB)/i;
+  /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|KEVIN_DB|AGENT_DB)/i;
 /** A connection string with embedded credentials — `scheme://user:pass@host`.
  *  Caught by value so DB URLs are masked regardless of their env-var name. */
 const CRED_URL_RE = /:\/\/[^\s:@/]+:[^\s@/]+@/;
@@ -1001,10 +1001,11 @@ const collectSettings = (): StatusSnapshot['settings'] => {
     scope: entry.scope
   }));
 
-  // Always surface KEVIN_HOME so its meaning is discoverable even when unset
+  // Always surface AGENT_HOME so its meaning is discoverable even when unset
   // (it then falls back to the launch cwd). Empty value renders as "not set".
-  if (!redactedEnv.some((entry) => entry.key === 'KEVIN_HOME')) {
-    redactedEnv.unshift({ key: 'KEVIN_HOME', value: '', scope: 'user' });
+  // Skipped when a home is already configured under the legacy KEVIN_HOME name.
+  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME' || entry.key === 'KEVIN_HOME')) {
+    redactedEnv.unshift({ key: 'AGENT_HOME', value: '', scope: 'user' });
   }
 
   // Resolve the current plugin's enabled ref + its marketplace source.
@@ -1348,7 +1349,7 @@ const collectNews = (): NewsItem[] => {
   return items.slice(0, MAX_NEWS);
 };
 
-/** Parse .kevin/lint.md (written by knowledge_lint) into counts + issues. */
+/** Parse <data-dir>/lint.md (written by knowledge_lint) into counts + issues. */
 const collectLint = (): LintReport => {
   const empty: LintReport = { date: '', errors: 0, warnings: 0, suggestions: 0, issues: [], present: false };
   let content = '';

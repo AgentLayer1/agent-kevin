@@ -5,7 +5,7 @@
  * Runs ffmpeg out-of-band (the MCP server sits outside the Bash seatbelt), so it
  * reads videos in seatbelt-protected dirs (~/Downloads, ~/Desktop, ~/Documents)
  * that ffmpeg-under-Bash can't. Frames land in
- * `<KEVIN_HOME>/reports/captures/<ts>-<name>-frames/` as PNGs the caller Reads
+ * `<HOME>/reports/captures/<ts>-<name>-frames/` as PNGs the caller Reads
  * back for vision analysis.
  *
  * Default mode is scene-detection, not a fixed-rate dump: for a screen recording
