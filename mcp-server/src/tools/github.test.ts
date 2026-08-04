@@ -106,6 +106,9 @@ describe('fastForwardBranch', () => {
   test('refuses a branch held by a linked worktree, leaving its work intact', async () => {
     const held = join(root, 'wt');
     git(clone, 'branch', '-f', 'probe', 'HEAD');
+    // A real origin counterpart ahead of probe, so the refusal under test is git's
+    // worktree hold — not a missing-ref failure that happens to share exit code 128.
+    git(clone, 'update-ref', 'refs/remotes/origin/probe', 'refs/remotes/origin/main');
     git(clone, 'worktree', 'add', '-q', held, 'probe');
     const scratch = join(held, 'uncommitted.txt');
     writeFileSync(scratch, 'work in progress\n');
@@ -155,6 +158,32 @@ describe('fastForwardBranch', () => {
     expect(report.behind).toBe(1);
     expect(git(clone, 'rev-parse', 'main')).toBe(before);
     expect(await Bun.file(join(clone, 'f')).text()).toBe('uncommitted edit\n');
+  });
+
+  // Unpushed local commits are the everyday state of a working checkout. Without the AHEAD
+  // exit, `merge --ff-only` claims a phantom UPDATED and `fetch .` a phantom NOT_FAST_FORWARD.
+  test('reports a branch ahead of origin as AHEAD without touching it', async () => {
+    git(clone, 'branch', 'aheadbr', 'refs/remotes/origin/main');
+    git(clone, 'update-ref', 'refs/remotes/origin/aheadbr', 'aheadbr~1');
+    const before = git(clone, 'rev-parse', 'aheadbr');
+
+    const report = await fastForwardBranch(clone, { slot: 'primary', branch: 'aheadbr' }, clean);
+
+    expect(report.status).toBe('AHEAD');
+    expect(git(clone, 'rev-parse', 'aheadbr')).toBe(before);
+  });
+
+  test('an ahead checked-out branch reads AHEAD even when the tree is dirty', async () => {
+    const before = git(clone, 'rev-parse', 'aheadbr');
+
+    const report = await fastForwardBranch(
+      clone,
+      { slot: 'primary', branch: 'aheadbr' },
+      { current: 'aheadbr', dirty: true }
+    );
+
+    expect(report.status).toBe('AHEAD');
+    expect(git(clone, 'rev-parse', 'aheadbr')).toBe(before);
   });
 });
 

@@ -177,6 +177,7 @@ type RepoSyncStatus = (typeof RepoSyncStatus)[keyof typeof RepoSyncStatus];
 const BranchSyncStatus = {
   Updated: 'UPDATED',
   Current: 'CURRENT',
+  Ahead: 'AHEAD',
   SkippedDirty: 'SKIPPED_DIRTY',
   ClaimedByWorktree: 'CLAIMED_BY_WORKTREE',
   NotFastForward: 'NOT_FAST_FORWARD'
@@ -308,6 +309,12 @@ export const fastForwardBranch = async (
     return report(BranchSyncStatus.Current, local);
   }
   const behind = Number((await runGit(path, ['rev-list', '--count', `${local}..${remote}`])).stdout.trim() || '0');
+  // Differing tips with nothing to pull means origin's tip is an ancestor: the operator simply
+  // has unpushed commits. Without this exit, `merge --ff-only` reports a phantom UPDATED
+  // (rc 0, "Already up to date") and `fetch .` a phantom NOT_FAST_FORWARD.
+  if (behind === 0) {
+    return report(BranchSyncStatus.Ahead, local);
+  }
 
   if (branch === tree.current) {
     if (tree.dirty) {
@@ -707,7 +714,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_fast_forward',
     description:
-      "Fast-forward the default branches (main||master and develop||dev) of the configured local checkouts so Kevin grounds against current code. Authenticates with the read-only PAT over HTTPS — one fetch per repo — then does every ref update locally; the checkout's own remote (SSH or otherwise) is neither used for transport nor rewritten. Strictly forward-only: never checks out, stashes, resets, rebases, cleans, or commits, and a dirty, diverged, or worktree-held branch is reported rather than resolved. Reports rather than throws when the GitHub pack isn't configured, so a caller can carry on. Returns per-repo status (SYNCED / NOT_CONFIGURED / NOT_A_MAIN_CHECKOUT / NOT_GITHUB / FETCH_FAILED with a reason) and per-branch status (UPDATED / CURRENT / SKIPPED_DIRTY / CLAIMED_BY_WORKTREE / NOT_FAST_FORWARD).",
+      "Fast-forward the default branches (main||master and develop||dev) of the configured local checkouts so Kevin grounds against current code. Authenticates with the read-only PAT over HTTPS — one fetch per repo — then does every ref update locally; the checkout's own remote (SSH or otherwise) is neither used for transport nor rewritten. Strictly forward-only: never checks out, stashes, resets, rebases, cleans, or commits, and a dirty, diverged, or worktree-held branch is reported rather than resolved. Reports rather than throws when the GitHub pack isn't configured, so a caller can carry on. Returns per-repo status (SYNCED / NOT_CONFIGURED / NOT_A_MAIN_CHECKOUT / NOT_GITHUB / FETCH_FAILED with a reason) and per-branch status (UPDATED / CURRENT / AHEAD / SKIPPED_DIRTY / CLAIMED_BY_WORKTREE / NOT_FAST_FORWARD).",
     inputSchema: {
       repos: z
         .array(z.string())
@@ -721,7 +728,9 @@ export const tools: ToolDef[] = [
       const report = (payload: Record<string, unknown>): string =>
         untrusted('github:fast_forward', JSON.stringify(payload, null, 2));
 
-      const paths = [...new Set(repos?.length ? repos.map(expandTilde) : configuredRepoPaths())];
+      const paths = [
+        ...new Set(repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths())
+      ];
       if (paths.length === 0) {
         return report({
           repos: [],
