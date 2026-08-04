@@ -13,6 +13,7 @@
  * New migrations are a new script file + one CHANGELOG line — no change here.
  */
 import { FOLDERS } from '@/config';
+import { agentEnvPrefix } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -90,13 +91,15 @@ export const tools: ToolDef[] = [
 
       const proc = spawnSync(process.execPath, [scriptPath], {
         cwd: FOLDERS.HOME,
-        // Legacy KEVIN_* names stay: frozen historical migration scripts read them directly.
+        // Both spellings: frozen historical migration scripts read the agent-prefixed names directly.
         env: {
           ...process.env,
           AGENT_HOME: FOLDERS.HOME,
-          KEVIN_HOME: FOLDERS.HOME,
           AGENT_PLUGIN_ROOT: FOLDERS.ROOT,
-          KEVIN_PLUGIN_ROOT: FOLDERS.ROOT
+          ...(agentEnvPrefix() && {
+            [`${agentEnvPrefix()}HOME`]: FOLDERS.HOME,
+            [`${agentEnvPrefix()}PLUGIN_ROOT`]: FOLDERS.ROOT
+          })
         },
         encoding: 'utf-8',
         timeout: SCRIPT_TIMEOUT_MS

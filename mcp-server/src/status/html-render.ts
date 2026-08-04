@@ -25,7 +25,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
-import { runtimeDirName } from '@/shared/env';
+import { agentEnvPrefix, runtimeDirName } from '@/shared/env';
 import type {
   ContextGroup,
   ProfileSection,
@@ -1435,7 +1435,8 @@ const logTail = (tail: string): string => {
 
 // Explanations for the agent's own env vars + the harness knobs init seeds —
 // shown as an info tooltip beside the key in the Environment table. Keyed by
-// the AGENT_* names; `envKeyTip` maps a legacy KEVIN_* key onto the same tip.
+// the shared AGENT_* names; `envKeyTip` maps a per-agent override (KEVIN_*,
+// WALLE_*, …) onto the same tip.
 const ENV_KEY_TIPS: Record<string, string> = {
   AGENT_HOME:
     'The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; set this in `~/.claude/settings.json` if you ever start Claude from elsewhere, so paths don’t silently resolve to the wrong place.',
@@ -1453,8 +1454,12 @@ const ENV_KEY_TIPS: Record<string, string> = {
   AGENT_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'
 };
 
-/** Tip for an env key, matching a legacy `KEVIN_*` spelling to its `AGENT_*` tip. */
-const envKeyTip = (key: string): string | undefined => ENV_KEY_TIPS[key.replace(/^KEVIN_/, 'AGENT_')];
+/** Tip for an env key, matching this agent's override spelling to its `AGENT_*` tip. */
+const envKeyTip = (key: string): string | undefined => {
+  const prefix = agentEnvPrefix();
+  const canonical = prefix && key.startsWith(prefix) ? `AGENT_${key.slice(prefix.length)}` : key;
+  return ENV_KEY_TIPS[canonical];
+};
 
 const pageSystem = (snap: StatusSnapshot): string => {
   const { settings, logs } = snap;

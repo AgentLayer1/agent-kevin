@@ -24,13 +24,13 @@ describe('discoverConnections', () => {
     expect(names.indexOf('analytics')).toBeLessThan(names.indexOf('zed'));
   });
 
-  test('still discovers legacy KEVIN_DB_* vars; a same-named AGENT_DB_ one wins', () => {
-    setEnv('KEVIN_DB_LEGACYONLY', 'postgres://u:p@h/legacy');
-    setEnv('KEVIN_DB_SHARED', 'postgres://u:p@h/old');
-    setEnv('AGENT_DB_SHARED', 'postgres://u:p@h/new');
+  test("discovers this agent's KEVIN_DB_* vars; a same-named one beats the shared AGENT_DB_", () => {
+    setEnv('KEVIN_DB_OWNONLY', 'postgres://u:p@h/own');
+    setEnv('AGENT_DB_SHARED', 'postgres://u:p@h/base');
+    setEnv('KEVIN_DB_SHARED', 'postgres://u:p@h/override');
     const connections = discoverConnections();
-    expect(connections.find((connection) => connection.name === 'legacyonly')?.envKey).toBe('KEVIN_DB_LEGACYONLY');
-    expect(connections.find((connection) => connection.name === 'shared')?.envKey).toBe('AGENT_DB_SHARED');
+    expect(connections.find((connection) => connection.name === 'ownonly')?.envKey).toBe('KEVIN_DB_OWNONLY');
+    expect(connections.find((connection) => connection.name === 'shared')?.envKey).toBe('KEVIN_DB_SHARED');
   });
 
   test('ignores empty values and the bare prefix', () => {

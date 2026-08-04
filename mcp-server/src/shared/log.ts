@@ -10,8 +10,9 @@
  * No setStderrOnly() toggle. There is no path that writes to stdout — so the
  * logger is hook-safe by construction. Override the file path via
  * `AGENT_LOG_FILE`; disable file output entirely with `AGENT_LOG_FILE=off`.
- * Legacy `KEVIN_*` spellings are still honored (this module is dependency-free,
- * so it reads both inline instead of going through `shared/env.ts`).
+ * Dependency-free, so it reads only the shared `AGENT_*` names — it can't
+ * derive the per-agent override prefix; the env gate writes the resolved home
+ * back to `AGENT_HOME`, which covers the default path below.
  *
  * File output rotates when it crosses MAX_LOG_BYTES (5MB) to a timestamped
  * sibling (`app.20260523-160300.log`). No auto-delete — operator prunes
@@ -44,8 +45,7 @@ const LEVEL_ORDER: Record<Level, number> = {
 
 // ── Config ────────────────────────────────────────────────────────────
 
-let minLevel: Level =
-  ((process.env.AGENT_LOG_LEVEL ?? process.env.KEVIN_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
+let minLevel: Level = ((process.env.AGENT_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 /**
@@ -54,14 +54,15 @@ const MAX_LOG_BYTES = 5 * 1024 * 1024;
  * to log a line). `AGENT_LOG_FILE` tells us where to write; `=off` disables.
  */
 function resolveLogFile(): string | null {
-  const env = process.env.AGENT_LOG_FILE?.trim() || process.env.KEVIN_LOG_FILE?.trim();
+  const env = process.env.AGENT_LOG_FILE?.trim();
   if (env === 'off') return null;
   if (env) return resolve(env);
   // Default: <HOME>/<data-dir>/logs/app.log. AGENT_HOME mirrors the MCP server's
-  // resolution; if neither spelling is set, fall back to cwd so hooks still
-  // capture. The data-dir read mirrors `runtimeDirName()` in shared/env.ts —
-  // inlined so this module stays dependency-free.
-  const home = (process.env.AGENT_HOME?.trim() || process.env.KEVIN_HOME?.trim() || process.cwd()).replace(/\/$/, '');
+  // resolution (the env gate canonicalizes it even when a per-agent override
+  // supplied the home); if unset, fall back to cwd so hooks still capture. The
+  // data-dir read mirrors `runtimeDirName()` in shared/env.ts — inlined so this
+  // module stays dependency-free.
+  const home = (process.env.AGENT_HOME?.trim() || process.cwd()).replace(/\/$/, '');
   return resolve(home, process.env.AGENT_RUNTIME_DIR?.trim() || '.kevin', 'logs', 'app.log');
 }
 

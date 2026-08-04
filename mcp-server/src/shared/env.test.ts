@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { agentHomePath, env, loadSecretsEnv, readEnvFile, runtimeDirName } from './env';
+import { agentEnvPrefix, agentHomePath, env, loadSecretsEnv, readEnvFile, runtimeDirName } from './env';
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
@@ -43,7 +43,7 @@ describe('agentHomePath', () => {
     }
   };
 
-  test('AGENT_HOME wins when set', () => {
+  test('the shared AGENT_HOME resolves when set', () => {
     withHomeEnv(
       () => {
         process.env.AGENT_HOME = '/some/agent/home';
@@ -54,14 +54,14 @@ describe('agentHomePath', () => {
     );
   });
 
-  test('the legacy KEVIN_HOME spelling still resolves when AGENT_HOME is unset', () => {
+  test("this agent's override (KEVIN_HOME) beats the shared AGENT_HOME", () => {
     withHomeEnv(
       () => {
-        delete process.env.AGENT_HOME;
-        process.env.KEVIN_HOME = '/some/legacy/home';
+        process.env.AGENT_HOME = '/shared/base/home';
+        process.env.KEVIN_HOME = '/kevin/own/home';
       },
       () => {
-        expect(agentHomePath()).toBe('/some/legacy/home');
+        expect(agentHomePath()).toBe('/kevin/own/home');
       }
     );
   });
@@ -115,6 +115,12 @@ describe('agentHomePath', () => {
   });
 });
 
+describe('agentEnvPrefix', () => {
+  test('derives KEVIN_ from this plugin manifest (agent-kevin)', () => {
+    expect(agentEnvPrefix()).toBe('KEVIN_');
+  });
+});
+
 describe('runtimeDirName', () => {
   test('defaults to .kevin and honors the AGENT_RUNTIME_DIR override', () => {
     expect(runtimeDirName()).toBe('.kevin');
@@ -125,31 +131,42 @@ describe('runtimeDirName', () => {
       delete process.env.AGENT_RUNTIME_DIR;
     }
   });
+
+  test("this agent's KEVIN_RUNTIME_DIR beats the shared AGENT_RUNTIME_DIR", () => {
+    process.env.AGENT_RUNTIME_DIR = '.workspace';
+    process.env.KEVIN_RUNTIME_DIR = '.kevin-own';
+    try {
+      expect(runtimeDirName()).toBe('.kevin-own');
+    } finally {
+      delete process.env.AGENT_RUNTIME_DIR;
+      delete process.env.KEVIN_RUNTIME_DIR;
+    }
+  });
 });
 
-describe('env legacy fallback', () => {
-  test('an AGENT_* key wins over its legacy KEVIN_* spelling', () => {
-    process.env.AGENT_PROBE_FALLBACK = 'new';
-    process.env.KEVIN_PROBE_FALLBACK = 'old';
+describe('env per-agent override', () => {
+  test("this agent's KEVIN_* spelling beats the shared AGENT_* name", () => {
+    process.env.AGENT_PROBE_OVERRIDE = 'shared';
+    process.env.KEVIN_PROBE_OVERRIDE = 'own';
     try {
-      expect(env('AGENT_PROBE_FALLBACK')).toBe('new');
+      expect(env('AGENT_PROBE_OVERRIDE')).toBe('own');
     } finally {
-      delete process.env.AGENT_PROBE_FALLBACK;
-      delete process.env.KEVIN_PROBE_FALLBACK;
+      delete process.env.AGENT_PROBE_OVERRIDE;
+      delete process.env.KEVIN_PROBE_OVERRIDE;
     }
   });
 
-  test('falls back to the KEVIN_* spelling when the AGENT_* key is unset', () => {
-    process.env.KEVIN_PROBE_FALLBACK = 'old';
+  test('the shared AGENT_* name is used when no override is set', () => {
+    process.env.AGENT_PROBE_OVERRIDE = 'shared';
     try {
-      expect(env('AGENT_PROBE_FALLBACK')).toBe('old');
+      expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
     } finally {
-      delete process.env.KEVIN_PROBE_FALLBACK;
+      delete process.env.AGENT_PROBE_OVERRIDE;
     }
   });
 
-  test('non-AGENT_ keys get no fallback', () => {
-    expect(env('PROBE_FALLBACK_UNSET_XYZ')).toBeUndefined();
+  test('non-AGENT_ keys get no override resolution', () => {
+    expect(env('PROBE_OVERRIDE_UNSET_XYZ')).toBeUndefined();
   });
 });
 

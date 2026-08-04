@@ -438,7 +438,7 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('The agent home directory');
   });
 
-  test('a legacy KEVIN_* env key still carries its AGENT_* tooltip', () => {
+  test("this agent's KEVIN_* override key still carries its AGENT_* tooltip", () => {
     const html = renderDashboardHtml(
       makeSnapshot({
         settings: { ...makeSnapshot().settings, env: [{ key: 'KEVIN_HOME', value: '/tmp/home', scope: 'user' }] }

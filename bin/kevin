@@ -41,8 +41,8 @@ process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 
 // Stage process.env for the whole CLI run: hydrate every .claude/settings*.json
 // `env` block on the ancestor path (nearest wins) so per-project paths
-// (AGENT_HOME, AGENT_KNOWLEDGE, ... — legacy KEVIN_* spellings still honored)
-// apply without shell-rc duplication, then
+// (AGENT_HOME, AGENT_KNOWLEDGE, ... — or this agent's override prefix, e.g.
+// KEVIN_*) apply without shell-rc duplication, then
 // anchor AGENT_HOME through the shared resolver. Order matches Claude Code:
 // settings.local.json (machine-specific) overrides settings.json (committed);
 // existing shell env always wins. Every mcp-server import in this file is dynamic
@@ -199,7 +199,7 @@ Database commands:
                                     <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
                                     .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
 
-Environment (legacy KEVIN_* spellings still honored):
+Environment (shared AGENT_* names; this agent's prefixed spelling, e.g. KEVIN_HOME, overrides):
   AGENT_HOME=<path>                 Override agent home (default: cwd)
   AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
   AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)

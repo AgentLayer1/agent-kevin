@@ -21,7 +21,8 @@ import { resolve } from 'node:path';
 const home = mkdtempSync(resolve(tmpdir(), 'kevin-test-home-'));
 mkdirSync(resolve(home, '.kevin'), { recursive: true });
 process.env.AGENT_HOME = home;
-// A KEVIN_HOME inherited from the operator's shell would otherwise win the legacy fallback.
+// A KEVIN_HOME inherited from the operator's shell is this agent's override
+// prefix and would beat the pin above.
 delete process.env.KEVIN_HOME;
 
 // A preload-registered `afterAll` fires once for the whole run, not per file (verified), and

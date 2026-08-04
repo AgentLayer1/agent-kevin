@@ -1,4 +1,3 @@
-import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -16,10 +15,13 @@ import { dirname, resolve, sep } from 'node:path';
  * stack means a tool (or its test) can read env without pulling the whole layout
  * in. Both resolve from `AGENT_HOME` at read time rather than at import.
  *
- * Env naming: the plugin's own vars use the agent-neutral `AGENT_` prefix so a
- * fork never rename-sweeps them. The legacy `KEVIN_` spellings are honored for
- * one release window (reads warn once per key). When adding a var, avoid names
- * CI systems inject — Azure Pipelines sets `AGENT_OS`, `AGENT_NAME`,
+ * Env naming: every knob has a shared, agent-neutral `AGENT_*` name — the one
+ * code reads, docs teach, and machine-level settings (`~/.claude/settings.json`)
+ * can set once for every agent on the box. Each agent overrides any of them
+ * under its own prefix (`KEVIN_*`, `WALLE_*`, …), derived from the plugin
+ * manifest name by `agentEnvPrefix()`; the override always wins, so the fork
+ * seam lives in plugin.json, not in code. When adding a var, avoid names CI
+ * systems inject — Azure Pipelines sets `AGENT_OS`, `AGENT_NAME`,
  * `AGENT_HOMEDIRECTORY`, and friends on every build agent.
  *
  * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
@@ -27,6 +29,51 @@ import { dirname, resolve, sep } from 'node:path';
  * matter who imported what, in what order. There is no import-order discipline to
  * forget.
  */
+
+/**
+ * This agent's own env-var prefix (`KEVIN_` for the `agent-kevin` plugin),
+ * derived once from the plugin manifest name — `agent-<name>` → `<NAME>_`.
+ * Empty string when no manifest is readable; the shared `AGENT_*` names then
+ * stand alone.
+ */
+export const agentEnvPrefix = (): string => {
+  if (cachedEnvPrefix === undefined) {
+    cachedEnvPrefix = deriveEnvPrefix();
+  }
+  return cachedEnvPrefix;
+};
+
+let cachedEnvPrefix: string | undefined;
+
+// Resolved relative to this file, never an env var: wherever this code runs
+// from (repo checkout, marketplace cache, fork) IS the plugin whose name it is.
+const deriveEnvPrefix = (): string => {
+  try {
+    const manifestPath = resolve(import.meta.dir, '..', '..', '..', '.claude-plugin', 'plugin.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { name?: unknown };
+    const name = typeof manifest.name === 'string' ? manifest.name : '';
+    const short = name
+      .replace(/^agent-/, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    return short ? `${short}_` : '';
+  } catch {
+    return '';
+  }
+};
+
+/** The per-agent spelling of a shared `AGENT_*` key, or undefined when there is no prefix. */
+const overrideKeyFor = (key: string): string | undefined => {
+  const prefix = agentEnvPrefix();
+  return prefix && key.startsWith('AGENT_') ? prefix + key.slice('AGENT_'.length) : undefined;
+};
+
+/** Raw read of a key's per-agent override. Trimmed, or undefined when unset/blank. */
+const overrideValue = (key: string): string | undefined => {
+  const overrideKey = overrideKeyFor(key);
+  return overrideKey ? process.env[overrideKey]?.trim() || undefined : undefined;
+};
 
 /**
  * Folder name of the agent's runtime data dir — THE single place it's defined.
@@ -37,43 +84,31 @@ import { dirname, resolve, sep } from 'node:path';
  * stay dependency-free.
  */
 export const RUNTIME_DIR_DEFAULT = '.kevin';
-export const runtimeDirName = (): string => process.env.AGENT_RUNTIME_DIR?.trim() || RUNTIME_DIR_DEFAULT;
-
-/** Legacy `KEVIN_*` spelling of a neutral `AGENT_*` key, or undefined for keys with no legacy form. */
-const legacyKeyFor = (key: string): string | undefined =>
-  key.startsWith('AGENT_') ? `KEVIN_${key.slice('AGENT_'.length)}` : undefined;
-
-const warnedLegacyKeys = new Set<string>();
-
-/** Read a legacy key directly off `process.env`, warning once per key so operators migrate. */
-const readLegacy = (legacy: string, replacement: string): string | undefined => {
-  const value = process.env[legacy]?.trim() || undefined;
-  if (value && !warnedLegacyKeys.has(legacy)) {
-    warnedLegacyKeys.add(legacy);
-    log.warn(`${legacy} is deprecated — rename it to ${replacement}`);
-  }
-  return value;
-};
+export const runtimeDirName = (): string =>
+  overrideValue('AGENT_RUNTIME_DIR') || process.env.AGENT_RUNTIME_DIR?.trim() || RUNTIME_DIR_DEFAULT;
 
 /**
- * Resolve the agent HOME: `AGENT_HOME` (or its legacy `KEVIN_HOME` spelling)
- * when set, else the nearest ancestor of cwd (cwd included) carrying this
- * agent's data dir (`runtimeDirName()`, created at init). A bare cwd fallback
- * anchors to wherever the process happened to launch; for a session launched
- * inside a code repo that puts session captures, data-dir state, and logs
- * INSIDE the repo, so the walk-up refuses to anchor on anything that isn't
- * this agent's scaffolded home. The data dir (not SOUL.md) is the marker
- * because it's agent-specific: every sibling agent's home carries a SOUL.md,
- * but only this agent's carries the data dir, so the walk can never anchor on
- * another agent's brain. Falls back to cwd only when no home exists on the
- * ancestor path (the pre-init case). A derived home is written back to
- * `process.env.AGENT_HOME` so the dependency-free logger and child processes
- * inherit it; the cwd fallback is never written back.
+ * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
+ * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
+ * carrying this agent's data dir (`runtimeDirName()`, created at init). A bare
+ * cwd fallback anchors to wherever the process happened to launch; for a
+ * session launched inside a code repo that puts session captures, data-dir
+ * state, and logs INSIDE the repo, so the walk-up refuses to anchor on
+ * anything that isn't this agent's scaffolded home. The data dir (not SOUL.md)
+ * is the marker because it's agent-specific: every sibling agent's home
+ * carries a SOUL.md, but only this agent's carries the data dir, so the walk
+ * can never anchor on another agent's brain. Falls back to cwd only when no
+ * home exists on the ancestor path (the pre-init case). Any resolved home is
+ * written back to `process.env.AGENT_HOME` (the canonical name) so the
+ * dependency-free logger and child processes inherit it; the cwd fallback is
+ * never written back.
  */
 export function agentHomePath(): string {
-  const fromVar = process.env.AGENT_HOME?.trim() || readLegacy('KEVIN_HOME', 'AGENT_HOME');
+  const fromVar = overrideValue('AGENT_HOME') || process.env.AGENT_HOME?.trim();
   if (fromVar) {
-    return expandTilde(fromVar);
+    const expanded = expandTilde(fromVar);
+    process.env.AGENT_HOME = expanded;
+    return expanded;
   }
   let dir = process.cwd();
   for (;;) {
@@ -201,14 +236,12 @@ loadSecretsEnv();
 
 /**
  * Read one environment value through the gate. Trimmed, or `undefined` when
- * unset/blank. An `AGENT_*` key falls back to its legacy `KEVIN_*` spelling.
+ * unset/blank. An `AGENT_*` key's per-agent override (e.g. `KEVIN_*`) wins
+ * over the shared name.
  */
 export const env = (key: string): string | undefined => {
   loadSecretsEnv();
-  const direct = process.env[key]?.trim();
-  if (direct) return direct;
-  const legacy = legacyKeyFor(key);
-  return legacy ? readLegacy(legacy, key) : undefined;
+  return overrideValue(key) || process.env[key]?.trim() || undefined;
 };
 
 /** Names of the keys loaded from `secrets/.env` (values never leave this module). */
@@ -218,7 +251,6 @@ export const loadedSecretKeyNames = (): readonly string[] => {
 };
 
 const DB_ENV_PREFIX = 'AGENT_DB_';
-const LEGACY_DB_ENV_PREFIX = 'KEVIN_DB_';
 
 export interface DbConnection {
   name: string;
@@ -226,17 +258,19 @@ export interface DbConnection {
 }
 
 /**
- * Every `AGENT_DB_<NAME>` connection configured in `secrets/.env` (legacy
- * `KEVIN_DB_<NAME>` still discovered), name lowercased. When both spellings
- * define one name, the `AGENT_DB_` one wins.
+ * Every `AGENT_DB_<NAME>` connection configured in `secrets/.env` — the
+ * per-agent spelling (e.g. `KEVIN_DB_<NAME>`) also discovered — name
+ * lowercased. When both spellings define one name, the per-agent one wins.
  */
 export const dbConnections = (): DbConnection[] => {
   loadSecretsEnv();
+  const prefix = agentEnvPrefix();
+  const prefixes = prefix ? [DB_ENV_PREFIX, `${prefix}DB_`] : [DB_ENV_PREFIX];
   const byName = new Map<string, string>();
-  for (const prefix of [LEGACY_DB_ENV_PREFIX, DB_ENV_PREFIX]) {
+  for (const dbPrefix of prefixes) {
     Object.keys(process.env)
-      .filter((key) => key.startsWith(prefix) && key.length > prefix.length && process.env[key]?.trim())
-      .forEach((envKey) => byName.set(envKey.slice(prefix.length).toLowerCase(), envKey));
+      .filter((key) => key.startsWith(dbPrefix) && key.length > dbPrefix.length && process.env[key]?.trim())
+      .forEach((envKey) => byName.set(envKey.slice(dbPrefix.length).toLowerCase(), envKey));
   }
   return [...byName.entries()]
     .map(([name, envKey]) => ({ name, envKey }))
@@ -244,16 +278,16 @@ export const dbConnections = (): DbConnection[] => {
 };
 
 /**
- * Resolve a free-form connection name to its configured env key —
- * `AGENT_DB_<NAME>` when set (and when neither spelling is), else the legacy
- * `KEVIN_DB_<NAME>` a pre-rename home still carries.
+ * Resolve a free-form connection name to its configured env key — the
+ * per-agent spelling (e.g. `KEVIN_DB_<NAME>`) when set, else the shared
+ * `AGENT_DB_<NAME>`.
  */
 export const dbEnvKeyFor = (name: string): string => {
   loadSecretsEnv();
   const suffix = name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-  const preferred = DB_ENV_PREFIX + suffix;
-  const legacy = LEGACY_DB_ENV_PREFIX + suffix;
-  return !process.env[preferred]?.trim() && process.env[legacy]?.trim() ? legacy : preferred;
+  const prefix = agentEnvPrefix();
+  const overrideKey = prefix ? `${prefix}DB_${suffix}` : undefined;
+  return overrideKey && process.env[overrideKey]?.trim() ? overrideKey : DB_ENV_PREFIX + suffix;
 };
 
 /**
