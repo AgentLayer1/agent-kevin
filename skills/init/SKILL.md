@@ -58,20 +58,52 @@ echo "KEVIN_OS=$KEVIN_OS"
 
 Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
-**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
+**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On macOS both `git` and `python3` come with the Xcode Command Line Tools (`xcode-select --install`); neither needs Homebrew. `gh` is **conditional**: nothing else uses it, but every GitHub-pack tool shells out to it — including `github_fast_forward`, which is what keeps the code checkouts current during `/agent-kevin:sync`. It is not bundled with Claude Code or this plugin, so on macOS it means Homebrew (`brew install gh`). Probing it here turns a mid-session throw into a note the operator can act on before they tick the pack. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
 
 ```bash
+# Probe FUNCTIONALLY, never with `command -v`. On macOS /usr/bin/git and
+# /usr/bin/python3 are xcode-select shims — one shared 118KB binary hard-linked
+# under ~78 tool names — that sit on PATH whether or not the Command Line Tools
+# are installed. `command -v git` therefore succeeds on a machine that has no
+# git, and the failure only appears later when something tries to use it.
+# Verified 2026-08-05: with the developer dir unresolvable, `command -v git`
+# passes while `git --version` exits 1.
 MISSING=()
-command -v bun >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
-command -v git >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
-command -v python3 >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
+bun --version >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
+git --version >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
+python3 --version >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
 command -v pdftoppm >/dev/null 2>&1 || echo "NOTE: pdftoppm not found (optional — install poppler so the Read tool can render PDFs: macOS 'brew install poppler', Linux 'poppler-utils')."
+command -v gh >/dev/null 2>&1 || echo "NOTE: gh not found (needed ONLY if you activate the GitHub pack at Step 8 — that pack's tools, including the sync code-refresh, shell out to it: macOS 'brew install gh', https://cli.github.com)."
+
+# macOS only: name the RIGHT remedy. A failing git on a Mac is almost never a
+# missing git download — it's absent Command Line Tools, and the fix is
+# `xcode-select --install`, not a trip to git-scm.com.
+if [ "$KEVIN_OS" = "macos" ] && ! xcode-select -p >/dev/null 2>&1; then
+  echo "XCODE_CLT_MISSING"
+fi
+
+# Homebrew is NOT a Kevin dependency — nothing here ever calls it. It's only the
+# install path for gh/poppler on macOS, so it's worth a line just when one of
+# those is actually missing and the operator would otherwise hit a second wall.
+if [ "$KEVIN_OS" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
+  echo "NOTE: Homebrew not found — needed only to install gh/poppler if you want them (https://brew.sh)."
+fi
 printf 'MISSING: %s\n' "${MISSING[@]}"
 ```
 
 Act on the result **before** anything else:
 
 - **Native Windows (`$KEVIN_OS` = `windows`)** — supported; do **not** stop. Surface a one-line FYI and continue: *"Running on native Windows via Git Bash — the supported Windows path. (Prefer a full Linux userland? WSL2 works too.)"* The OS-specific steps below (timezone probe, external-storage suggestion, security deny-list, the `{{PLATFORM}}` label) already branch on `windows`, so the scaffold is shaped correctly. Heads-up worth surfacing once: a few pack-gated skills assume tools Git Bash lacks (e.g. `jq`), and the OS sandbox is unavailable on Windows — neither blocks the core setup.
+
+- **`XCODE_CLT_MISSING`** — the Xcode Command Line Tools aren't installed, which on a Mac is the usual root cause behind a failing `git` (and `python3`). Surface this **instead of** the generic git line when both fired, since `xcode-select --install` fixes it and a git-scm.com download is the wrong advice:
+
+  > 🛑 **Xcode Command Line Tools aren't installed.** On macOS this is what provides `git` and `python3`. Run this, click through the installer (~10 min), then re-run `/agent-kevin:init`:
+  >
+  > ```bash
+  > xcode-select --install
+  > ```
+
+  **STOP** if `git` was also in `MISSING`. If git resolved from elsewhere (Homebrew, a standalone install) this is informational — mention it once and continue.
 
 - **`MISSING` non-empty** — print the block below verbatim (one line per missing tool) and **STOP**:
 
@@ -1079,10 +1111,12 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
-> - ☐ GitHub pack (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward` so `/agent-kevin:sync` keeps any code checkouts current)
+> - ☐ GitHub pack **(recommended when you gave a code path)** (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward`, which is what keeps your checkouts current on every `/agent-kevin:sync`; needs `GITHUB_TOKEN` **and** the `gh` CLI)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
+
+**Also default-tick GitHub when Step 4b captured a real code path.** `github_fast_forward` is what keeps those checkouts current during `/agent-kevin:sync`, and it needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's code silently never refreshes — the one failure mode that degrades *answers* rather than surfacing an error, since Kevin keeps grounding confidently against a frozen checkout. An operator who just told init where their code lives has effectively asked for this. Leave it unticked when Step 4b returned `skip` (no checkout, nothing to fast-forward — the common case for a Kevin home). Either way it stays a tick the operator can clear.
 
 Behavior on the response:
 - **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.

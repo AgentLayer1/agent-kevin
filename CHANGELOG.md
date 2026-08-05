@@ -43,6 +43,23 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Fixed
+- **`init`'s prerequisite gate could pass on a Mac with no developer tools installed.** The checks used `command -v`, but on macOS `/usr/bin/git` and `/usr/bin/python3` are xcode-select shims — one shared ~118KB binary hard-linked under roughly 78 tool names — that sit on PATH whether or not the Command Line Tools exist. So `command -v git` succeeded on a machine with no git, init declared prerequisites met, and the failure only surfaced later when something tried to use it. Exactly the fresh-Mac case a non-technical operator arrives with. Verified 2026-08-05: with the developer directory unresolvable, `command -v git` passes while `git --version` exits 1. Hard requirements are now **functional probes** (`bun --version`, `git --version`, `python3 --version`), which also catch a broken install generally.
+- **A failing `git` on macOS now names the right remedy.** `xcode-select -p` is checked, and when the tools are absent init prints `xcode-select --install` and stops — rather than pointing at a git-scm.com download, which doesn't address the actual cause.
+
+### Added
+- **Homebrew is surfaced conditionally, not required.** Nothing in either plugin calls `brew`; it's only the install path for `gh`/`poppler` on macOS. So it's mentioned only when one of those is missing and the operator would otherwise hit a second wall mid-fix.
+- **`init` probes for `gh`.** The prereq gate checked `bun`, `git`, `python3` and `pdftoppm` but not `gh` — so a missing GitHub CLI passed cleanly and then threw `gh CLI not found on PATH` mid-session from the first GitHub-pack call, including sync's code refresh. Now surfaced as a conditional NOTE ("needed only if you activate the GitHub pack"), since nothing outside that pack uses it. The prose also records where the macOS toolchain actually comes from: `git` and `python3` ship with the Xcode Command Line Tools and need no Homebrew, whereas `gh` is bundled with neither Claude Code nor this plugin and therefore does.
+- **The GitHub pack walk checks `gh` before granting.** `configure-skills` stated the requirement in prose but never verified it, so the pack could activate cleanly and fail on first use. It now probes and offers a choice — continue and install after, or stop and come back — rather than hard-stopping, because the PAT-minting steps are still worth doing in the same sitting.
+
+### Changed
+- **The GitHub pack is default-ticked when a code path was given at Step 4b.** `github_fast_forward` needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's checkouts silently never refresh. That's the one failure mode that degrades *answers* rather than raising an error — Kevin keeps grounding confidently against a frozen checkout — and an operator who just told init where their code lives has effectively asked for the opposite. Still unticked when Step 4b returned `skip`, which stays the common case for a Kevin home.
+
+### Upgrade
+- `manual: none` — if you activated the GitHub pack before this release, confirm `gh` is on your PATH (`command -v gh`; macOS `brew install gh`). Nothing else to reconcile.
+
 ## [0.3.20] - 2026-08-05
 
 ### Added
