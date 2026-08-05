@@ -82,9 +82,14 @@ function resolveLogFile(): string | null {
   // Default: <HOME>/<data-dir>/logs/app.log — the same path @/config derives, so
   // the dashboard reads the file the logger writes. AGENT_HOME mirrors the MCP
   // server's resolution (the env gate canonicalizes it even when a per-agent
-  // override supplied the home); if unset, fall back to cwd so hooks still capture.
-  const home = (readEnv('AGENT_HOME') || process.cwd()).replace(/\/$/, '');
-  return resolve(home, runtimeDir(), 'logs', 'app.log');
+  // override supplied the home). Without it, cwd stands in ONLY when it already
+  // carries the data dir (it IS this agent's home): a plugin hook firing in a
+  // foreign repo — a sibling agent's SessionEnd in someone else's checkout — must
+  // not scaffold a runtime dir there. stderr still carries every line; file
+  // output just waits until a home resolves.
+  const dir = runtimeDir();
+  const home = readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? (existsSync(resolve(process.cwd(), dir)) ? process.cwd() : null);
+  return home === null ? null : resolve(home, dir, 'logs', 'app.log');
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */
