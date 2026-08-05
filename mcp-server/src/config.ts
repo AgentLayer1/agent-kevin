@@ -13,11 +13,11 @@ const fromEnv = (key: string, fallback: string) => expandTilde(env(key) || fallb
 // `AGENT_HOME` afterwards (a hook, the CLI, a test) silently lost, and a test suite could
 // be pointed at the operator's real brain by an unrelated import elsewhere.
 //
-// `agentHomePath()` is `AGENT_HOME` when set, else the nearest home above cwd carrying this
-// agent's data dir, else cwd (pre-init). The walk-up means a server or hook launched inside a
-// code repo still resolves the operator's home instead of anchoring data-dir state and
-// session captures to the repo. It caches its walk into `AGENT_HOME`, so repeat calls are an
-// env read plus a `resolve`.
+// `agentHomePath()` is `AGENT_HOME` (or its per-agent override) when set, else the nearest
+// home above cwd carrying this agent's data dir, else cwd (pre-init). The walk-up means a
+// server or hook launched inside a code repo still resolves the operator's home instead of
+// anchoring data-dir state and session captures to the repo. It caches its walk into
+// `AGENT_HOME`, so repeat calls are an env read plus a `resolve`.
 const homeRoot = (): string => agentHomePath();
 const knowledgeRoot = (): string => fromEnv('AGENT_KNOWLEDGE', resolve(homeRoot(), 'knowledge'));
 const dataRoot = (): string => resolve(homeRoot(), runtimeDirName());
@@ -148,8 +148,9 @@ export const BROWSER = {
 } as const;
 
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
- * directory. Configure via `AGENT_GIT_REPOS` env var (comma-separated paths,
- * `~` expanded). The basename of each path is used as its section label. */
+ * directory. Configure via the agent's own GIT_REPOS var (segmented — e.g.
+ * `KEVIN_GIT_REPOS`; comma-separated paths, `~` expanded). The basename of
+ * each path is used as its section label. */
 export const extraGitRepos = (): readonly string[] =>
   (env('AGENT_GIT_REPOS') ?? '')
     .split(',')
@@ -158,8 +159,8 @@ export const extraGitRepos = (): readonly string[] =>
     .map(expandTilde);
 
 /**
- * Every checkout this home is configured against — `AGENT_CODE_PATH` first, then
- * `AGENT_GIT_REPOS` — deduped AFTER tilde expansion, so two spellings of one repo can't be
+ * Every checkout this home is configured against — the configured code path first, then the
+ * git-repos list — deduped AFTER tilde expansion, so two spellings of one repo can't be
  * treated as two.
  */
 export const configuredRepoPaths = (): string[] => [

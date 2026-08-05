@@ -13,16 +13,24 @@ import { dirname, resolve, sep } from 'node:path';
  * Why this lives apart from `config.ts`: config imports this module, so the
  * dependency only runs one way — and keeping the env gate at the bottom of the
  * stack means a tool (or its test) can read env without pulling the whole layout
- * in. Both resolve from `AGENT_HOME` at read time rather than at import.
+ * in. Both resolve the agent home at read time rather than at import.
  *
  * Env naming: every knob has a shared, agent-neutral `AGENT_*` name — the one
  * code reads, docs teach, and machine-level settings (`~/.claude/settings.json`)
  * can set once for every agent on the box. Each agent overrides any of them
  * under its own prefix (`KEVIN_*`, `WALLE_*`, …), derived from the plugin
  * manifest name by `agentEnvPrefix()`; the override always wins, so the fork
- * seam lives in plugin.json, not in code. When adding a var, avoid names CI
- * systems inject — Azure Pipelines sets `AGENT_OS`, `AGENT_NAME`,
- * `AGENT_HOMEDIRECTORY`, and friends on every build agent.
+ * seam lives in plugin.json, not in code.
+ *
+ * Segmentation: the code surface and credentials — code path, git repos, and
+ * DB connections — never resolve from the shared name at all: a machine-wide
+ * value would silently point one agent at another's code or data. Those keys
+ * read only this agent's own prefix (see SEGMENTED_KEYS; DB connections are
+ * segmented the same way in `dbConnections`).
+ *
+ * When adding a var, avoid names CI systems inject — Azure Pipelines sets
+ * `AGENT_OS`, `AGENT_NAME`, `AGENT_HOMEDIRECTORY`, and friends on every build
+ * agent.
  *
  * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
  * the resolved secrets file, so secrets are populated from the CURRENT home no
@@ -74,6 +82,23 @@ const overrideValue = (key: string): string | undefined => {
   const overrideKey = overrideKeyFor(key);
   return overrideKey ? process.env[overrideKey]?.trim() || undefined : undefined;
 };
+
+/**
+ * This agent's spelling of a key suffix (`agentKeyName('CODE_PATH')` →
+ * `KEVIN_CODE_PATH`) — for user-facing hints and error messages, so they teach
+ * the name that actually resolves. Falls back to the shared prefix only when
+ * no manifest was readable.
+ */
+export const agentKeyName = (suffix: string): string => `${agentEnvPrefix() || 'AGENT_'}${suffix}`;
+
+/**
+ * Shared `AGENT_*` names that are deliberately NEVER read. These configure the
+ * agent's code surface — a machine-wide or inherited value would leak one
+ * agent's checkouts into another's — so they resolve only from this agent's
+ * own prefix. (`AGENT_DB_*` credentials are segmented the same way in
+ * `dbConnections` below.)
+ */
+const SEGMENTED_KEYS = new Set(['AGENT_CODE_PATH', 'AGENT_GIT_REPOS']);
 
 /**
  * Folder name of the agent's runtime data dir — THE single place it's defined.
@@ -237,11 +262,18 @@ loadSecretsEnv();
 /**
  * Read one environment value through the gate. Trimmed, or `undefined` when
  * unset/blank. An `AGENT_*` key's per-agent override (e.g. `KEVIN_*`) wins
- * over the shared name.
+ * over the shared name; segmented keys never fall back to the shared name.
  */
 export const env = (key: string): string | undefined => {
   loadSecretsEnv();
-  return overrideValue(key) || process.env[key]?.trim() || undefined;
+  const override = overrideValue(key);
+  if (override) {
+    return override;
+  }
+  if (agentEnvPrefix() && SEGMENTED_KEYS.has(key)) {
+    return undefined;
+  }
+  return process.env[key]?.trim() || undefined;
 };
 
 /** Names of the keys loaded from `secrets/.env` (values never leave this module). */
@@ -250,45 +282,28 @@ export const loadedSecretKeyNames = (): readonly string[] => {
   return secretKeyNames;
 };
 
-const DB_ENV_PREFIX = 'AGENT_DB_';
-
 export interface DbConnection {
   name: string;
   envKey: string;
 }
 
 /**
- * Every `AGENT_DB_<NAME>` connection configured in `secrets/.env` — the
- * per-agent spelling (e.g. `KEVIN_DB_<NAME>`) also discovered — name
- * lowercased. When both spellings define one name, the per-agent one wins.
+ * Every DB connection configured in `secrets/.env`, name lowercased.
+ * Connections are segmented: only this agent's own prefix is scanned
+ * (`KEVIN_DB_<NAME>`) — a shared `AGENT_DB_*` credential is never picked up.
  */
 export const dbConnections = (): DbConnection[] => {
   loadSecretsEnv();
-  const prefix = agentEnvPrefix();
-  const prefixes = prefix ? [DB_ENV_PREFIX, `${prefix}DB_`] : [DB_ENV_PREFIX];
-  const byName = new Map<string, string>();
-  for (const dbPrefix of prefixes) {
-    Object.keys(process.env)
-      .filter((key) => key.startsWith(dbPrefix) && key.length > dbPrefix.length && process.env[key]?.trim())
-      .forEach((envKey) => byName.set(envKey.slice(dbPrefix.length).toLowerCase(), envKey));
-  }
-  return [...byName.entries()]
-    .map(([name, envKey]) => ({ name, envKey }))
+  const dbPrefix = agentKeyName('DB_');
+  return Object.keys(process.env)
+    .filter((key) => key.startsWith(dbPrefix) && key.length > dbPrefix.length && process.env[key]?.trim())
+    .map((envKey) => ({ name: envKey.slice(dbPrefix.length).toLowerCase(), envKey }))
     .sort((first, second) => first.name.localeCompare(second.name));
 };
 
-/**
- * Resolve a free-form connection name to its configured env key — the
- * per-agent spelling (e.g. `KEVIN_DB_<NAME>`) when set, else the shared
- * `AGENT_DB_<NAME>`.
- */
-export const dbEnvKeyFor = (name: string): string => {
-  loadSecretsEnv();
-  const suffix = name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-  const prefix = agentEnvPrefix();
-  const overrideKey = prefix ? `${prefix}DB_${suffix}` : undefined;
-  return overrideKey && process.env[overrideKey]?.trim() ? overrideKey : DB_ENV_PREFIX + suffix;
-};
+/** Resolve a free-form connection name to this agent's env key (`KEVIN_DB_<NAME>`). */
+export const dbEnvKeyFor = (name: string): string =>
+  agentKeyName(`DB_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`);
 
 /**
  * Exact-match redaction. Replaces every value in `secrets/.env` (≥12 chars, to

@@ -23,7 +23,7 @@ import {
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
-import { agentEnvPrefix, env } from '@/shared/env';
+import { agentKeyName, env } from '@/shared/env';
 import {
   composeMetaBox,
   composeMetaRows,
@@ -1003,9 +1003,9 @@ const collectSettings = (): StatusSnapshot['settings'] => {
 
   // Always surface AGENT_HOME so its meaning is discoverable even when unset
   // (it then falls back to the launch cwd). Empty value renders as "not set".
-  // Skipped when a home is already configured under this agent's override name.
-  const overrideHomeKey = `${agentEnvPrefix()}HOME`;
-  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME' || entry.key === overrideHomeKey)) {
+  // Skipped when a home is already configured under this agent's own spelling.
+  const homeKey = agentKeyName('HOME');
+  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME' || entry.key === homeKey)) {
     redactedEnv.unshift({ key: 'AGENT_HOME', value: '', scope: 'user' });
   }
 

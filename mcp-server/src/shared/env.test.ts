@@ -2,22 +2,22 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { agentEnvPrefix, agentHomePath, env, loadSecretsEnv, readEnvFile, runtimeDirName } from './env';
+import { agentEnvPrefix, agentHomePath, agentKeyName, env, loadSecretsEnv, readEnvFile, runtimeDirName } from './env';
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
 
 /** Run `fn` with both home spellings restored after, `mutate` applied first. */
 const withHomeEnv = <T>(mutate: () => void, fn: () => T): T => {
-  const originalAgent = process.env.AGENT_HOME;
-  const originalLegacy = process.env.KEVIN_HOME;
+  const originalOwn = process.env.KEVIN_HOME;
+  const originalShared = process.env.AGENT_HOME;
   mutate();
   try {
     return fn();
   } finally {
     for (const [key, original] of [
-      ['AGENT_HOME', originalAgent],
-      ['KEVIN_HOME', originalLegacy]
+      ['KEVIN_HOME', originalOwn],
+      ['AGENT_HOME', originalShared]
     ] as const) {
       if (original === undefined) {
         delete process.env[key];
@@ -35,8 +35,8 @@ describe('agentHomePath', () => {
     process.chdir(dir);
     try {
       return withHomeEnv(() => {
-        delete process.env.AGENT_HOME;
         delete process.env.KEVIN_HOME;
+        delete process.env.AGENT_HOME;
       }, fn);
     } finally {
       process.chdir(originalCwd);
@@ -46,6 +46,7 @@ describe('agentHomePath', () => {
   test('the shared AGENT_HOME resolves when set', () => {
     withHomeEnv(
       () => {
+        delete process.env.KEVIN_HOME;
         process.env.AGENT_HOME = '/some/agent/home';
       },
       () => {
@@ -118,6 +119,7 @@ describe('agentHomePath', () => {
 describe('agentEnvPrefix', () => {
   test('derives KEVIN_ from this plugin manifest (agent-kevin)', () => {
     expect(agentEnvPrefix()).toBe('KEVIN_');
+    expect(agentKeyName('CODE_PATH')).toBe('KEVIN_CODE_PATH');
   });
 });
 
@@ -144,7 +146,7 @@ describe('runtimeDirName', () => {
   });
 });
 
-describe('env per-agent override', () => {
+describe('env per-agent override + segmentation', () => {
   test("this agent's KEVIN_* spelling beats the shared AGENT_* name", () => {
     process.env.AGENT_PROBE_OVERRIDE = 'shared';
     process.env.KEVIN_PROBE_OVERRIDE = 'own';
@@ -162,6 +164,18 @@ describe('env per-agent override', () => {
       expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
     } finally {
       delete process.env.AGENT_PROBE_OVERRIDE;
+    }
+  });
+
+  test('segmented keys never resolve from the shared name', () => {
+    process.env.AGENT_CODE_PATH = '/shared/code';
+    try {
+      expect(env('AGENT_CODE_PATH')).toBeUndefined();
+      process.env.KEVIN_CODE_PATH = '/kevin/code';
+      expect(env('AGENT_CODE_PATH')).toBe('/kevin/code');
+    } finally {
+      delete process.env.AGENT_CODE_PATH;
+      delete process.env.KEVIN_CODE_PATH;
     }
   });
 

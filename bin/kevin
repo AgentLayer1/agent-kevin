@@ -135,7 +135,7 @@ Groups:
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
   worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build); \`worktree remove\` tears one down safely
-  database                          Query/inspect/fork local Postgres via AGENT_DB_<NAME> connections (real terminal — outside the Bash sandbox)
+  database                          Query/inspect/fork local Postgres via KEVIN_DB_<NAME> connections (real terminal — outside the Bash sandbox)
 
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
@@ -189,7 +189,7 @@ Worktree commands:
                                     touching anything. Same sandbox note — use remove_worktree there.
 
 Database commands:
-  database list                     List configured AGENT_DB_<NAME> connections (name + host/db, never credentials)
+  database list                     List configured KEVIN_DB_<NAME> connections (name + host/db, never credentials)
   database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
                                     List user tables, or describe one table's columns (read-only)
   database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
@@ -199,7 +199,7 @@ Database commands:
                                     <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
                                     .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
 
-Environment (shared AGENT_* names; this agent's prefixed spelling, e.g. KEVIN_HOME, overrides):
+Environment (shared AGENT_* names, overridable per agent as KEVIN_*; CODE_PATH/GIT_REPOS/DB_* are KEVIN_*-only):
   AGENT_HOME=<path>                 Override agent home (default: cwd)
   AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
   AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)

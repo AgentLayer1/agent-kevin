@@ -10,7 +10,7 @@
  * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
  *
  * Repo resolution when a call omits `repo`: derive `owner/repo` from the `origin` remote
- * of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry, then error asking for one.
+ * of the configured code path, then the first configured git repo, then error asking for one.
  * An explicit `owner/repo` always wins. Mirrors how setup-worktree pins its target.
  *
  * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
@@ -20,7 +20,7 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths } from '@/config';
-import { env, runtimeDirName } from '@/shared/env';
+import { agentKeyName, env, runtimeDirName } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -108,7 +108,7 @@ const repoSlugFromPath = async (path: string): Promise<string | null> => {
   }
 };
 
-/** AGENT_CODE_PATH's repo → first AGENT_GIT_REPOS entry's repo → throw (caller must pass `repo`). */
+/** Configured code path's repo → first configured git repo → throw (caller must pass `repo`). */
 const resolveDefaultRepo = async (): Promise<string> => {
   for (const path of configuredRepoPaths()) {
     const slug = await repoSlugFromPath(path);
@@ -117,7 +117,7 @@ const resolveDefaultRepo = async (): Promise<string> => {
     }
   }
   throw new Error(
-    'No repo given and none resolvable from AGENT_CODE_PATH / AGENT_GIT_REPOS (need a GitHub `origin` remote). Pass repo as "owner/repo".'
+    `No repo given and none resolvable from ${agentKeyName('CODE_PATH')} / ${agentKeyName('GIT_REPOS')} (need a GitHub \`origin\` remote). Pass repo as "owner/repo".`
   );
 };
 
@@ -382,7 +382,7 @@ const repoField = {
   repo: z
     .string()
     .optional()
-    .describe('OWNER/REPO. Defaults to the repo of AGENT_CODE_PATH, then the first AGENT_GIT_REPOS entry.')
+    .describe('OWNER/REPO. Defaults to the configured code path repo, then the first configured git repo.')
 };
 const prNumberField = { number: z.number().int().positive().describe('Pull request number.') };
 const issueNumberField = { number: z.number().int().positive().describe('Issue number.') };
@@ -712,7 +712,7 @@ export const tools: ToolDef[] = [
       repos: z
         .array(z.string())
         .optional()
-        .describe('Paths to MAIN checkouts. Defaults to AGENT_CODE_PATH plus AGENT_GIT_REPOS.')
+        .describe('Paths to MAIN checkouts. Defaults to the configured code path plus git repos.')
     },
     handler: async ({ repos }) => {
       // Every exit reports rather than throws. This runs as step 0 of sync, where code
@@ -725,7 +725,7 @@ export const tools: ToolDef[] = [
       if (paths.length === 0) {
         return report({
           repos: [],
-          detail: 'No checkouts configured — set AGENT_CODE_PATH or AGENT_GIT_REPOS, or pass repos explicitly.'
+          detail: `No checkouts configured — set ${agentKeyName('CODE_PATH')} or ${agentKeyName('GIT_REPOS')}, or pass repos explicitly.`
         });
       }
       const token = env('GITHUB_TOKEN');
