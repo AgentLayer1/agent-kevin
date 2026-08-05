@@ -1,26 +1,20 @@
+import { RUNTIME_DIR_DEFAULT, agentKeyName, resolveEnv, runtimeDirName } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 /**
- * The ONE place the codebase reads `process.env`.
+ * The env gate: `shared/naming.ts` plus the home's secret store.
  *
  * Convention: a literal `process.env.<X>` / `process.env[x]` appears nowhere
- * else. The sole other exception is `shared/log.ts` — a self-contained logger
- * that must stay dependency-free. Everything else reads through `env()` (or a
+ * else, bar `shared/naming.ts` (the side-effect-free naming layer this
+ * sits on) and `shared/log.ts`. Everything else reads through `env()` (or a
  * helper here). A guard test enforces this — see `config.test.ts`.
  *
  * Why this lives apart from `config.ts`: config imports this module, so the
  * dependency only runs one way — and keeping the env gate at the bottom of the
  * stack means a tool (or its test) can read env without pulling the whole layout
  * in. Both resolve the agent home at read time rather than at import.
- *
- * Env naming: every knob has a shared, agent-neutral `AGENT_*` name — the one
- * code reads, docs teach, and machine-level settings (`~/.claude/settings.json`)
- * can set once for every agent on the box. Each agent overrides any of them
- * under its own prefix (`KEVIN_*`, `WALLE_*`, …), derived from the plugin
- * manifest name by `agentEnvPrefix()`; the override always wins, so the fork
- * seam lives in plugin.json, not in code.
  *
  * Scoping, not segmentation: per-agent values — the home, code path, git
  * repos, DB credentials — are kept apart by WHERE they live (each HOME's own
@@ -30,80 +24,12 @@ import { dirname, resolve, sep } from 'node:path';
  * per-agent value there under the shared name would hand it to every agent on
  * the box.
  *
- * When adding a var, avoid names CI systems inject — Azure Pipelines sets
- * `AGENT_OS`, `AGENT_NAME`, `AGENT_HOMEDIRECTORY`, and friends on every build
- * agent.
- *
  * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
  * the resolved secrets file, so secrets are populated from the CURRENT home no
  * matter who imported what, in what order. There is no import-order discipline to
- * forget.
+ * forget. Importing this module loads secrets as a side effect — a module that
+ * needs only a name imports `shared/naming.ts` instead.
  */
-
-let cachedEnvPrefix: string | undefined;
-
-/**
- * This agent's own env-var prefix (`KEVIN_` for the `agent-kevin` plugin),
- * derived once from the plugin manifest name — `agent-<name>` → `<NAME>_`.
- * Empty string when no manifest is readable; the shared `AGENT_*` names then
- * stand alone.
- */
-export const agentEnvPrefix = (): string => {
-  if (cachedEnvPrefix === undefined) {
-    cachedEnvPrefix = deriveEnvPrefix();
-  }
-  return cachedEnvPrefix;
-};
-
-// Resolved relative to this file, never an env var: wherever this code runs
-// from (repo checkout, marketplace cache, fork) IS the plugin whose name it is.
-const deriveEnvPrefix = (): string => {
-  try {
-    const manifestPath = resolve(import.meta.dir, '..', '..', '..', '.claude-plugin', 'plugin.json');
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { name?: unknown };
-    const name = typeof manifest.name === 'string' ? manifest.name : '';
-    const short = name
-      .replace(/^agent-/, '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    return short ? `${short}_` : '';
-  } catch {
-    return '';
-  }
-};
-
-/** The per-agent spelling of a shared `AGENT_*` key, or undefined when there is no prefix. */
-const overrideKeyFor = (key: string): string | undefined => {
-  const prefix = agentEnvPrefix();
-  return prefix && key.startsWith('AGENT_') ? prefix + key.slice('AGENT_'.length) : undefined;
-};
-
-/** Raw read of a key's per-agent override. Trimmed, or undefined when unset/blank. */
-const overrideValue = (key: string): string | undefined => {
-  const overrideKey = overrideKeyFor(key);
-  return overrideKey ? process.env[overrideKey]?.trim() || undefined : undefined;
-};
-
-/**
- * This agent's spelling of a key suffix (`agentKeyName('CODE_PATH')` →
- * `KEVIN_CODE_PATH`) — for user-facing hints and error messages, so they teach
- * the name that actually resolves. Falls back to the shared prefix only when
- * no manifest was readable.
- */
-export const agentKeyName = (suffix: string): string => `${agentEnvPrefix() || 'AGENT_'}${suffix}`;
-
-/**
- * Folder name of the agent's runtime data dir — THE single place it's defined.
- * `.kevin` today; a future rename (or a conflict escape via the
- * `AGENT_RUNTIME_DIR` override — a bare folder name, not a path) happens here.
- * Read raw from `process.env`: the secrets loader itself resolves through this,
- * so it cannot go through `env()`. `shared/log.ts` mirrors this read inline to
- * stay dependency-free.
- */
-export const RUNTIME_DIR_DEFAULT = '.kevin';
-export const runtimeDirName = (): string =>
-  overrideValue('AGENT_RUNTIME_DIR') || process.env.AGENT_RUNTIME_DIR?.trim() || RUNTIME_DIR_DEFAULT;
 
 /**
  * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
@@ -122,7 +48,7 @@ export const runtimeDirName = (): string =>
  * never written back.
  */
 export function agentHomePath(): string {
-  const fromVar = overrideValue('AGENT_HOME') || process.env.AGENT_HOME?.trim();
+  const fromVar = resolveEnv('AGENT_HOME');
   if (fromVar) {
     const expanded = expandTilde(fromVar);
     process.env.AGENT_HOME = expanded;
@@ -178,8 +104,17 @@ function parseDotenv(raw: string): Record<string, string> {
   return out;
 }
 
-/** `<HOME>/<data-dir>/secrets` — the deny-gated store holding the agent's own secrets. */
-const secretsDir = (): string => dirname(secretsEnvFile());
+/**
+ * Every `<HOME>/<data-dir>/secrets` the gate below must refuse — the store in
+ * force AND the default one. Both, because the two disagree exactly during a
+ * runtime-dir migration: `AGENT_RUNTIME_DIR` flips machine-wide before each
+ * home's folder is actually renamed, and gating only the configured dir would
+ * leave the real store (still under the default name) wide open in that window.
+ */
+const gatedSecretsDirs = (): string[] => {
+  const home = agentHomePath();
+  return [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].map((dir) => resolve(home, dir, 'secrets'));
+};
 
 /**
  * Parse a standalone `.env` file into a plain map — for callers that inject
@@ -194,14 +129,18 @@ const secretsDir = (): string => dirname(secretsEnvFile());
  * Guard: this reader can NEVER touch the agent's own secret store
  * (`<HOME>/<data-dir>/secrets/`). That dir holds the agent's operational keys
  * (GitHub, Google, DB URLs); a flow-scoped loader must not be a path back into
- * it. Any path resolving inside the secrets dir returns `{}` — those secrets
- * flow only through `env()`, never this seam.
+ * it. Any path resolving inside a gated secrets dir returns `{}` — those secrets
+ * flow only through `env()`, never this seam. Fails closed: if the gate itself
+ * can't be resolved, nothing is read.
  */
 export function readEnvFile(path: string): Record<string, string> {
   const resolved = resolve(path);
-  const gated = secretsDir();
-  if (resolved === gated || resolved.startsWith(gated + sep)) {
-    return {};
+  try {
+    if (gatedSecretsDirs().some((gated) => resolved === gated || resolved.startsWith(gated + sep))) {
+      return {};
+    }
+  } catch {
+    return {}; // can't establish the gate (unreadable manifest, bad override) — read nothing
   }
   try {
     return parseDotenv(readFileSync(resolved, 'utf-8'));
@@ -259,7 +198,7 @@ loadSecretsEnv();
  */
 export const env = (key: string): string | undefined => {
   loadSecretsEnv();
-  return overrideValue(key) || process.env[key]?.trim() || undefined;
+  return resolveEnv(key);
 };
 
 /** Names of the keys loaded from `secrets/.env` (values never leave this module). */

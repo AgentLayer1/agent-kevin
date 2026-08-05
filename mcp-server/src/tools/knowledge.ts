@@ -5,7 +5,7 @@
 import { rewriteAllWikilinks } from '@/knowledge/links';
 import { run as runLint } from '@/knowledge/lint';
 import { pruneMemory } from '@/knowledge/prune';
-import { runtimeDirName } from '@/shared/env';
+import { runtimeDirName } from '@/shared/naming';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { z } from 'zod';
 

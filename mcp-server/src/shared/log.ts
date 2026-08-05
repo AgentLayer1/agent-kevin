@@ -9,10 +9,13 @@
  *
  * No setStderrOnly() toggle. There is no path that writes to stdout — so the
  * logger is hook-safe by construction. Override the file path via
- * `AGENT_LOG_FILE`; disable file output entirely with `AGENT_LOG_FILE=off`.
- * Dependency-free, so it reads only the shared `AGENT_*` names — it can't
- * derive the per-agent override prefix; the env gate writes the resolved home
- * back to `AGENT_HOME`, which covers the default path below.
+ * `AGENT_LOG_FILE` (or this agent's `<AGENT>_LOG_FILE`); disable file output
+ * entirely with `=off`. Its only import is `shared/naming.ts`, which is
+ * side-effect-free — never `@/config` or `@/shared/env`, whose import loads the
+ * home's secrets. Naming lookups are wrapped: a broken manifest or a malformed
+ * runtime-dir override degrades to the shared names, because logging must never
+ * be the thing that crashes a caller. The env gate writes the resolved home back
+ * to `AGENT_HOME`, which covers the default path below.
  *
  * File output rotates when it crosses MAX_LOG_BYTES (5MB) to a timestamped
  * sibling (`app.20260523-160300.log`). No auto-delete — operator prunes
@@ -29,8 +32,27 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
+import { RUNTIME_DIR_DEFAULT, resolveEnv, runtimeDirName } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+/** `resolveEnv` that can't throw — a broken manifest degrades to the shared name. */
+const readEnv = (key: string): string | undefined => {
+  try {
+    return resolveEnv(key);
+  } catch {
+    return process.env[key]?.trim() || undefined;
+  }
+};
+
+/** `runtimeDirName` that can't throw — a malformed override degrades to the default. */
+const runtimeDir = (): string => {
+  try {
+    return runtimeDirName();
+  } catch {
+    return RUNTIME_DIR_DEFAULT;
+  }
+};
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -45,7 +67,7 @@ const LEVEL_ORDER: Record<Level, number> = {
 
 // ── Config ────────────────────────────────────────────────────────────
 
-let minLevel: Level = ((process.env.AGENT_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
+let minLevel: Level = ((readEnv('AGENT_LOG_LEVEL') ?? process.env.LOG_LEVEL) as Level) ?? 'info';
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 /**
@@ -54,16 +76,15 @@ const MAX_LOG_BYTES = 5 * 1024 * 1024;
  * to log a line). `AGENT_LOG_FILE` tells us where to write; `=off` disables.
  */
 function resolveLogFile(): string | null {
-  const env = process.env.AGENT_LOG_FILE?.trim();
-  if (env === 'off') return null;
-  if (env) return resolve(env);
-  // Default: <HOME>/<data-dir>/logs/app.log. AGENT_HOME mirrors the MCP server's
-  // resolution (the env gate canonicalizes it even when a per-agent override
-  // supplied the home); if unset, fall back to cwd so hooks still capture. The
-  // data-dir read mirrors `runtimeDirName()` in shared/env.ts — inlined so this
-  // module stays dependency-free.
-  const home = (process.env.AGENT_HOME?.trim() || process.cwd()).replace(/\/$/, '');
-  return resolve(home, process.env.AGENT_RUNTIME_DIR?.trim() || '.kevin', 'logs', 'app.log');
+  const configured = readEnv('AGENT_LOG_FILE');
+  if (configured === 'off') return null;
+  if (configured) return resolve(configured);
+  // Default: <HOME>/<data-dir>/logs/app.log — the same path @/config derives, so
+  // the dashboard reads the file the logger writes. AGENT_HOME mirrors the MCP
+  // server's resolution (the env gate canonicalizes it even when a per-agent
+  // override supplied the home); if unset, fall back to cwd so hooks still capture.
+  const home = (readEnv('AGENT_HOME') || process.cwd()).replace(/\/$/, '');
+  return resolve(home, runtimeDir(), 'logs', 'app.log');
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

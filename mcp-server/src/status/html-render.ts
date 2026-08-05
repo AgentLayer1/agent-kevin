@@ -18,14 +18,16 @@
  *
  * Import discipline: runtime imports here must stay config-free (type-only
  * imports are fine) so html.test.ts can import this module without freezing
- * @/config's AGENT_HOME for the rest of the bun test process. The template is
- * plugin-static, read relative to this file — not HOME state.
+ * @/config's AGENT_HOME for the rest of the bun test process. That rules out
+ * @/shared/env too — importing it loads a home's secrets. The naming helpers
+ * below come from @/shared/naming, which is side-effect-free. The template
+ * is plugin-static, read relative to this file — not HOME state.
  */
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
-import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/env';
+import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
 import type {
   ContextGroup,
   ProfileSection,

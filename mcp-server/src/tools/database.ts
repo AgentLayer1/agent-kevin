@@ -20,7 +20,8 @@
  * `statement_timeout`, always rolled back — Postgres itself rejects any
  * write (error 25006), so reads are enforced by the server, not by parsing SQL.
  */
-import { agentKeyName, dbConnections, dbEnvKeyFor, env, runtimeDirName } from '@/shared/env';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { dbConnections, dbEnvKeyFor, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import pg from 'pg';
 import { z } from 'zod';

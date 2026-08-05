@@ -9,7 +9,7 @@ import { withBrowserLaunch } from '../../../mcp-server/src/shared/browser-deps';
  * visible persistent Chrome so the operator can log in by hand when a flow needs it (real session,
  * no API keys); the session is reused on later runs. Paths + tunables come from the shared
  * `BROWSER` config. Artifacts live in the operator's HOME, never the plugin repo: the session
- * profile under the gitignored `.kevin/` runtime dir, screenshots under `reports/captures/`.
+ * profile under the gitignored runtime data dir, screenshots under `reports/captures/`.
  */
 export interface Target {
   name: string;
@@ -28,8 +28,8 @@ export interface Session {
   headless: boolean;
 }
 
-if (!process.env.KEVIN_HOME) {
-  throw new Error('KEVIN_HOME is not set — run this via Kevin (the agent-kevin plugin sets it).');
+if (!process.env.AGENT_HOME) {
+  throw new Error('AGENT_HOME is not set — run this through the agent (the browser_flows tool sets it).');
 }
 const PROFILE_ROOT = BROWSER.STATE_DIR;
 const CAPTURES_ROOT = join(BROWSER.CAPTURES_DIR, 'browser');

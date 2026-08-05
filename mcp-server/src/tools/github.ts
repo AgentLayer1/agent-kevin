@@ -20,7 +20,8 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths } from '@/config';
-import { agentKeyName, env, runtimeDirName } from '@/shared/env';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { env } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -729,7 +730,9 @@ export const tools: ToolDef[] = [
         untrusted('github:fast_forward', JSON.stringify(payload, null, 2));
 
       const paths = [
-        ...new Set(repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths())
+        ...new Set(
+          repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths()
+        )
       ];
       if (paths.length === 0) {
         return report({

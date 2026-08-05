@@ -1,4 +1,5 @@
-import { agentHomePath, env, loadedSecretKeyNames, runtimeDirName } from '@/shared/env';
+import { runtimeDirName } from '@/shared/naming';
+import { agentHomePath, env, loadedSecretKeyNames } from '@/shared/env';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

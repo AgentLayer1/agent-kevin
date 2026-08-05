@@ -23,7 +23,8 @@ import {
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
-import { agentKeyName, env } from '@/shared/env';
+import { agentKeyName } from '@/shared/naming';
+import { env } from '@/shared/env';
 import {
   composeMetaBox,
   composeMetaRows,

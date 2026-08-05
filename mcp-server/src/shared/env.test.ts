@@ -2,21 +2,24 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { agentEnvPrefix, agentHomePath, agentKeyName, env, loadSecretsEnv, readEnvFile, runtimeDirName } from './env';
+import { RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
+import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
 
+const OWN_HOME_KEY = agentKeyName('HOME');
+
 /** Run `fn` with both home spellings restored after, `mutate` applied first. */
 const withHomeEnv = <T>(mutate: () => void, fn: () => T): T => {
-  const originalOwn = process.env.KEVIN_HOME;
+  const originalOwn = process.env[OWN_HOME_KEY];
   const originalShared = process.env.AGENT_HOME;
   mutate();
   try {
     return fn();
   } finally {
     for (const [key, original] of [
-      ['KEVIN_HOME', originalOwn],
+      [OWN_HOME_KEY, originalOwn],
       ['AGENT_HOME', originalShared]
     ] as const) {
       if (original === undefined) {
@@ -35,7 +38,7 @@ describe('agentHomePath', () => {
     process.chdir(dir);
     try {
       return withHomeEnv(() => {
-        delete process.env.KEVIN_HOME;
+        delete process.env[OWN_HOME_KEY];
         delete process.env.AGENT_HOME;
       }, fn);
     } finally {
@@ -46,7 +49,7 @@ describe('agentHomePath', () => {
   test('the shared AGENT_HOME resolves when set', () => {
     withHomeEnv(
       () => {
-        delete process.env.KEVIN_HOME;
+        delete process.env[OWN_HOME_KEY];
         process.env.AGENT_HOME = '/some/agent/home';
       },
       () => {
@@ -55,14 +58,14 @@ describe('agentHomePath', () => {
     );
   });
 
-  test("this agent's override (KEVIN_HOME) beats the shared AGENT_HOME", () => {
+  test(`this agent's override (${OWN_HOME_KEY}) beats the shared AGENT_HOME`, () => {
     withHomeEnv(
       () => {
         process.env.AGENT_HOME = '/shared/base/home';
-        process.env.KEVIN_HOME = '/kevin/own/home';
+        process.env[OWN_HOME_KEY] = '/agent/own/home';
       },
       () => {
-        expect(agentHomePath()).toBe('/kevin/own/home');
+        expect(agentHomePath()).toBe('/agent/own/home');
       }
     );
   });
@@ -71,7 +74,7 @@ describe('agentHomePath', () => {
     // realpath because macOS tmpdir is a symlink (/var → /private/var) and the
     // walk-up starts from the already-resolved process.cwd().
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-home-')));
-    mkdirSync(resolve(home, '.kevin'));
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
     const repo = resolve(home, 'not-really-a-repo', 'src');
     mkdirSync(repo, { recursive: true });
     withCwd(repo, () => {
@@ -116,45 +119,15 @@ describe('agentHomePath', () => {
   });
 });
 
-describe('agentEnvPrefix', () => {
-  test('derives KEVIN_ from this plugin manifest (agent-kevin)', () => {
-    expect(agentEnvPrefix()).toBe('KEVIN_');
-    expect(agentKeyName('CODE_PATH')).toBe('KEVIN_CODE_PATH');
-  });
-});
-
-describe('runtimeDirName', () => {
-  test('defaults to .kevin and honors the AGENT_RUNTIME_DIR override', () => {
-    expect(runtimeDirName()).toBe('.kevin');
-    process.env.AGENT_RUNTIME_DIR = '.workspace';
-    try {
-      expect(runtimeDirName()).toBe('.workspace');
-    } finally {
-      delete process.env.AGENT_RUNTIME_DIR;
-    }
-  });
-
-  test("this agent's KEVIN_RUNTIME_DIR beats the shared AGENT_RUNTIME_DIR", () => {
-    process.env.AGENT_RUNTIME_DIR = '.workspace';
-    process.env.KEVIN_RUNTIME_DIR = '.kevin-own';
-    try {
-      expect(runtimeDirName()).toBe('.kevin-own');
-    } finally {
-      delete process.env.AGENT_RUNTIME_DIR;
-      delete process.env.KEVIN_RUNTIME_DIR;
-    }
-  });
-});
-
 describe('env per-agent override', () => {
-  test("this agent's KEVIN_* spelling beats the shared AGENT_* name", () => {
+  test("this agent's own spelling beats the shared AGENT_* name", () => {
     process.env.AGENT_PROBE_OVERRIDE = 'shared';
-    process.env.KEVIN_PROBE_OVERRIDE = 'own';
+    process.env[agentKeyName('PROBE_OVERRIDE')] = 'own';
     try {
       expect(env('AGENT_PROBE_OVERRIDE')).toBe('own');
     } finally {
       delete process.env.AGENT_PROBE_OVERRIDE;
-      delete process.env.KEVIN_PROBE_OVERRIDE;
+      delete process.env[agentKeyName('PROBE_OVERRIDE')];
     }
   });
 
@@ -185,8 +158,8 @@ describe('readEnvFile', () => {
 
   test('refuses to read the agent secret store, even when a real .env sits there', () => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-home-'));
-    const secretsPath = resolve(home, '.kevin', 'secrets', '.env');
-    mkdirSync(resolve(home, '.kevin', 'secrets'), { recursive: true });
+    const secretsPath = resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env');
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
     writeFileSync(secretsPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
     const flowPath = resolve(home, '.claude', 'browser-flows', 'x', '.env');
     mkdirSync(resolve(home, '.claude', 'browser-flows', 'x'), { recursive: true });
@@ -198,8 +171,32 @@ describe('readEnvFile', () => {
       },
       () => {
         expect(readEnvFile(secretsPath)).toEqual({});
-        expect(readEnvFile(resolve(home, '.kevin', 'secrets', 'nested', '.env'))).toEqual({});
+        expect(readEnvFile(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', 'nested', '.env'))).toEqual({});
         expect(readEnvFile(flowPath)).toEqual({ CARD: '4111111111111111' });
+      }
+    );
+  });
+
+  // The migration window: the runtime-dir name flips machine-wide before a given
+  // home's folder is renamed, so the store still sitting under the default name
+  // must stay gated — otherwise a flow .env path reads the agent's own keys.
+  test('still refuses the default secret store while the runtime dir points elsewhere', () => {
+    const home = mkdtempSync(resolve(tmpdir(), 'kevin-migrating-'));
+    const secretsPath = resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env');
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
+    writeFileSync(secretsPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
+
+    withHomeEnv(
+      () => {
+        process.env.AGENT_HOME = home;
+        process.env.AGENT_RUNTIME_DIR = '.workspace';
+      },
+      () => {
+        try {
+          expect(readEnvFile(secretsPath)).toEqual({});
+        } finally {
+          delete process.env.AGENT_RUNTIME_DIR;
+        }
       }
     );
   });
@@ -209,8 +206,8 @@ describe('loadSecretsEnv', () => {
   /** A home whose secrets store holds `key=value`. */
   const homeWithSecret = (key: string, value: string): string => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-secrets-'));
-    mkdirSync(resolve(home, '.kevin', 'secrets'), { recursive: true });
-    writeFileSync(resolve(home, '.kevin', 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
+    writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
     return home;
   };
 
@@ -238,7 +235,7 @@ describe('loadSecretsEnv', () => {
     const original = process.env.AGENT_HOME;
     const withSecret = homeWithSecret('AGENT_PROBE_SECRET', 'present');
     const bare = mkdtempSync(resolve(tmpdir(), 'kevin-bare-'));
-    mkdirSync(resolve(bare, '.kevin'), { recursive: true });
+    mkdirSync(resolve(bare, RUNTIME_DIR_DEFAULT), { recursive: true });
     try {
       process.env.AGENT_HOME = withSecret;
       expect(env('AGENT_PROBE_SECRET')).toBe('present');

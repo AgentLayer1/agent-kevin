@@ -22,7 +22,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { agentKeyName, dbConnections, env, runtimeDirName } from '@/shared/env';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { dbConnections, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { assertDbName, decodeDbName, resolveConnectionString } from '@/tools/database';
 import pg from 'pg';
