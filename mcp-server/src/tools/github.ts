@@ -7,10 +7,10 @@
  * setup (its macOS build verifies certs via Security.framework/keychain, which the
  * sandbox blocks — OSStatus -26276). The MCP server runs OUTSIDE that sandbox, so the
  * same `gh` invocation works here. Auth is a fine-grained, read-only PAT in
- * `.kevin/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
+ * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
  *
  * Repo resolution when a call omits `repo`: derive `owner/repo` from the `origin` remote
- * of `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry, then error asking for one.
+ * of the configured code path, then the first configured git repo, then error asking for one.
  * An explicit `owner/repo` always wins. Mirrors how setup-worktree pins its target.
  *
  * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
@@ -20,6 +20,7 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths } from '@/config';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
@@ -57,7 +58,7 @@ const requireToken = (): string => {
   const token = env('GITHUB_TOKEN');
   if (!token) {
     throw new Error(
-      'GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/.kevin/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).'
+      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${runtimeDirName()}/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).`
     );
   }
   return token;
@@ -108,7 +109,7 @@ const repoSlugFromPath = async (path: string): Promise<string | null> => {
   }
 };
 
-/** KEVIN_CODE_PATH's repo → first KEVIN_GIT_REPOS entry's repo → throw (caller must pass `repo`). */
+/** Configured code path's repo → first configured git repo → throw (caller must pass `repo`). */
 const resolveDefaultRepo = async (): Promise<string> => {
   for (const path of configuredRepoPaths()) {
     const slug = await repoSlugFromPath(path);
@@ -117,7 +118,7 @@ const resolveDefaultRepo = async (): Promise<string> => {
     }
   }
   throw new Error(
-    'No repo given and none resolvable from KEVIN_CODE_PATH / KEVIN_GIT_REPOS (need a GitHub `origin` remote). Pass repo as "owner/repo".'
+    `No repo given and none resolvable from ${agentKeyName('CODE_PATH')} / ${agentKeyName('GIT_REPOS')} (need a GitHub \`origin\` remote). Pass repo as "owner/repo".`
   );
 };
 
@@ -389,7 +390,7 @@ const repoField = {
   repo: z
     .string()
     .optional()
-    .describe('OWNER/REPO. Defaults to the repo of KEVIN_CODE_PATH, then the first KEVIN_GIT_REPOS entry.')
+    .describe('OWNER/REPO. Defaults to the configured code path repo, then the first configured git repo.')
 };
 const prNumberField = { number: z.number().int().positive().describe('Pull request number.') };
 const issueNumberField = { number: z.number().int().positive().describe('Issue number.') };
@@ -719,7 +720,7 @@ export const tools: ToolDef[] = [
       repos: z
         .array(z.string())
         .optional()
-        .describe('Paths to MAIN checkouts. Defaults to KEVIN_CODE_PATH plus KEVIN_GIT_REPOS.')
+        .describe('Paths to MAIN checkouts. Defaults to the configured code path plus git repos.')
     },
     handler: async ({ repos }) => {
       // Every exit reports rather than throws. This runs as step 0 of sync, where code
@@ -729,12 +730,14 @@ export const tools: ToolDef[] = [
         untrusted('github:fast_forward', JSON.stringify(payload, null, 2));
 
       const paths = [
-        ...new Set(repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths())
+        ...new Set(
+          repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths()
+        )
       ];
       if (paths.length === 0) {
         return report({
           repos: [],
-          detail: 'No checkouts configured — set KEVIN_CODE_PATH or KEVIN_GIT_REPOS, or pass repos explicitly.'
+          detail: `No checkouts configured — set ${agentKeyName('CODE_PATH')} or ${agentKeyName('GIT_REPOS')}, or pass repos explicitly.`
         });
       }
       const token = env('GITHUB_TOKEN');

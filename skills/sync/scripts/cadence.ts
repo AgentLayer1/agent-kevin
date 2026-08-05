@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 
 /**
@@ -12,7 +13,7 @@ import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 
 const home = agentHomePath();
 if (!isAgentHome(home)) {
-  console.error(`not an agent home: ${home} — set KEVIN_HOME`);
+  console.error(`not an agent home: ${home} — set ${agentKeyName("HOME")}`);
   process.exit(1);
 }
 
@@ -24,8 +25,9 @@ const readJson = <T>(path: string): T | null => {
   }
 };
 
-const cadence = readJson<Record<string, string>>(join(home, ".kevin/cadence.json")) ?? {};
-const selfReview = readJson<{ lastRun?: string }>(join(home, ".kevin/review.json")) ?? {};
+const dataDir = join(home, runtimeDirName());
+const cadence = readJson<Record<string, string>>(join(dataDir, "cadence.json")) ?? {};
+const selfReview = readJson<{ lastRun?: string }>(join(dataDir, "review.json")) ?? {};
 
 const now = new Date();
 const parseDate = (value: string | undefined): Date | null =>

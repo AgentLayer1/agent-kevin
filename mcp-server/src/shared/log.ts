@@ -5,15 +5,21 @@
  *   - stderr = every level (MCP stdout is reserved for JSON-RPC; the hook
  *     scripts in `scripts/` reserve stdout for protocol payloads). We never
  *     write logs to stdout, so this module is safe to import from anywhere.
- *   - file   = every level (durable audit, <HOME>/.kevin/logs/app.log)
+ *   - file   = every level (durable audit, <HOME>/<data-dir>/logs/app.log)
  *
  * No setStderrOnly() toggle. There is no path that writes to stdout — so the
  * logger is hook-safe by construction. Override the file path via
- * `KEVIN_LOG_FILE`; disable file output entirely with `KEVIN_LOG_FILE=off`.
+ * `AGENT_LOG_FILE` (or this agent's `<AGENT>_LOG_FILE`); disable file output
+ * entirely with `=off`. Its only import is `shared/naming.ts`, which is
+ * side-effect-free — never `@/config` or `@/shared/env`, whose import loads the
+ * home's secrets. Naming lookups are wrapped: a broken manifest or a malformed
+ * runtime-dir override degrades to the shared names, because logging must never
+ * be the thing that crashes a caller. The env gate writes the resolved home back
+ * to `AGENT_HOME`, which covers the default path below.
  *
  * File output rotates when it crosses MAX_LOG_BYTES (5MB) to a timestamped
  * sibling (`app.20260523-160300.log`). No auto-delete — operator prunes
- * `<HOME>/.kevin/logs/` when desired.
+ * `<HOME>/<data-dir>/logs/` when desired.
  *
  * Scopes are one per module, with chainable sub-scopes:
  *   log.knowledge.with('compile').warn('parse failed')
@@ -26,8 +32,27 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
+import { RUNTIME_DIR_DEFAULT, resolveEnv, runtimeDirName } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+/** `resolveEnv` that can't throw — a broken manifest degrades to the shared name. */
+const readEnv = (key: string): string | undefined => {
+  try {
+    return resolveEnv(key);
+  } catch {
+    return process.env[key]?.trim() || undefined;
+  }
+};
+
+/** `runtimeDirName` that can't throw — a malformed override degrades to the default. */
+const runtimeDir = (): string => {
+  try {
+    return runtimeDirName();
+  } catch {
+    return RUNTIME_DIR_DEFAULT;
+  }
+};
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -42,22 +67,29 @@ const LEVEL_ORDER: Record<Level, number> = {
 
 // ── Config ────────────────────────────────────────────────────────────
 
-let minLevel: Level = ((process.env.KEVIN_LOG_LEVEL ?? process.env.LOG_LEVEL) as Level) ?? 'info';
+let minLevel: Level = ((readEnv('AGENT_LOG_LEVEL') ?? process.env.LOG_LEVEL) as Level) ?? 'info';
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 /**
  * Resolved at first write to avoid forcing a circular import on `@/config`
  * (which would drag the whole FOLDERS tree into hook scripts that just want
- * to log a line). `KEVIN_LOG_FILE` tells us where to write; `=off` disables.
+ * to log a line). `AGENT_LOG_FILE` tells us where to write; `=off` disables.
  */
 function resolveLogFile(): string | null {
-  const env = process.env.KEVIN_LOG_FILE?.trim();
-  if (env === 'off') return null;
-  if (env) return resolve(env);
-  // Default: <HOME>/.kevin/logs/app.log. KEVIN_HOME mirrors the MCP server's
-  // resolution; if neither is set, fall back to cwd so hooks still capture.
-  const home = (process.env.KEVIN_HOME?.trim() || process.cwd()).replace(/\/$/, '');
-  return resolve(home, '.kevin', 'logs', 'app.log');
+  const configured = readEnv('AGENT_LOG_FILE');
+  if (configured === 'off') return null;
+  if (configured) return resolve(configured);
+  // Default: <HOME>/<data-dir>/logs/app.log — the same path @/config derives, so
+  // the dashboard reads the file the logger writes. AGENT_HOME mirrors the MCP
+  // server's resolution (the env gate canonicalizes it even when a per-agent
+  // override supplied the home). Without it, cwd stands in ONLY when it already
+  // carries the data dir (it IS this agent's home): a plugin hook firing in a
+  // foreign repo — a sibling agent's SessionEnd in someone else's checkout — must
+  // not scaffold a runtime dir there. stderr still carries every line; file
+  // output just waits until a home resolves.
+  const dir = runtimeDir();
+  const home = readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? (existsSync(resolve(process.cwd(), dir)) ? process.cwd() : null);
+  return home === null ? null : resolve(home, dir, 'logs', 'app.log');
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

@@ -1,31 +1,32 @@
+import { runtimeDirName } from '@/shared/naming';
 import { agentHomePath, env, loadedSecretKeyNames } from '@/shared/env';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const PLUGIN_ROOT = env('KEVIN_PLUGIN_ROOT') ?? resolve(import.meta.dir, '..', '..');
+const PLUGIN_ROOT = env('AGENT_PLUGIN_ROOT') ?? resolve(import.meta.dir, '..', '..');
 
 const fromEnv = (key: string, fallback: string) => expandTilde(env(key) || fallback);
 
 // Path roots resolve LIVE on every access, never frozen at import — matching what
 // `@/shared/env` already does for the secrets file. Freezing them made every path in the
 // server depend on which module happened to import config FIRST: anything that set
-// `KEVIN_HOME` afterwards (a hook, the CLI, a test) silently lost, and a test suite could
+// `AGENT_HOME` afterwards (a hook, the CLI, a test) silently lost, and a test suite could
 // be pointed at the operator's real brain by an unrelated import elsewhere.
 //
-// `agentHomePath()` is `KEVIN_HOME` when set, else the nearest home above cwd carrying this
-// agent's data dir, else cwd (pre-init). The walk-up means a server or hook launched inside a
-// code repo still resolves the operator's home instead of anchoring `.kevin/` state and
-// session captures to the repo. It caches its walk into `KEVIN_HOME`, so repeat calls are an
-// env read plus a `resolve`.
+// `agentHomePath()` is `AGENT_HOME` (or its per-agent override) when set, else the nearest
+// home above cwd carrying this agent's data dir, else cwd (pre-init). The walk-up means a
+// server or hook launched inside a code repo still resolves the operator's home instead of
+// anchoring data-dir state and session captures to the repo. It caches its walk into
+// `AGENT_HOME`, so repeat calls are an env read plus a `resolve`.
 const homeRoot = (): string => agentHomePath();
-const knowledgeRoot = (): string => fromEnv('KEVIN_KNOWLEDGE', resolve(homeRoot(), 'knowledge'));
-const dataRoot = (): string => resolve(homeRoot(), '.kevin');
+const knowledgeRoot = (): string => fromEnv('AGENT_KNOWLEDGE', resolve(homeRoot(), 'knowledge'));
+const dataRoot = (): string => resolve(homeRoot(), runtimeDirName());
 const secretsRoot = (): string => resolve(dataRoot(), 'secrets');
 
 // Env values + secret loading live in `@/shared/env` (a config-free module — see
 // its header for why it's kept apart).
-// Importing it self-loads `.kevin/secrets/.env`; `env()` below reads through it.
+// Importing it self-loads `<data-dir>/secrets/.env`; `env()` below reads through it.
 
 export interface SecretEntry {
   name: string;
@@ -50,12 +51,12 @@ export function listSecretEntries(): SecretEntry[] {
   return [...loadedSecretKeyNames().map((name) => ({ name, present: true })), ...google];
 }
 
-export const TIMEZONE = env('KEVIN_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+export const TIMEZONE = env('AGENT_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
-/** The operator's home-base IANA timezone, set via `KEVIN_HOME_TIMEZONE` in
+/** The operator's home-base IANA timezone, set via `AGENT_HOME_TIMEZONE` in
  *  `.claude/settings.local.json` `env`. When set and different from `TIMEZONE`,
  *  the SessionStart context flags the operator as traveling. */
-export const HOME_TIMEZONE = env('KEVIN_HOME_TIMEZONE') || '';
+export const HOME_TIMEZONE = env('AGENT_HOME_TIMEZONE') || '';
 
 /** URL template the dashboard uses to open markdown files in a native app.
  *  `{path}` is replaced with the URL-encoded absolute path. Set via the
@@ -81,7 +82,7 @@ export const PLUGIN_VERSION = ((): string => {
 
 /**
  * Filesystem layout. Plugin-relative entries are plain values (fixed for the process);
- * everything home-relative is a getter, so each read reflects the current `KEVIN_HOME`.
+ * everything home-relative is a getter, so each read reflects the current `AGENT_HOME`.
  */
 export const FOLDERS = {
   ROOT: PLUGIN_ROOT,
@@ -127,10 +128,10 @@ export const FOLDERS = {
     return resolve(knowledgeRoot(), 'raw', 'archive', 'inbox');
   },
   get PROJECTS() {
-    return fromEnv('KEVIN_PROJECTS', resolve(homeRoot(), 'projects'));
+    return fromEnv('AGENT_PROJECTS', resolve(homeRoot(), 'projects'));
   },
   get REPORTS() {
-    return fromEnv('KEVIN_REPORTS', resolve(homeRoot(), 'reports'));
+    return fromEnv('AGENT_REPORTS', resolve(homeRoot(), 'reports'));
   }
 } as const;
 
@@ -148,22 +149,23 @@ export const BROWSER = {
 } as const;
 
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
- * directory. Configure via `KEVIN_GIT_REPOS` env var (comma-separated paths,
- * `~` expanded). The basename of each path is used as its section label. */
+ * directory. Configure via `AGENT_GIT_REPOS` (or the per-agent spelling, e.g.
+ * `KEVIN_GIT_REPOS`; comma-separated paths, `~` expanded). The basename of
+ * each path is used as its section label. */
 export const extraGitRepos = (): readonly string[] =>
-  (env('KEVIN_GIT_REPOS') ?? '')
+  (env('AGENT_GIT_REPOS') ?? '')
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map(expandTilde);
 
 /**
- * Every checkout this home is configured against — `KEVIN_CODE_PATH` first, then
- * `KEVIN_GIT_REPOS` — deduped AFTER tilde expansion, so two spellings of one repo can't be
+ * Every checkout this home is configured against — the configured code path first, then the
+ * git-repos list — deduped AFTER tilde expansion, so two spellings of one repo can't be
  * treated as two.
  */
 export const configuredRepoPaths = (): string[] => [
-  ...new Set([expandTilde(env('KEVIN_CODE_PATH')?.trim() ?? ''), ...extraGitRepos()].filter(Boolean))
+  ...new Set([expandTilde(env('AGENT_CODE_PATH')?.trim() ?? ''), ...extraGitRepos()].filter(Boolean))
 ];
 
 /** Well-known files. Getters, for the same reason as FOLDERS. */
@@ -199,7 +201,7 @@ export const FILES = {
   get IDENTITY() {
     return resolve(homeRoot(), 'IDENTITY.md');
   },
-  /** Kevin's operating manual. Lives at <HOME>/CLAUDE.md by default. If a
+  /** The agent's operating manual. Lives at <HOME>/CLAUDE.md by default. If a
    *  CLAUDE.md already existed when /init ran (plugin installed into an
    *  existing project), init writes to CLAUDE_LOCAL instead and leaves the
    *  user's CLAUDE.md untouched. */
@@ -253,15 +255,15 @@ export const CONTEXT = {
   MAX_CHARS: 9_500,
   /** Tail of yesterday's session log to inject for continuity. */
   SESSION_TAIL_BYTES: 1_500,
-  /** Today's section of `reports/index.md`, injected so Kevin sees what was already produced today. */
+  /** Today's section of `reports/index.md`, injected so the agent sees what was already produced today. */
   REPORTS_BYTES: 1_000,
   /** Commits to surface in the recent-git-activity slice. */
   MAX_GIT_LOG_COMMITS: 15
 } as const;
 
 /** True once `/agent-kevin:init` has been run. Keyed on SOUL.md — that
- * filename is unique to Kevin (CLAUDE.md may pre-exist in projects that
- * the plugin gets installed into, so it's not a safe marker). */
+ * filename is unique to the agent home (CLAUDE.md may pre-exist in projects
+ * that the plugin gets installed into, so it's not a safe marker). */
 export function isInitialized(): boolean {
   return existsSync(FILES.SOUL);
 }

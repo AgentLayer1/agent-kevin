@@ -190,7 +190,7 @@ export async function listRawFiles(): Promise<string[]> {
  * Redact secrets from text before it goes anywhere persistent. Three passes:
  *
  * 1. **Exact-match redaction** — delegated to `config.scrubValues`, which reads the
- *    `.kevin/secrets/.env` secret store behind config's gate and replaces literal
+ *    data-dir `secrets/.env` secret store behind config's gate and replaces literal
  *    occurrences with `<REDACTED:KEY_NAME>`. The raw values never leave config. This is
  *    the deterministic path — anything saved as a secret gets scrubbed. (`settings.local.json`
  *    isn't scrubbed: by design it holds only private, non-secret config.)

@@ -753,6 +753,8 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ## ⚙️ Configuration
 
+**Two spellings per knob.** Every env var has a shared, agent-neutral `AGENT_*` name and a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-walle` reads `WALLE_*` with zero code change. The per-agent spelling always wins. Use it for anything per-agent (home, code path, DB credentials) — that's every var in the table below, so existing `KEVIN_*` configs work unchanged. Reserve the shared `AGENT_*` spelling for machine-wide knobs you genuinely want every agent on the box to inherit (timezone, log level, runtime-dir name) via `~/.claude/settings.json` `env`; a machine-wide `AGENT_HOME` would point every agent at the same brain.
+
 | Env var | Purpose | Default |
 |---|---|---|
 | `KEVIN_HOME` | Path to your agent home. **Export it in your shell rc** — required for anything launched outside the home (code-repo sessions, hooks, the CLI). Without it, Kevin walks up from `cwd` to the nearest directory carrying `.kevin/` (covers home subdirs) and otherwise fails loud (`NOT_AN_AGENT_HOME`) instead of writing into the wrong tree. | cwd at launch, via the `.kevin/` walk-up |
@@ -765,6 +767,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 | `KEVIN_GIT_REPOS` | Comma-separated extra git repo paths (`~`-expanded) surfaced in the SessionStart context block alongside the knowledge repo. Init derives it from `KEVIN_CODE_PATH`; append more later. | _derived from `KEVIN_CODE_PATH`_ |
 | `KEVIN_LOG_LEVEL` | Log level: `debug` · `info` · `warn` · `error`. Falls back to `LOG_LEVEL`. | `info` |
 | `KEVIN_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
+| `AGENT_RUNTIME_DIR` | Rename the runtime data-dir folder (a bare folder name, not a path — validated). Machine-wide by design; the per-agent spelling also works. | `.kevin` |
 
 **On `KEVIN_HOME`.** When you launch `claude` from inside your agent home, the cwd-fallback works and you don't need to set anything. When `cwd` is somewhere else — a subdir of home, a sibling repo, or the user-level session-capture hook firing from a random project — the MCP server resolves paths relative to `cwd` instead, and writes land in the wrong place (or the `isInitialized()` guard fires and the hook silently no-ops). If you ever launch Claude Code from outside the home, set `KEVIN_HOME` in your shell rc or in `~/.claude/settings.json` `env`.
 

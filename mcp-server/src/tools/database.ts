@@ -1,9 +1,10 @@
 /**
  * Generic Postgres MCP tools. Unlike a hardcoded list of named environments,
- * connections are discovered at call time from any `KEVIN_DB_<NAME>` env var —
- * add a connection by adding a `KEVIN_DB_<NAME>=<connection-string>` line to
- * `.kevin/secrets/.env` (connection strings carry credentials, so they live in the
- * deny-gated secret store; config loads it into the env at boot), no code change.
+ * connections are discovered at call time from `DB_`-prefixed env vars
+ * (`KEVIN_DB_<NAME>`, or the shared `AGENT_DB_<NAME>`) — add a connection by
+ * adding a line to `<data-dir>/secrets/.env` (connection strings carry
+ * credentials, so they live in the deny-gated secret store; config loads it
+ * into the env at boot), no code change.
  * Connections are pooled per (env var, database) and lazy: a
  * connection string may pin a database in its path or omit it entirely, and any
  * call may target a different database on the same server via the optional
@@ -19,6 +20,7 @@
  * `statement_timeout`, always rolled back — Postgres itself rejects any
  * write (error 25006), so reads are enforced by the server, not by parsing SQL.
  */
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
 import { dbConnections, dbEnvKeyFor, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import pg from 'pg';
@@ -106,7 +108,7 @@ const getPool = (name: string, database?: string): pg.Pool => {
     const available = discoverConnections().map((connection) => connection.name);
     const hint = available.length
       ? `Available connections: ${available.join(', ')}.`
-      : `No connections configured. Add a KEVIN_DB_<NAME> connection string to .kevin/secrets/.env.`;
+      : `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string to ${runtimeDirName()}/secrets/.env.`;
     throw new Error(`Unknown database connection "${name}" (looked for ${envKey}). ${hint}`);
   }
   const pool = new Pool({ connectionString: resolveConnectionString(url, database), max: 4 });
@@ -149,8 +151,7 @@ const COLUMNS_SQL = `
 export const tools: ToolDef[] = [
   defineTool({
     name: 'database_list',
-    description:
-      'List the Postgres connections available to query. Each is configured via a KEVIN_DB_<NAME> env var. Returns name + host/port/database only — never credentials or the connection string. A blank `database` means the connection pins no default — pass `database` to database_query/database_schema to pick one; either tool can also override a pinned database per call to reach another DB on the same server.',
+    description: `List the Postgres connections available to query. Each is configured via a ${agentKeyName('DB_')}<NAME> env var. Returns name + host/port/database only — never credentials or the connection string. A blank \`database\` means the connection pins no default — pass \`database\` to database_query/database_schema to pick one; either tool can also override a pinned database per call to reach another DB on the same server.`,
     inputSchema: {},
     handler: async () => {
       const connections = discoverConnections().map((connection) => ({
@@ -160,7 +161,7 @@ export const tools: ToolDef[] = [
       if (!connections.length) {
         return {
           connections: [],
-          hint: 'No connections configured. Add a KEVIN_DB_<NAME> connection string (e.g. KEVIN_DB_APP) to .kevin/secrets/.env.'
+          hint: `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string (e.g. ${agentKeyName('DB_APP')}) to ${runtimeDirName()}/secrets/.env.`
         };
       }
       return { connections };

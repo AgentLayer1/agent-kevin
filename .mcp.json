@@ -4,8 +4,8 @@
       "command": "bun",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/src/server.ts"],
       "env": {
-        "KEVIN_PLUGIN_ROOT": "${CLAUDE_PLUGIN_ROOT}",
-        "KEVIN_PLUGIN_DATA": "${CLAUDE_PLUGIN_DATA}",
+        "AGENT_PLUGIN_ROOT": "${CLAUDE_PLUGIN_ROOT}",
+        "AGENT_PLUGIN_DATA": "${CLAUDE_PLUGIN_DATA}",
         "PLAYWRIGHT_BROWSERS_PATH": "0"
       }
     }

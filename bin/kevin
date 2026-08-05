@@ -37,12 +37,13 @@ import { dirname, resolve } from 'node:path';
 // Resolve plugin root from this script's location so the CLI works whether
 // you invoke it via bin/kevin, /full/path/to/bin/kevin, or the plugin PATH.
 const PLUGIN_ROOT = resolve(import.meta.dir, '..');
-process.env.KEVIN_PLUGIN_ROOT ??= PLUGIN_ROOT;
+process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 
 // Stage process.env for the whole CLI run: hydrate every .claude/settings*.json
 // `env` block on the ancestor path (nearest wins) so per-project paths
-// (KEVIN_HOME, KEVIN_KNOWLEDGE, ...) apply without shell-rc duplication, then
-// anchor KEVIN_HOME through the shared resolver. Order matches Claude Code:
+// (AGENT_HOME, AGENT_KNOWLEDGE, ... — or this agent's override prefix, e.g.
+// KEVIN_*) apply without shell-rc duplication, then
+// anchor AGENT_HOME through the shared resolver. Order matches Claude Code:
 // settings.local.json (machine-specific) overrides settings.json (committed);
 // existing shell env always wins. Every mcp-server import in this file is dynamic
 // for two reasons that outlive any env-ordering concern: the specifiers are
@@ -198,11 +199,12 @@ Database commands:
                                     <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
                                     .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
 
-Environment:
-  KEVIN_HOME=<path>                 Override agent home (default: cwd)
-  KEVIN_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
-  KEVIN_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)
-  KEVIN_TIMEZONE=<tz>               Override timezone (default: system tz)
+Environment (shared AGENT_* names; this agent's spelling, e.g. KEVIN_HOME, overrides):
+  AGENT_HOME=<path>                 Override agent home (default: cwd)
+  AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
+  AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)
+  AGENT_TIMEZONE=<tz>               Override timezone (default: system tz)
+  AGENT_RUNTIME_DIR=<name>          Override the runtime data-dir folder name (default: .kevin)
 
 Examples:
   kevin capture "remember to follow up with tracy on constitution lodgement"
@@ -228,7 +230,7 @@ async function run(): Promise<void> {
   }
 
   // One info line per CLI invocation so file logs reveal user-invoked vs
-  // MCP-invoked traffic. Lazy-imported because @/shared/log resolves KEVIN_HOME
+  // MCP-invoked traffic. Lazy-imported because @/shared/log resolves AGENT_HOME
   // and we want loadProjectEnv() to have run first.
   const { log } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/log'));
   log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
@@ -386,7 +388,7 @@ async function run(): Promise<void> {
   if (group === 'database') {
     // The database tools live as MCP tool handlers; reuse them directly rather
     // than duplicating the SQL. They read connections via config's `env()`, which
-    // self-loads .kevin/secrets/.env on first read — no manual preload needed.
+    // self-loads the data-dir secrets/.env on first read — no manual preload needed.
     // Like worktree/database_fork, these run outside the Bash sandbox — this CLI
     // path is the real-terminal entry point.
     const { tools: readTools } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/tools/database'));

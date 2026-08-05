@@ -3,7 +3,7 @@
  *
  * Static identity (SOUL, IDENTITY, USER, CLAUDE) and knowledge indexes are
  * loaded natively by Claude Code via `@-imports` inside `<HOME>/CLAUDE.md` —
- * no hook involvement needed when CC opens in (or under) KEVIN_HOME.
+ * no hook involvement needed when CC opens in (or under) AGENT_HOME.
  *
  * This hook only injects what CC can't know from files alone: today's date in
  * the user's timezone, the tail of yesterday's session log for continuity, and

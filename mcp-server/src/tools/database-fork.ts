@@ -11,16 +11,18 @@
  *
  * Remote hosts are refused. This issues DDL (CREATE/DROP DATABASE), so it only
  * acts on a local server (localhost / 127.0.0.1 / ::1 / unix socket) — never a
- * remote/production one. The server is a `KEVIN_DB_<NAME>` connection (same
- * discovery as the read-only database_* tools; secrets live in `.kevin/secrets/.env`,
- * never here), defaulting to the first configured connection. DDL can't run in a
- * transaction, so it uses a dedicated autocommit client. Like setup_worktree it
- * runs outside the Bash sandbox, so it can reach local Postgres and write the env
+ * remote/production one. The server is a configured DB connection (same
+ * discovery as the read-only database_* tools — `KEVIN_DB_<NAME>` or the
+ * shared `AGENT_DB_<NAME>`; secrets live in `<data-dir>/secrets/.env`, never
+ * here), defaulting to the first configured. DDL can't run in a transaction,
+ * so it uses a dedicated autocommit client. Like setup_worktree it runs
+ * outside the Bash sandbox, so it can reach local Postgres and write the env
  * file.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
 import { dbConnections, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { assertDbName, decodeDbName, resolveConnectionString } from '@/tools/database';
@@ -38,11 +40,13 @@ export const quoteIdent = (name: string): string => `"${name.replaceAll('"', '""
 const LOCAL_HOSTS = new Set(['', 'localhost', '127.0.0.1', '::1']);
 export const isLocalHost = (host: string): boolean => LOCAL_HOSTS.has(host.replace(/^\[|\]$/g, ''));
 
-/** Resolve a KEVIN_DB_<NAME> connection name (or the first configured one) to its string. */
+/** Resolve a configured connection name (or the first configured one) to its string. */
 const resolveConnection = (name?: string): { name: string; url: string } => {
   const connections = dbConnections();
   if (!connections.length) {
-    throw new Error('No database connections configured. Add a KEVIN_DB_<NAME> env var to .kevin/secrets/.env.');
+    throw new Error(
+      `No database connections configured. Add a ${agentKeyName('DB_')}<NAME> env var to ${runtimeDirName()}/secrets/.env.`
+    );
   }
   const chosen = name ? connections.find((connection) => connection.name === name.toLowerCase()) : connections[0];
   const url = chosen && env(chosen.envKey);
@@ -55,7 +59,7 @@ const resolveConnection = (name?: string): { name: string; url: string } => {
 };
 
 /**
- * Every database pinned by a KEVIN_DB_<NAME> connection. These are real,
+ * Every database pinned by a configured connection. These are real,
  * configured databases — never valid drop/fork targets, so a fork name that
  * matches one is refused. Defensive against clobbering a connection's DB.
  */
@@ -183,12 +187,12 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'database_fork',
     description:
-      "Fork (clone) a database on a LOCAL Postgres server so you can make heavy or destructive schema changes without touching the shared/live one — for a worktree, an experiment, or a risky migration. Clones via CREATE DATABASE ... TEMPLATE (pure SQL, no dump tools). With repointEnv:true it writes a `.env.local` override in `cwd` pointing at the fork (and removes it on drop) — the base `.env` is never touched, and an existing override is left as-is (reported, not overwritten) unless force:true. Remote hosts are refused. The server is a KEVIN_DB_<NAME> connection (defaults to the first configured); source DB defaults to the connection's database; fork name defaults to <source>_<git-branch> when `cwd` is a repo, else <source>_fork. drop:true tears the fork down. terminateSource:true disconnects live sessions on the source so the clone can proceed.",
+      "Fork (clone) a database on a LOCAL Postgres server so you can make heavy or destructive schema changes without touching the shared/live one — for a worktree, an experiment, or a risky migration. Clones via CREATE DATABASE ... TEMPLATE (pure SQL, no dump tools). With repointEnv:true it writes a `.env.local` override in `cwd` pointing at the fork (and removes it on drop) — the base `.env` is never touched, and an existing override is left as-is (reported, not overwritten) unless force:true. Remote hosts are refused. The server is a configured DB connection (defaults to the first); source DB defaults to the connection's database; fork name defaults to <source>_<git-branch> when `cwd` is a repo, else <source>_fork. drop:true tears the fork down. terminateSource:true disconnects live sessions on the source so the clone can proceed.",
     inputSchema: {
       connection: z
         .string()
         .optional()
-        .describe('KEVIN_DB_<NAME> connection name (from database_list). Defaults to the first configured connection.'),
+        .describe('Connection name (from database_list). Defaults to the first configured connection.'),
       source: z
         .string()
         .optional()
@@ -250,12 +254,12 @@ export const tools: ToolDef[] = [
       if (forkDb === sourceDb) {
         throw new Error(`Fork "${forkDb}" equals the source — nothing to fork.`);
       }
-      // Never drop or replace a database any KEVIN_DB_* connection points at —
+      // Never drop or replace a database any configured connection points at —
       // those are real, configured DBs, never fork targets. Covers the active
       // connection's default and every other configured one.
       if (configuredDatabases().has(forkDb)) {
         throw new Error(
-          `Refusing to operate on "${forkDb}" — a KEVIN_DB_* connection points at it. Forks must use a separate name.`
+          `Refusing to operate on "${forkDb}" — a ${agentKeyName('DB_')}* connection points at it. Forks must use a separate name.`
         );
       }
       if (repointEnv && (!cwd || !isAbsolute(cwd) || !existsSync(cwd))) {

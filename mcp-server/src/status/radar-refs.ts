@@ -10,7 +10,7 @@
  * *results*. (Mirrors list_sessions.ts's isRealUserText.)
  *
  * Config-free by design (no @/config import) so it's unit-testable without
- * freezing KEVIN_HOME for the test process — collect.ts owns the disk I/O.
+ * freezing AGENT_HOME for the test process — collect.ts owns the disk I/O.
  */
 import { resolve } from 'node:path';
 
