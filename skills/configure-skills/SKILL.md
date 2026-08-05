@@ -287,7 +287,20 @@ Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, s
 > - Yes — grant permissions + ensure placeholder
 > - Skip (no permission grant, no placeholder)
 
-If yes, surface these steps verbatim:
+If yes, **check `gh` before granting anything** — every tool in this pack shells out to it, so activating without it produces a pack that grants cleanly and then throws `gh CLI not found on PATH` the first time it's called:
+
+```bash
+command -v gh >/dev/null 2>&1 || echo "GH_MISSING"
+```
+
+On `GH_MISSING`, say so plainly and let the operator choose — don't silently proceed and don't hard-stop, since the PAT steps below are still worth doing while they're here:
+
+> ⚠️ **`gh` isn't on your PATH.** Every GitHub-pack tool shells out to it, so they'll error until it's installed. It doesn't ship with Claude Code or this plugin — on macOS: `brew install gh` (needs [Homebrew](https://brew.sh)), otherwise [cli.github.com](https://cli.github.com).
+>
+> - Continue anyway — grant permissions + mint the PAT now, install `gh` after
+> - Stop here — come back to `/agent-kevin:configure-skills` once `gh` is installed
+
+Then surface these steps verbatim:
 
 1. Open [GitHub → Settings → Developer settings → Fine-grained tokens](https://github.com/settings/tokens?type=beta).
 2. **Generate new token.** Set **Resource owner** to the org/user that owns the repos Kevin will read (e.g. your org — self-approval is instant if you own it).
