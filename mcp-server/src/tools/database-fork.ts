@@ -11,11 +11,12 @@
  *
  * Remote hosts are refused. This issues DDL (CREATE/DROP DATABASE), so it only
  * acts on a local server (localhost / 127.0.0.1 / ::1 / unix socket) — never a
- * remote/production one. The server is one of this agent's `DB_`-prefixed
- * connections (same discovery as the read-only database_* tools; secrets live
- * in `<data-dir>/secrets/.env`, never here), defaulting to the first configured. DDL can't run in a
- * transaction, so it uses a dedicated autocommit client. Like setup_worktree it
- * runs outside the Bash sandbox, so it can reach local Postgres and write the env
+ * remote/production one. The server is a configured DB connection (same
+ * discovery as the read-only database_* tools — `KEVIN_DB_<NAME>` or the
+ * shared `AGENT_DB_<NAME>`; secrets live in `<data-dir>/secrets/.env`, never
+ * here), defaulting to the first configured. DDL can't run in a transaction,
+ * so it uses a dedicated autocommit client. Like setup_worktree it runs
+ * outside the Bash sandbox, so it can reach local Postgres and write the env
  * file.
  */
 import { execFileSync } from 'node:child_process';
