@@ -1445,7 +1445,7 @@ const ENV_KEY_TIPS: Record<string, string> = {
     'Turns off non-essential network traffic (telemetry, auto-update pings, etc.) — keeps Claude Code quiet on the wire.',
   ANTHROPIC_DEFAULT_HAIKU_MODEL:
     'Remaps the lightweight “Haiku” tier the harness uses for small background tasks to a more capable model, so quick auxiliary calls aren’t under-powered.',
-  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$${agentKeyName('CODE_PATH')}\` (segmented — only the per-agent spelling resolves).`,
+  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$${agentKeyName('CODE_PATH')}\`.`,
   AGENT_GIT_REPOS: `Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to \`${agentKeyName('CODE_PATH')}\`; append more with \`,/path/to/other/repo\`.`,
   AGENT_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',
   AGENT_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'

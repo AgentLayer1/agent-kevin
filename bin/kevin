@@ -199,7 +199,7 @@ Database commands:
                                     <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
                                     .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
 
-Environment (shared AGENT_* names, overridable per agent as KEVIN_*; CODE_PATH/GIT_REPOS/DB_* are KEVIN_*-only):
+Environment (shared AGENT_* names; this agent's spelling, e.g. KEVIN_HOME, overrides):
   AGENT_HOME=<path>                 Override agent home (default: cwd)
   AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
   AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)

@@ -146,7 +146,7 @@ describe('runtimeDirName', () => {
   });
 });
 
-describe('env per-agent override + segmentation', () => {
+describe('env per-agent override', () => {
   test("this agent's KEVIN_* spelling beats the shared AGENT_* name", () => {
     process.env.AGENT_PROBE_OVERRIDE = 'shared';
     process.env.KEVIN_PROBE_OVERRIDE = 'own';
@@ -164,18 +164,6 @@ describe('env per-agent override + segmentation', () => {
       expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
     } finally {
       delete process.env.AGENT_PROBE_OVERRIDE;
-    }
-  });
-
-  test('segmented keys never resolve from the shared name', () => {
-    process.env.AGENT_CODE_PATH = '/shared/code';
-    try {
-      expect(env('AGENT_CODE_PATH')).toBeUndefined();
-      process.env.KEVIN_CODE_PATH = '/kevin/code';
-      expect(env('AGENT_CODE_PATH')).toBe('/kevin/code');
-    } finally {
-      delete process.env.AGENT_CODE_PATH;
-      delete process.env.KEVIN_CODE_PATH;
     }
   });
 

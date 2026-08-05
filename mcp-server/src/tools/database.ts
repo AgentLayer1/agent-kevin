@@ -1,10 +1,10 @@
 /**
  * Generic Postgres MCP tools. Unlike a hardcoded list of named environments,
- * connections are discovered at call time from this agent's `DB_`-prefixed env
- * vars (`KEVIN_DB_<NAME>` — segmented, never the shared `AGENT_DB_*`) — add a
- * connection by adding a line to `<data-dir>/secrets/.env` (connection strings
- * carry credentials, so they live in the deny-gated secret store; config loads
- * it into the env at boot), no code change.
+ * connections are discovered at call time from `DB_`-prefixed env vars
+ * (`KEVIN_DB_<NAME>`, or the shared `AGENT_DB_<NAME>`) — add a connection by
+ * adding a line to `<data-dir>/secrets/.env` (connection strings carry
+ * credentials, so they live in the deny-gated secret store; config loads it
+ * into the env at boot), no code change.
  * Connections are pooled per (env var, database) and lazy: a
  * connection string may pin a database in its path or omit it entirely, and any
  * call may target a different database on the same server via the optional

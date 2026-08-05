@@ -24,10 +24,13 @@ describe('discoverConnections', () => {
     expect(names.indexOf('analytics')).toBeLessThan(names.indexOf('zed'));
   });
 
-  test('ignores shared AGENT_DB_* vars — connections are segmented per agent', () => {
-    setEnv('AGENT_DB_SHARED', 'postgres://u:p@h/base');
-    const names = discoverConnections().map((connection) => connection.name);
-    expect(names).not.toContain('shared');
+  test('discovers the shared AGENT_DB_* spelling too; a same-named KEVIN_DB_ wins', () => {
+    setEnv('AGENT_DB_SHAREDONLY', 'postgres://u:p@h/base');
+    setEnv('AGENT_DB_BOTH', 'postgres://u:p@h/base');
+    setEnv('KEVIN_DB_BOTH', 'postgres://u:p@h/own');
+    const connections = discoverConnections();
+    expect(connections.find((connection) => connection.name === 'sharedonly')?.envKey).toBe('AGENT_DB_SHAREDONLY');
+    expect(connections.find((connection) => connection.name === 'both')?.envKey).toBe('KEVIN_DB_BOTH');
   });
 
   test('ignores empty values and the bare prefix', () => {
