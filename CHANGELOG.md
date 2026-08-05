@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.3.20] - 2026-08-05
 
 ### Added
 - **`github_fast_forward` — sync step 0 moves into the GitHub tool family.** Fast-forwards the default branches of the configured checkouts by **slot** (first local match of `main`/`master`, and of `develop`/`dev`), so a vestigial `master` beside a live `main` is never touched. Authenticates with the existing fine-grained read-only PAT over HTTPS: one `fetch --prune` per repo, then every ref update is local and needs no credential. The checkout's own remote is neither used for transport nor rewritten, so an SSH remote keeps working for the operator's own pushes. Guard matrix pinned by tests in `mcp-server/src/tools/github.test.ts`.
@@ -66,6 +66,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `settings: additive` — add `mcp__plugin_agent-kevin_kevin__github_fast_forward` to `permissions.allow` if you use the GitHub pack, so `/agent-kevin:sync` step 0 doesn't confirm per run.
+- `template/CLAUDE.md: mandatory` — new "Scratch files get a `mktemp` name" rule under Platform ($TMPDIR is per-user, concurrent sessions clobber fixed names).
 - `manual: none` — if you minted your PAT before this release, add **Contents: Read** to it (Repository permissions, read-only). Without it step 0 reports `NO_ACCESS`. Everything else in the GitHub pack keeps working either way.
 
 ## [0.3.19] - 2026-08-03
