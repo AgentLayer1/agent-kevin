@@ -396,6 +396,18 @@ Parse the next message: if `looks good` → keep the proposal; if edits/addition
 
 ---
 
+## Step 6c — Model
+
+Kevin's project settings pin which Claude model powers this home. `AskUserQuestion`:
+
+> **Which model should Kevin run on?**
+> - **Fable (Recommended)** — Anthropic's most capable tier; best judgment for an agent trusted with your knowledge base.
+> - **Opus** — one tier down; stretches a usage-limited plan further.
+
+Stage the answer as `KEVIN_MODEL` — the literal string `fable` or `opus` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
+
+---
+
 ## Step 7 — Write the scaffold
 
 Create the directory tree:
@@ -534,20 +546,21 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<HOME>/reports/plans/`, so we point the harness at the same folder — one home for every plan. The value is `./reports/plans` (relative to the project root, which is `$HOME_DIR`). **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
 
-**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort/model, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
+**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if all three are covered globally, omit the entire `env` block rather than writing an empty `{}`.
 
 | Project-scaffold key | Baseline value to write when global is missing it | "Already covered" test against global |
 |---|---|---|
 | `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
-| `model` | `"opus[1m]"` | Any non-empty `model` set globally |
 | `effortLevel` | `"high"` | Any non-empty `effortLevel` set globally |
 | `env.CLAUDE_CODE_NO_FLICKER` | `"1"` | Global `env.CLAUDE_CODE_NO_FLICKER` set to any truthy string |
 | `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
 | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` | `"claude-sonnet-4-6"` | Any non-empty `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` set globally |
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
+
+**`model` is not gap-filled.** It carries the operator's explicit Step 6c answer (`"fable"` or `"opus"`) and is always written to the project scaffold — an explicit wizard choice outranks the global setting and, on re-init, the prior project value.
 
 Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
@@ -703,7 +716,7 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
-- **Scalars** (`model`, `effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace.
+- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exception: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run).
 - **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
 - **`enabledPlugins`**: special case — set `"agent-kevin@agentlayer": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). Other plugin entries pass through untouched.
@@ -716,7 +729,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "plansDirectory": "<\"./reports/plans\" if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
-  "model": "<\"opus[1m]\" if global doesn't set it, else omit>",
+  "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
   "effortLevel": "<\"high\" if global doesn't set it, else omit>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
