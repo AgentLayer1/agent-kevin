@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.3.21] - 2026-08-05
 
 ### Fixed
 - **`init`'s prerequisite gate could pass on a Mac with no developer tools installed.** The checks used `command -v`, but on macOS `/usr/bin/git` and `/usr/bin/python3` are xcode-select shims — one shared ~118KB binary hard-linked under roughly 78 tool names — that sit on PATH whether or not the Command Line Tools exist. So `command -v git` succeeded on a machine with no git, init declared prerequisites met, and the failure only surfaced later when something tried to use it. Exactly the fresh-Mac case a non-technical operator arrives with. Verified 2026-08-05: with the developer directory unresolvable, `command -v git` passes while `git --version` exits 1. Hard requirements are now **functional probes** (`bun --version`, `git --version`, `python3 --version`), which also catch a broken install generally.
