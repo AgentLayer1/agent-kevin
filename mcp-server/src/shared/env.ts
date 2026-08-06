@@ -71,9 +71,14 @@ export function agentHomePath(): string {
 /**
  * True when `path` is this agent's scaffolded home — marked by its data dir,
  * which no sibling agent's home carries. Guards use this to fail loud instead
- * of writing into a repo or another agent's tree.
+ * of writing into a repo or another agent's tree. Accepts the DEFAULT dir name
+ * alongside the configured one, mirroring `gatedSecretsDirs`: during a
+ * runtime-dir migration window the override flips before a home's folder is
+ * renamed, and a walk-up that only knew the new name would resolve the home to
+ * cwd — putting the secrets gate under the wrong root.
  */
-export const isAgentHome = (path: string): boolean => existsSync(resolve(expandTilde(path), runtimeDirName()));
+export const isAgentHome = (path: string): boolean =>
+  [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].some((dir) => existsSync(resolve(expandTilde(path), dir)));
 
 /** `<HOME>/<data-dir>/secrets/.env`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
 const secretsEnvFile = (): string => resolve(agentHomePath(), runtimeDirName(), 'secrets', '.env');

@@ -83,6 +83,24 @@ describe('agentHomePath', () => {
     });
   });
 
+  // The migration window: the override flips machine-wide before a home's
+  // folder is renamed. The walk-up must still anchor on the default-named dir,
+  // or the home resolves to cwd and the secrets gate lands under the wrong root.
+  test('the walk-up still anchors on the default data dir while the override points elsewhere', () => {
+    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-window-')));
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
+    const inner = resolve(home, 'projects');
+    mkdirSync(inner, { recursive: true });
+    process.env.AGENT_RUNTIME_DIR = '.workspace';
+    try {
+      withCwd(inner, () => {
+        expect(agentHomePath()).toBe(home);
+      });
+    } finally {
+      delete process.env.AGENT_RUNTIME_DIR;
+    }
+  });
+
   test('the walk-up anchors on an AGENT_RUNTIME_DIR-overridden data dir', () => {
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-override-')));
     mkdirSync(resolve(home, '.workspace'));
