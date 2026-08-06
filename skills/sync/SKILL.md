@@ -1,6 +1,6 @@
 ---
 name: sync
-description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
+description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, commit the brain's pending changes as grouped history commits when the HOME repo is local-only on main, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
 allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -212,7 +212,19 @@ mcp__plugin_agent-kevin_kevin__dashboard
 
 Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent } }`. One call, no judgment needed.
 
-### 11. Closing interview — what's next (only when something's actionable)
+### 11. Commit the brain history
+
+Everything above has now written its outputs — compiled knowledge, lint fixes, task mutations, reports, the freshly rendered dashboards. Commit them, so the brain's git history records the run instead of waiting for the operator to remember (they never do):
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/commit-brain.ts"
+```
+
+The script is the guard, not the model: it commits **only** when the HOME repo is on `main`/`master` with **no remote configured** — a remoted brain is the operator's own push workflow, out of scope — and it never pushes or amends. Changes are grouped into ordered commits so history stays legible: `Sync: update knowledge` (the knowledge root + root identity files), `Sync: update projects`, `Sync: save reports`, `Sync: update state` (runtime dir, `.claude`, dashboards, plus any other tracked edit as catch-all). `.gitignore` still fences secrets. Untracked files outside those roots are never committed — they come back in `leftUncommitted` for the report; a stray scratch file shouldn't enter history silently. The guard matrix lives in `scripts/commit-brain.test.ts`.
+
+Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` statuses are one neutral clause, never dressed up as problems. `COMMIT_BLOCKED` means git couldn't write the repo — surface its `detail`, which carries the likely fix (a split git dir needs a `permissions.additionalDirectories` grant); don't hand-run git to force the commit through. The closing interview's own task mutations (step 12) land in the next sync's commit — that's fine.
+
+### 12. Closing interview — what's next (only when something's actionable)
 
 After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
 
@@ -263,6 +275,9 @@ One block, tight. Skip empty sections — don't pad.
 
 🖥 Dashboard — <HOME>/dashboard.html refreshed
 
+💾 Brain — <N commits (knowledge, projects, reports, state) | clean | skipped (<reason>) | blocked (<detail>)>
+  - left uncommitted: <paths — only when the script reports any>
+
 📅 Cadence (only when something is due — omit entirely when the cadence check returns [])
   - <label> due (last set <lastRun | never>) → /<skill>
 
@@ -274,7 +289,7 @@ One block, tight. Skip empty sections — don't pad.
   - <one line per error, with file path>
 
 💡 Suggested next moves
-  - <2-3 concrete tasks the user could pick up right now, based on what's actually open — each freshness-checked per step 11's gate; drop anything already handled (often in the sessions this sync just compiled), favour today's deltas over stale Pending bullets>
+  - <2-3 concrete tasks the user could pick up right now, based on what's actually open — each freshness-checked per step 12's gate; drop anything already handled (often in the sessions this sync just compiled), favour today's deltas over stale Pending bullets>
 ```
 
 If everything is clean: a one-liner is the right output.
@@ -291,7 +306,7 @@ A pending upgrade or a due cadence item is "something flagged" — if either fir
 
 If a briefing arg was supplied, append the briefing block below the sync block (or below the one-liner). Two blocks, one message — sync on top, briefing underneath. Don't merge them; the shapes are distinct on purpose.
 
-The output block is the last *text* of the run. The step-11 interview, when it fires, comes after it as the closing `AskUserQuestion` — emit the block, then ask. On a clean bill there's no interview; the block (or one-liner) is the end.
+The output block is the last *text* of the run. The step-12 interview, when it fires, comes after it as the closing `AskUserQuestion` — emit the block, then ask. On a clean bill there's no interview; the block (or one-liner) is the end.
 
 ## Boundaries
 
@@ -300,6 +315,7 @@ The output block is the last *text* of the run. The step-11 interview, when it f
 - **Don't open new tasks from this skill.** Surface "needs attention" items in the summary; let the user choose what to file.
 - **One pass only.** If a step fails 3 times, surface the error and stop. Don't loop indefinitely.
 - **Step 0 is fast-forward only.** Never rebase, reset, force, stash, commit, or check out a different branch to make a pull succeed. A diverged, dirty, or worktree-held branch gets reported, not resolved — that's the operator's call. If a future edit to this step needs `checkout` or `stash` to work, the edit is wrong.
+- **Step 11 commits only a local-only brain, via the script.** On main with no remote, plain forward-only commits, never a push. Skipped/blocked/leftover outcomes are reported, not worked around — no hand-run `git add`/`commit` to force what the script declined.
 
 ## Anti-patterns
 
