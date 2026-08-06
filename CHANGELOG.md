@@ -43,6 +43,20 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.23] - 2026-08-06
+
+### Added
+
+- **Sync commits the brain.** A new step 11 runs `skills/sync/scripts/commit-brain.ts` after the dashboard render, so each run's own outputs land in history instead of waiting for someone to remember. The script is the guard, not the model: it acts only when the HOME repo is on `main`/`master` with **no remote configured**, and it never pushes and never amends. Changes are grouped into ordered commits (`Sync: update knowledge`, `Sync: update projects`, `Sync: save reports`, `Sync: update state`) so the log stays readable. Untracked files outside those roots are reported back as `leftUncommitted` rather than swept in, and `.gitignore` still fences secrets. Covered by a 10-case guard matrix including the split-git-dir topology.
+
+### Changed
+
+- Sync's output block gains a `💾 Brain` line, and the closing interview moves to step 12.
+
+### Upgrade
+
+- `manual: optional` — no action for a normal HOME whose `.git` lives inside the home directory; sync will just start committing. If your HOME uses a **split git dir** (the git directory outside the home tree), grant that path in `.claude/settings.local.json` under `permissions.additionalDirectories` and the sandbox's `filesystem.allowWrite`, or step 11 will report `COMMIT_BLOCKED` and change nothing. A HOME repo with a remote configured is skipped by design, since pushing stays your workflow.
+
 ## [0.3.22] - 2026-08-06
 
 ### Added
