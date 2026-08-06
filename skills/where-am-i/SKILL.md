@@ -24,7 +24,7 @@ Three modes, all about session continuity:
 ```bash
 SCOPE="$PWD"
 [ -n "$KEVIN_HOME" ] && SCOPE="$SCOPE,$KEVIN_HOME"
-[ -n "$KEVIN_CODE_PATH" ] && SCOPE="$SCOPE,$(dirname "$KEVIN_CODE_PATH")"
+[ -n "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}" ] && SCOPE="$SCOPE,$(dirname "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}")"
 bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
 ```
 
@@ -32,7 +32,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
   pass it as `--hours`.
 - **Scope:** `--scope` takes comma-separated roots; a session counts when launched in any
   root or beneath it. The default above covers the current folder, the agent HOME, and the
-  code tree (the parent of `$KEVIN_CODE_PATH` — repos and their sibling worktrees), so the
+  code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their sibling worktrees), so the
   radar sees HOME sessions and code-repo sessions even though they live in separate trees.
   Duplicate roots are fine (the script dedupes); other agents' homes stay out of scope. If
   the user says "all" / "everywhere" / asks about other projects, pass `--scope all`.
