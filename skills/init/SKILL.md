@@ -274,7 +274,7 @@ Freeform multi-URL input. **Do NOT use `AskUserQuestion` here** — its `Other` 
 
 Emit this as a regular assistant message and wait for the user's next turn:
 
-> **Optional — paste any URLs about you** (newline- or space-separated). Examples: personal site/blog, LinkedIn, GitHub, X/Mastodon, podcast page, talks. Kevin fetches each, synthesises durable facts into `knowledge/user/*.md`, and cites the source URL inline.
+> **Optional — paste any URLs about you** (newline- or space-separated). Examples: personal site/blog, LinkedIn, GitHub, X/Mastodon, podcast page, talks. Kevin fetches each, synthesises durable facts into `knowledge/user/*.md`, and cites the source URL inline. (LinkedIn and X block bots — for those Kevin asks for a quick export instead of fetching.)
 >
 > Reply with the URLs, or say `skip` to continue with empty stubs.
 
@@ -282,7 +282,19 @@ Parse the user's next message: split on whitespace + newlines, keep tokens that 
 
 If blank → skip to Step 6.
 
-Otherwise, parse URLs (split on whitespace + newlines, filter to anything that looks like a URL). For each, `WebFetch` and synthesise into staged content:
+Otherwise, parse URLs (split on whitespace + newlines, filter to anything that looks like a URL), then partition them:
+
+**Authwalled domains — never fetch.** `linkedin.com`, `x.com`/`twitter.com`, `facebook.com`, `instagram.com` serve a login wall or bot-block to anonymous requests, so a fetch is a guaranteed error — don't attempt it. If any pasted URL matches, ask for an export instead (plain chat, one message covering all matches):
+
+> **LinkedIn/X block automated reads** — but your own export is richer data anyway.
+> - LinkedIn: open your profile → **More → Save to PDF**, then paste the file path here.
+> - Other authwalled sites: paste the relevant text directly.
+>
+> Reply with the path/text, or `skip` to drop those URLs.
+
+`Read` the provided file (PDFs work) or take the pasted text, and synthesise it through the same facet routing below, citing the original profile URL as the source. On `skip`, note it in the log and continue.
+
+For every remaining URL, `WebFetch` and synthesise into staged content:
 
 - Bio / about / personal site → `profile.md` (bio, location, work focus) + `interests.md` (topics they write about) + light tone hints → `preferences.md`
 - Professional / LinkedIn-style → `career.md` (roles, companies, dates) + `skills.md`
@@ -414,8 +426,8 @@ Create the directory tree:
 
 ```bash
 # Resolve knowledge + projects paths from Step 5c. Default = under $HOME_DIR.
-KNOWLEDGE_ROOT="${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}"
-PROJECTS_ROOT="${AGENT_PROJECTS:-$HOME_DIR/projects}"
+KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}}"
+PROJECTS_ROOT="${KEVIN_PROJECTS:-${AGENT_PROJECTS:-$HOME_DIR/projects}}"
 
 mkdir -p "$HOME_DIR"/.kevin/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
