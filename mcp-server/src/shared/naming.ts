@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
  * Env naming: every knob has a shared, agent-neutral `AGENT_*` name — the one
  * code reads, docs teach, and machine-level settings (`~/.claude/settings.json`)
  * can set once for every agent on the box. Each agent overrides any of them
- * under its own prefix (`KEVIN_*`, `WALLE_*`, …), derived from the plugin
+ * under its own prefix (`KEVIN_*`, `SCOUT_*`, …), derived from the plugin
  * manifest name by `agentEnvPrefix()`; the override always wins, so the fork
  * seam lives in plugin.json, not in code.
  *

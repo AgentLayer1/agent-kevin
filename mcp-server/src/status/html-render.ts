@@ -1438,7 +1438,7 @@ const logTail = (tail: string): string => {
 // Explanations for the agent's own env vars + the harness knobs init seeds —
 // shown as an info tooltip beside the key in the Environment table. Keyed by
 // the shared AGENT_* names; `envKeyTip` maps a per-agent override (KEVIN_*,
-// WALLE_*, …) onto the same tip.
+// SCOUT_*, …) onto the same tip.
 const ENV_KEY_TIPS: Record<string, string> = {
   AGENT_HOME: `The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; if you ever start Claude from elsewhere, set this agent's own spelling (${agentKeyName('HOME')}) in \`~/.claude/settings.json\` — a machine-wide AGENT_HOME would point every agent at the same home.`,
   CLAUDE_CODE_NO_FLICKER:

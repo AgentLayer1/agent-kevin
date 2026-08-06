@@ -753,7 +753,7 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ## ⚙️ Configuration
 
-**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-walle` reads `WALLE_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. The prefix earns its keep in machine-wide config (`~/.claude/settings.json` `env`), where it scopes a value to one agent on a multi-agent box. That's why `KEVIN_HOME` below keeps it: a machine-wide `AGENT_HOME` would point every agent at the same brain.
+**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-scout` reads `SCOUT_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. The prefix earns its keep in machine-wide config (`~/.claude/settings.json` `env`), where it scopes a value to one agent on a multi-agent box. That's why `KEVIN_HOME` below keeps it: a machine-wide `AGENT_HOME` would point every agent at the same brain.
 
 | Env var | Purpose | Default |
 |---|---|---|
