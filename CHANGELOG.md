@@ -43,6 +43,27 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.22] - 2026-08-06
+
+### Added
+
+- **Agent-neutral env naming.** Every config knob now has a shared, agent-neutral `AGENT_*` name alongside this agent's own spelling (`KEVIN_*`), which is derived from the plugin manifest name and always wins. The fork seam collapses to `plugin.json` plus one test assertion. New side-effect-free `shared/naming.ts` owns the prefix, the shared/override resolution rule, and the runtime data-dir name (`AGENT_RUNTIME_DIR` override, validated as a bare folder name). Existing `KEVIN_*` configs work unchanged — no migration.
+- **Init asks which model Kevin runs on** (Fable default vs Opus) and writes the literal value to settings.
+- **Relocatable reports root.** Init's custom-paths step now covers `reports/` alongside `knowledge/` and `projects/` (`AGENT_REPORTS`), grants the outside-home permissions, and derives `plansDirectory` from the resolved path.
+- Onboarding plants HOME-scoped env keys under the shared `AGENT_*` spellings; the README documents the two-spelling rule.
+
+### Fixed
+
+- Prefix derivation fails loud on a missing or malformed plugin manifest instead of silently disabling every per-agent override.
+- The home walk-up and the flow-env secrets gate both honor the default runtime-dir name during a rename migration window, so the secrets store can't be resolved under (or read from) the wrong root.
+- The logger no longer scaffolds a runtime dir in a foreign cwd — a plugin hook firing in someone else's checkout logs to stderr only. Log level/file gain the per-agent override spellings.
+- Bash-driven skills (where-am-i, setup-worktree, init snippets) resolve env vars with the chained two-spelling form instead of reading one spelling literally.
+- The browser-flows harness reads the canonical `AGENT_HOME` instead of throwing on a missing per-agent variable.
+
+### Upgrade
+
+- `manual: none` — everything is backward-compatible; existing `KEVIN_*` settings keep working. Optionally rename HOME-scoped keys (`.claude/settings.local.json` env, `.kevin/secrets/.env` `KEVIN_DB_*`) to the shared `AGENT_*` spellings for portability — keep `KEVIN_HOME` prefixed in machine-wide `~/.claude/settings.json` on multi-agent machines.
+
 ## [0.3.21] - 2026-08-05
 
 ### Fixed
