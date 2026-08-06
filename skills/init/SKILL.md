@@ -332,7 +332,7 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 
 `AskUserQuestion`:
 
-> **Where should `knowledge/` and `projects/` live?** Default keeps them inside your agent home. Override if you want to:
+> **Where should `knowledge/`, `projects/`, and `reports/` live?** Default keeps them inside your agent home. Override if you want to:
 > - sync via a cloud-synced folder (`<CLOUD_EXAMPLE>` — a path outside the home)
 > - keep them in a separate git repo
 > - share `projects/` across multiple Kevin homes
@@ -342,7 +342,9 @@ Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/O
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
 
-If the user picks "Specify", ask for two paths (plain chat or two follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE` and `AGENT_PROJECTS`. Tilde-expand. Validate the paths look reasonable. Stage both env-var values for the eventual `.zshrc` reminder in Step 9.
+If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
+
+`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
 
 **If either path is OUTSIDE the agent home directory**, Step 7's `.claude/settings.json` write must also append `permissions.allow` entries (and `sandbox.filesystem.allowWrite` if the user's sandbox is enabled, see below) so Claude Code can read/write there without prompting on every operation. Specifically add to `permissions.allow`:
 
@@ -352,7 +354,10 @@ If the user picks "Specify", ask for two paths (plain chat or two follow-up `Ask
 "Edit(<AGENT_KNOWLEDGE>/**)",
 "Read(<AGENT_PROJECTS>/**)",
 "Write(<AGENT_PROJECTS>/**)",
-"Edit(<AGENT_PROJECTS>/**)"
+"Edit(<AGENT_PROJECTS>/**)",
+"Read(<AGENT_REPORTS>/**)",
+"Write(<AGENT_REPORTS>/**)",
+"Edit(<AGENT_REPORTS>/**)"
 ```
 
 And if `~/.claude/settings.json` has a `sandbox.filesystem.allowWrite` array, mirror those two paths into it too — otherwise Claude Code's sandbox blocks the writes regardless of `permissions.allow`.
@@ -425,13 +430,14 @@ Stage the answer as `KEVIN_MODEL` — the literal string `fable` or `opus` — f
 Create the directory tree:
 
 ```bash
-# Resolve knowledge + projects paths from Step 5c. Default = under $HOME_DIR.
+# Resolve knowledge + projects + reports paths from Step 5c. Default = under $HOME_DIR.
 KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}}"
 PROJECTS_ROOT="${KEVIN_PROJECTS:-${AGENT_PROJECTS:-$HOME_DIR/projects}}"
+REPORTS_ROOT="${KEVIN_REPORTS:-${AGENT_REPORTS:-$HOME_DIR/reports}}"
 
 mkdir -p "$HOME_DIR"/.kevin/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
-mkdir -p "$PROJECTS_ROOT"
+mkdir -p "$PROJECTS_ROOT" "$REPORTS_ROOT"
 ```
 
 **Record the template baseline.** Write `$HOME_DIR/.kevin/version.json` stamping the plugin version this home was scaffolded from. This is the anchor the SessionStart banner + dashboard use to detect pending HOME migrations, and the "from" point `/agent-kevin:upgrade` reconciles from. A fresh home equals the installed version, so it starts `current` (never falsely flagged). **Skip the write if the file already exists** (a re-init must not reset an upgrade-tracked baseline).
@@ -556,7 +562,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 - `$HOME_DIR/.claude/settings.json` ← JSON below, with `<PLUGIN_PATH>` substituted with the absolute value of `${CLAUDE_PLUGIN_ROOT}`.
 
-**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<HOME>/reports/plans/`, so we point the harness at the same folder — one home for every plan. The value is `./reports/plans` (relative to the project root, which is `$HOME_DIR`). **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
+**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<REPORTS_ROOT>/plans/`, so we point the harness at the same folder — one home for every plan. Compute it from the reports path resolved in Step 7: `./reports/plans` when `REPORTS_ROOT` is the default under `$HOME_DIR`, else the absolute `<REPORTS_ROOT>/plans`. **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
 
 **Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
@@ -739,7 +745,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "plansDirectory": "<\"./reports/plans\" if no existing project value, else omit and preserve>",
+  "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
   "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
   "effortLevel": "<\"high\" if global doesn't set it, else omit>",
