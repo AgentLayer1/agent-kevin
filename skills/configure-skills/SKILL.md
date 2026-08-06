@@ -19,7 +19,7 @@ This skill manages Kevin's optional capabilities. Use it to:
 ## Step 0 — Resolve paths
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
 [ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 # NOT_AN_AGENT_HOME → STOP before any write: no .kevin/ data dir means this
 # isn't this agent's scaffolded home. Tell the operator to set KEVIN_HOME or
@@ -38,7 +38,7 @@ mkdir -p "$HOME_DIR/.claude"
 
 - `$PROJECT_SETTINGS` → permission allow-list (so configured tools don't trigger a confirm prompt on each use). Committable, non-secret.
 - `$SECRETS_ENV` → **API keys + DB connection strings** (dotenv `KEY=value` lines), `.kevin/secrets/.env`. 0600, deny-gated, gitignored; Kevin's config loader surfaces these into `process.env` at boot. This is where every credential goes.
-- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`KEVIN_CODE_PATH`, `KEVIN_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
+- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Plant HOME-scoped keys under the shared `AGENT_*` spelling; the agent's own prefix (`KEVIN_*`) is a valid override the operator may already be using — never rewrite an existing prefixed key. Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
 - `$MCP_FILE` → `<HOME>/.mcp.json` at the project root (NOT inside `.claude/`). Claude Code reads project MCP servers from this exact location. A file at `.claude/mcp.json` is silently ignored.
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 
@@ -221,9 +221,9 @@ After both pieces processed, print Browser pack summary.
 
 ### A.2c — Database pack walk
 
-Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`database_list`, `database_schema`, `database_query`) plus one write tool, `database_fork` (clones a database via `CREATE DATABASE ... TEMPLATE` so you can make risky schema changes off a scratch copy — local servers only, remote hosts refused), are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `KEVIN_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.kevin/secrets/.env` (loaded into the environment at boot, where the db tools discover it); the walk only ensures that store exists, and the user adds the `KEVIN_DB_<NAME>=<connection string>` line in their editor, never in chat.
+Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`database_list`, `database_schema`, `database_query`) plus one write tool, `database_fork` (clones a database via `CREATE DATABASE ... TEMPLATE` so you can make risky schema changes off a scratch copy — local servers only, remote hosts refused), are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `AGENT_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.kevin/secrets/.env` (loaded into the environment at boot, where the db tools discover it); the walk only ensures that store exists, and the user adds the `AGENT_DB_<NAME>=<connection string>` line in their editor, never in chat.
 
-> **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `KEVIN_DB_<NAME>` keys to fill in `<HOME>/.kevin/secrets/.env`. The session-capture redactor masks DB URLs (and exact-matches `.kevin/secrets/.env` values) as defense-in-depth, but the safe move is to keep the value off the wire entirely.
+> **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `AGENT_DB_<NAME>` keys to fill in `<HOME>/.kevin/secrets/.env`. The session-capture redactor masks DB URLs (and exact-matches `.kevin/secrets/.env` values) as defense-in-depth, but the safe move is to keep the value off the wire entirely.
 
 **(1) Grant the db tool permissions.** Add all four to `permissions.allow` via §E. The first three are read-only; `database_fork` is the one write tool — it only acts on a local server (remote hosts refused) and clones rather than mutating existing data, so granting it with the pack is fine:
 - `mcp__plugin_agent-kevin_kevin__database_list`
@@ -237,10 +237,10 @@ Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`da
 > Give each a short connection name (lowercase, e.g. `app`, `analytics`, `local`). You can list several comma-separated, and add more later by re-running this walk. The name is just a label — you'll paste the actual connection string into your editor afterward.
 
 For each name the user gives:
-- Normalize it the way the tool resolves connections: upper-case and replace every non-alphanumeric character with `_`, then prefix `KEVIN_DB_`. So `analytics` → `KEVIN_DB_ANALYTICS`, `read-replica` → `KEVIN_DB_READ_REPLICA`. (This matches `envKeyFor` in the plugin's `mcp-server/src/tools/database.ts`; the tool lowercases the suffix back to the connection name.)
-- Ensure the secret store exists (§D.1) and tell the user to add a `KEVIN_DB_<NAME>=<connection string>` line to `.kevin/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
+- Normalize it the way the tool resolves connections: upper-case and replace every non-alphanumeric character with `_`, then prefix `AGENT_DB_`. So `analytics` → `AGENT_DB_ANALYTICS`, `read-replica` → `AGENT_DB_READ_REPLICA`. (This matches `envKeyFor` in the plugin's `mcp-server/src/tools/database.ts`; the tool lowercases the suffix back to the connection name.)
+- Ensure the secret store exists (§D.1) and tell the user to add a `AGENT_DB_<NAME>=<connection string>` line to `.kevin/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
 
-If the user adds zero connections, still grant the tool permissions and note that `database_list` will report none until they add a `KEVIN_DB_<NAME>` env var.
+If the user adds zero connections, still grant the tool permissions and note that `database_list` will report none until they add a `AGENT_DB_<NAME>` env var.
 
 **(3) Summary:**
 
@@ -248,10 +248,10 @@ If the user adds zero connections, still grant the tool permissions and note tha
 ✅ Database pack activated.
 
 Tool permissions granted:  database_list, database_query, database_schema  (read-only) + database_fork  (local clone)
-Connection lines to add:   KEVIN_DB_<NAME1>, KEVIN_DB_<NAME2>  (add to .kevin/secrets/.env)
+Connection lines to add:   AGENT_DB_<NAME1>, AGENT_DB_<NAME2>  (add to .kevin/secrets/.env)
 
 Each line is a Postgres connection string, e.g.:
-  KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
+  AGENT_DB_APP=postgres://user:pass@localhost:5432/app_dev
 
 Add these lines in <HOME>/.kevin/secrets/.env — never paste them into chat.
 Relaunch Claude Code, then run database_list to confirm Kevin sees them.
@@ -315,7 +315,7 @@ Then surface these steps verbatim:
    GITHUB_TOKEN=github_pat_...
    ```
 
-**(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope the PAT to whatever those paths point at (plus any repo you'll name explicitly).
+**(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope the PAT to whatever those paths point at (plus any repo you'll name explicitly).
 
 **(4) Summary:**
 
@@ -326,7 +326,7 @@ Tool permissions granted:  github_pr_list, github_pr_view, github_pr_diff, githu
                            github_run_list, github_run_view, github_run_log,
                            github_issue_list, github_issue_view, github_fast_forward
 Secret line to add:        GITHUB_TOKEN  (add to .kevin/secrets/.env)
-Default repo:              resolved from KEVIN_CODE_PATH / KEVIN_GIT_REPOS; override per-call with repo="owner/repo"
+Default repo:              resolved from AGENT_CODE_PATH / AGENT_GIT_REPOS; override per-call with repo="owner/repo"
 
 Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions·Contents — NOT Workflows),
 add it to <HOME>/.kevin/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
@@ -449,7 +449,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > **Which pack's configuration to remove?**
 > - SEO (clears API keys + permissions; skill files stay loaded but tool calls will error)
 > - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
-> - Database (revokes the db tool permissions; optionally removes the `KEVIN_DB_*` connection keys)
+> - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
 > - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
 
 ### C.2 Deconfigure actions
@@ -468,7 +468,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 **Database deconfigure:**
 - Revoke the db tool grants from `permissions.allow` (§E remove helper): `database_list`, `database_query`, `database_schema`, `database_fork`. Always-on core stays.
-- `AskUserQuestion`: "Also remove your `KEVIN_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `KEVIN_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
+- `AskUserQuestion`: "Also remove your `AGENT_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `AGENT_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_fast_forward`. Always-on core stays.
@@ -486,7 +486,7 @@ dotenv `$SECRETS_ENV` (the secret store); private config (`GSC_SITE_URL`, codeba
 tunables) goes to the `env` block of `$SETTINGS_FILE`. Each store has an **ensure placeholder**
 (used by pack walks) and a **set value** variant (migration only — **never** in response to a chat paste).
 
-### D.1 — Secrets → `$SECRETS_ENV` (dotenv) — for every API key + `KEVIN_DB_*`
+### D.1 — Secrets → `$SECRETS_ENV` (dotenv) — for every API key + `AGENT_DB_*`
 
 `$SECRETS_ENV` is **deny-gated**: once `/init`'s rules are active, both the Read tool and Bash
 `cat`/`grep` on `.kevin/secrets/**` are blocked — Claude cannot read it, by design. So this walk
@@ -509,7 +509,7 @@ clobber, no read. (`chmod` is a no-op on Windows — `TODO(windows)`.)
 ```
 SERPAPI_KEY=<your key>
 OPENPAGERANK_API_KEY=<your key>
-KEVIN_DB_MAIN=<postgres connection string>
+AGENT_DB_MAIN=<postgres connection string>
 ```
 
 Never paste the values in chat. Kevin's config loader reads the file at boot and surfaces the keys
@@ -523,7 +523,7 @@ in their editor. Claude can't edit (or even read) the gated file, so this is alw
 **Ensure placeholder**: read `$SETTINGS_FILE` (start `{}` if absent); ensure `env` is an object; if `env[KEY]` is undefined set `env[KEY] = ""`; write back 2-space indent. **Set value**: set `env[KEY] = value`. **Remove**: `delete env[KEY]`.
 
 ```json
-{ "env": { "GSC_SITE_URL": "https://example.com/", "KEVIN_CODE_PATH": "..." } }
+{ "env": { "GSC_SITE_URL": "https://example.com/", "AGENT_CODE_PATH": "..." } }
 ```
 
 Claude Code loads `$SETTINGS_FILE` when opening CC in `$HOME_DIR` (or a subdir); its `env` keys become env vars in every session there — which is exactly why secrets must NOT live here.

@@ -209,9 +209,9 @@ Total time: ≈ 5 minutes. Each question's answer becomes the default for later 
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
 - `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `knowledge_lint`, `links_rewrite`, `memory_prune`, `report_write`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
-- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. The one **non-secret** pack key, `GSC_SITE_URL`, is planted here by `configure-skills`; every **secret** credential (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`) goes in the deny-gated `.kevin/secrets/.env` instead. Either way you fill the values in your editor, never via chat)
+- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. The one **non-secret** pack key, `GSC_SITE_URL`, is planted here by `configure-skills`; every **secret** credential (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GITHUB_TOKEN`, `AGENT_DB_*`) goes in the deny-gated `.kevin/secrets/.env` instead. Either way you fill the values in your editor, never via chat)
 
-If you chose custom `KEVIN_KNOWLEDGE` or `KEVIN_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
+If you chose custom `AGENT_KNOWLEDGE` or `AGENT_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
 
 ### Exit and relaunch
 
@@ -672,16 +672,16 @@ agent-kevin/
 │   ├── assets/              # Kevin's avatar (kept out of the home root)
 │   ├── skills/              # third-party skill libraries installed via skills.sh (lazy)
 │   ├── settings.json        # enabledPlugins + pre-granted permissions
-│   └── settings.local.json  # non-secret env (GSC_SITE_URL, KEVIN_CODE_PATH), gitignored
+│   └── settings.local.json  # non-secret env (GSC_SITE_URL, AGENT_CODE_PATH), gitignored
 ├── .kevin/                  # plugin runtime state (hidden)
 │   ├── secrets/             # deny-gated credential store — gitignored, Kevin can't read it
-│   │   ├── .env             # API keys + KEVIN_DB_<NAME> connection strings
+│   │   ├── .env             # API keys + AGENT_DB_<NAME> connection strings
 │   │   └── google/          # Google OAuth client JSON + cached tokens
 │   ├── updates/             # per-upgrade file backups (<from>-to-<to>/)
 │   ├── logs/
 │   ├── version.json         # template baseline (drives upgrade tracking)
 │   └── knowledge.json       # compile state
-├── knowledge/               # (or KEVIN_KNOWLEDGE elsewhere)
+├── knowledge/               # (or AGENT_KNOWLEDGE elsewhere)
 │   ├── concepts/            # cross-cutting articles
 │   ├── memory/              # hot context (threads, decisions, learnings)
 │   ├── raw/                 # unprocessed inputs to compile
@@ -692,7 +692,7 @@ agent-kevin/
 │   │       └── feedback.md  # corrections log (append-only)
 │   ├── user/                # evolving long-form knowledge about you (incl. profile.md with your avatar)
 │   └── index.md             # master catalog
-├── projects/                # (or KEVIN_PROJECTS elsewhere)
+├── projects/                # (or AGENT_PROJECTS elsewhere)
 │   ├── <slug>/
 │   │   ├── tasks/
 │   │   │   └── <id>-<slug>.md
@@ -753,39 +753,39 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ## ⚙️ Configuration
 
-**Two spellings per knob.** Every env var has a shared, agent-neutral `AGENT_*` name and a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-walle` reads `WALLE_*` with zero code change. The per-agent spelling always wins. Use it for anything per-agent (home, code path, DB credentials) — that's every var in the table below, so existing `KEVIN_*` configs work unchanged. Reserve the shared `AGENT_*` spelling for machine-wide knobs you genuinely want every agent on the box to inherit (timezone, log level, runtime-dir name) via `~/.claude/settings.json` `env`; a machine-wide `AGENT_HOME` would point every agent at the same brain.
+**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-walle` reads `WALLE_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. The prefix earns its keep in machine-wide config (`~/.claude/settings.json` `env`), where it scopes a value to one agent on a multi-agent box. That's why `KEVIN_HOME` below keeps it: a machine-wide `AGENT_HOME` would point every agent at the same brain.
 
 | Env var | Purpose | Default |
 |---|---|---|
 | `KEVIN_HOME` | Path to your agent home. **Export it in your shell rc** — required for anything launched outside the home (code-repo sessions, hooks, the CLI). Without it, Kevin walks up from `cwd` to the nearest directory carrying `.kevin/` (covers home subdirs) and otherwise fails loud (`NOT_AN_AGENT_HOME`) instead of writing into the wrong tree. | cwd at launch, via the `.kevin/` walk-up |
-| `KEVIN_TIMEZONE` | IANA timezone for date formatting | system timezone |
-| `KEVIN_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
-| `KEVIN_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
-| `KEVIN_PROJECTS` | Override projects dir | `$KEVIN_HOME/projects` |
-| `KEVIN_REPORTS` | Override reports dir | `$KEVIN_HOME/reports` |
-| `KEVIN_CODE_PATH` | Absolute path to your primary codebase. Lets Kevin ground code-related tasks against it and surface its git activity in session context. Optional — asked in chat at init (not a secret), or set later. | _none_ |
-| `KEVIN_GIT_REPOS` | Comma-separated extra git repo paths (`~`-expanded) surfaced in the SessionStart context block alongside the knowledge repo. Init derives it from `KEVIN_CODE_PATH`; append more later. | _derived from `KEVIN_CODE_PATH`_ |
-| `KEVIN_LOG_LEVEL` | Log level: `debug` · `info` · `warn` · `error`. Falls back to `LOG_LEVEL`. | `info` |
-| `KEVIN_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
+| `AGENT_TIMEZONE` | IANA timezone for date formatting | system timezone |
+| `AGENT_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
+| `AGENT_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
+| `AGENT_PROJECTS` | Override projects dir | `$KEVIN_HOME/projects` |
+| `AGENT_REPORTS` | Override reports dir | `$KEVIN_HOME/reports` |
+| `AGENT_CODE_PATH` | Absolute path to your primary codebase. Lets Kevin ground code-related tasks against it and surface its git activity in session context. Optional — asked in chat at init (not a secret), or set later. | _none_ |
+| `AGENT_GIT_REPOS` | Comma-separated extra git repo paths (`~`-expanded) surfaced in the SessionStart context block alongside the knowledge repo. Init derives it from `AGENT_CODE_PATH`; append more later. | _derived from `AGENT_CODE_PATH`_ |
+| `AGENT_LOG_LEVEL` | Log level: `debug` · `info` · `warn` · `error`. Falls back to `LOG_LEVEL`. | `info` |
+| `AGENT_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
 | `AGENT_RUNTIME_DIR` | Rename the runtime data-dir folder (a bare folder name, not a path — validated). Machine-wide by design; the per-agent spelling also works. | `.kevin` |
 
 **On `KEVIN_HOME`.** When you launch `claude` from inside your agent home, the cwd-fallback works and you don't need to set anything. When `cwd` is somewhere else — a subdir of home, a sibling repo, or the user-level session-capture hook firing from a random project — the MCP server resolves paths relative to `cwd` instead, and writes land in the wrong place (or the `isInitialized()` guard fires and the hook silently no-ops). If you ever launch Claude Code from outside the home, set `KEVIN_HOME` in your shell rc or in `~/.claude/settings.json` `env`.
 
-`KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
+`AGENT_KNOWLEDGE` and `AGENT_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
-Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `KEVIN_CODE_PATH`, `KEVIN_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
+Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `AGENT_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `AGENT_CODE_PATH`, `AGENT_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
 
 ### Database connections (`database_*` tools)
 
-The `database_list`, `database_schema`, and `database_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `KEVIN_DB_<NAME>` entry in `<HOME>/.kevin/secrets/.env` (since v0.3.0 connection strings, like all credentials, live in the deny-gated secrets store — not `settings.local.json`) becomes a connection named `<name>` (lowercased). Add or remove connections by editing that file, with no code change:
+The `database_list`, `database_schema`, and `database_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `AGENT_DB_<NAME>` entry in `<HOME>/.kevin/secrets/.env` (since v0.3.0 connection strings, like all credentials, live in the deny-gated secrets store — not `settings.local.json`) becomes a connection named `<name>` (lowercased). Add or remove connections by editing that file, with no code change:
 
 ```sh
 # <HOME>/.kevin/secrets/.env
-KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
-KEVIN_DB_ANALYTICS=postgres://user:pass@host:5432/analytics
+AGENT_DB_APP=postgres://user:pass@localhost:5432/app_dev
+AGENT_DB_ANALYTICS=postgres://user:pass@host:5432/analytics
 ```
 
-That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `database_*` tool permissions and ensures `.kevin/secrets/.env` exists for the `KEVIN_DB_<NAME>` lines you add. You then fill the connection string in your editor, never in chat (it carries a password, and the secrets file is deny-gated so Kevin can't read it). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `KEVIN_DB_<NAME>` key regardless of how it got there. `database_list` only ever reports host/port/database, never the credentials.
+That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `database_*` tool permissions and ensures `.kevin/secrets/.env` exists for the `AGENT_DB_<NAME>` lines you add. You then fill the connection string in your editor, never in chat (it carries a password, and the secrets file is deny-gated so Kevin can't read it). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `AGENT_DB_<NAME>` key regardless of how it got there. `database_list` only ever reports host/port/database, never the credentials.
 
 Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout and is then rolled back, so Postgres itself rejects any write: the read tools are read-only by construction. For tighter control (row or column limits), point the connection string at a SELECT-only database role.
 
@@ -801,7 +801,7 @@ Auth is a fine-grained, **read-only** personal access token in `<HOME>/.kevin/se
 
 One gotcha worth calling out: grant **Actions: Read** (which GitHub describes as "Workflows, workflow runs and artifacts") — that's what lets Kevin see CI run status and logs. Do **not** grant the separate **Workflows** permission: despite the name it's *write* access to the `.github/workflows/*.yml` files, which Kevin never touches. You don't need **Contents** either — PR diffs come through the Pull requests permission.
 
-When a call omits `repo`, Kevin resolves `owner/repo` from the `origin` remote of your `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry — the same codebase pair init configures. An explicit `repo="owner/repo"` always wins, so you can point any call at another repo the token can see.
+When a call omits `repo`, Kevin resolves `owner/repo` from the `origin` remote of your `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init configures. An explicit `repo="owner/repo"` always wins, so you can point any call at another repo the token can see.
 
 ---
 

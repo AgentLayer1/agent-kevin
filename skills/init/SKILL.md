@@ -16,7 +16,7 @@ Guided onboarding. Follow the steps in order — each step's answers become defa
 Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (override via `KEVIN_HOME` in the shell rc). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
 if [ -f "$HOME_DIR/SOUL.md" ]; then
   echo "ALREADY_INITIALIZED at $HOME_DIR"
 elif git -C "$HOME_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -254,17 +254,17 @@ done
 
 Plain chat (NOT `AskUserQuestion` — the answer is a freeform absolute path):
 
-> **Absolute path to your primary codebase?** Optional — reply `skip` if Kevin isn't for coding, or set it later in `<HOME>/.claude/settings.local.json` under `env.KEVIN_CODE_PATH`. Inferred default: `<CODE_DEFAULT>` (blank if nothing obvious found).
+> **Absolute path to your primary codebase?** Optional — reply `skip` if Kevin isn't for coding, or set it later in `<HOME>/.claude/settings.local.json` under `env.AGENT_CODE_PATH`. Inferred default: `<CODE_DEFAULT>` (blank if nothing obvious found).
 
 Parse the user's next message:
 
-- `skip` (case-insensitive) → stage `KEVIN_CODE_PATH=""` and continue.
+- `skip` (case-insensitive) → stage `AGENT_CODE_PATH=""` and continue.
 - Otherwise → verify the path exists (`test -d "$ANSWER"`). If it doesn't, warn and re-ask once.
 
 Stage the resolved absolute path for two writes in Step 7:
 
 1. USER.md → "Where Things Live → Primary codebase" entry.
-2. `.claude/settings.local.json` → `env.KEVIN_CODE_PATH`, with `env.KEVIN_GIT_REPOS` derived to the same path so the codebase's recent git activity shows up in session context from day one.
+2. `.claude/settings.local.json` → `env.AGENT_CODE_PATH`, with `env.AGENT_GIT_REPOS` derived to the same path so the codebase's recent git activity shows up in session context from day one.
 
 ---
 
@@ -330,17 +330,17 @@ Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/O
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
 
-If the user picks "Specify", ask for two paths (plain chat or two follow-up `AskUserQuestion` rounds): `KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS`. Tilde-expand. Validate the paths look reasonable. Stage both env-var values for the eventual `.zshrc` reminder in Step 9.
+If the user picks "Specify", ask for two paths (plain chat or two follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE` and `AGENT_PROJECTS`. Tilde-expand. Validate the paths look reasonable. Stage both env-var values for the eventual `.zshrc` reminder in Step 9.
 
 **If either path is OUTSIDE the agent home directory**, Step 7's `.claude/settings.json` write must also append `permissions.allow` entries (and `sandbox.filesystem.allowWrite` if the user's sandbox is enabled, see below) so Claude Code can read/write there without prompting on every operation. Specifically add to `permissions.allow`:
 
 ```json
-"Read(<KEVIN_KNOWLEDGE>/**)",
-"Write(<KEVIN_KNOWLEDGE>/**)",
-"Edit(<KEVIN_KNOWLEDGE>/**)",
-"Read(<KEVIN_PROJECTS>/**)",
-"Write(<KEVIN_PROJECTS>/**)",
-"Edit(<KEVIN_PROJECTS>/**)"
+"Read(<AGENT_KNOWLEDGE>/**)",
+"Write(<AGENT_KNOWLEDGE>/**)",
+"Edit(<AGENT_KNOWLEDGE>/**)",
+"Read(<AGENT_PROJECTS>/**)",
+"Write(<AGENT_PROJECTS>/**)",
+"Edit(<AGENT_PROJECTS>/**)"
 ```
 
 And if `~/.claude/settings.json` has a `sandbox.filesystem.allowWrite` array, mirror those two paths into it too — otherwise Claude Code's sandbox blocks the writes regardless of `permissions.allow`.
@@ -414,8 +414,8 @@ Create the directory tree:
 
 ```bash
 # Resolve knowledge + projects paths from Step 5c. Default = under $HOME_DIR.
-KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-$HOME_DIR/knowledge}"
-PROJECTS_ROOT="${KEVIN_PROJECTS:-$HOME_DIR/projects}"
+KNOWLEDGE_ROOT="${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}"
+PROJECTS_ROOT="${AGENT_PROJECTS:-$HOME_DIR/projects}"
 
 mkdir -p "$HOME_DIR"/.kevin/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
@@ -698,10 +698,10 @@ Read-tool deny is the only layer; flag that secrets aren't OS-protected on Windo
 
 ```bash
 CODE_ROOT=""
-case "$KEVIN_CODE_PATH" in
+case "$AGENT_CODE_PATH" in
   "") ;;                                  # no code path — skip both grants
   "$HOME_DIR"/*) ;;                       # legacy nested layout — cwd already covers it
-  *) CODE_ROOT=$(dirname "$KEVIN_CODE_PATH") ;;
+  *) CODE_ROOT=$(dirname "$AGENT_CODE_PATH") ;;
 esac
 ```
 
@@ -848,7 +848,7 @@ _(Anything Kevin should respect about your personal values, ethics, taboos, or h
 
 ## Where Things Live
 
-- **Primary codebase:** `<KEVIN_CODE_PATH>` (also exposed as `$KEVIN_CODE_PATH` for shell/MCP use)
+- **Primary codebase:** `<AGENT_CODE_PATH>` (also exposed as `$AGENT_CODE_PATH` for shell/MCP use)
 
 ## Deeper
 
@@ -861,7 +861,7 @@ These files hold my evolving long-form knowledge. Kevin reads them on demand and
 - [Interests](knowledge/user/interests.md)
 ```
 
-If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.KEVIN_CODE_PATH` and re-running compile.
+If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.AGENT_CODE_PATH` and re-running compile.
 
 `<AVATAR_LINE>` rendering:
 - If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
@@ -951,22 +951,24 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `KEVIN_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
+Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
 
-**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `KEVIN_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
+**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
-The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `KEVIN_HOME_TIMEZONE` and the optional codebase pair, so:
+Env spelling: HOME-scoped keys are written under their shared, agent-neutral `AGENT_*` names — the file's location already scopes them to this agent, and the HOME stays portable. The agent's own prefix (`KEVIN_*`) is a valid override everywhere and always wins; it's required only in machine-wide `~/.claude/settings.json`, where the prefix is what keeps one agent's value from reaching every agent on the box (which is why `KEVIN_HOME` keeps it).
 
-- **Step 4b captured a real path:** write `KEVIN_CODE_PATH` and derive `KEVIN_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and where-am-i's session radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `AGENT_HOME_TIMEZONE` and the optional codebase pair, so:
+
+- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and where-am-i's session radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
 
   ```bash
   GIT_REPOS=""
-  if [ -n "$KEVIN_CODE_PATH" ]; then
-    CODE_ROOT=$(dirname "$KEVIN_CODE_PATH")
+  if [ -n "$AGENT_CODE_PATH" ]; then
+    CODE_ROOT=$(dirname "$AGENT_CODE_PATH")
     for repo in "$CODE_ROOT"/*/; do
       [ -d "$repo/.git" ] && GIT_REPOS="${GIT_REPOS:+$GIT_REPOS,}${repo%/}"
     done
-    GIT_REPOS="${GIT_REPOS:-$KEVIN_CODE_PATH}"
+    GIT_REPOS="${GIT_REPOS:-$AGENT_CODE_PATH}"
   fi
   ```
 
@@ -975,16 +977,16 @@ The rule: **init owns env keys that are universal to every operator; configure-s
   ```json
   {
     "env": {
-      "KEVIN_HOME_TIMEZONE": "<TIMEZONE>",
-      "KEVIN_CODE_PATH": "<KEVIN_CODE_PATH>",
-      "KEVIN_GIT_REPOS": "<GIT_REPOS>"
+      "AGENT_HOME_TIMEZONE": "<TIMEZONE>",
+      "AGENT_CODE_PATH": "<AGENT_CODE_PATH>",
+      "AGENT_GIT_REPOS": "<GIT_REPOS>"
     }
   }
   ```
 
-- **Step 4b returned `skip`:** write only `KEVIN_HOME_TIMEZONE` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
+- **Step 4b returned `skip`:** write only `AGENT_HOME_TIMEZONE` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
 
-- **If the file already exists:** never overwrite existing values. Merge in `KEVIN_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.KEVIN_CODE_PATH` / `env.KEVIN_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
+- **If the file already exists:** never overwrite existing values. Merge in `AGENT_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.AGENT_CODE_PATH` / `env.AGENT_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
 
 We intentionally do **not** prompt for any secret values in chat (see the rule below); the codebase path is not a secret — it's captured in Step 4b's plain-chat prompt.
 
@@ -1171,7 +1173,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill KEVIN_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
@@ -1189,9 +1191,9 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >   - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
->   - `KEVIN_DB_<NAME>` — Database pack: one Postgres connection string per line
+>   - `AGENT_DB_<NAME>` — Database pack: one Postgres connection string per line
 >   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows). Needs the `gh` CLI on PATH (`brew install gh`).
-> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
+> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `AGENT_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >
