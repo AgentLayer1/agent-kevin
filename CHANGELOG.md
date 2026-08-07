@@ -43,6 +43,37 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.24] - 2026-08-07
+
+### Added
+- `configure-skills` Section B — a guided walk for registering **external remote MCP
+  servers** (an `https://` endpoint + bearer token) into `<HOME>/.mcp.json` via a
+  hardened `mcp-remote` wrapper. The wrapper fails fast with a loud stderr message
+  when its token is empty, never falls back to `$PWD` for the secrets path, pins the
+  `mcp-remote` version, and uses bare-`$VAR` shell logic (the host interpolates
+  `${VAR}` in `.mcp.json` before the shell runs).
+
+### Fixed
+- **Browser OAuth tab storm from hand-rolled remote-MCP wrappers.** `mcp-remote`
+  answers a 401 by launching an interactive browser OAuth flow (client registration +
+  authorize tab) and has no flag to disable it. A wrapper that execs it with a
+  silently-empty token — e.g. a secrets path resolved from `$PWD` in a session
+  launched from a subdirectory — opens a fresh tab on every server spawn, across
+  every session, until the operator kills it. Reported by multiple operators. The
+  Section B wrapper shape makes this unreachable: an empty credential now means one
+  failed server in `/mcp`, never a browser.
+
+### Upgrade
+- `manual: required` — if your `<HOME>/.mcp.json` registers any `mcp-remote` server
+  (grep it for `mcp-remote`), harden each wrapper to the Section B shape in
+  `skills/configure-skills/SKILL.md`: add the empty-token fail-fast guard before the
+  `exec`, replace any `$PWD` secrets fallback with your absolute HOME path, and pin
+  `mcp-remote@0.1.37`. Ask Kevin to "harden my remote MCP wrappers per configure-skills
+  Section B" and it will patch and parse-check the file. If the storm is active right
+  now: `pkill -f mcp-remote`, close the pending authorize tabs without clicking
+  through, then apply the fix and restart sessions. No `.mcp.json` remote servers →
+  nothing to do.
+
 ## [0.3.23] - 2026-08-06
 
 ### Added
