@@ -391,6 +391,19 @@ For third-party **remote** MCP servers (an `https://…` endpoint authenticated 
 }
 ```
 
+   **Native Windows** (no WSL2 — WSL2 homes use the POSIX form above as-is): same four rules, expressed in pwsh 7+ (`pwsh`, never `powershell.exe`, per the platform doctrine). Unverified on a real Windows box — it follows the house native-Windows pattern and fails loud if `pwsh` is absent:
+
+```json
+"<server-name>": {
+  "command": "pwsh",
+  "args": [
+    "-NoProfile",
+    "-Command",
+    "$d = $env:KEVIN_HOME; if (-not $d) { $d = $env:AGENT_HOME }; if (-not $d) { $d = '<HOME_DIR>' }; $f = Join-Path $d '.kevin/secrets/.env'; if (Test-Path $f) { Get-Content $f | ForEach-Object { if ($_ -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { Set-Item ('Env:' + $Matches[1]) $Matches[2] } } }; if (-not $env:<TOKEN_KEY>) { [Console]::Error.WriteLine('<server-name>: <TOKEN_KEY> empty (secrets not loaded from ' + $f + ') - refusing to start so mcp-remote cannot open browser OAuth'); exit 1 }; npx -y mcp-remote@0.1.37 <REMOTE_URL> --header ('Authorization: Bearer ' + $env:<TOKEN_KEY>)"
+  ]
+}
+```
+
 4. Parse-check the result (`bun -e 'JSON.parse(...)'` — silent parsers fake green).
 5. Tool permissions, if the operator wants any pre-granted, use the plain `mcp__<server-name>__<tool>` form (§E) — HOME-registered servers don't get the plugin namespace prefix.
 6. Restart Claude Code sessions to pick the server up. If the token line isn't filled yet, the server shows as failed in `/mcp` with the stderr message above — expected, harmless, and exactly the failure mode the wrapper guarantees.

@@ -73,6 +73,10 @@ and prompts per optional one. The new template files are the source of truth for
   now: `pkill -f mcp-remote`, close the pending authorize tabs without clicking
   through, then apply the fix and restart sessions. No `.mcp.json` remote servers →
   nothing to do.
+  **Windows:** WSL2 homes use the POSIX wrapper and `pkill` as-is. Native homes use
+  the pwsh 7+ variant in Section B, and kill an active storm with
+  `Get-Process node | Where-Object { $_.CommandLine -match 'mcp-remote' } | Stop-Process -Force`
+  (never a blanket node kill).
 
 ## [0.3.23] - 2026-08-06
 
