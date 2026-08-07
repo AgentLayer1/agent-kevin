@@ -52,6 +52,7 @@ If `$HOME_DIR/CLAUDE.md` doesn't exist, tell the user to run `/agent-kevin:init`
 
 > **What would you like to do?**
 > - Configure a skill pack (SEO / Browser / Database / GitHub / API)
+> - Register an external remote MCP server (hardened wrapper → `<HOME>/.mcp.json`)
 > - Install third-party skill libraries (via skills.sh)
 > - Deconfigure a skill pack
 > - Cancel
@@ -358,6 +359,41 @@ Default collections: <HOME>/reports/api/bruno/  (open once in Bruno: Open Collec
                      <HOME>/reports/api/curl/   (terminal-runnable scripts)
 Permissions granted: none needed — authoring writes files only; Kevin never sends requests
 ```
+
+---
+
+## Section B — Register an external remote MCP server
+
+For third-party **remote** MCP servers (an `https://…` endpoint authenticated by a bearer token) that aren't part of a first-party pack — e.g. a log platform's hosted MCP. The entry lands in `$MCP_FILE`, the token in `$SECRETS_ENV`, always via the hardened wrapper below. Never register a remote server bare or hand-roll a wrapper.
+
+**Why the wrapper is hardened:** `mcp-remote` (the stdio↔remote bridge) treats a 401 as "start interactive OAuth" — it registers a client and opens an authorize URL in the operator's browser, and it has no flag to disable that. A wrapper that execs it with a silently-empty token turns a missing secrets file into a browser-tab storm: every session spawns the server, every restart opens a fresh tab. Four rules make that impossible:
+
+1. **Fail fast on an empty credential.** Test the env var and `exit 1` with a loud stderr line *before* exec'ing the client. Worst case is a failed server in `/mcp`; interactive auth can never run.
+2. **No `$PWD` fallback for the secrets path.** Sessions launch from subdirectories of the HOME. The fallback chain ends at the **absolute HOME path**, embedded at authoring time — `.mcp.json` is machine-local, so a literal path is correct.
+3. **Pin the client version.** Unpinned `npx -y mcp-remote` re-resolves latest each spawn and drifts behavior between sessions.
+4. **Bare `$VAR` only, never `${…}`.** The Claude Code host interpolates `${VAR}` in `.mcp.json` *before* the shell sees the command, so `${A:-B}` silently becomes empty text. All shell logic uses bare `$VAR` + `[ -z ]` chains.
+
+(Why not Claude Code's native `"type": "http"` remote config? It avoids `mcp-remote` entirely, but its `headers` can only expand tokens from the host process env — the credential would have to move out of the deny-gated secret store into `settings.local.json`. The wrapper keeps secrets where they belong.)
+
+**Walk:**
+
+1. Collect: server name (kebab-case, e.g. `acme-telemetry`), remote URL, and secret key name (upper-snake, `MCP_<NAME>_TOKEN` convention).
+2. Ensure the secret store exists (§D.1) and tell the user to add the `MCP_<NAME>_TOKEN=<value>` line in their editor — same never-in-chat rule as every other credential.
+3. Merge this entry into `$MCP_FILE` (create `{"mcpServers": {}}` if the file is missing; never clobber existing servers), substituting `<server-name>`, `<TOKEN_KEY>`, `<REMOTE_URL>`, and the literal resolved `$HOME_DIR`:
+
+```json
+"<server-name>": {
+  "command": "sh",
+  "args": [
+    "-c",
+    "set -a; d=\"$KEVIN_HOME\"; [ -z \"$d\" ] && d=\"$AGENT_HOME\"; [ -z \"$d\" ] && d=\"<HOME_DIR>\"; f=\"$d/.kevin/secrets/.env\"; [ -f \"$f\" ] && . \"$f\"; set +a; [ -z \"$<TOKEN_KEY>\" ] && { echo \"<server-name>: <TOKEN_KEY> empty (secrets not loaded from $f) — refusing to start so mcp-remote can't open browser OAuth\" >&2; exit 1; }; exec npx -y mcp-remote@0.1.37 <REMOTE_URL> --header \"Authorization: Bearer $<TOKEN_KEY>\""
+  ]
+}
+```
+
+4. Parse-check the result (`bun -e 'JSON.parse(...)'` — silent parsers fake green).
+5. Tool permissions, if the operator wants any pre-granted, use the plain `mcp__<server-name>__<tool>` form (§E) — HOME-registered servers don't get the plugin namespace prefix.
+6. Restart Claude Code sessions to pick the server up. If the token line isn't filled yet, the server shows as failed in `/mcp` with the stderr message above — expected, harmless, and exactly the failure mode the wrapper guarantees.
 
 ---
 
