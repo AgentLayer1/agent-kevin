@@ -6,7 +6,7 @@
  * The index is a *cache* over the authoritative day-files: every block header
  * encodes `(sessionId, date, turn-range)` (see session-format.ts), so a lost
  * or corrupt index rebuilds by scanning headers. Capture stays correct even
- * if `.kevin`/the index is wiped — worst case is a one-time re-anchor.
+ * if the data dir/the index is wiped — worst case is a one-time re-anchor.
  *
  * Pure logic (`diffTurns`, `recordCapture`) is separated from I/O
  * (`loadIndex`, `saveIndex`, `rebuildFromDayFiles`) so the dedup maths is

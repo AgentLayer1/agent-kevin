@@ -3,13 +3,15 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFile
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
-// One hermetic HOME for the whole pipeline. `config` resolves its paths once at
-// import time (singleton), so a single KEVIN_HOME — set before any dynamic
-// import — keeps capture and compile pointed at the same throwaway tree. The
-// compile suite resets state in its own beforeAll to isolate from capture.
+// One hermetic HOME for the whole pipeline, overriding the preload's throwaway home so
+// capture and compile share a tree this file can assert against. `config` resolves paths live,
+// so the ordering no longer matters for paths — but AGENT_TIMEZONE is still read once at config
+// import, so it stays set at module scope, above the dynamic imports below. The compile suite
+// resets state in its own beforeAll to isolate from capture.
 const HOME = mkdtempSync(resolve(tmpdir(), 'kevin-pipeline-'));
-process.env.KEVIN_HOME = HOME;
-process.env.KEVIN_TIMEZONE = 'Asia/Kuala_Lumpur';
+const PRELOAD_HOME = process.env.AGENT_HOME;
+process.env.AGENT_HOME = HOME;
+process.env.AGENT_TIMEZONE = 'Asia/Kuala_Lumpur';
 
 const SESSIONS = resolve(HOME, 'knowledge', 'raw', 'sessions');
 const transcriptPath = resolve(HOME, 'transcript.jsonl');
@@ -34,8 +36,11 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-  delete process.env.KEVIN_HOME;
-  delete process.env.KEVIN_TIMEZONE;
+  // Restore the preload's home rather than deleting it — an unset AGENT_HOME would drop later
+  // suites back to resolving from cwd.
+  process.env.AGENT_HOME = PRELOAD_HOME;
+  delete process.env.AGENT_TIMEZONE;
+  rmSync(HOME, { recursive: true, force: true });
 });
 
 // ── Capture: incremental + resume-safe ───────────────────────────────
@@ -163,7 +168,11 @@ describe('incremental compile', () => {
   });
 
   test('legacy record (no bytes) skips an unchanged file, recompiles a changed one', async () => {
-    writeFileSync(legacyFile, `# Session Log: 2026-05-30\n\n${entry('08:00', 'bbb22222', '1–2', 'legacy topic')}`, 'utf-8');
+    writeFileSync(
+      legacyFile,
+      `# Session Log: 2026-05-30\n\n${entry('08:00', 'bbb22222', '1–2', 'legacy topic')}`,
+      'utf-8'
+    );
     const state = JSON.parse(readFileSync(STATE_PATH, 'utf-8'));
     state.ingested['2026-05-30.md'] = {
       hash: hashBuffer(readFileSync(legacyFile)),

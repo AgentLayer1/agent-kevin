@@ -39,7 +39,7 @@ When including it, compute the Hijri date with this one-shot TypeScript conversi
 bun -e 'const tz="<USER_TZ>";const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric",timeZone:tz}).formatToParts(new Date());const g=(t)=>p.find((x)=>x.type===t).value;console.log(`${g("day")} ${g("month")} ${g("year")}`)'
 ```
 
-Substitute `<USER_TZ>` with the operator's IANA timezone from `USER.md`; drop the `timeZone` field if unknown. On failure, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (±1 day), else omit the Hijri half — don't guess.
+Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zone on the session context's `## Today` line (falls back to the home timezone in `USER.md` when that line is unavailable); drop the `timeZone` field if unknown. On failure, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (±1 day), else omit the Hijri half — don't guess.
 
 ## Compose
 

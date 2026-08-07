@@ -1,33 +1,87 @@
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { RUNTIME_DIR_DEFAULT, agentKeyName, resolveEnv, runtimeDirName } from '@/shared/naming';
+import { expandTilde } from '@/shared/paths';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 /**
- * The ONE place the codebase reads `process.env`.
+ * The env gate: `shared/naming.ts` plus the home's secret store.
  *
  * Convention: a literal `process.env.<X>` / `process.env[x]` appears nowhere
- * else. The sole other exception is `shared/log.ts` — a self-contained logger
- * that must stay dependency-free. Everything else reads through `env()` (or a
- * helper here). A guard test enforces this — see `config.env-convention.test.ts`.
+ * else, bar `shared/naming.ts` (the side-effect-free naming layer this
+ * sits on) and `shared/log.ts`. Everything else reads through `env()` (or a
+ * helper here). A guard test enforces this — see `config.test.ts`.
  *
- * Why this lives apart from `config.ts`: config resolves its FOLDERS layout once
- * at import (a frozen singleton), so importing it early in the shared test
- * process clobbers pipeline.test.ts's per-HOME isolation. This module is
- * config-free and resolves the secrets dir lazily from KEVIN_HOME at read time,
- * so tools (and their tests) can read env without dragging that singleton in.
+ * Why this lives apart from `config.ts`: config imports this module, so the
+ * dependency only runs one way — and keeping the env gate at the bottom of the
+ * stack means a tool (or its test) can read env without pulling the whole layout
+ * in. Both resolve the agent home at read time rather than at import.
  *
- * Robustness: `env()` triggers `loadSecretsEnv()` first, so secrets are
- * populated before any read no matter who imported what, in what order. There is
- * no "import config first" discipline to forget.
+ * Scoping, not segmentation: per-agent values — the home, code path, git
+ * repos, DB credentials — are kept apart by WHERE they live (each HOME's own
+ * `.claude/settings.local.json` env block and secrets store), not by special
+ * resolution rules. Machine-wide `~/.claude/settings.json` env is only for
+ * genuinely shared knobs (timezone, log level, runtime-dir name); putting a
+ * per-agent value there under the shared name would hand it to every agent on
+ * the box.
+ *
+ * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
+ * the resolved secrets file, so secrets are populated from the CURRENT home no
+ * matter who imported what, in what order. There is no import-order discipline to
+ * forget. Importing this module loads secrets as a side effect — a module that
+ * needs only a name imports `shared/naming.ts` instead.
  */
 
-const tildify = (path: string): string => (path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path);
+/**
+ * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
+ * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
+ * carrying this agent's data dir (`runtimeDirName()`, created at init). A bare
+ * cwd fallback anchors to wherever the process happened to launch; for a
+ * session launched inside a code repo that puts session captures, data-dir
+ * state, and logs INSIDE the repo, so the walk-up refuses to anchor on
+ * anything that isn't this agent's scaffolded home. The data dir (not SOUL.md)
+ * is the marker because it's agent-specific: every sibling agent's home
+ * carries a SOUL.md, but only this agent's carries the data dir, so the walk
+ * can never anchor on another agent's brain. Falls back to cwd only when no
+ * home exists on the ancestor path (the pre-init case). Any resolved home is
+ * written back to `process.env.AGENT_HOME` (the canonical name) so the
+ * dependency-free logger and child processes inherit it; the cwd fallback is
+ * never written back.
+ */
+export function agentHomePath(): string {
+  const fromVar = resolveEnv('AGENT_HOME');
+  if (fromVar) {
+    const expanded = expandTilde(fromVar);
+    process.env.AGENT_HOME = expanded;
+    return expanded;
+  }
+  let dir = process.cwd();
+  for (;;) {
+    if (isAgentHome(dir)) {
+      process.env.AGENT_HOME = dir;
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return process.cwd();
+    }
+    dir = parent;
+  }
+}
 
-/** `<HOME>/.kevin/secrets/.env`, resolved live (never frozen) so a test that sets KEVIN_HOME is honoured. */
-const secretsEnvFile = (): string => {
-  const home = tildify(process.env.KEVIN_HOME?.trim() || process.cwd());
-  return resolve(home, '.kevin', 'secrets', '.env');
-};
+/**
+ * True when `path` is this agent's scaffolded home — marked by its data dir,
+ * which no sibling agent's home carries. Guards use this to fail loud instead
+ * of writing into a repo or another agent's tree. Accepts the DEFAULT dir name
+ * alongside the configured one, mirroring `gatedSecretsDirs`: during a
+ * runtime-dir migration window the override flips before a home's folder is
+ * renamed, and a walk-up that only knew the new name would resolve the home to
+ * cwd — putting the secrets gate under the wrong root.
+ */
+export const isAgentHome = (path: string): boolean =>
+  [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].some((dir) => existsSync(resolve(expandTilde(path), dir)));
+
+/** `<HOME>/<data-dir>/secrets/.env`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
+const secretsEnvFile = (): string => resolve(agentHomePath(), runtimeDirName(), 'secrets', '.env');
 
 /**
  * Minimal dotenv parser — private. Handing a raw env-file parser (or raw secret
@@ -55,8 +109,17 @@ function parseDotenv(raw: string): Record<string, string> {
   return out;
 }
 
-/** `<HOME>/.kevin/secrets` — the deny-gated store holding the agent's own secrets. */
-const secretsDir = (): string => dirname(secretsEnvFile());
+/**
+ * Every `<HOME>/<data-dir>/secrets` the gate below must refuse — the store in
+ * force AND the default one. Both, because the two disagree exactly during a
+ * runtime-dir migration: `AGENT_RUNTIME_DIR` flips machine-wide before each
+ * home's folder is actually renamed, and gating only the configured dir would
+ * leave the real store (still under the default name) wide open in that window.
+ */
+const gatedSecretsDirs = (): string[] => {
+  const home = agentHomePath();
+  return [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].map((dir) => resolve(home, dir, 'secrets'));
+};
 
 /**
  * Parse a standalone `.env` file into a plain map — for callers that inject
@@ -69,16 +132,20 @@ const secretsDir = (): string => dirname(secretsEnvFile());
  * log them.
  *
  * Guard: this reader can NEVER touch the agent's own secret store
- * (`<HOME>/.kevin/secrets/`). That dir holds Kevin's operational keys (GitHub,
- * Google, DB URLs); a flow-scoped loader must not be a path back into it. Any
- * path resolving inside the secrets dir returns `{}` — those secrets flow only
- * through `env()`, never this seam.
+ * (`<HOME>/<data-dir>/secrets/`). That dir holds the agent's operational keys
+ * (GitHub, Google, DB URLs); a flow-scoped loader must not be a path back into
+ * it. Any path resolving inside a gated secrets dir returns `{}` — those secrets
+ * flow only through `env()`, never this seam. Fails closed: if the gate itself
+ * can't be resolved, nothing is read.
  */
 export function readEnvFile(path: string): Record<string, string> {
   const resolved = resolve(path);
-  const gated = secretsDir();
-  if (resolved === gated || resolved.startsWith(gated + sep)) {
-    return {};
+  try {
+    if (gatedSecretsDirs().some((gated) => resolved === gated || resolved.startsWith(gated + sep))) {
+      return {};
+    }
+  } catch {
+    return {}; // can't establish the gate (unreadable manifest, bad override) — read nothing
   }
   try {
     return parseDotenv(readFileSync(resolved, 'utf-8'));
@@ -88,21 +155,36 @@ export function readEnvFile(path: string): Record<string, string> {
 }
 
 const secretKeyNames: string[] = [];
-let secretsLoaded = false;
+let loadedFrom: string | undefined;
 
 /**
- * Loads `<HOME>/.kevin/secrets/.env` into `process.env` (secrets win over
+ * Loads `<HOME>/<data-dir>/secrets/.env` into `process.env` (secrets win over
  * inherited values) so every process that reads env gets the keys, while ad-hoc
- * Bash spawned by Claude never does. Idempotent and failure-tolerant — runs once
- * per process, never throws. An absent file is the normal case (homes without
- * secrets / pre-migration).
+ * Bash spawned by Claude never does. Failure-tolerant — never throws. An absent
+ * file is the normal case (homes without secrets / pre-migration).
+ *
+ * Keyed on the resolved file, not a boolean: a plain "already ran" latch made the
+ * FIRST import decide which home's secrets the process uses forever, so anything
+ * that set `AGENT_HOME` afterwards silently got the wrong store (or none) and the
+ * per-read calls below could never correct it. Re-keying makes loading genuinely
+ * order-independent, which is what every caller here already assumes.
+ *
+ * Switching homes drops the keys the previous store injected, so its values can't
+ * leak into the new one. Only keys this function set are removed — but note that a
+ * same-named value inherited from the shell was already overwritten, so it does not
+ * come back. Homes don't change mid-process outside tests.
  */
 export function loadSecretsEnv(): void {
-  if (secretsLoaded) return;
-  secretsLoaded = true;
+  const file = secretsEnvFile();
+  if (loadedFrom === file) return;
+  for (const key of secretKeyNames) {
+    delete process.env[key];
+  }
+  secretKeyNames.length = 0;
+  loadedFrom = file;
   let raw: string;
   try {
-    raw = readFileSync(secretsEnvFile(), 'utf-8');
+    raw = readFileSync(file, 'utf-8');
   } catch {
     return;
   }
@@ -114,10 +196,14 @@ export function loadSecretsEnv(): void {
 
 loadSecretsEnv();
 
-/** Read one environment value through the gate. Trimmed, or `undefined` when unset/blank. */
+/**
+ * Read one environment value through the gate. Trimmed, or `undefined` when
+ * unset/blank. An `AGENT_*` key's per-agent override (e.g. `KEVIN_*`) wins
+ * over the shared name.
+ */
 export const env = (key: string): string | undefined => {
   loadSecretsEnv();
-  return process.env[key]?.trim() || undefined;
+  return resolveEnv(key);
 };
 
 /** Names of the keys loaded from `secrets/.env` (values never leave this module). */
@@ -126,24 +212,41 @@ export const loadedSecretKeyNames = (): readonly string[] => {
   return secretKeyNames;
 };
 
-const DB_ENV_PREFIX = 'KEVIN_DB_';
-
 export interface DbConnection {
   name: string;
   envKey: string;
 }
 
-/** Every `KEVIN_DB_<NAME>` connection configured in `secrets/.env`, name lowercased. */
+const DB_ENV_PREFIX = 'AGENT_DB_';
+
+/**
+ * Every DB connection configured in `secrets/.env` — the shared
+ * `AGENT_DB_<NAME>` spelling and this agent's own (`KEVIN_DB_<NAME>`) — name
+ * lowercased. When both spellings define one name, the per-agent one wins.
+ */
 export const dbConnections = (): DbConnection[] => {
   loadSecretsEnv();
-  return Object.keys(process.env)
-    .filter((key) => key.startsWith(DB_ENV_PREFIX) && key.length > DB_ENV_PREFIX.length && process.env[key]?.trim())
-    .map((envKey) => ({ name: envKey.slice(DB_ENV_PREFIX.length).toLowerCase(), envKey }))
+  const byName = new Map<string, string>();
+  for (const dbPrefix of new Set([DB_ENV_PREFIX, agentKeyName('DB_')])) {
+    Object.keys(process.env)
+      .filter((key) => key.startsWith(dbPrefix) && key.length > dbPrefix.length && process.env[key]?.trim())
+      .forEach((envKey) => byName.set(envKey.slice(dbPrefix.length).toLowerCase(), envKey));
+  }
+  return [...byName.entries()]
+    .map(([name, envKey]) => ({ name, envKey }))
     .sort((first, second) => first.name.localeCompare(second.name));
 };
 
-/** Resolve a free-form connection name to its `KEVIN_DB_<NAME>` env key. */
-export const dbEnvKeyFor = (name: string): string => DB_ENV_PREFIX + name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+/**
+ * Resolve a free-form connection name to its configured env key — this agent's
+ * spelling (`KEVIN_DB_<NAME>`) when set, else the shared `AGENT_DB_<NAME>`.
+ */
+export const dbEnvKeyFor = (name: string): string => {
+  loadSecretsEnv();
+  const suffix = `DB_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+  const overrideKey = agentKeyName(suffix);
+  return process.env[overrideKey]?.trim() ? overrideKey : `AGENT_${suffix}`;
+};
 
 /**
  * Exact-match redaction. Replaces every value in `secrets/.env` (≥12 chars, to

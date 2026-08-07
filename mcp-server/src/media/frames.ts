@@ -5,7 +5,7 @@
  * Runs ffmpeg out-of-band (the MCP server sits outside the Bash seatbelt), so it
  * reads videos in seatbelt-protected dirs (~/Downloads, ~/Desktop, ~/Documents)
  * that ffmpeg-under-Bash can't. Frames land in
- * `<KEVIN_HOME>/reports/captures/<ts>-<name>-frames/` as PNGs the caller Reads
+ * `<HOME>/reports/captures/<ts>-<name>-frames/` as PNGs the caller Reads
  * back for vision analysis.
  *
  * Default mode is scene-detection, not a fixed-rate dump: for a screen recording
@@ -14,14 +14,13 @@
  * (`brew install ffmpeg`); missing → a clean error, not a stack trace.
  */
 
-import { FOLDERS } from '@/config';
+import { BROWSER } from '@/config';
+import { expandTilde } from '@/shared/paths';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CAPTURES_DIR = resolve(FOLDERS.REPORTS, 'captures');
 const DURATION_RE = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/;
 const PTS_TIME_RE = /pts_time:([0-9.]+)/g;
 
@@ -57,7 +56,7 @@ export interface FrameExtraction {
 
 function resolveVideoPath(input: string): string {
   if (input.startsWith('file://')) return fileURLToPath(input);
-  const expanded = input.startsWith('~') ? resolve(homedir(), input.slice(input.indexOf('/') + 1)) : input;
+  const expanded = expandTilde(input);
   return isAbsolute(expanded) ? expanded : resolve(process.cwd(), expanded);
 }
 
@@ -136,7 +135,7 @@ export function extractFrames(options: ExtractFramesOptions): FrameExtraction {
   const mode = options.mode ?? 'scene';
   const width = options.width ?? 1280;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const outDir = resolve(CAPTURES_DIR, `${stamp}-${options.name ?? 'video'}-frames`);
+  const outDir = resolve(BROWSER.CAPTURES_DIR, `${stamp}-${options.name ?? 'video'}-frames`);
 
   const chosen =
     mode === 'scene'

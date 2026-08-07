@@ -1,6 +1,6 @@
 ---
 name: setup-worktree
-description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `$KEVIN_CODE_PATH` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists.
+description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists.
 allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, mcp__plugin_agent-kevin_kevin__github_pr_list, Bash, Read, Edit
 ---
 
@@ -22,14 +22,15 @@ which one before doing anything:
 
 1. **The user named it** ("a worktree for acme-mono", "for the agent repo", "of this repo") —
    use that repo. An explicit name always wins over the default below.
-2. **The user assumes you know the repo + `$KEVIN_CODE_PATH` is set** ("make me a worktree for
-   the dark-mode work", no repo named) — use `$KEVIN_CODE_PATH` as the default repo. That env var
+2. **The user assumes you know the repo + `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set** ("make me a worktree for
+   the dark-mode work", no repo named) — use `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` as the default repo. That env var
    is the operator's primary codebase (captured at init), so it's the repo they mean when they
    don't say which. State which repo you picked so a wrong default gets caught before the cleanup.
-3. **Otherwise, ask. Always.** This covers an unset/empty `$KEVIN_CODE_PATH`. Do not infer the
+3. **Otherwise, ask. Always.** This covers an unset/empty `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}`. Do not infer the
    repo from cwd. The agent HOME is itself almost always a git repo (it versions `knowledge/` and
    `projects/`), so cwd being inside a git repo does NOT make it the intended code repo. List the
-   candidate code repos (e.g. the git repos under `tech/`) and let the user pick. The wrong repo
+   candidate code repos (the main-checkout git repos under the code root — the parent of
+   `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — or the `${KEVIN_GIT_REPOS:-$AGENT_GIT_REPOS}` entries) and let the user pick. The wrong repo
    is an annoying cleanup.
 
 Resolve the chosen repo to the **absolute path of its main checkout**. (If you're standing in a
@@ -240,7 +241,7 @@ first configured connection; when a repo has several, pick the right one in this
 
 1. A declaration in the **repo's root `CLAUDE.md`** — a line of the form
    `Worktree DB connection: <kevin-db-name>` (e.g. `acme`).
-2. If the repo doesn't declare one and **`$KEVIN_CODE_PATH` is set**, check that repo's `CLAUDE.md`
+2. If the repo doesn't declare one and **`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set**, check that repo's `CLAUDE.md`
    for the same line.
 3. Otherwise run `database_list` and, if exactly one connection matches the repo's local server, use it;
    if it's ambiguous or none is configured, **ask the operator** (and have them add the

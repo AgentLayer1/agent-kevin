@@ -21,7 +21,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
    - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / stale / blocked surfacing
 5. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap.
-6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `web_search` calls in parallel**, one per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
+6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `mcp__plugin_agent-kevin_kevin__web_search` calls in parallel** — the plugin's Perplexity-backed tool, **not** Claude's built-in `WebSearch` (the bare name `web_search` below always means this MCP tool; it returns raw dated sources with `recency`/`domains`/`country` filters, no pre-synthesis). One call per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
    - Pick clusters from the user's `## Signal Topics` (each topic or related-topic group becomes one query). Typical clusters: a competitive/industry cluster tied to the day job, a local-regulatory cluster (recency `"week"`, set `country` if applicable), an AI/tooling cluster covering the model ecosystem they build on, and a geopolitics cluster for events that touch their values or travel.
    - Use `recency: "day"` for fast-moving clusters, `recency: "week"` for slower regulatory ones.
    - **Capture the source URL for every result you might surface.** `web_search` returns citations/source links — keep the canonical URL alongside each candidate so it can be rendered as a clickable link in the brief. A signal with no source URL doesn't ship (see Signal gate).
@@ -55,7 +55,7 @@ When including it, compute the Hijri date with this one-shot TypeScript conversi
 bun -e 'const tz="<USER_TZ>";const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric",timeZone:tz}).formatToParts(new Date());const g=(t)=>p.find((x)=>x.type===t).value;console.log(`${g("day")} ${g("month")} ${g("year")}`)'
 ```
 
-Substitute `<USER_TZ>` with the operator's IANA timezone from `USER.md` (e.g. `Asia/Kuala_Lumpur`); drop the `timeZone` field entirely if it's unknown. If the command fails for any reason, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (lunar months alternate 29/30 days, ±1 day), and if still unknown omit the Hijri half and ship the Gregorian header alone — don't guess.
+Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zone on the session context's `## Today` line (falls back to the home timezone in `USER.md` when that line is unavailable); drop the `timeZone` field entirely if it's unknown. If the command fails for any reason, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (lunar months alternate 29/30 days, ±1 day), and if still unknown omit the Hijri half and ship the Gregorian header alone — don't guess.
 
 ## Compose
 

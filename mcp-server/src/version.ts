@@ -2,7 +2,7 @@
  * Version + upgrade-state logic, shared by the SessionStart banner (context.ts)
  * and the dashboard (status/collect.ts).
  *
- * The HOME records which template version it's on in `<HOME>/.kevin/version.json`
+ * The HOME records which template version it's on in `<HOME>/<data-dir>/version.json`
  * (written by `/init` for fresh homes, by `/agent-kevin:upgrade` thereafter).
  * Comparing that baseline against the installed plugin version (plugin.json) is
  * a purely LOCAL, zero-network signal for "are HOME migrations pending?". The
@@ -70,7 +70,7 @@ interface VersionFile {
   templateVersion?: string;
 }
 
-/** HOME template baseline from `<HOME>/.kevin/version.json`, or null when the
+/** HOME template baseline from `<HOME>/<data-dir>/version.json`, or null when the
  *  file is missing/unreadable (a pre-feature or uninitialized home). */
 export const readHomeBaseline = (): string | null => {
   try {

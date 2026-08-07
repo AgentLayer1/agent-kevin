@@ -104,8 +104,8 @@ describe('configuredDatabases', () => {
     for (const key of added) delete process.env[key];
   });
 
-  test('collects the pinned database of every KEVIN_DB_* connection', () => {
-    setEnv('KEVIN_DB_APP', 'postgres://u:p@localhost:5432/app');
+  test('collects the pinned database of every configured connection, either spelling', () => {
+    setEnv('AGENT_DB_APP', 'postgres://u:p@localhost:5432/app');
     setEnv('KEVIN_DB_ANALYTICS', 'postgres://u:p@remote:5432/analytics');
     const dbs = configuredDatabases();
     expect(dbs.has('app')).toBe(true);

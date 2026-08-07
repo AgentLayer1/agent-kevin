@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { StatusSnapshot, TaskRef } from './collect';
-// Only config-free modules may be imported at runtime here: bun test shares
-// one module registry across test files, and the first @/config evaluation
-// freezes KEVIN_HOME for the whole process — clobbering pipeline.test.ts's
-// hermetic temp HOME. html-render is pure by design (see its header).
+// html-render is pure by design (see its header), so this suite needs no filesystem or HOME.
 import { PAGES, escapeHtml, renderDashboardHtml } from './html-render';
 
 const taskRef = (overrides: Partial<TaskRef> = {}): TaskRef => ({
@@ -38,6 +35,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     releasesBehind: 0
   },
   markdownUrl: 'obsidian://open?path={path}',
+  surfaces: [],
   persona: {
     name: 'Kevin',
     kind: 'AI assistant (Claude Code plugin)',
@@ -51,6 +49,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   operator: {
     name: 'Basem',
     timezone: 'Asia/Kuala_Lumpur',
+    currentTimezone: '',
     avatar: 'knowledge/user/assets/avatar.jpg',
     headline: 'Software engineer and founder with 20+ years of experience.',
     profileSections: [{ title: 'Identity', lines: ['Full name: Basem Emara', 'Location: Cyberjaya, Malaysia'] }],
@@ -208,7 +207,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       })
     ],
     touchedToday: [taskRef({ id: 'lo-002', title: 'Due today task', updated: '2026-06-11' })],
-    pathById: {}
+    pathById: {},
+    malformed: []
   },
   context: {
     staticImports: [
@@ -269,7 +269,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   reportsTotal: 12,
   radarLatest: null,
   changelog: [],
-  health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, ok: true },
+  health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: true },
   ...overrides
 });
 
@@ -362,6 +362,18 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain(`obsidian://open?path=${encodeURIComponent('/tmp/home/knowledge/user/profile.md')}`);
   });
 
+  test('operator card stacks home and current timezone when traveling, plain when not', () => {
+    const homeOnly = renderDashboardHtml(makeSnapshot());
+    expect(homeOnly).not.toContain('🏠');
+    expect(homeOnly).toContain('Asia/Kuala_Lumpur');
+
+    const snap = makeSnapshot();
+    snap.operator.currentTimezone = 'America/New_York';
+    const traveling = renderDashboardHtml(snap);
+    expect(traveling).toContain('🏠 Asia/Kuala_Lumpur');
+    expect(traveling).toContain('✈️ America/New_York');
+  });
+
   test('daily memory renders as rows with manifest summaries', () => {
     const html = renderDashboardHtml(makeSnapshot());
     expect(html).toContain('al-016 decided; BP reworked.');
@@ -415,15 +427,25 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('wakes up with continuity');
   });
 
-  test('environment always lists KEVIN_HOME and shows "not set" when empty, with an info tooltip', () => {
+  test('environment always lists AGENT_HOME and shows "not set" when empty, with an info tooltip', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
-        settings: { ...makeSnapshot().settings, env: [{ key: 'KEVIN_HOME', value: '', scope: 'user' }] }
+        settings: { ...makeSnapshot().settings, env: [{ key: 'AGENT_HOME', value: '', scope: 'user' }] }
+      })
+    );
+    expect(html).toContain('AGENT_HOME');
+    expect(html).toContain('<span class="dim">not set</span>');
+    expect(html).toContain('The agent home directory');
+  });
+
+  test("this agent's KEVIN_* override key still carries its AGENT_* tooltip", () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        settings: { ...makeSnapshot().settings, env: [{ key: 'KEVIN_HOME', value: '/tmp/home', scope: 'user' }] }
       })
     );
     expect(html).toContain('KEVIN_HOME');
-    expect(html).toContain('<span class="dim">not set</span>');
-    expect(html).toContain('Kevin’s home directory');
+    expect(html).toContain('The agent home directory');
   });
 
   test('markdown files open through Obsidian URIs', () => {
@@ -626,7 +648,7 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
         tasks: { ...base.tasks, overdue: 2, overdueList: [taskRef(), taskRef({ id: 'lo-009' })] },
-        health: { overdue: 2, pendingCompiles: 1, logErrors: 0, missingImports: 0, ok: false }
+        health: { overdue: 2, pendingCompiles: 1, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: false }
       })
     );
     expect(html).toContain('class="badge warn" data-nav="status"');
@@ -662,5 +684,43 @@ describe('renderDashboardHtml', () => {
 describe('escapeHtml', () => {
   test('escapes all five significant characters', () => {
     expect(escapeHtml(`<a href="x" data-y='&'>`)).toBe('&lt;a href=&quot;x&quot; data-y=&#39;&amp;&#39;&gt;');
+  });
+});
+
+describe('surfaces', () => {
+  test('project surfaces render as location.assign rows under a Surfaces group', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        surfaces: [
+          { title: 'Financial Pack', href: 'projects/financial-pack/dashboard.html', icon: '📊', appTab: false }
+        ]
+      })
+    );
+    expect(html).toContain('<div class="nav-group">Surfaces</div>');
+    expect(html).toContain('<div class="nav-item" data-href="projects/financial-pack/dashboard.html">');
+    expect(html).toContain('Financial Pack<span class="out">↗</span>');
+  });
+
+  test('appTab surfaces open through the markdownUrl app template', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({ surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }] })
+    );
+    expect(html).toContain(
+      `<a class="nav-item" href="obsidian://open?path=${encodeURIComponent('/home/kevin/roadmap.html')}">`
+    );
+    expect(html).toContain('Roadmap<span class="out">↗</span>');
+  });
+
+  test('no discovered surfaces renders no Surfaces group', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).not.toContain('<div class="nav-group">');
+  });
+
+  test('title and href are escaped', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({ surfaces: [{ title: '<b>x</b>', href: 'a"b.html', icon: '📊', appTab: false }] })
+    );
+    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
+    expect(html).toContain('data-href="a&quot;b.html"');
   });
 });

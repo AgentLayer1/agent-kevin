@@ -8,7 +8,16 @@ Bruno runs on macOS, Windows, and Linux — the collection files are identical e
 
 **Read [`../references/bruno-ai-context.md`](../references/bruno-ai-context.md) before authoring anything.** It's Bruno's official AI-assistant context (from [bruno-collections/ai-assistant-prompts](https://github.com/bruno-collections/ai-assistant-prompts)) and is the authoritative spec for every block, field, auth type, test convention, and the JS runtime API. This adapter only adds layout and gotchas; the context file owns the syntax.
 
-The one thing that must never waver: **OpenCollection YAML** (`.yml`), Bruno's default since v3.1 — never the legacy `.bru` format. Mixing `.bru` files under an `opencollection.yml` marker makes Bruno hide them (a real trap we hit). Go full YAML: `opencollection.yml` + `.yml` request files, `info:` (not `meta:`), tests under `runtime: scripts:` with type `tests`.
+The one thing that must never waver: **OpenCollection YAML** (`.yml`), Bruno's default since v3.1 and, as of v4.0.0 (2026-07-23), the default for import as well — never the legacy `.bru` format. Mixing `.bru` files under an `opencollection.yml` marker makes Bruno hide them (a real trap we hit). Go full YAML: `opencollection.yml` + `.yml` request files, `info:` (not `meta:`), tests under `runtime: scripts:` with type `tests`.
+
+### v4 deltas — these override the context file
+
+The vendored context file predates Bruno v4.0.0 (upstream prompt-pack last updated 2026-03; re-vendor when it catches up). Until then:
+
+- **`bru.setEnvVar` / `bru.setGlobalEnvVar` / `bru.deleteEnvVar` now persist to disk** (they were in-memory pre-v4). A flow script that stores a token via `setEnvVar` writes it into a committed environment file. Chain flows with **`bru.setVar` / `bru.deleteVar` only** (memory-scoped for the run) — never `setEnvVar` for tokens, ids, or anything secret. The context file's `setEnvVar` mention (line ~214) carries no warning; this rule wins.
+- **Secret-manager config moved into environment files**: an `externalSecrets` top-level block per environment (AWS/Azure/Vault). We don't author these — our secrets route stays `.env` + `{{process.env.KEY}}`, which v4 leaves untouched. If an in-repo collection uses the old `{{$secrets.name.key}}` syntax, flag it: deprecated in v4, removal after a 3-month window; new form is `{{name.keyname}}`.
+- **Variables, params, headers, and form fields accept `description` and typed values** (string/number/boolean/object). Use descriptions where they add real context — but only in collections the operator runs on v4: files carrying these fields fail to load below v3.4.0 and are silently ignored on 3.4–3.x. For shared in-repo collections, confirm the team's Bruno version first or skip them.
+- **WebSocket `message` is now an array** (`title` + `selected` + nested `message` per entry), not a single object. v4-authored WS request files don't load in v3.5.0 or earlier.
 
 ## Collection layout
 

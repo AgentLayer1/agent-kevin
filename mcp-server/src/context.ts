@@ -3,14 +3,14 @@
  *
  * Static identity (SOUL, IDENTITY, USER, CLAUDE) and knowledge indexes are
  * loaded natively by Claude Code via `@-imports` inside `<HOME>/CLAUDE.md` —
- * no hook involvement needed when CC opens in (or under) KEVIN_HOME.
+ * no hook involvement needed when CC opens in (or under) AGENT_HOME.
  *
  * This hook only injects what CC can't know from files alone: today's date in
  * the user's timezone, the tail of yesterday's session log for continuity, and
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, EXTRA_GIT_REPOS, FILES, FOLDERS, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -244,7 +244,7 @@ async function gatherContext(): Promise<GatheredContext> {
 
   const repos: { label: string; path: string }[] = [
     { label: 'knowledge', path: FOLDERS.KNOWLEDGE },
-    ...EXTRA_GIT_REPOS.map((path) => ({ label: basename(path), path }))
+    ...extraGitRepos().map((path) => ({ label: basename(path), path }))
   ];
   const gitLogs = repos.map((repo) => ({
     ...repo,
@@ -262,7 +262,8 @@ async function gatherContext(): Promise<GatheredContext> {
     }))
   ];
 
-  const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})`];
+  const traveling = HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? ` — ✈️ traveling (home: ${HOME_TIMEZONE})` : '';
+  const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})${traveling}`];
   if (tail.content) parts.push(`## Last Session Memory (archived — not this conversation)\n\n${tail.content}`);
   if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
 

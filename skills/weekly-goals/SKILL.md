@@ -95,7 +95,7 @@ Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPa
 So `sync` knows weekly goals were just set and stops nudging until next week, record today's date. Do this **only after the goals are actually written** — a skipped or aborted interview must leave the watermark untouched so it stays due:
 
 ```bash
-bun -e 'const fs=require("node:fs"),p=require("node:path");const h=process.env.KEVIN_HOME??process.cwd();const f=p.join(h,".kevin/cadence.json");let o={};try{o=JSON.parse(fs.readFileSync(f,"utf8"))}catch{}o["weekly-goals"]="<YYYY-MM-DD>";fs.writeFileSync(f,JSON.stringify(o,null,2)+"\n")'
+bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/watermark.ts" weekly-goals "<YYYY-MM-DD>"
 ```
 
 Substitute `<YYYY-MM-DD>` with today's date (the same date stamped in the goals block). Read-modify-write preserves the sibling skills' watermarks.

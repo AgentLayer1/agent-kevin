@@ -5,6 +5,7 @@
 import { rewriteAllWikilinks } from '@/knowledge/links';
 import { run as runLint } from '@/knowledge/lint';
 import { pruneMemory } from '@/knowledge/prune';
+import { runtimeDirName } from '@/shared/naming';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { z } from 'zod';
 
@@ -29,8 +30,7 @@ export const tools: ToolDef[] = [
   }),
   defineTool({
     name: 'knowledge_lint',
-    description:
-      'Run structural health checks across the wiki (broken links, orphan pages, orphan sources, missing backlinks, sparse articles, transient memory refs in permanent articles, invalid frontmatter). Writes a report to .kevin/lint.md. Pass fix:true to auto-rewrite stale wikilinks and insert missing backlinks.',
+    description: `Run structural health checks across the wiki (broken links, orphan pages, orphan sources, missing backlinks, sparse articles, transient memory refs in permanent articles, invalid frontmatter). Writes a report to ${runtimeDirName()}/lint.md. Pass fix:true to auto-rewrite stale wikilinks and insert missing backlinks.`,
     inputSchema: {
       fix: z.boolean().optional().describe('Run auto-fix pass (default false)')
     },

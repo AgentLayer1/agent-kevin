@@ -1,7 +1,7 @@
 ---
 name: where-am-i
-description: Show the Claude Code sessions from the last 24 hours scoped to the folder Kevin runs from (the HOME and everything beneath it), with a substantive summary of what each was about, where it left off, and the resume command. Use whenever the operator asks "where am I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost / overwhelmed", "what did I leave off on", or wants to find/resume a recent session. Also useful at the start of a day or after a break to re-orient. Accepts an optional hours window (e.g. "/agent-kevin:where-am-i 48") and "all" to include every project on the machine.
-allowed-tools: Bash, Read, mcp__plugin_agent-kevin_kevin__report_write
+description: Show the Claude Code sessions from the last 24 hours scoped to the folder Kevin runs from (the HOME and everything beneath it), with a substantive summary of what each was about, where it left off, and the resume command. Use whenever the operator asks "where am I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost / overwhelmed", "what did I leave off on", or wants to find/resume a recent session. Also useful at the start of a day or after a break to re-orient. Accepts an optional hours window (e.g. "/agent-kevin:where-am-i 48") and "all" to include every project on the machine. Also runs in triage mode — `/agent-kevin:where-am-i triage [scope]` or when the operator asks "what should I tend to / work on next / which session needs me" — ranking the sessions by urgency and importance, interviewing via AskUserQuestion, and handing back the resume command for the chosen one. And in checkpoint mode — `/agent-kevin:where-am-i checkpoint` or when the operator asks to "checkpoint this session / save where we are / write a handoff" — writing a short pickup note for THIS session (incremental since the last checkpoint) as a chat reply, so the SessionEnd capture files it into knowledge.
+allowed-tools: Bash, Read, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 
 # where-am-i — session radar
@@ -11,20 +11,34 @@ work (scanning `~/.claude/projects/`) lives in a bundled script; your job is the
 synthesis: a per-session narrative good enough that the operator knows in one read
 which thread is which and where it stands.
 
+Three modes, all about session continuity:
+
+| Mode | Subject | Output |
+|---|---|---|
+| default | every session in scope | digest + saved report |
+| `triage` | every session in scope | ranked interview, ephemeral |
+| `checkpoint` | **this session only** | a pickup note as chat, captured on exit |
+
 ## Step 1 — gather
 
 ```bash
-bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24
+SCOPE="$PWD"
+[ -n "$KEVIN_HOME" ] && SCOPE="$SCOPE,$KEVIN_HOME"
+[ -n "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}" ] && SCOPE="$SCOPE,$(dirname "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}")"
+bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
 ```
 
 - Default window is 24 hours; if the user gave a number (e.g. `/agent-kevin:where-am-i 48`),
   pass it as `--hours`.
-- **Scope:** by default only sessions launched in the current folder or beneath it are
-  included (running from Kevin's HOME picks up the HOME and any sub-project under it —
-  but not other agents' homes). If the user says "all" / "everywhere" / asks about other
-  projects, pass `--scope all`.
-- Output is JSON, newest first. Each session has: `session_id`, `title` (Claude Code's
-  auto-title), `cwd`, `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
+- **Scope:** `--scope` takes comma-separated roots; a session counts when launched in any
+  root or beneath it. The default above covers the current folder, the agent HOME, and the
+  code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their sibling worktrees), so the
+  radar sees HOME sessions and code-repo sessions even though they live in separate trees.
+  Duplicate roots are fine (the script dedupes); other agents' homes stay out of scope. If
+  the user says "all" / "everywhere" / asks about other projects, pass `--scope all`.
+- Output is JSON, newest first. Each session has: `session_id`, `title` (the operator's
+  `/rename` name when set, else Claude Code's first-prompt auto-title), `cwd`,
+  `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
   `last_assistant_text` (long excerpt of the final reply), `minutes_ago`, `file`.
 
 ## Step 2 — write the summaries
@@ -47,11 +61,18 @@ than reading another 80KB.
 ## Step 3 — render the digest
 
 Lead with a one-line **through-line** (a `>` blockquote): the single sentence that ties
-today's sessions together. Then the buckets. No dated `# Where Am I` header — the
-through-line carries the open, and surfaces (chat, dashboard) stamp the time themselves.
+today's sessions together. Then a compact **index table** — the scan layer: one row per
+session, state emoji first. Then the buckets carry the substance. No dated `# Where Am I`
+header — the through-line carries the open, and surfaces stamp the time themselves.
 
 ```
 > The day was all Kevin tooling: a radar feature end-to-end, then a security pass and a docs sweep.
+
+|   | # | Session | Last |
+|---|---|---------|------|
+| ❓ | 1 | Weekly goals interview redesign | *7m* · asked which scope to grill on |
+| ✅ | 2 | Session capture cursor fix | *3h* · shipped, tests green |
+| 🚧 | 3 | Blog draft exploration | *9h* · mid-draft, parked |
 
 ## 🟢 In motion (last hour)
 
@@ -78,6 +99,11 @@ Formatting rules:
 
 - **Through-line first.** One `>` blockquote sentence synthesising the set, above the
   first bucket. It's what the operator reads if they read nothing else.
+- **Index table second** — one row per session, same order and numbering as the cards.
+  Columns: state emoji (❓ the last reply asks the operator something · ✅ clean stop,
+  work delivered · 🚧 mid-flight or stalled without a question), number, title, then
+  `*age*` + a ≤6-word fragment of where it left off. Keep cells short — the substance
+  lives in the cards, the table is the map. Skip the table when there are ≤2 sessions.
 - **Card = `**N. Title** · *time ago*` on one line, then a blank line, then the summary
   paragraph, then a blank line, then the resume line.** The blank lines matter — they
   render as separate blocks (title, summary, resume) instead of one run-on paragraph.
@@ -117,3 +143,92 @@ report_write({
 
 Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) at the end of the digest. Skip the report only when the
 scan returns zero sessions (nothing worth recording).
+
+## Triage mode — `/where-am-i triage [scope]`
+
+When the arguments contain `triage` (any case), or the operator asks "what should I tend
+to / work on next / which session needs me", the question changes from *where am I* to
+*where should I go*. Steps 1–2 run as normal; steps 3–4 are replaced by a ranked
+interview. Everything comes from the session JSON already gathered — no other data
+source. Triage is ephemeral — **no report**.
+
+**Scope filter.** A remaining argument (e.g. `/where-am-i triage walapay`) keeps only
+sessions whose `cwd` contains it, case-insensitively. No matches → say so and triage
+the full set rather than returning empty-handed.
+
+**Rank.** Order candidates by what most needs the operator, blending:
+
+1. **Decision-pending** — `last_assistant_text` ends by asking the operator something
+   ("Want me to…?", numbered options, an explicit question). The agent is stalled on a
+   human call; oldest first.
+2. **Importance** — weigh against the memory already in context: hard deadlines, P0/P1
+   tasks, day-job precedence. A session tied to a dated obligation outranks a code
+   review that can wait.
+3. **Momentum** — a session that just finished (agent reported done) needs a look
+   before its context goes cold; long-idle exploratory threads rank last.
+
+Batch duplicates: several sessions on one work-stream (same branch or topic) are ONE
+candidate — name the lead session and note the others in its description.
+
+**Interview.** First render the ranked candidates as a table so the operator sees the
+whole field before choosing — short cells, reasoning stays in the interview:
+
+```
+## 🩺 Triage · 3 of 11 need you
+
+| # | Session | Why now | Tending |
+|---|---------|---------|---------|
+| 1 | ❓ MDEC application response | replies drafted, due Aug 14 | review & approve |
+| 2 | ❓ Payments query grammar PR | asked which option 46m ago | answer its question |
+| 3 | ✅ Radar feature | done, context going cold | skim & close out |
+```
+
+Then present the same top 3–4 via AskUserQuestion: label = short session name,
+description = *why now* (one sentence: what it's waiting on, any deadline) + *what
+tending means* (answer its question / review and approve / kick a stall / close it out).
+
+**Deliver.** On selection, give the `claude --resume <full-session-id>` command and a
+one-line brief of what to do on arrival (the specific question to answer or thing to
+review). Never send input to the chosen session yourself — triage delivers the operator
+to the work, it doesn't do the work.
+
+## Checkpoint mode — `/where-am-i checkpoint`
+
+When the arguments contain `checkpoint` (any case), or the operator asks to "checkpoint
+this session / save where we are / write a handoff", the subject flips from *other*
+sessions to **this** one. The script never runs — you already have the context the
+script would be trying to infer from a transcript.
+
+**Scope: the current session only.** Never checkpoint another session. A transcript read
+from outside can only guess at what was verified versus assumed; the live session knows.
+If the operator names another session id, tell them to run the command inside it.
+
+**Incremental by construction.** Look back through this conversation for the most recent
+checkpoint you wrote. Cover only what happened *since* it — earlier ground is already
+recorded and re-summarising it buries the new material. No prior checkpoint means cover
+the whole session. This needs no state file: the previous checkpoint is in the context
+you're already reading.
+
+**Write it as your reply — never to a file.** The `SessionEnd` capture picks up assistant
+turns, so a checkpoint written as chat lands in `knowledge/raw/sessions/` on exit and
+compiles into knowledge from there. Writing a file instead is both redundant and often
+impossible: sessions launched in a code repo can't write to the agent home (outside cwd),
+and the plugin isn't loaded there at all.
+
+**Shape** — under ~10 lines, no preamble:
+
+- **Thread** — what this session is working on, one sentence
+- **State** — what's done; committed/pushed vs uncommitted; **verified vs assumed**
+- **Next** — the concrete next action for someone picking this up cold
+- **Watch** — what would bite them: a decision made, a trap found, a blocked dependency
+
+**Refer to things by task id, repo name, and branch — never absolute paths.** Paths go
+stale (layouts move, worktrees get pruned); a task id and a branch name don't.
+
+**Task thread.** When the work maps to a task and the task tools are available, also
+append the checkpoint to that task's thread via `task_thread` — that's the durable home
+for task-linked work. Skip when the thread already says it: a checkpoint that restates
+the last entry is noise in the one place that should stay signal.
+
+**Availability.** Plugin skills only exist where the plugin is enabled — the agent home,
+not code repos. In a repo session, paste the four bullets above as a prompt instead.

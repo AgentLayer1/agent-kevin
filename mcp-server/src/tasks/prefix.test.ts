@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-// Config-free by design (see header) so importing it never freezes KEVIN_HOME
-// for the shared bun-test module registry.
+// Config-free by design (see header): prefix assignment is pure string work.
 import { assignPrefixes, derivePrefix } from './prefix';
 
 const entry = (project: string, inferred: string | null = null) => ({ project, inferred });

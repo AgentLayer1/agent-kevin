@@ -1,29 +1,34 @@
 /**
- * GitHub tools — read-only `gh` CLI wrapper.
+ * GitHub tools — read-only `gh` CLI wrappers, plus `github_fast_forward`, which uses the
+ * same PAT to fast-forward local checkouts (read-only against GitHub; the only mutations
+ * are forward-only local ref updates).
  *
  * Why an MCP tool and not Bash: under the Claude Code seatbelt `gh` dies during TLS
  * setup (its macOS build verifies certs via Security.framework/keychain, which the
  * sandbox blocks — OSStatus -26276). The MCP server runs OUTSIDE that sandbox, so the
  * same `gh` invocation works here. Auth is a fine-grained, read-only PAT in
- * `.kevin/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
+ * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
  *
  * Repo resolution when a call omits `repo`: derive `owner/repo` from the `origin` remote
- * of `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry, then error asking for one.
+ * of the configured code path, then the first configured git repo, then error asking for one.
  * An explicit `owner/repo` always wins. Mirrors how setup-worktree pins its target.
  *
- * Scope is deliberately read-only — list/view PRs, diffs, checks, and diagnose failing
- * workflow runs. No write subcommands (comment/create/merge/re-run) are exposed; those
+ * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
+ * failing workflow runs. No write subcommands (comment/create/merge/re-run) are exposed; those
  * leave the machine and stay a maintainer-gated, human-in-terminal activity.
  *
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
+import { configuredRepoPaths } from '@/config';
+import { agentKeyName, runtimeDirName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
+import { expandTilde } from '@/shared/paths';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { untrusted } from '@/shared/untrusted';
 import { execFile } from 'node:child_process';
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 
@@ -36,8 +41,6 @@ const GH_REMOTE_RE = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/;
 
 /** gh log/diff output is unbounded; cap text payloads so a giant CI log can't blow up context. */
 const DEFAULT_MAX_CHARS = 100_000;
-
-const expandTilde = (path: string): string => (path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path);
 
 /** Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. */
 const childEnv = (token: string): NodeJS.ProcessEnv => ({
@@ -55,7 +58,7 @@ const requireToken = (): string => {
   const token = env('GITHUB_TOKEN');
   if (!token) {
     throw new Error(
-      'GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/.kevin/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).'
+      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${runtimeDirName()}/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).`
     );
   }
   return token;
@@ -94,10 +97,10 @@ export const parseGitHubRemote = (url: string): string | null => {
   return REPO_RE.test(slug) ? slug : null;
 };
 
-/** `owner/repo` from a local checkout's `origin` remote, or null if it isn't a GitHub repo. */
+/** `owner/repo` from an absolute checkout's `origin` remote, or null if it isn't a GitHub repo. */
 const repoSlugFromPath = async (path: string): Promise<string | null> => {
   try {
-    const { stdout } = await execFileAsync('git', ['-C', expandTilde(path), 'remote', 'get-url', 'origin'], {
+    const { stdout } = await execFileAsync('git', ['-C', path, 'remote', 'get-url', 'origin'], {
       encoding: 'utf8'
     });
     return parseGitHubRemote(stdout);
@@ -106,19 +109,16 @@ const repoSlugFromPath = async (path: string): Promise<string | null> => {
   }
 };
 
-/** KEVIN_CODE_PATH's repo → first KEVIN_GIT_REPOS entry's repo → throw (caller must pass `repo`). */
+/** Configured code path's repo → first configured git repo → throw (caller must pass `repo`). */
 const resolveDefaultRepo = async (): Promise<string> => {
-  const candidates = [env('KEVIN_CODE_PATH'), ...(env('KEVIN_GIT_REPOS')?.split(',') ?? [])]
-    .map((path) => path?.trim())
-    .filter((path): path is string => Boolean(path));
-  for (const path of candidates) {
+  for (const path of configuredRepoPaths()) {
     const slug = await repoSlugFromPath(path);
     if (slug) {
       return slug;
     }
   }
   throw new Error(
-    'No repo given and none resolvable from KEVIN_CODE_PATH / KEVIN_GIT_REPOS (need a GitHub `origin` remote). Pass repo as "owner/repo".'
+    `No repo given and none resolvable from ${agentKeyName('CODE_PATH')} / ${agentKeyName('GIT_REPOS')} (need a GitHub \`origin\` remote). Pass repo as "owner/repo".`
   );
 };
 
@@ -150,11 +150,247 @@ const clip = (text: string, maxChars: number): string =>
     ? text
     : `${text.slice(0, maxChars)}\n\n…[truncated at ${maxChars} chars — pass a larger maxChars or narrow the request]`;
 
+/**
+ * Branch slots kept current, first local match in each pair winning. Two slots rather than
+ * four independent branches: a vestigial `master` beside a live `main` must not be touched.
+ */
+const BRANCH_SLOTS = [
+  { slot: 'primary', candidates: ['main', 'master'] },
+  { slot: 'integration', candidates: ['develop', 'dev'] }
+] as const;
+
+/**
+ * Pins fetch auth to the scoped PAT. The empty value resets any inherited helper chain
+ * (osxkeychain), so the operator's broader git credential can never be used for this fetch —
+ * the read-only token is the only capability in play.
+ */
+const CREDENTIAL_ARGS = ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential'] as const;
+
+const RepoSyncStatus = {
+  Synced: 'SYNCED',
+  NotConfigured: 'NOT_CONFIGURED',
+  NotAMainCheckout: 'NOT_A_MAIN_CHECKOUT',
+  NotGitHub: 'NOT_GITHUB',
+  FetchFailed: 'FETCH_FAILED'
+} as const;
+type RepoSyncStatus = (typeof RepoSyncStatus)[keyof typeof RepoSyncStatus];
+
+const BranchSyncStatus = {
+  Updated: 'UPDATED',
+  Current: 'CURRENT',
+  Ahead: 'AHEAD',
+  SkippedDirty: 'SKIPPED_DIRTY',
+  ClaimedByWorktree: 'CLAIMED_BY_WORKTREE',
+  NotFastForward: 'NOT_FAST_FORWARD'
+} as const;
+type BranchSyncStatus = (typeof BranchSyncStatus)[keyof typeof BranchSyncStatus];
+
+const FetchFailureReason = {
+  NoAccess: 'NO_ACCESS',
+  Auth: 'AUTH',
+  Network: 'NETWORK',
+  Unknown: 'UNKNOWN'
+} as const;
+type FetchFailureReason = (typeof FetchFailureReason)[keyof typeof FetchFailureReason];
+
+interface BranchSyncReport {
+  readonly branch: string;
+  readonly slot: string;
+  readonly status: BranchSyncStatus;
+  readonly sha: string;
+  readonly behind?: number;
+}
+
+interface RepoSyncReport {
+  readonly repo: string;
+  readonly slug?: string;
+  readonly status: RepoSyncStatus;
+  readonly reason?: FetchFailureReason;
+  readonly detail?: string;
+  readonly branches: readonly BranchSyncReport[];
+}
+
+interface GitRun {
+  readonly code: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** Run git without throwing — this flow reads exit codes as status (128 = worktree-held). */
+const runGit = async (cwd: string, args: readonly string[], extraEnv: NodeJS.ProcessEnv = {}): Promise<GitRun> => {
+  try {
+    const { stdout, stderr } = await execFileAsync('git', ['-C', cwd, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, ...extraEnv },
+      maxBuffer: 8 * 1024 * 1024
+    });
+    return { code: 0, stdout, stderr };
+  } catch (error) {
+    const failure = error as { code?: number | string; stdout?: string; stderr?: string; message?: string };
+    return {
+      code: typeof failure.code === 'number' ? failure.code : 1,
+      stdout: failure.stdout ?? '',
+      stderr: (failure.stderr ?? failure.message ?? '').trim()
+    };
+  }
+};
+
+/** A worktree's `.git` is a file, so a directory means this is the main checkout. */
+const isMainCheckout = async (path: string): Promise<boolean> => {
+  try {
+    return (await stat(join(path, '.git'))).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+/** First candidate present BOTH locally and on origin — a branch is never conjured. */
+const firstSyncableBranch = async (path: string, candidates: readonly string[]): Promise<string | null> => {
+  for (const branch of candidates) {
+    const [local, remote] = await Promise.all([
+      runGit(path, ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`]),
+      runGit(path, ['show-ref', '--verify', '--quiet', `refs/remotes/origin/${branch}`])
+    ]);
+    if (local.code === 0 && remote.code === 0) {
+      return branch;
+    }
+  }
+  return null;
+};
+
+/**
+ * `AUTH` is only for a credential GitHub rejects outright; everything else that authenticated
+ * but wasn't allowed through is `NO_ACCESS`. The split matters because the operator actions
+ * differ: re-mint the token vs. add `Contents: Read` / get the org to approve it.
+ *
+ * Both `NO_ACCESS` shapes are observed, and neither identifies WHY on its own — a fine-grained
+ * PAT that the org hasn't approved gets `403`, while a repo the token can't see at all gets
+ * `404 Repository not found` (GitHub hides private-repo existence). So the reason says "not
+ * authorized for this repo", never which of the two it is.
+ */
+export const classifyFetchFailure = (stderr: string): FetchFailureReason => {
+  if (/could not resolve host|failed to connect|couldn't connect|network is unreachable|timed out/i.test(stderr)) {
+    return FetchFailureReason.Network;
+  }
+  if (/invalid username or token|authentication failed/i.test(stderr)) {
+    return FetchFailureReason.Auth;
+  }
+  if (/not found|\b403\b|permission denied/i.test(stderr)) {
+    return FetchFailureReason.NoAccess;
+  }
+  return FetchFailureReason.Unknown;
+};
+
+const revParse = async (path: string, ref: string): Promise<string> =>
+  (await runGit(path, ['rev-parse', ref])).stdout.trim();
+
+/**
+ * Advance one local branch to its origin counterpart, fast-forward or nothing. Purely local:
+ * the checked-out branch goes through `merge --ff-only`, any other through a `fetch .` whose
+ * ref update git itself refuses when the branch is diverged (rc 1) or held by a linked
+ * worktree (rc 128).
+ */
+export const fastForwardBranch = async (
+  path: string,
+  target: { readonly slot: string; readonly branch: string },
+  tree: { readonly current: string; readonly dirty: boolean }
+): Promise<BranchSyncReport> => {
+  const { slot, branch } = target;
+  const report = (status: BranchSyncStatus, sha: string, behind?: number): BranchSyncReport => ({
+    branch,
+    slot,
+    status,
+    sha: sha.slice(0, 9),
+    behind
+  });
+
+  const local = await revParse(path, `refs/heads/${branch}`);
+  const remote = await revParse(path, `refs/remotes/origin/${branch}`);
+  if (local === remote) {
+    return report(BranchSyncStatus.Current, local);
+  }
+  const behind = Number((await runGit(path, ['rev-list', '--count', `${local}..${remote}`])).stdout.trim() || '0');
+  // Differing tips with nothing to pull means origin's tip is an ancestor: the operator simply
+  // has unpushed commits. Without this exit, `merge --ff-only` reports a phantom UPDATED
+  // (rc 0, "Already up to date") and `fetch .` a phantom NOT_FAST_FORWARD.
+  if (behind === 0) {
+    return report(BranchSyncStatus.Ahead, local);
+  }
+
+  if (branch === tree.current) {
+    if (tree.dirty) {
+      return report(BranchSyncStatus.SkippedDirty, local, behind);
+    }
+    const merged = await runGit(path, ['merge', '--ff-only', '--quiet', `refs/remotes/origin/${branch}`]);
+    return merged.code === 0
+      ? report(BranchSyncStatus.Updated, remote, behind)
+      : report(BranchSyncStatus.NotFastForward, local);
+  }
+
+  const fetched = await runGit(path, ['fetch', '.', `refs/remotes/origin/${branch}:refs/heads/${branch}`]);
+  if (fetched.code === 0) {
+    return report(BranchSyncStatus.Updated, remote, behind);
+  }
+  return report(fetched.code === 128 ? BranchSyncStatus.ClaimedByWorktree : BranchSyncStatus.NotFastForward, local);
+};
+
+/**
+ * One authenticated network call (the `--prune` fetch of every remote head over HTTPS), then
+ * local-only ref work. The checkout's own `origin` URL is never read for transport and never
+ * rewritten, so an SSH remote keeps working for the operator's own pushes. `path` is already
+ * absolute — tilde expansion happens once, at the boundary.
+ */
+const syncRepo = async (path: string, token: string): Promise<RepoSyncReport> => {
+  if (!(await isMainCheckout(path))) {
+    return { repo: path, status: RepoSyncStatus.NotAMainCheckout, branches: [] };
+  }
+  const slug = await repoSlugFromPath(path);
+  if (!slug) {
+    return { repo: path, status: RepoSyncStatus.NotGitHub, branches: [] };
+  }
+
+  const fetched = await runGit(
+    path,
+    [...CREDENTIAL_ARGS, 'fetch', '--prune', `https://github.com/${slug}.git`, '+refs/heads/*:refs/remotes/origin/*'],
+    { GITHUB_TOKEN: token, GIT_TERMINAL_PROMPT: '0' }
+  );
+  if (fetched.code !== 0) {
+    return {
+      repo: path,
+      slug,
+      status: RepoSyncStatus.FetchFailed,
+      reason: classifyFetchFailure(fetched.stderr),
+      detail: fetched.stderr.split('\n').filter(Boolean).at(-1) ?? '',
+      branches: []
+    };
+  }
+
+  const current = (await runGit(path, ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
+  const targets = (
+    await Promise.all(
+      BRANCH_SLOTS.map(async ({ slot, candidates }) => ({ slot, branch: await firstSyncableBranch(path, candidates) }))
+    )
+  ).flatMap(({ slot, branch }) => (branch ? [{ slot, branch }] : []));
+
+  // `status --porcelain` walks the whole worktree, and dirtiness only matters when a target
+  // IS the checked-out branch — the common case (HEAD on a feature branch) skips the scan.
+  const dirty =
+    targets.some(({ branch }) => branch === current) &&
+    (await runGit(path, ['status', '--porcelain'])).stdout.trim().length > 0;
+
+  const branches: BranchSyncReport[] = [];
+  for (const target of targets) {
+    // Sequential: two concurrent `fetch .` in one repo race on .git/FETCH_HEAD.
+    branches.push(await fastForwardBranch(path, target, { current, dirty }));
+  }
+  return { repo: path, slug, status: RepoSyncStatus.Synced, branches };
+};
+
 const repoField = {
   repo: z
     .string()
     .optional()
-    .describe('OWNER/REPO. Defaults to the repo of KEVIN_CODE_PATH, then the first KEVIN_GIT_REPOS entry.')
+    .describe('OWNER/REPO. Defaults to the configured code path repo, then the first configured git repo.')
 };
 const prNumberField = { number: z.number().int().positive().describe('Pull request number.') };
 const issueNumberField = { number: z.number().int().positive().describe('Issue number.') };
@@ -473,6 +709,51 @@ export const tools: ToolDef[] = [
         '--json',
         ISSUE_VIEW_FIELDS
       ]);
+    }
+  }),
+
+  defineTool({
+    name: 'github_fast_forward',
+    description:
+      "Fast-forward the default branches (main||master and develop||dev) of the configured local checkouts so Kevin grounds against current code. Authenticates with the read-only PAT over HTTPS — one fetch per repo — then does every ref update locally; the checkout's own remote (SSH or otherwise) is neither used for transport nor rewritten. Strictly forward-only: never checks out, stashes, resets, rebases, cleans, or commits, and a dirty, diverged, or worktree-held branch is reported rather than resolved. Reports rather than throws when the GitHub pack isn't configured, so a caller can carry on. Returns per-repo status (SYNCED / NOT_CONFIGURED / NOT_A_MAIN_CHECKOUT / NOT_GITHUB / FETCH_FAILED with a reason) and per-branch status (UPDATED / CURRENT / AHEAD / SKIPPED_DIRTY / CLAIMED_BY_WORKTREE / NOT_FAST_FORWARD).",
+    inputSchema: {
+      repos: z
+        .array(z.string())
+        .optional()
+        .describe('Paths to MAIN checkouts. Defaults to the configured code path plus git repos.')
+    },
+    handler: async ({ repos }) => {
+      // Every exit reports rather than throws. This runs as step 0 of sync, where code
+      // freshness is a convenience: a home with no codebase, or no GitHub pack, must get a
+      // status line and let the rest of the chain proceed.
+      const report = (payload: Record<string, unknown>): string =>
+        untrusted('github:fast_forward', JSON.stringify(payload, null, 2));
+
+      const paths = [
+        ...new Set(
+          repos?.length ? repos.map((repo) => expandTilde(repo.trim())).filter(Boolean) : configuredRepoPaths()
+        )
+      ];
+      if (paths.length === 0) {
+        return report({
+          repos: [],
+          detail: `No checkouts configured — set ${agentKeyName('CODE_PATH')} or ${agentKeyName('GIT_REPOS')}, or pass repos explicitly.`
+        });
+      }
+      const token = env('GITHUB_TOKEN');
+      if (!token) {
+        return report({
+          repos: paths.map((path) => ({ repo: path, status: RepoSyncStatus.NotConfigured, branches: [] })),
+          detail:
+            'GITHUB_TOKEN not set — run /agent-kevin:configure-skills → GitHub pack. Checkouts were left untouched.'
+        });
+      }
+      // Repos are independent checkouts, so the ~1s authenticated fetches overlap. Safe only
+      // because paths are deduped AFTER tilde expansion — two spellings of one repo would
+      // otherwise race on the same .git.
+      const reports = await Promise.all(paths.map((path) => syncRepo(path, token)));
+      log.info(`github fast-forward → ${reports.length} repo(s)`);
+      return report({ repos: reports });
     }
   })
 ];

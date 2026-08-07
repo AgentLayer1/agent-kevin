@@ -18,13 +18,16 @@
  *
  * Import discipline: runtime imports here must stay config-free (type-only
  * imports are fine) so html.test.ts can import this module without freezing
- * @/config's KEVIN_HOME for the rest of the bun test process. The template is
- * plugin-static, read relative to this file — not HOME state.
+ * @/config's AGENT_HOME for the rest of the bun test process. That rules out
+ * @/shared/env too — importing it loads a home's secrets. The naming helpers
+ * below come from @/shared/naming, which is side-effect-free. The template
+ * is plugin-static, read relative to this file — not HOME state.
  */
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
+import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
 import type {
   ContextGroup,
   ProfileSection,
@@ -813,7 +816,7 @@ const pageBrain = (snap: StatusSnapshot): string => {
               ['errors', `<span class="${lint.errors ? 'bad' : 'dim'}">${lint.errors}</span>`],
               ['warnings', `<span class="${lint.warnings ? 'warn' : 'dim'}">${lint.warnings}</span>`],
               ['suggestions', `<span class="dim">${lint.suggestions}</span>`],
-              ['report', mdLink(snap, '.kevin/lint.md', 'open lint.md')]
+              ['report', mdLink(snap, `${runtimeDirName()}/lint.md`, 'open lint.md')]
             ]
           )
         ),
@@ -1166,10 +1169,16 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
   );
 };
 
+/** Home timezone alone, or 🏠 home stacked over ✈️ current while traveling. */
+const operatorTimezone = (operator: StatusSnapshot['operator']): string =>
+  operator.currentTimezone
+    ? `🏠 ${esc(operator.timezone)}<br>✈️ ${esc(operator.currentTimezone)}`
+    : esc(operator.timezone || '');
+
 const pageProfile = (snap: StatusSnapshot): string => {
   const { operator } = snap;
   const avatar = operator.avatar ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">` : '';
-  const head = `<div class="persona-head">${avatar}<div><div class="p-name">${esc(operator.name || 'Operator')}</div><div class="p-kind">${esc(operator.timezone)}</div><div class="p-vibe">${esc(operator.headline || 'The operator profile grows as you work together.')}</div></div></div>`;
+  const head = `<div class="persona-head">${avatar}<div><div class="p-name">${esc(operator.name || 'Operator')}</div><div class="p-kind">${operatorTimezone(operator)}</div><div class="p-vibe">${esc(operator.headline || 'The operator profile grows as you work together.')}</div></div></div>`;
 
   // The compiled profile facet, section by section — the page Kevin would
   // write about you, not a list of file names.
@@ -1426,41 +1435,50 @@ const logTail = (tail: string): string => {
   return `<div data-filterbox>${chips}<pre class="logtail">${rows.join('')}</pre></div>`;
 };
 
-// Explanations for Kevin's own env vars + the harness knobs init seeds — shown
-// as an info tooltip beside the key in the Environment table.
+// Explanations for the agent's own env vars + the harness knobs init seeds —
+// shown as an info tooltip beside the key in the Environment table. Keyed by
+// the shared AGENT_* names; `envKeyTip` maps a per-agent override (KEVIN_*,
+// SCOUT_*, …) onto the same tip.
 const ENV_KEY_TIPS: Record<string, string> = {
-  KEVIN_HOME:
-    'Kevin’s home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; set this in `~/.claude/settings.json` if you ever start Claude from elsewhere, so paths don’t silently resolve to the wrong place.',
+  AGENT_HOME: `The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; if you ever start Claude from elsewhere, set this agent's own spelling (${agentKeyName('HOME')}) in \`~/.claude/settings.json\` — a machine-wide AGENT_HOME would point every agent at the same home.`,
   CLAUDE_CODE_NO_FLICKER:
     'Renders the prompt without the flicker-prone redraw. Upside: you can click anywhere in the prompt input box to move the cursor. Trade-off: to highlight/select text in Claude’s responses you have to hold Shift while dragging.',
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
     'Turns off non-essential network traffic (telemetry, auto-update pings, etc.) — keeps Claude Code quiet on the wire.',
   ANTHROPIC_DEFAULT_HAIKU_MODEL:
     'Remaps the lightweight “Haiku” tier the harness uses for small background tasks to a more capable model, so quick auxiliary calls aren’t under-powered.',
-  KEVIN_CODE_PATH:
-    'Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as `$KEVIN_CODE_PATH`.',
-  KEVIN_GIT_REPOS:
-    'Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to `KEVIN_CODE_PATH`; append more with `,/path/to/other/repo`.',
-  KEVIN_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',
-  KEVIN_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'
+  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$${agentKeyName('CODE_PATH')}\`.`,
+  AGENT_GIT_REPOS: `Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to \`${agentKeyName('CODE_PATH')}\`; append more with \`,/path/to/other/repo\`.`,
+  AGENT_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',
+  AGENT_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'
+};
+
+/** Tip for an env key, matching this agent's override spelling to its `AGENT_*` tip. */
+const envKeyTip = (key: string): string | undefined => {
+  const prefix = agentEnvPrefix();
+  const canonical = prefix && key.startsWith(prefix) ? `AGENT_${key.slice(prefix.length)}` : key;
+  return ENV_KEY_TIPS[canonical];
 };
 
 const pageSystem = (snap: StatusSnapshot): string => {
   const { settings, logs } = snap;
 
-  // Path-valued env vars (KEVIN_HOME etc.) become Finder links; masked
-  // secrets and plain values render as text; an empty value (e.g. KEVIN_HOME
+  // Path-valued env vars (AGENT_HOME etc.) become Finder links; masked
+  // secrets and plain values render as text; an empty value (e.g. AGENT_HOME
   // when unset) shows a dim "not set". Known keys carry an info tooltip.
-  const envRows = settings.env.map((entry) => [
-    `<span class="nowrap">${esc(entry.key)}</span>${ENV_KEY_TIPS[entry.key] ? infoTip(ENV_KEY_TIPS[entry.key]) : ''}`,
-    entry.value === ''
-      ? '<span class="dim">not set</span>'
-      : /^~?\//.test(entry.value)
-        ? pathLink(entry.value)
-        : esc(tildifyHome(entry.value)),
-    `<span class="dim">${esc(entry.scope)}</span>`
-  ]);
-  // Names only — values live in the deny-gated `.kevin/secrets/.env`, loaded by
+  const envRows = settings.env.map((entry) => {
+    const tip = envKeyTip(entry.key);
+    return [
+      `<span class="nowrap">${esc(entry.key)}</span>${tip ? infoTip(tip) : ''}`,
+      entry.value === ''
+        ? '<span class="dim">not set</span>'
+        : /^~?\//.test(entry.value)
+          ? pathLink(entry.value)
+          : esc(tildifyHome(entry.value)),
+      `<span class="dim">${esc(entry.scope)}</span>`
+    ];
+  });
+  // Names only — values live in the deny-gated data-dir `secrets/.env`, loaded by
   // the MCP server at boot, and are never carried into the dashboard.
   const secretRows = settings.secrets.map((entry) => [
     `<span class="nowrap">${esc(entry.name)}</span>`,
@@ -1511,7 +1529,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
       `${settings.secrets.filter((entry) => entry.present).length} set · values never shown`,
       settings.secrets.length
         ? `<div class="secrets-table">${table(['key', 'status'], secretRows)}</div>`
-        : hint('No secrets configured. Add keys to .kevin/secrets/.env (loaded at boot, never displayed).')
+        : hint(`No secrets configured. Add keys to ${runtimeDirName()}/secrets/.env (loaded at boot, never displayed).`)
     )
   ].join('');
 
@@ -1622,8 +1640,17 @@ const pageStatus = (snap: StatusSnapshot): string => {
     stat(health.pendingCompiles, 'pending compiles', health.pendingCompiles ? 'warn' : 'good'),
     stat(health.logErrors, 'log errors today', health.logErrors ? 'bad' : 'good'),
     stat(health.missingImports, 'missing imports', health.missingImports ? 'bad' : 'good'),
+    stat(health.malformedTasks, 'unreadable tasks', health.malformedTasks ? 'bad' : 'good'),
     stat(tasks.stale, 'stale · info only')
   ]);
+
+  const malformedBody =
+    hint(
+      'Task files whose frontmatter won’t parse. They are missing from every list on this dashboard and from TASKS.md — fix the frontmatter (it must open with `---` on line 1) and they reappear.'
+    ) +
+    (tasks.malformed.length
+      ? tasks.malformed.map((path) => clearRow(path)).join('')
+      : clearRow('Every task file parses.'));
 
   const overdueBody =
     hint('Open tasks whose due date has passed — read straight from each task file’s frontmatter.') +
@@ -1666,21 +1693,26 @@ const pageStatus = (snap: StatusSnapshot): string => {
       ? `<div class="row"><span class="dim" style="flex:none">●</span><span class="grow">${tasks.stale} task(s) going stale</span>${navLink('tasks/attention', 'review them')}</div>`
       : clearRow('Nothing rotting.'));
 
-  const issueCount = [health.overdue, health.pendingCompiles, health.logErrors, health.missingImports].filter(
-    Boolean
-  ).length;
+  const issueCount = [
+    health.overdue,
+    health.pendingCompiles,
+    health.logErrors,
+    health.missingImports,
+    health.malformedTasks
+  ].filter(Boolean).length;
   return page(
     'status',
     `Status <span class="accent">${health.ok ? '🟢' : '🟠'}</span>`,
     health.ok
-      ? 'All systems nominal. The sidebar badge is green only when the four blocking signals below are all zero.'
-      : `${issueCount} signal(s) need attention. The sidebar badge is green only when the four blocking signals below are all zero.`,
+      ? 'All systems nominal. The sidebar badge is green only when the five blocking signals below are all zero.'
+      : `${issueCount} signal(s) need attention. The sidebar badge is green only when the five blocking signals below are all zero.`,
     stats +
       [
         section('Overdue tasks', String(health.overdue), overdueBody),
         section('Pending compiles', String(health.pendingCompiles), pendingBody),
         section('Log errors', String(health.logErrors), logsBody),
         section('Context imports', missing.length ? `${missing.length} missing` : 'all present', importsBody),
+        section('Unreadable tasks', String(health.malformedTasks), malformedBody),
         section('Going stale', `${tasks.stale} · informational`, staleBody)
       ].join('')
   );
@@ -1704,6 +1736,30 @@ const sidebarNav = (snap: StatusSnapshot): string =>
       return `<div class="nav-item" data-nav="${item.id}"><span class="ico">${esc(icon)}</span>${esc(item.label)}</div>`;
     })
     .join('\n');
+
+/** Convention-discovered sub-dashboards, grouped under a divider with an ↗ so
+ *  navigating away is never a surprise. appTab entries (the roadmap) go
+ *  through the markdownUrl app template — a new Obsidian tab, the same
+ *  mechanism as every markdown link. The rest are data-href rows navigated
+ *  by `location.assign` — empirically the ONLY same-frame mechanism
+ *  Obsidian's HTML viewer permits (nav-test 2026-07-26: relative `<a href>`
+ *  swallowed, window.open blocked, and window.top.location silently no-ops —
+ *  so no fallback chains, a silent no-op first hop short-circuits the working
+ *  call). Empty renders nothing. */
+const sidebarSurfaces = (snap: StatusSnapshot): string => {
+  if (snap.surfaces.length === 0) {
+    return '';
+  }
+  const items = snap.surfaces
+    .map((surface) => {
+      const inner = `<span class="ico">${esc(surface.icon)}</span>${esc(surface.title)}<span class="out">↗</span>`;
+      return surface.appTab
+        ? `<a class="nav-item" href="${esc(snap.markdownUrl.replace('{path}', encodeURIComponent(surface.href)))}">${inner}</a>`
+        : `<div class="nav-item" data-href="${esc(surface.href)}">${inner}</div>`;
+    })
+    .join('\n');
+  return `\n<div class="nav-group">Surfaces</div>\n${items}`;
+};
 
 /** Sidebar health badge — green "all nominal" or amber with the issue list.
  *  Both states open the Status page, which explains every signal. */
@@ -1752,7 +1808,7 @@ const sidebarFoot = (snap: StatusSnapshot): string => {
   const avatar = operator.avatar
     ? `<img src="${esc(operator.avatar)}" alt="${esc(operator.name || 'avatar')}">`
     : `<span class="op-fallback">👤</span>`;
-  const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${esc(operator.timezone || '')}</span></span></div>`;
+  const card = `<div class="op-card" data-nav="profile">${avatar}<span><span class="op-name">${esc(operator.name || 'Operator')}</span><br><span class="op-tz">${operatorTimezone(operator)}</span></span></div>`;
   return card + healthBadge(snap) + upgradeBadge(snap);
 };
 
@@ -1793,7 +1849,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     LAST_SYNC: esc(snap.runtime.lastSync),
     SYNC_CMD: esc(syncCmd),
     BANNER: sidebarBanner(snap),
-    NAV: sidebarNav(snap),
+    NAV: sidebarNav(snap) + sidebarSurfaces(snap),
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
     FOOTER: footer

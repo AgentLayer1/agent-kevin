@@ -28,7 +28,7 @@ This isn't a chat wrapper. It's an **operating system for personal AI**:
 - A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are four helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), and `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends); none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are five helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -194,7 +194,7 @@ Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filt
 
 ❓ Kevin's character (SOUL): accept default, or refine?
 ❓ Kevin's role (IDENTITY): general / coding / research / planning / custom?
-❓ Your name and timezone?
+❓ Your name and home timezone?
 ❓ Paste any URLs about you (blog, LinkedIn, GitHub, etc.) so Kevin seeds your profile
 ❓ Paste a path or URL for your avatar (optional, gets linked to knowledge/user/profile.md)
 ❓ Should knowledge/ and projects/ live somewhere else? (e.g. ~/Documents/Agents/Kevin-Knowledge)
@@ -209,9 +209,9 @@ Total time: ≈ 5 minutes. Each question's answer becomes the default for later 
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
 - `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `knowledge_lint`, `links_rewrite`, `memory_prune`, `report_write`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
-- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. The one **non-secret** pack key, `GSC_SITE_URL`, is planted here by `configure-skills`; every **secret** credential (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`) goes in the deny-gated `.kevin/secrets/.env` instead. Either way you fill the values in your editor, never via chat)
+- `.claude/settings.local.json` (gitignored; init writes an empty `{}` — Kevin has no universal-infra env keys. The one **non-secret** pack key, `GSC_SITE_URL`, is planted here by `configure-skills`; every **secret** credential (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `GITHUB_TOKEN`, `AGENT_DB_*`) goes in the deny-gated `.kevin/secrets/.env` instead. Either way you fill the values in your editor, never via chat)
 
-If you chose custom `KEVIN_KNOWLEDGE` or `KEVIN_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
+If you chose custom `AGENT_KNOWLEDGE` or `AGENT_PROJECTS` paths **outside the home directory**, the wizard appends the required `permissions.allow` entries and (where supported) `sandbox.filesystem.allowWrite` entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting you on every operation.
 
 ### Exit and relaunch
 
@@ -558,7 +558,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (25), always loaded
+### Core skills (26), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -579,6 +579,7 @@ graph LR
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
+| `roadmap` | Wizard-style roadmap builder → interviews for the frame (shape, horizons, lanes, palette), mines the task board / READMEs / git history for milestones, renders a themable timeline-and-lanes HTML surface (auto-invocable) |
 | `plan-spec` | Deep-dive spec writer — Socratic interview → standalone, plan-compatible spec saved to the plans directory (`/plan-spec`) |
 | `simple-simplify` | Review a script/app/area/change and simplify it: elegance, dead-code removal, no over-engineering (`/simple-simplify`) |
 | `humanizer` | Strip the tells of AI-generated prose — inflated symbolism, rule-of-three, em-dash overuse, AI vocabulary — to make writing read as human |
@@ -623,7 +624,7 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **GitHub** (9) | `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view` |
 | **Dispatch** (15) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`, `web_search`, `ping` |
 
-**Always-on core** (`ping`, `capture`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. `remove_worktree` is deliberately **never** pre-granted — it deletes a worktree, so every call surfaces a confirm prompt. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `capture`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. `remove_worktree` is deliberately **never** pre-granted — it deletes a worktree, so every call surfaces a confirm prompt. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -671,16 +672,16 @@ agent-kevin/
 │   ├── assets/              # Kevin's avatar (kept out of the home root)
 │   ├── skills/              # third-party skill libraries installed via skills.sh (lazy)
 │   ├── settings.json        # enabledPlugins + pre-granted permissions
-│   └── settings.local.json  # non-secret env (GSC_SITE_URL, KEVIN_CODE_PATH), gitignored
+│   └── settings.local.json  # non-secret env (GSC_SITE_URL, AGENT_CODE_PATH), gitignored
 ├── .kevin/                  # plugin runtime state (hidden)
 │   ├── secrets/             # deny-gated credential store — gitignored, Kevin can't read it
-│   │   ├── .env             # API keys + KEVIN_DB_<NAME> connection strings
+│   │   ├── .env             # API keys + AGENT_DB_<NAME> connection strings
 │   │   └── google/          # Google OAuth client JSON + cached tokens
 │   ├── updates/             # per-upgrade file backups (<from>-to-<to>/)
 │   ├── logs/
 │   ├── version.json         # template baseline (drives upgrade tracking)
 │   └── knowledge.json       # compile state
-├── knowledge/               # (or KEVIN_KNOWLEDGE elsewhere)
+├── knowledge/               # (or AGENT_KNOWLEDGE elsewhere)
 │   ├── concepts/            # cross-cutting articles
 │   ├── memory/              # hot context (threads, decisions, learnings)
 │   ├── raw/                 # unprocessed inputs to compile
@@ -691,7 +692,7 @@ agent-kevin/
 │   │       └── feedback.md  # corrections log (append-only)
 │   ├── user/                # evolving long-form knowledge about you (incl. profile.md with your avatar)
 │   └── index.md             # master catalog
-├── projects/                # (or KEVIN_PROJECTS elsewhere)
+├── projects/                # (or AGENT_PROJECTS elsewhere)
 │   ├── <slug>/
 │   │   ├── tasks/
 │   │   │   └── <id>-<slug>.md
@@ -752,35 +753,39 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ## ⚙️ Configuration
 
+**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-scout` reads `SCOUT_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. The prefix earns its keep in machine-wide config (`~/.claude/settings.json` `env`), where it scopes a value to one agent on a multi-agent box. That's why `KEVIN_HOME` below keeps it: a machine-wide `AGENT_HOME` would point every agent at the same brain.
+
 | Env var | Purpose | Default |
 |---|---|---|
-| `KEVIN_HOME` | Path to your agent home. **Required** when launching `claude` from anywhere other than the agent home itself (subdirs, other repos, the user-level capture hook). | current working directory at launch |
-| `KEVIN_TIMEZONE` | IANA timezone for date formatting | system timezone |
-| `KEVIN_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
-| `KEVIN_PROJECTS` | Override projects dir | `$KEVIN_HOME/projects` |
-| `KEVIN_REPORTS` | Override reports dir | `$KEVIN_HOME/reports` |
-| `KEVIN_CODE_PATH` | Absolute path to your primary codebase. Lets Kevin ground code-related tasks against it and surface its git activity in session context. Optional — asked in chat at init (not a secret), or set later. | _none_ |
-| `KEVIN_GIT_REPOS` | Comma-separated extra git repo paths (`~`-expanded) surfaced in the SessionStart context block alongside the knowledge repo. Init derives it from `KEVIN_CODE_PATH`; append more later. | _derived from `KEVIN_CODE_PATH`_ |
-| `KEVIN_LOG_LEVEL` | Log level: `debug` · `info` · `warn` · `error`. Falls back to `LOG_LEVEL`. | `info` |
-| `KEVIN_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
+| `KEVIN_HOME` | Path to your agent home. **Export it in your shell rc** — required for anything launched outside the home (code-repo sessions, hooks, the CLI). Without it, Kevin walks up from `cwd` to the nearest directory carrying `.kevin/` (covers home subdirs) and otherwise fails loud (`NOT_AN_AGENT_HOME`) instead of writing into the wrong tree. | cwd at launch, via the `.kevin/` walk-up |
+| `AGENT_TIMEZONE` | IANA timezone for date formatting | system timezone |
+| `AGENT_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
+| `AGENT_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
+| `AGENT_PROJECTS` | Override projects dir | `$KEVIN_HOME/projects` |
+| `AGENT_REPORTS` | Override reports dir | `$KEVIN_HOME/reports` |
+| `AGENT_CODE_PATH` | Absolute path to your primary codebase. Lets Kevin ground code-related tasks against it and surface its git activity in session context. Optional — asked in chat at init (not a secret), or set later. | _none_ |
+| `AGENT_GIT_REPOS` | Comma-separated extra git repo paths (`~`-expanded) surfaced in the SessionStart context block alongside the knowledge repo. Init derives it from `AGENT_CODE_PATH`; append more later. | _derived from `AGENT_CODE_PATH`_ |
+| `AGENT_LOG_LEVEL` | Log level: `debug` · `info` · `warn` · `error`. Falls back to `LOG_LEVEL`. | `info` |
+| `AGENT_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
+| `AGENT_RUNTIME_DIR` | Rename the runtime data-dir folder (a bare folder name, not a path — validated). Machine-wide by design; the per-agent spelling also works. | `.kevin` |
 
 **On `KEVIN_HOME`.** When you launch `claude` from inside your agent home, the cwd-fallback works and you don't need to set anything. When `cwd` is somewhere else — a subdir of home, a sibling repo, or the user-level session-capture hook firing from a random project — the MCP server resolves paths relative to `cwd` instead, and writes land in the wrong place (or the `isInitialized()` guard fires and the hook silently no-ops). If you ever launch Claude Code from outside the home, set `KEVIN_HOME` in your shell rc or in `~/.claude/settings.json` `env`.
 
-`KEVIN_KNOWLEDGE` and `KEVIN_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
+`AGENT_KNOWLEDGE` and `AGENT_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
-Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `KEVIN_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `KEVIN_CODE_PATH`, `KEVIN_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `KEVIN_CODE_PATH` / `KEVIN_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
+Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `AGENT_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `AGENT_CODE_PATH`, `AGENT_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
 
 ### Database connections (`database_*` tools)
 
-The `database_list`, `database_schema`, and `database_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `KEVIN_DB_<NAME>` entry in `<HOME>/.kevin/secrets/.env` (since v0.3.0 connection strings, like all credentials, live in the deny-gated secrets store — not `settings.local.json`) becomes a connection named `<name>` (lowercased). Add or remove connections by editing that file, with no code change:
+The `database_list`, `database_schema`, and `database_query` MCP tools run read-only Postgres queries against any databases you wire up: no external account, just a connection string. Connections are **discovered by env-var convention**. Every `AGENT_DB_<NAME>` entry in `<HOME>/.kevin/secrets/.env` (since v0.3.0 connection strings, like all credentials, live in the deny-gated secrets store — not `settings.local.json`) becomes a connection named `<name>` (lowercased). Add or remove connections by editing that file, with no code change:
 
 ```sh
 # <HOME>/.kevin/secrets/.env
-KEVIN_DB_APP=postgres://user:pass@localhost:5432/app_dev
-KEVIN_DB_ANALYTICS=postgres://user:pass@host:5432/analytics
+AGENT_DB_APP=postgres://user:pass@localhost:5432/app_dev
+AGENT_DB_ANALYTICS=postgres://user:pass@host:5432/analytics
 ```
 
-That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `database_*` tool permissions and ensures `.kevin/secrets/.env` exists for the `KEVIN_DB_<NAME>` lines you add. You then fill the connection string in your editor, never in chat (it carries a password, and the secrets file is deny-gated so Kevin can't read it). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `KEVIN_DB_<NAME>` key regardless of how it got there. `database_list` only ever reports host/port/database, never the credentials.
+That yields connections `app` and `analytics`. The easiest way to set this up is the **Database pack**: run `/agent-kevin:configure-skills` (or tick it during `/agent-kevin:init` Step 8), which grants the `database_*` tool permissions and ensures `.kevin/secrets/.env` exists for the `AGENT_DB_<NAME>` lines you add. You then fill the connection string in your editor, never in chat (it carries a password, and the secrets file is deny-gated so Kevin can't read it). Re-run the pack any time to add more connections. You can also just add the env lines by hand: the tools discover any `AGENT_DB_<NAME>` key regardless of how it got there. `database_list` only ever reports host/port/database, never the credentials.
 
 Every query runs inside a `BEGIN READ ONLY` transaction with a statement timeout and is then rolled back, so Postgres itself rejects any write: the read tools are read-only by construction. For tighter control (row or column limits), point the connection string at a SELECT-only database role.
 
@@ -796,7 +801,7 @@ Auth is a fine-grained, **read-only** personal access token in `<HOME>/.kevin/se
 
 One gotcha worth calling out: grant **Actions: Read** (which GitHub describes as "Workflows, workflow runs and artifacts") — that's what lets Kevin see CI run status and logs. Do **not** grant the separate **Workflows** permission: despite the name it's *write* access to the `.github/workflows/*.yml` files, which Kevin never touches. You don't need **Contents** either — PR diffs come through the Pull requests permission.
 
-When a call omits `repo`, Kevin resolves `owner/repo` from the `origin` remote of your `KEVIN_CODE_PATH`, then the first `KEVIN_GIT_REPOS` entry — the same codebase pair init configures. An explicit `repo="owner/repo"` always wins, so you can point any call at another repo the token can see.
+When a call omits `repo`, Kevin resolves `owner/repo` from the `origin` remote of your `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init configures. An explicit `repo="owner/repo"` always wins, so you can point any call at another repo the token can see.
 
 ---
 
@@ -893,7 +898,7 @@ Kevin's core needs **zero external accounts**: tasks, knowledge compile, dashboa
 | Account | What it unlocks | Pack | Credential | Cost |
 |---|---|---|---|---|
 | [Perplexity](https://perplexity.ai/settings/api) | `web_search`: live web research with citations | Browser | `PERPLEXITY_API_KEY` | Pay-as-you-go, $5 per 1,000 requests. A $5 credit lasts most personal users days to weeks. |
-| [GitHub](https://github.com/settings/tokens?type=beta) | `github_pr_*` / `github_issue_*` / `github_run_*`: read-only PR + issue review + CI diagnosis (needs the `gh` CLI) | GitHub | `GITHUB_TOKEN` (fine-grained, read-only PAT) | Free |
+| [GitHub](https://github.com/settings/tokens?type=beta) | `github_pr_*` / `github_issue_*` / `github_run_*`: read-only PR + issue review + CI diagnosis (needs the `gh` CLI). Also `github_fast_forward`, which keeps any local checkouts current during `/agent-kevin:sync` | GitHub | `GITHUB_TOKEN` (fine-grained, read-only PAT incl. `Contents: Read`) | Free |
 | [Google Cloud](https://console.cloud.google.com) | `gsc_*` (Search Console data) + `page_speed_*` (Lighthouse audits) | SEO | OAuth client JSON at `<HOME>/.kevin/secrets/google/google-oauth-client.json` | Free. PSI quota is 25k requests/day per project. |
 | [Google Search Console](https://search.google.com/search-console) | The site data behind `gsc_query`, `gsc_inspect`, and the audit skill | SEO | Your site verified under the same Google account | Free |
 | [SerpAPI](https://serpapi.com) | `serpapi_search`: live Google SERP positions for rank tracking | SEO | `SERPAPI_KEY` | Free tier: 250 searches/month. Paid from $25/month (1,000 searches). |
@@ -1242,25 +1247,25 @@ Kevin's entire memory is markdown with `[[wikilinks]]`, and so is almost everyth
 
 The payoff is a clean **Markdown → HTML → PDF** export pipeline for anything you want to look polished (a business plan, a one-pager, a report Kevin generated). I run mine through a custom **panda-doc stylesheet** — a CSS theme that styles the exported HTML (typography, spacing, headings, code blocks) so the resulting PDF looks designed, not dumped. Drop your own stylesheet in, export to HTML, then print/render to PDF (Kevin's `browser_pdf` tool can also do the HTML → PDF step with your CSS applied).
 
-### 9. Folder structure: home for the agent, tech for the repos
+### 9. Folder structure: brains in Documents, code in Developer
 
-The mental model that keeps multi-agent setups sane: **the agent's home is a knowledge+projects directory; your code repos live separately.**
+The mental model that keeps multi-agent setups sane: **agent brains are standalone vaults under `~/Documents/Agents/`; all code lives flat in a separate `~/Developer/` tree. Never nest one inside the other.**
 
 ```text
-~/Documents/Agents/Kevin/        # Kevin's HOME — knowledge/, projects/, SOUL.md, etc.
-                                 #   the brain. No source code here.
+~/Documents/Agents/              # every agent brain lives here
+├── Kevin/                       #   the personal agent — knowledge + projects, no code
+│   ├── knowledge/  projects/  reports/
+│   ├── SOUL.md / IDENTITY.md / USER.md
+│   └── .git  →  gitdir pointer (internals live in the code tree, see below)
+└── Acme/                        #   a forked company agent (fictitious "Acme"), same shape
 
-~/Developer/Acme/                # A forked company agent's HOME (fictitious "Acme")
-├── knowledge/                   #   same Kevin template, scoped to the company
-├── projects/
-├── SOUL.md / IDENTITY.md / USER.md
-└── tech/                        #   ALL the company's code lives under here
-    ├── repo-one/
-    ├── repo-two/
-    └── worktrees/               #   parallel worktrees for agents (tip #5)
+~/Developer/Acme/                # that company's code root — flat, no brain
+├── repo-one/                    #   main checkout
+├── repo-one-my-feature/         #   worktrees as siblings (tip #5)
+└── agent-acme-data.git          #   the brain's git internals, out of the vault
 ```
 
-The key idea: a company gets its **own fork of Kevin** whose HOME *is* the company directory (knowledge + projects scoped to that business), and a `tech/` subfolder holds every repo and worktree. So the agent's brain sits one level above the code it reasons about, the company's knowledge and its source live in one tree, and you can `cd ~/Developer/Acme && claude` to wake the company agent or `cd ~/Developer/Acme/tech/repo-one` to point a coding agent at a specific repo.
+Why the split earns its keep: the brain opens cleanly as an Obsidian vault (no thousands of source files to index or exclude), you can run many brains against one code tree, and `~/Documents` syncing (iCloud) never drags repos with it. The brain's git *internals* live outside the vault via `git init --separate-git-dir` — the vault keeps a one-line `.git` pointer file, so version control works normally while sync tools only ever see markdown. Wake an agent with `cd ~/Documents/Agents/<Name> && claude`; point a coding session at a repo with `cd ~/Developer/<Org>/<repo>`. One agent per role/company, each with its own brain; export `KEVIN_HOME` in your shell rc so hooks and the CLI resolve the brain from anywhere.
 
 ### 10. Tower for git review
 

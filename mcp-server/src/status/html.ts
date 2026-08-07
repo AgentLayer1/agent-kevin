@@ -1,8 +1,8 @@
 /**
  * I/O wrapper for the HTML Agent OS dashboard: collect a fresh snapshot,
  * render (html-render.ts, pure), write atomically to `<HOME>/dashboard.html`.
- * Kept separate from the renderer so tests can exercise the rendering without
- * importing @/config (whose KEVIN_HOME freezes at first evaluation).
+ * Kept separate from the renderer so the rendering stays pure and testable without
+ * touching the filesystem.
  */
 import { FILES } from '@/config';
 import { writeFileAtomic } from '@/shared/utils';

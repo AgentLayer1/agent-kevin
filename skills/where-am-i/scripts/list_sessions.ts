@@ -6,7 +6,7 @@
  * metadata, and prints JSON sorted by last activity (most recent first).
  * Read-only, no network. Run with `bun`.
  *
- * Usage: bun list_sessions.ts [--hours 24] [--scope <path>|all]
+ * Usage: bun list_sessions.ts [--hours 24] [--scope <path>[,<path>...]|all]
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -25,6 +25,7 @@ interface ContentBlock {
 interface SessionRecord {
   type?: string;
   aiTitle?: string;
+  customTitle?: string;
   isSidechain?: boolean;
   timestamp?: string;
   cwd?: string;
@@ -143,10 +144,16 @@ const lastTruthy = (
 const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
   const records = parseRecords(readFileSync(path, 'utf-8'));
 
-  const title = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle ?? null;
+  // `/rename` writes a custom-title record; Claude Code itself prefers it over the
+  // first-prompt ai-title, so an operator-set name wins here too.
+  const customTitle = records.filter((record) => record.type === 'custom-title' && record.customTitle).at(-1)?.customTitle;
+  const aiTitle = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle;
+  const title = customTitle ?? aiTitle ?? null;
 
   // Everything except title records and sidechains contributes timing/cwd/turns.
-  const body = records.filter((record) => record.type !== 'ai-title' && !record.isSidechain);
+  const body = records.filter(
+    (record) => record.type !== 'ai-title' && record.type !== 'custom-title' && !record.isSidechain
+  );
   const timestamps = body.map((record) => record.timestamp).filter((ts): ts is string => Boolean(ts));
 
   const userMessages = body
@@ -189,16 +196,31 @@ const flags = readFlags(process.argv.slice(2));
 const hoursFlag = flags.get('hours');
 const hours =
   hoursFlag !== undefined && !Number.isNaN(Number.parseFloat(hoursFlag)) ? Number.parseFloat(hoursFlag) : 24;
+// Multiple roots (comma-separated) because the agent HOME and the code repos
+// live in separate trees — a single cwd-rooted scope would go blind to one or
+// the other. Worktrees come free: they're siblings named <repo>-<slug>, which
+// the encoded prefix match already covers.
 const scopeFlag = flags.get('scope');
-const scope = scopeFlag === 'all' ? null : resolve(scopeFlag || process.cwd());
-const encodedScope = scope === null ? null : encodeCwd(scope);
+const scopes =
+  scopeFlag === 'all'
+    ? null
+    : [
+        ...new Set(
+          (scopeFlag || process.cwd())
+            .split(',')
+            .map((path) => path.trim())
+            .filter(Boolean)
+            .map((path) => resolve(path))
+        )
+      ];
+const encodedScopes = scopes === null ? null : scopes.map(encodeCwd);
 
 const now = Date.now();
 const cutoff = now - hours * 3600 * 1000;
 
 const sessions = listTranscripts(PROJECTS_DIR)
   .filter((path) => !basename(path).startsWith('agent-')) // subagent sidechain transcripts
-  .filter((path) => encodedScope === null || inScope(basename(dirname(path)), encodedScope))
+  .filter((path) => encodedScopes === null || encodedScopes.some((encoded) => inScope(basename(dirname(path)), encoded)))
   .map((path) => ({ path, mtimeMs: statSync(path).mtimeMs }))
   .filter(({ mtimeMs }) => mtimeMs >= cutoff)
   .map(({ path, mtimeMs }) => buildInfo(path, mtimeMs, now))
@@ -209,7 +231,7 @@ process.stdout.write(
   JSON.stringify(
     {
       generated_at: toLocalIsoMinutes(new Date(now)),
-      scope: scope ?? 'all',
+      scope: scopes?.join(',') ?? 'all',
       window_hours: hours,
       count: sessions.length,
       sessions

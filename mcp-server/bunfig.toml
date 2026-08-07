@@ -1,0 +1,3 @@
+[test]
+# Pins the agent home to a throwaway tree for every suite — see src/test.ts.
+preload = ["./src/test.ts"]

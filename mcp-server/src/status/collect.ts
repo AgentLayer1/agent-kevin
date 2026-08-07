@@ -10,10 +10,20 @@
  * Paths in: always via FOLDERS/FILES (@/config). Paths out: callers render
  * through repoRelative()/tildify so absolute machine paths never leak.
  */
-import { FILES, FOLDERS, listSecretEntries, MARKDOWN_URL, PLUGIN_NAME, type SecretEntry, TIMEZONE } from '@/config';
+import {
+  FILES,
+  FOLDERS,
+  HOME_TIMEZONE,
+  listSecretEntries,
+  MARKDOWN_URL,
+  PLUGIN_NAME,
+  type SecretEntry,
+  TIMEZONE
+} from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
+import { agentKeyName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import {
   composeMetaBox,
@@ -24,7 +34,7 @@ import {
 } from './radar-refs';
 import { sanitizeHtml } from '@/shared/sanitize-html';
 import type { TaskFile } from '@/shared/types';
-import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
+import { discoverProjects, scanAllTasks, scanArchivedTasks, scanMalformedTasks } from '@/tasks/scan';
 import { resolveTasks } from '@/tasks/resolve';
 import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -158,7 +168,7 @@ export interface LintIssue {
   text: string;
 }
 
-/** Parsed .kevin/lint.md — the last knowledge_lint run. */
+/** Parsed <data-dir>/lint.md — the last knowledge_lint run. */
 export interface LintReport {
   date: string;
   errors: number;
@@ -211,6 +221,8 @@ export interface ProfileSection {
 export interface OperatorInfo {
   name: string;
   timezone: string;
+  /** Live machine timezone when it differs from the home timezone; '' when not traveling. */
+  currentTimezone: string;
   /** Avatar path relative to <HOME>; '' when the file doesn't exist. */
   avatar: string;
   /** First paragraph of knowledge/user/profile.md; '' when absent. */
@@ -231,6 +243,8 @@ export interface Health {
   pendingCompiles: number;
   logErrors: number;
   missingImports: number;
+  /** Task files that won't parse — invisible everywhere else, so they page here. */
+  malformedTasks: number;
   ok: boolean;
 }
 
@@ -303,6 +317,17 @@ export interface HookEntry {
   command: string;
 }
 
+export interface SurfaceLink {
+  title: string;
+  /** Relative to <HOME> (where dashboard.html renders) for same-frame
+   *  navigation; absolute when appTab is set. */
+  href: string;
+  icon: string;
+  /** Open through the markdownUrl app template (a new Obsidian tab) instead
+   *  of navigating the dashboard frame. */
+  appTab: boolean;
+}
+
 export interface StatusSnapshot {
   runtime: {
     version: string;
@@ -321,7 +346,7 @@ export interface StatusSnapshot {
      *  evening) — the last heavy refresh, distinct from the dashboard re-render
      *  that fires on every task mutation. '' when no briefing exists yet. */
     lastSync: string;
-    /** HOME template baseline from .kevin/version.json; null on a pre-feature
+    /** HOME template baseline from <data-dir>/version.json; null on a pre-feature
      *  or uninitialized home. */
     baselineVersion: string | null;
     /** Local upgrade signal: `current` | `pending` | `onboard`. See version.ts. */
@@ -334,6 +359,9 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
+  /** Convention-discovered sub-dashboards: HOME-root roadmap.html first,
+   *  then projects with a dashboard.html. Empty renders nothing. */
+  surfaces: SurfaceLink[];
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };
   /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
@@ -352,7 +380,7 @@ export interface StatusSnapshot {
   sessions: SessionRef[];
   /** Headlines from the most recent briefing reports, newest first. */
   news: NewsItem[];
-  /** Last knowledge-lint run, parsed from .kevin/lint.md. */
+  /** Last knowledge-lint run, parsed from <data-dir>/lint.md. */
   lint: LintReport;
   /** The bin CLI's HELP text, parsed into sections. */
   cli: CliSection[];
@@ -395,6 +423,9 @@ export interface StatusSnapshot {
     /** Task id → relative path across every task (live + archived) — lets the
      *  renderer turn `depends on` ids into links to the task file. */
     pathById: Record<string, string>;
+    /** Task files whose frontmatter won't parse — absent from every list above,
+     *  so they're surfaced rather than silently missing. */
+    malformed: string[];
   };
   context: {
     staticImports: StaticImport[];
@@ -433,7 +464,7 @@ export interface StatusSnapshot {
 
 const MARKDOWN_RE = /\.md$/;
 const SECRET_KEY_RE =
-  /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|KEVIN_DB)/i;
+  /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|KEVIN_DB|AGENT_DB)/i;
 /** A connection string with embedded credentials — `scheme://user:pass@host`.
  *  Caught by value so DB URLs are masked regardless of their env-var name. */
 const CRED_URL_RE = /:\/\/[^\s:@/]+:[^\s@/]+@/;
@@ -811,7 +842,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     touchedToday: all
       .filter((task) => task.frontmatter.updated === today || task.frontmatter.updated === yesterday)
       .map(toRef),
-    pathById
+    pathById,
+    malformed: scanMalformedTasks().map((path) => relative(FOLDERS.HOME, path))
   };
 };
 
@@ -970,10 +1002,12 @@ const collectSettings = (): StatusSnapshot['settings'] => {
     scope: entry.scope
   }));
 
-  // Always surface KEVIN_HOME so its meaning is discoverable even when unset
+  // Always surface AGENT_HOME so its meaning is discoverable even when unset
   // (it then falls back to the launch cwd). Empty value renders as "not set".
-  if (!redactedEnv.some((entry) => entry.key === 'KEVIN_HOME')) {
-    redactedEnv.unshift({ key: 'KEVIN_HOME', value: '', scope: 'user' });
+  // Skipped when a home is already configured under this agent's own spelling.
+  const homeKey = agentKeyName('HOME');
+  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME' || entry.key === homeKey)) {
+    redactedEnv.unshift({ key: 'AGENT_HOME', value: '', scope: 'user' });
   }
 
   // Resolve the current plugin's enabled ref + its marketplace source.
@@ -1165,7 +1199,9 @@ const collectOperatorInfo = (facetSizes: FacetSize[]): OperatorInfo => {
   const profilePath = resolve(FOLDERS.USER_KNOWLEDGE, 'profile.md');
   return {
     name: boldField(FILES.USER, 'Name'),
-    timezone: stripMarkdown(boldField(FILES.USER, 'Timezone')),
+    timezone:
+      stripMarkdown(boldField(FILES.USER, 'Home timezone') || boldField(FILES.USER, 'Timezone')).split(/\s+/)[0] ?? '',
+    currentTimezone: HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? TIMEZONE : '',
     avatar: firstImage(FILES.USER),
     headline: firstParagraph(profilePath),
     profileSections: mdSections(profilePath),
@@ -1315,7 +1351,7 @@ const collectNews = (): NewsItem[] => {
   return items.slice(0, MAX_NEWS);
 };
 
-/** Parse .kevin/lint.md (written by knowledge_lint) into counts + issues. */
+/** Parse <data-dir>/lint.md (written by knowledge_lint) into counts + issues. */
 const collectLint = (): LintReport => {
   const empty: LintReport = { date: '', errors: 0, warnings: 0, suggestions: 0, issues: [], present: false };
   let content = '';
@@ -1670,12 +1706,10 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
   return sessions;
 };
 
-const TASKS_DASHBOARD = resolve(FOLDERS.PROJECTS, 'TASKS.md');
-
 /** Goal lines under a TASKS.md heading. The scaffold's italic `_No … yet_`
  *  placeholders are dropped so unset goals render the dashboard's own hint. */
 const goalLines = (heading: string): string[] =>
-  sectionLines(TASKS_DASHBOARD, heading)
+  sectionLines(resolve(FOLDERS.PROJECTS, 'TASKS.md'), heading)
     .filter((line) => !/^_No .+_$/.test(line))
     .map(stripMarkdown);
 
@@ -1719,13 +1753,42 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   const pendingCompiles = snap.compile.pending;
   const logErrors = snap.logs.errors;
   const missingImports = snap.context.staticImports.filter((item) => !item.present).length;
+  const malformedTasks = snap.tasks.malformed.length;
   return {
     overdue,
     pendingCompiles,
     logErrors,
     missingImports,
-    ok: overdue === 0 && pendingCompiles === 0 && logErrors === 0 && missingImports === 0
+    malformedTasks,
+    ok: overdue === 0 && pendingCompiles === 0 && logErrors === 0 && missingImports === 0 && malformedTasks === 0
   };
+};
+
+const titleize = (slug: string): string =>
+  slug
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+/** Surfaces are discovered by convention, never configured: a HOME-root
+ *  roadmap.html leads (opened as a new Obsidian tab), followed by every
+ *  project carrying a dashboard.html at its root. */
+const collectSurfaces = (): SurfaceLink[] => {
+  const roadmap: SurfaceLink[] = existsSync(FILES.ROADMAP)
+    ? [{ title: 'Roadmap', href: FILES.ROADMAP, icon: '🧭', appTab: true }]
+    : [];
+  const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
+    ? []
+    : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && existsSync(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')))
+        .map((entry) => ({
+          title: titleize(entry.name),
+          href: relative(FOLDERS.HOME, resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')),
+          icon: '📊',
+          appTab: false
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+  return [...roadmap, ...projects];
 };
 
 const MAX_REPORTS = 60;
@@ -1745,6 +1808,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     persona: collectPersona(),
     operator: collectOperatorInfo(knowledge.facets),
     markdownUrl: collectMarkdownUrl(),
+    surfaces: collectSurfaces(),
     skills: collectSkills(),
     mcp: await collectMcp(),
     goals: collectGoals(),

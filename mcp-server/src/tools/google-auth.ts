@@ -1,12 +1,12 @@
 /**
  * Shared Google OAuth2 client for plugin-side google-* tools.
- * Client JSON + tokens live under <KEVIN_HOME>/.kevin/secrets/google/ (0700,
+ * Client JSON + tokens live under <HOME>/<data-dir>/secrets/google/ (0700,
  * deny-gated) so they persist across plugin updates and stay off Claude's Read
  * tool + the Bash sandbox.
  *
  * One-time setup:
  *   1. Google Cloud Console → APIs & Services → Credentials → OAuth client (Desktop app)
- *   2. Download the JSON, save as `<KEVIN_HOME>/.kevin/secrets/google/google-oauth-client.json`
+ *   2. Download the JSON, save as `<HOME>/<data-dir>/secrets/google/google-oauth-client.json`
  *   3. Run mcp__plugin_agent-kevin_kevin__google_auth — opens browser for consent, mints + persists tokens
  */
 import { FOLDERS } from '@/config';
@@ -21,9 +21,9 @@ import { join } from 'node:path';
 
 // google-auth owns its own location under the shared secrets dir — config
 // exposes only the secrets root, not the google subpath.
-const GOOGLE_DIR = join(FOLDERS.SECRETS, 'google');
-export const CLIENT_FILE = join(GOOGLE_DIR, 'google-oauth-client.json');
-const TOKENS_FILE = join(GOOGLE_DIR, 'google-tokens.json');
+const googleDir = (): string => join(FOLDERS.SECRETS, 'google');
+const clientFile = (): string => join(googleDir(), 'google-oauth-client.json');
+const tokensFile = (): string => join(googleDir(), 'google-tokens.json');
 
 const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly', 'openid'];
 
@@ -33,38 +33,41 @@ interface ClientCredentials {
 }
 
 function readClient(): ClientCredentials {
-  if (!existsSync(CLIENT_FILE)) {
+  const client = clientFile();
+  if (!existsSync(client)) {
     throw new Error(
-      `OAuth client file not found at ${CLIENT_FILE}. ` +
+      `OAuth client file not found at ${client}. ` +
         'Download Desktop OAuth client JSON from Google Cloud Console → APIs & Services → Credentials, save there.'
     );
   }
-  const raw = JSON.parse(readFileSync(CLIENT_FILE, 'utf-8'));
+  const raw = JSON.parse(readFileSync(client, 'utf-8'));
   const inner = raw.installed ?? raw.web ?? raw;
   if (!inner.client_id || !inner.client_secret) {
-    throw new Error(`Malformed OAuth client file at ${CLIENT_FILE} — missing client_id/secret.`);
+    throw new Error(`Malformed OAuth client file at ${client} — missing client_id/secret.`);
   }
   return inner;
 }
 
 function writeTokens(tokens: object): void {
-  if (!existsSync(GOOGLE_DIR)) {
-    mkdirSync(GOOGLE_DIR, { recursive: true });
-    chmodSync(GOOGLE_DIR, 0o700);
+  const dir = googleDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+    chmodSync(dir, 0o700);
   }
-  writeJsonAtomic(TOKENS_FILE, tokens, 0o600);
+  writeJsonAtomic(tokensFile(), tokens, 0o600);
 }
 
 export function authorizedClient(): Auth.OAuth2Client {
-  if (!existsSync(TOKENS_FILE)) {
+  const tokensPath = tokensFile();
+  if (!existsSync(tokensPath)) {
     throw new Error(`Tokens not minted. Call mcp__plugin_agent-kevin_kevin__google_auth first.`);
   }
   const { client_id, client_secret } = readClient();
-  const tokens = JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'));
+  const tokens = JSON.parse(readFileSync(tokensPath, 'utf-8'));
   const oauth = new google.auth.OAuth2(client_id, client_secret, tokens.redirect_uri ?? 'http://localhost');
   oauth.setCredentials(tokens);
   oauth.on('tokens', (rotated: Auth.Credentials) => {
-    writeTokens({ ...JSON.parse(readFileSync(TOKENS_FILE, 'utf-8')), ...rotated });
+    writeTokens({ ...JSON.parse(readFileSync(tokensPath, 'utf-8')), ...rotated });
   });
   return oauth;
 }
@@ -124,6 +127,6 @@ async function loopbackAuth(): Promise<Auth.Credentials & { redirect_uri: string
 export async function runAuthFlow(): Promise<{ ok: true; tokensFile: string; hasRefreshToken: boolean }> {
   const tokens = await loopbackAuth();
   writeTokens(tokens);
-  log.info(`tokens saved to ${TOKENS_FILE}`);
-  return { ok: true, tokensFile: TOKENS_FILE, hasRefreshToken: Boolean(tokens.refresh_token) };
+  log.info(`tokens saved to ${tokensFile()}`);
+  return { ok: true, tokensFile: tokensFile(), hasRefreshToken: Boolean(tokens.refresh_token) };
 }

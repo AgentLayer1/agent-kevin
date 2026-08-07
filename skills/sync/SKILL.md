@@ -1,7 +1,7 @@
 ---
 name: sync
-description: End-to-end refresh — compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, snapshot recent Claude Code sessions (where-am-i radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, commit the brain's pending changes as grouped history commits when the HOME repo is local-only on main, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, Skill(agent-kevin:where-am-i), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -23,6 +23,38 @@ The briefing reads the post-sync state, so it's strictly better than running the
 Most maintenance ops have a natural order: compile feeds lint feeds the wiki state that briefings read. Running them piecemeal works but leaves you reconciling: did I compile before I lint? Did the dashboard update? `sync` runs the full chain and tells you the outcome — pass, partial, or fail — with the report paths anchored.
 
 ## Protocol
+
+### 0. Refresh the code checkouts
+
+Fast-forward the default branches of every repo Kevin grounds against, so the rest of the run — and the operator's next question about how something works — reads current code instead of whatever was on disk the last time someone thought to pull. This is the whole reason a non-technical operator never has to learn git: sync is the one command, and code freshness rides along with it. Engineers get it too, so `main` isn't three weeks stale in a checkout they only use for reference.
+
+```
+mcp__plugin_agent-kevin_kevin__github_fast_forward
+```
+
+No arguments: repos default to `KEVIN_CODE_PATH` plus `KEVIN_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `🖥 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `🖥 Code` line.
+
+**Why an MCP tool and not Bash here.** The Claude Code seatbelt gives non-proxied clients no DNS at all, so a `git fetch` over an SSH remote dies at hostname resolution — under a sandboxed session the Bash version of this step was a guaranteed no-op for any repo with a `git@github.com:` remote, which is most of them. The MCP server runs outside that sandbox, the same reason the rest of the `github_*` family lives there. It authenticates with the fine-grained read-only PAT (`GITHUB_TOKEN`) over HTTPS rather than the operator's SSH key: a scoped, rotatable, fetch-only credential instead of one that can also push and force-push everywhere. The checkout's own remote is left exactly as it is, so the operator's pushes keep using their key.
+
+Branches are picked by **slot** — the first local match of `main` / `master`, and the first of `develop` / `dev` — so a vestigial `master` sitting beside a live `main` is never touched.
+
+Why each guard is there — this step touches the operator's working repos, so it stays strictly forward-only. **This must stay safe for an engineer running many simultaneous branches and worktrees**, so the guarantees below were verified empirically against git 2.50, not assumed, and are pinned by the guard-matrix tests in `mcp-server/src/tools/github.test.ts`:
+
+- **Exactly one authenticated network call per repo**, and it can only ever use the scoped PAT — the operator's keychain credential is never consulted, and a rejected token fails in about a second rather than hanging on a prompt. Every branch update after that fetch is local and needs no credential at all. (Mechanics live in the `CREDENTIAL_ARGS` docstring; they're maintainer detail, not something to restate in the report.)
+- **Nothing is ever checked out, stashed, or committed.** The step runs exactly three verb families — `fetch`, `merge --ff-only`, and read-only queries (`rev-parse`, `show-ref`, `status`, `rev-list`). There is no `checkout`, `stash`, `reset`, `rebase`, `clean`, or `commit` anywhere in it, so the operator's current branch and working tree cannot be switched or swept out from under them.
+- **A branch checked out in a linked worktree is refused by git itself.** `fetch . refs/remotes/origin/<br>:refs/heads/<br>` fails with `refusing to fetch into branch '<br>' checked out at '<path>'` (exit 128) — verified with a branch live in a sibling worktree holding uncommitted work: the ref didn't move, the worktree's HEAD didn't move, and the uncommitted file survived intact. The refusal lives in git's ref-update path, so it holds for a local fetch exactly as it does for a network one. Report it as `CLAIMED_BY_WORKTREE` — it means "someone's working on it," not "it's broken," so it must not be conflated with a real divergence.
+- **Only branches that already exist locally.** `show-ref` gates every update on both `refs/heads/<br>` and `refs/remotes/origin/<br>`, so sync never conjures a `develop` an operator doesn't track. A fresh clone has just `main`, which is exactly what a non-technical operator needs.
+- **Fast-forward or nothing.** The local `fetch` rejects a non-fast-forward ref update (exit 1, verified against a genuinely diverged branch), and the checked-out branch uses `merge --ff-only`. Local commits are never rewritten or discarded.
+- **A dirty tree is never touched.** If the checked-out default branch has uncommitted work, report `SKIPPED_DIRTY` and move on. `status --porcelain` counts untracked files as dirty, which is deliberately conservative. Other branches still fast-forward, because a ref update on a branch that isn't checked out anywhere cannot alter any working tree.
+- **Mid-rebase, mid-merge and detached HEAD are safe.** During a rebase git still reports the branch as checked out and refuses the ref update (verified — the in-progress rebase survived untouched). In a plain detached HEAD (bisect, `checkout <sha>`) the ref update *does* succeed, which is harmless: HEAD is a raw commit, so moving a branch pointer changes no file, no index, and no HEAD.
+- **`--prune` only removes remote-tracking refs.** Local branches whose upstream disappeared are left alone (verified) — pruning `origin/feature` never deletes `feature`.
+- **A failed fetch is not a failed sync.** No pack, no grant, no network — report it and continue. Code freshness is a convenience here, not a precondition for the knowledge chain.
+
+Report the outcome in the `🖥 Code` line of the output block. `UPDATED` collapses to a count (`main +12`); a run that's entirely `CURRENT` collapses to a single "all current" line. `AHEAD` means the branch has unpushed local commits and origin has nothing new — informational, not a problem, and emphatically not a divergence. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
+
+`NOT_CONFIGURED` means the GitHub pack isn't set up in this home (no `GITHUB_TOKEN`): the tool reports it instead of failing, nothing was touched, and the right line is one neutral clause — `🖥 Code — skipped (GitHub pack not configured)` — plus `/agent-kevin:configure-skills` if the operator wants it on. Never dress this up as a problem; the rest of the chain is unaffected.
+
+`FETCH_FAILED` carries a `reason`, and the three cases need different words. `NO_ACCESS` means the token authenticated but isn't authorized for that repo — it needs `Contents: Read`, and for an org repo an admin has to approve it; say that plainly instead of implying the repo is broken. `AUTH` is narrower: GitHub rejected the credential itself (expired, revoked, malformed), so the fix is re-minting, not re-scoping. `NETWORK` is just no egress. `NO_ACCESS` covers two observed shapes — `403` for a PAT the org hasn't approved, `404 Repository not found` for a repo the token can't see, since GitHub hides private-repo existence — and neither says which, so don't guess.
 
 ### 1. Compile pending raw inputs
 
@@ -94,6 +126,11 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, stale, priorityBumps, pe
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
+[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+# NOT_AN_AGENT_HOME → STOP the whole sync: no .kevin/ data dir means $HOME_DIR
+# isn't this agent's scaffolded home, so every downstream read/write would hit
+# the wrong tree. Tell the operator to set KEVIN_HOME or relaunch from the
+# agent home.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -f "$HOME_DIR/.kevin/version.json" ]; then
@@ -144,7 +181,7 @@ Read <HOME>/knowledge/memory/index.md   # for narrative context
 
 Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the auto-selection from `## Arguments` (morning 3am–3pm, evening 3pm–3am). Then inline the matching protocol:
 
-- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · 🍌), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `web_search` clusters — including a geopolitics / Muslim-world news cluster, not just the work-signal one**. Then **call `report_write` per the briefing skill's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
+- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · 🍌), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool, **not** Claude's built-in `WebSearch`) **— including a geopolitics / Muslim-world news cluster, not just the work-signal one**. Then **call `report_write` per the briefing skill's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
 - `evening` → run [evening-briefing](../evening-briefing/SKILL.md) **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the briefing skill's `## Persist` section** — not done until persisted.
 
 To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
@@ -152,7 +189,8 @@ To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 ### 9. Session radar
 
 Invoke the [where-am-i](../where-am-i/SKILL.md) skill (via the Skill tool, default 24h
-window) — a snapshot of the Claude Code sessions scoped to this HOME, so the sync run
+window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
+(where-am-i's default multi-root scope), so the sync run
 leaves behind a dated record of which threads were live and where each stood. It owns
 the radar end to end: scans the sessions, writes the per-session summaries, renders the
 digest, and persists the report (`category: 'radar'`). Skip only if it reports zero
@@ -174,7 +212,19 @@ mcp__plugin_agent-kevin_kevin__dashboard
 
 Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent } }`. One call, no judgment needed.
 
-### 11. Closing interview — what's next (only when something's actionable)
+### 11. Commit the brain history
+
+Everything above has now written its outputs — compiled knowledge, lint fixes, task mutations, reports, the freshly rendered dashboards. Commit them, so the brain's git history records the run instead of waiting for the operator to remember (they never do):
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/commit-brain.ts"
+```
+
+The script is the guard, not the model: it commits **only** when the HOME repo is on `main`/`master` with **no remote configured** — a remoted brain is the operator's own push workflow, out of scope — and it never pushes or amends. Changes are grouped into ordered commits so history stays legible: `Sync: update knowledge` (the knowledge root + root identity files), `Sync: update projects`, `Sync: save reports`, `Sync: update state` (runtime dir, `.claude`, dashboards, plus any other tracked edit as catch-all). `.gitignore` still fences secrets. Untracked files outside those roots are never committed — they come back in `leftUncommitted` for the report; a stray scratch file shouldn't enter history silently. The guard matrix lives in `scripts/commit-brain.test.ts`.
+
+Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` statuses are one neutral clause, never dressed up as problems. `COMMIT_BLOCKED` means git couldn't write the repo — surface its `detail`, which carries the likely fix (a split git dir needs a `permissions.additionalDirectories` grant); don't hand-run git to force the commit through. The closing interview's own task mutations (step 12) land in the next sync's commit — that's fine.
+
+### 12. Closing interview — what's next (only when something's actionable)
 
 After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
 
@@ -220,7 +270,13 @@ One block, tight. Skip empty sections — don't pad.
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
 
+🖥 Code (omit entirely when no repos are configured)
+  - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, or held by a worktree>
+
 🖥 Dashboard — <HOME>/dashboard.html refreshed
+
+💾 Brain — <N commits (knowledge, projects, reports, state) | clean | skipped (<reason>) | blocked (<detail>)>
+  - left uncommitted: <paths — only when the script reports any>
 
 📅 Cadence (only when something is due — omit entirely when the cadence check returns [])
   - <label> due (last set <lastRun | never>) → /<skill>
@@ -233,7 +289,7 @@ One block, tight. Skip empty sections — don't pad.
   - <one line per error, with file path>
 
 💡 Suggested next moves
-  - <2-3 concrete tasks the user could pick up right now, based on what's actually open — each freshness-checked per step 11's gate; drop anything already handled (often in the sessions this sync just compiled), favour today's deltas over stale Pending bullets>
+  - <2-3 concrete tasks the user could pick up right now, based on what's actually open — each freshness-checked per step 12's gate; drop anything already handled (often in the sessions this sync just compiled), favour today's deltas over stale Pending bullets>
 ```
 
 If everything is clean: a one-liner is the right output.
@@ -250,7 +306,7 @@ A pending upgrade or a due cadence item is "something flagged" — if either fir
 
 If a briefing arg was supplied, append the briefing block below the sync block (or below the one-liner). Two blocks, one message — sync on top, briefing underneath. Don't merge them; the shapes are distinct on purpose.
 
-The output block is the last *text* of the run. The step-11 interview, when it fires, comes after it as the closing `AskUserQuestion` — emit the block, then ask. On a clean bill there's no interview; the block (or one-liner) is the end.
+The output block is the last *text* of the run. The step-12 interview, when it fires, comes after it as the closing `AskUserQuestion` — emit the block, then ask. On a clean bill there's no interview; the block (or one-liner) is the end.
 
 ## Boundaries
 
@@ -258,6 +314,8 @@ The output block is the last *text* of the run. The step-11 interview, when it f
 - **Don't auto-close tasks based on lint output.** Lint reports orphan articles, not task health.
 - **Don't open new tasks from this skill.** Surface "needs attention" items in the summary; let the user choose what to file.
 - **One pass only.** If a step fails 3 times, surface the error and stop. Don't loop indefinitely.
+- **Step 0 is fast-forward only.** Never rebase, reset, force, stash, commit, or check out a different branch to make a pull succeed. A diverged, dirty, or worktree-held branch gets reported, not resolved — that's the operator's call. If a future edit to this step needs `checkout` or `stash` to work, the edit is wrong.
+- **Step 11 commits only a local-only brain, via the script.** On main with no remote, plain forward-only commits, never a push. Skipped/blocked/leftover outcomes are reported, not worked around — no hand-run `git add`/`commit` to force what the script declined.
 
 ## Anti-patterns
 

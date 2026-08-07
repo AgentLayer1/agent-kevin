@@ -12,18 +12,12 @@
 import { FOLDERS, KNOWLEDGE, PLUGIN_NAME, isInitialized } from '@/config';
 import { ENTRY_SEPARATOR, formatEntryHeader } from '@/knowledge/session-format';
 import { env } from '@/shared/env';
-import {
-  diffTurns,
-  fingerprintTurn,
-  loadIndex,
-  recordCapture,
-  saveIndex
-} from '@/knowledge/session-index';
+import { diffTurns, fingerprintTurn, loadIndex, recordCapture, saveIndex } from '@/knowledge/session-index';
 import { redactSecrets } from '@/knowledge/utils';
 import { nowTime, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
 import type { TranscriptTurn } from '@/shared/types';
-import { expandTilde } from '@/shared/utils';
+import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -183,7 +177,6 @@ function briefingStub(turns: TranscriptTurn[]): string {
 
 // ── Capture mutex ────────────────────────────────────────────────────
 
-const LOCK_DIR = resolve(FOLDERS.DATA, 'capture.lock');
 const LOCK_STALE_MS = 10_000;
 const LOCK_RETRY_MS = 50;
 const LOCK_MAX_WAIT_MS = 5_000;
@@ -202,13 +195,14 @@ const LOCK_MAX_WAIT_MS = 5_000;
  * *stealer's* lock — letting a third process run concurrently (ABA race).
  */
 async function acquireCaptureLock(): Promise<() => Promise<void>> {
+  const lockDir = resolve(FOLDERS.DATA, 'capture.lock');
   await mkdir(FOLDERS.DATA, { recursive: true }); // ensure lock's parent exists
   const deadline = Date.now() + LOCK_MAX_WAIT_MS;
-  const ownerFile = resolve(LOCK_DIR, 'owner');
+  const ownerFile = resolve(lockDir, 'owner');
   const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   // Unconditional removal — only used when stealing a stale lock we don't own.
   const forceRelease = async () => {
-    await rm(LOCK_DIR, { recursive: true, force: true }).catch(() => {});
+    await rm(lockDir, { recursive: true, force: true }).catch(() => {});
   };
   // Ownership-checked removal — our own release, safe against a prior steal.
   const release = async () => {
@@ -219,11 +213,11 @@ async function acquireCaptureLock(): Promise<() => Promise<void>> {
   };
   for (;;) {
     try {
-      await mkdir(LOCK_DIR);
+      await mkdir(lockDir);
       await writeFile(ownerFile, token, 'utf-8');
       return release;
     } catch {
-      const age = await stat(LOCK_DIR)
+      const age = await stat(lockDir)
         .then((s) => Date.now() - s.mtimeMs)
         .catch(() => Infinity);
       if (age > LOCK_STALE_MS) {
@@ -323,7 +317,9 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
       return { saved: false, reason: 'too-few-turns', turns: diff.newTurns.length };
     }
     if (diff.reanchored) {
-      log.warn(`(${mode}) [${idShort}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`);
+      log.warn(
+        `(${mode}) [${idShort}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`
+      );
     }
 
     const redacted = redactSecrets(formatTurnList(diff.newTurns));
