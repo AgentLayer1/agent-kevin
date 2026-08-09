@@ -261,7 +261,7 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, see check status, and diagnose failing GitHub Actions runs (the failed-step logs). Ten MCP tools. Nine are `gh --json` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The tenth, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
+Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). Ten MCP tools. Nine are `gh --json` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The tenth, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
 
 **Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.kevin/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
 
@@ -306,10 +306,11 @@ Then surface these steps verbatim:
 1. Open [GitHub → Settings → Developer settings → Fine-grained tokens](https://github.com/settings/tokens?type=beta).
 2. **Generate new token.** Set **Resource owner** to the org/user that owns the repos Kevin will read (e.g. your org — self-approval is instant if you own it).
 3. **Repository access:** select the specific repos (or all repos under that owner) — keep it as tight as the work needs.
-4. **Permissions → Repository permissions**, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Checks** · **Actions**. Grant **no** write permissions — read-only is the second wall behind the read-only tool surface.
+4. **Permissions → Repository permissions**, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Actions** · **Contents**. That is the whole list — five. Grant **no** write permissions — read-only is the second wall behind the read-only tool surface.
    - **Actions (Read)** is the one that covers workflow **runs**, logs, and artifacts — that's what "did this PR build pass / debug the red build" needs.
+   - There is **no Checks permission** for fine-grained PATs — check runs are a GitHub App capability, absent from the docs' repository-permission list, so a PAT can never read them. Don't send the operator hunting for it. `github_pr_checks` reads `statusCheckRollup`, which mixes commit statuses with check runs, so it `403`s (`Resource not accessible by personal access token (node.statusCheckRollup.nodes.0)`) wherever CI reports as check runs — GitHub Actions does. **Commit statuses** is the lookalike in the picker and does *not* fix it: it covers only the legacy status half. Treat `github_pr_checks` as unavailable on a PAT and read build state from `github_run_list` / `github_run_view` under `Actions: Read` instead.
    - Do **NOT** add **Workflows** — despite the name, that permission grants *write* access to the `.github/workflows/*.yml` files (editing the CI definitions), which Kevin never does. `Actions: Read` is the correct one for reading run status.
-   - **Contents (Read)** is what `git fetch` authenticates against, so `github_fast_forward` (sync step 0) needs it. Without it the fetch fails as `NO_ACCESS` even though the PR and issue tools work fine. Verified against a live org: a fine-grained PAT awaiting org approval gets `403` on the git endpoint (a repo the token can't see at all gets `404 Repository not found`), so neither shape tells you *which* is missing — check the token's Contents grant and its org-approval state together. `Contents: Read` grants no ability to push: writing requires `Contents: Write`, which is never requested.
+   - **Contents (Read)** is what `git fetch` authenticates against, so `github_fast_forward` (sync step 0) needs it — and `github_pr_diff` too, since a PR diff returns file content. Without it both fail while the PR, issue, and run tools keep working fine. Verified against a live org: three different states all surface as `403` on the git endpoint — a PAT awaiting org approval, an approved PAT missing `Contents`, and (as `404 Repository not found`) a repo the token can't see at all. The status code won't tell you which, but **one probe will**: a pending token can only read *public* resources, so if the PR/issue tools return private data the token is already approved and `Contents` is the thing missing. `Contents: Read` grants no ability to push: writing requires `Contents: Write`, which is never requested.
 5. Generate, copy the `github_pat_…` value.
 6. Ensure the secret store exists (§D.1) and add the line in your editor:
    ```
@@ -329,7 +330,7 @@ Tool permissions granted:  github_pr_list, github_pr_view, github_pr_diff, githu
 Secret line to add:        GITHUB_TOKEN  (add to .kevin/secrets/.env)
 Default repo:              resolved from AGENT_CODE_PATH / AGENT_GIT_REPOS; override per-call with repo="owner/repo"
 
-Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Checks·Actions·Contents — NOT Workflows),
+Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Actions·Contents — NOT Workflows; no Checks exists),
 add it to <HOME>/.kevin/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
 Requires the `gh` CLI on PATH (`brew install gh`).
 ```

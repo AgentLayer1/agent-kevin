@@ -1210,7 +1210,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
 >   - `AGENT_DB_<NAME>` — Database pack: one Postgres connection string per line
->   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Checks·Actions — NOT Workflows). Needs the `gh` CLI on PATH (`brew install gh`).
+>   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Actions·Contents — NOT Workflows; there is no Checks permission for PATs). Needs the `gh` CLI on PATH (`brew install gh`).
 > - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `AGENT_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
