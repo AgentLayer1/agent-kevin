@@ -32,7 +32,7 @@ Fast-forward the default branches of every repo Kevin grounds against, so the re
 mcp__plugin_agent-kevin_kevin__github_fast_forward
 ```
 
-No arguments: repos default to `KEVIN_CODE_PATH` plus `KEVIN_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `🖥 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `🖥 Code` line.
+No arguments: repos default to `AGENT_CODE_PATH` plus `AGENT_GIT_REPOS` (per-agent spellings like `KEVIN_CODE_PATH` override). Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `🖥 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `🖥 Code` line.
 
 **Why an MCP tool and not Bash here.** The Claude Code seatbelt gives non-proxied clients no DNS at all, so a `git fetch` over an SSH remote dies at hostname resolution — under a sandboxed session the Bash version of this step was a guaranteed no-op for any repo with a `git@github.com:` remote, which is most of them. The MCP server runs outside that sandbox, the same reason the rest of the `github_*` family lives there. It authenticates with the fine-grained read-only PAT (`GITHUB_TOKEN`) over HTTPS rather than the operator's SSH key: a scoped, rotatable, fetch-only credential instead of one that can also push and force-push everywhere. The checkout's own remote is left exactly as it is, so the operator's pushes keep using their key.
 
