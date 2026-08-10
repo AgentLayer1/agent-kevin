@@ -261,17 +261,18 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin **read-only** GitHub access: list/view PRs and issues, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). Ten MCP tools. Nine are `gh --json` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The tenth, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
+Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review threads, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). Eleven MCP tools. Ten are `gh` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The eleventh, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
 
 **Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.kevin/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
 
 > **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.kevin/secrets/.env` exists, and surfaces the `GITHUB_TOKEN=` line + minting steps. The user fills the value in their editor.
 
-**(1) Grant the GitHub tool permissions.** Add all ten to `permissions.allow` via §E (all read-only against GitHub):
+**(1) Grant the GitHub tool permissions.** Add all eleven to `permissions.allow` via §E (all read-only against GitHub):
 
 - `mcp__plugin_agent-kevin_kevin__github_fast_forward`
 - `mcp__plugin_agent-kevin_kevin__github_pr_list`
 - `mcp__plugin_agent-kevin_kevin__github_pr_view`
+- `mcp__plugin_agent-kevin_kevin__github_pr_comments`
 - `mcp__plugin_agent-kevin_kevin__github_pr_diff`
 - `mcp__plugin_agent-kevin_kevin__github_pr_checks`
 - `mcp__plugin_agent-kevin_kevin__github_run_list`
@@ -324,8 +325,8 @@ Then surface these steps verbatim:
 ```
 ✅ GitHub pack activated (read-only).
 
-Tool permissions granted:  github_pr_list, github_pr_view, github_pr_diff, github_pr_checks,
-                           github_run_list, github_run_view, github_run_log,
+Tool permissions granted:  github_pr_list, github_pr_view, github_pr_comments, github_pr_diff,
+                           github_pr_checks, github_run_list, github_run_view, github_run_log,
                            github_issue_list, github_issue_view, github_fast_forward
 Secret line to add:        GITHUB_TOKEN  (add to .kevin/secrets/.env)
 Default repo:              resolved from AGENT_CODE_PATH / AGENT_GIT_REPOS; override per-call with repo="owner/repo"
@@ -521,7 +522,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove your `AGENT_DB_*` connection lines from `.kevin/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `AGENT_DB_*` lines they no longer want from `.kevin/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
-- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_fast_forward`. Always-on core stays.
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
 
