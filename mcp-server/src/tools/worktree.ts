@@ -8,7 +8,7 @@
  * does the mechanical create + bootstrap. The same logic backs the `kevin worktree` CLI.
  */
 import { defineTool, type ToolDef } from '@/shared/types';
-import { removeWorktree, setupWorktree } from '@/worktree/setup';
+import { listWorktrees, removeWorktree, setupWorktree } from '@/worktree/setup';
 import { z } from 'zod';
 
 export const tools: ToolDef[] = [
@@ -45,6 +45,15 @@ export const tools: ToolDef[] = [
         )
     },
     handler: async (args) => setupWorktree(args)
+  }),
+  defineTool({
+    name: 'list_worktrees',
+    description:
+      "Audit every registered worktree of a repo — the accumulated-worktrees triage tool. Read-only: touches nothing. For each worktree returns the branch, dirty file count, unpushed commit count, ahead/behind vs the base ref (origin/<base> when it exists), merge state, last-commit age in days, and a verdict: `deletable` (content already in the base via merge, squash/rebase merge, or no unique commits — note a squash-merged branch's RAW commits aren't on any remote, so remove_worktree will still ask for `force`), `uncommitted` / `unpushed` (the same gates that would block remove_worktree), `pushed-unmerged` (safe on a remote, likely in review), `missing` (registered but gone from disk — `git worktree prune` clears it), or `main`. Use before proposing removals; staleness is the operator's call from `lastCommitDays`.",
+    inputSchema: {
+      repoPath: z.string().describe('Absolute path to the repo — the main checkout or any of its worktrees.')
+    },
+    handler: async (args) => listWorktrees(args)
   }),
   defineTool({
     name: 'remove_worktree',

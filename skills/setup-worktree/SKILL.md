@@ -1,7 +1,7 @@
 ---
 name: setup-worktree
-description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists.
-allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, mcp__plugin_agent-kevin_kevin__github_pr_list, Bash, Read, Edit
+description: Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` default when they assume you know, or by asking when neither resolves), then creates the worktree as a sibling of that repo, never nested inside it, and offers to add it to a sibling `*.code-workspace` if one exists. Also covers the audit: when the user asks "which worktrees do I have", "which of these are merged/stale", or "what worktrees can I delete", run the read-only `list_worktrees` triage and report the verdicts.
+allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__list_worktrees, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, mcp__plugin_agent-kevin_kevin__github_pr_list, Bash, Read, Edit
 ---
 
 # setup-worktree — parallel checkout, ready to code
@@ -87,6 +87,42 @@ This is a plain JSON edit, not the MCP tool's job: do it with `Read` + `Edit`.
 Report the `worktreePath`, `branch`, and the `baseBranch` it branched from, surface any failed
 `steps`, then point the next agent (or a cmux workspace) at it. When the branch lands, tear it down
 with the drop flow below.
+
+## Auditing worktrees — which are merged, stale, or deletable
+
+Worktrees accumulate; when the operator asks what they have, which have landed, or what's safe to
+delete, call the `list_worktrees` MCP tool with the repo's path (read-only, no confirmation
+needed). It returns every registered worktree with a per-worktree `verdict`:
+
+- **`deletable`** — the branch's content is already in the base: merged, squash/rebase-merged
+  (`squashMerged: true`, detected by patch equivalence), or no unique commits. A squash-merged
+  branch's *raw* commits are on no remote, so `remove_worktree` will still return
+  `blocked-unpushed` — that's the expected `force: true` case, not lost work.
+- **`uncommitted` / `unpushed`** — has real work; the same gates that would block removal.
+- **`pushed-unmerged`** — safe on a remote but not landed; likely in review. Cross-check with
+  `github_pr_list` when the operator wants to know if a PR is open for it.
+- **`missing`** — registered in git but the directory is gone; `git worktree prune` clears it.
+
+Staleness is a judgment call, not a field: use `lastCommitDays` and `behindBase` to narrate it
+(e.g. "23 days old, 79 commits behind dev").
+
+**Render the audit for scanning, not reading.** Lead with the one-line bottom line (how many are
+deletable), then group worktrees by verdict — deletable first, work-in-progress next, in-review
+last. One emoji per **group header** marks the state — 🟢 deletable, ✏️ uncommitted, 📤 unpushed,
+🔵 in review, 👻 missing, 🏠 main — rows stay plain (no per-row badges; emoji noise buries the
+data). Inside each group use a short table: worktree suffix, branch, age (`lastCommitDays`), and
+a terse note (dirty/unpushed counts, ahead/behind, "merged", detached HEAD, locked). Trim the
+shared `<repo>-` prefix from paths — the suffix is the name the operator knows. Call out oddities
+inline: a merged-but-dirty tree (only the dirty files block deletion), a detached HEAD, the oldest
+unpushed work.
+
+**Close by offering the teardown.** End the audit with a question (AskUserQuestion where
+available) offering a **full tear down** of the confirmed-deletable worktrees only — the 🟢 group,
+named explicitly, one option per worktree (multi-select) plus a "keep everything" option. Never
+include dirty, unpushed, in-review, or judgment-call entries (e.g. a base-branch checkout) in the
+offer. A selection there is the explicit yes the drop flow below requires — proceed into it for
+the chosen worktrees (full teardown: workspace entry + worktree + branch + DB fork), where the
+harness's own `remove_worktree` permission prompt remains the second gate.
 
 ## Dropping a worktree
 

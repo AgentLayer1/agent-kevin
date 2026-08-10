@@ -23,6 +23,7 @@
  *   kevin links
  *   kevin dashboard
  *   kevin worktree <repoPath> --branch=BRANCH [--base=REF] [--slug=SLUG] [--extra=sub1,sub2]
+ *   kevin worktree list <repoPath>
  *
  *   kevin knowledge lint [--fix]
  *
@@ -182,6 +183,9 @@ Worktree commands:
                                     --extra lists relative subdirs with their own lockfile.
                                     NOTE: blocked by the Bash sandbox when run from inside Claude Code (git can't write
                                     .git/config) — use the setup_worktree MCP tool there; this CLI is for a real terminal.
+  worktree list <repoPath>          Audit every registered worktree: branch, dirty/unpushed counts, ahead/behind and
+                                    merge state vs the base ref, last-commit age, and a verdict (deletable / uncommitted /
+                                    unpushed / pushed-unmerged / missing / main). Read-only — fine anywhere.
   worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]
                                     Safely remove a worktree: refuses on uncommitted changes; needs --force when the
                                     branch has committed-but-unpushed commits; runs the repo's \`clean\` script first.
@@ -614,6 +618,17 @@ async function run(): Promise<void> {
     // NOTE: from inside Claude Code's Bash tool this is sandboxed — git can't write
     // .git/config, so it EPERMs. Use the setup_worktree/remove_worktree MCP tools there.
     // This CLI path is for a real terminal / automation where the process runs unsandboxed.
+
+    // `worktree list <repoPath>` — read-only audit of every registered worktree.
+    if (command === 'list') {
+      const repoPath = args.find((a) => !a.startsWith('--'));
+      if (!repoPath) {
+        throw new Error('Usage: kevin worktree list <repoPath>');
+      }
+      const { listWorktrees } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/worktree/setup'));
+      console.log(JSON.stringify(listWorktrees({ repoPath }), null, 2));
+      return;
+    }
 
     // `worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]` — safe teardown.
     if (command === 'remove') {
