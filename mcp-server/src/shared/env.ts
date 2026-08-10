@@ -34,18 +34,28 @@ import { dirname, resolve, sep } from 'node:path';
 /**
  * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
  * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
- * carrying this agent's data dir (`runtimeDirName()`, created at init). A bare
- * cwd fallback anchors to wherever the process happened to launch; for a
- * session launched inside a code repo that puts session captures, data-dir
- * state, and logs INSIDE the repo, so the walk-up refuses to anchor on
- * anything that isn't this agent's scaffolded home. The data dir (not SOUL.md)
- * is the marker because it's agent-specific: every sibling agent's home
- * carries a SOUL.md, but only this agent's carries the data dir, so the walk
- * can never anchor on another agent's brain. Falls back to cwd only when no
- * home exists on the ancestor path (the pre-init case). Any resolved home is
- * written back to `process.env.AGENT_HOME` (the canonical name) so the
- * dependency-free logger and child processes inherit it; the cwd fallback is
- * never written back.
+ * carrying this agent's data dir (`runtimeDirName()`, created at init), else
+ * the same walk from the host's project dir. A bare cwd fallback anchors to
+ * wherever the process happened to launch; for a session launched inside a code
+ * repo that puts session captures, data-dir state, and logs INSIDE the repo, so
+ * the walk-up refuses to anchor on anything that isn't this agent's scaffolded
+ * home. The data dir (not SOUL.md) is the marker because it's agent-specific:
+ * every sibling agent's home carries a SOUL.md, but only this agent's carries
+ * the data dir, so neither walk can ever anchor on another agent's brain. Falls
+ * back to cwd only when no home exists above either (the pre-init case). Any
+ * resolved home is written back to `process.env.AGENT_HOME` (the canonical
+ * name) so the dependency-free logger and child processes inherit it; the cwd
+ * fallback is never written back.
+ *
+ * Why the second walk: cwd is the SHELL's cwd, and a long session `cd`s out of
+ * the home into a repo or worktree and stays there. Every hook that fires
+ * afterwards (SessionStart on compact/resume, PreCompact, SessionEnd) inherits
+ * that cwd, resolves no home, and takes the pre-init path — the agent is told
+ * to run init mid-session and the session capture silently skips. The host
+ * exports the dir the session was LAUNCHED in, which doesn't roam, so it stands
+ * in when cwd has wandered off. `CLAUDE_PROJECT_DIR` is Claude Code's spelling
+ * (also set for stdio MCP servers); other harnesses set their own and get the
+ * cwd walk until they're taught here.
  */
 export function agentHomePath(): string {
   const fromVar = resolveEnv('AGENT_HOME');
@@ -54,19 +64,29 @@ export function agentHomePath(): string {
     process.env.AGENT_HOME = expanded;
     return expanded;
   }
-  let dir = process.cwd();
+  const projectDir = resolveEnv('CLAUDE_PROJECT_DIR');
+  const home = homeAbove(process.cwd()) ?? (projectDir ? homeAbove(expandTilde(projectDir)) : undefined);
+  if (!home) {
+    return process.cwd();
+  }
+  process.env.AGENT_HOME = home;
+  return home;
+}
+
+/** Nearest ancestor of `start` (inclusive) that is this agent's home, or undefined. */
+const homeAbove = (start: string): string | undefined => {
+  let dir = resolve(start);
   for (;;) {
     if (isAgentHome(dir)) {
-      process.env.AGENT_HOME = dir;
       return dir;
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      return process.cwd();
+      return undefined;
     }
     dir = parent;
   }
-}
+};
 
 /**
  * True when `path` is this agent's scaffolded home — marked by its data dir,
