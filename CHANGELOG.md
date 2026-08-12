@@ -43,6 +43,56 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.25] - 2026-08-10
+
+### Added
+- **`list_worktrees` — read-only worktree triage.** The audit sibling of
+  `setup_worktree`/`remove_worktree`: per-worktree branch, dirty and unpushed counts,
+  ahead/behind and merge state vs the base ref (preferring `origin/<base>`),
+  squash-merge detection via `git cherry`, last-commit age, and a verdict
+  (`deletable` / `uncommitted` / `unpushed` / `pushed-unmerged` / `missing` / `main`).
+  Also exposed as `kevin worktree list <repoPath>`; the `setup-worktree` skill gains
+  the audit rendering + teardown-offer flow, so "which worktrees can I delete?" gets a
+  ranked answer instead of a shrug.
+- **`github_pr_comments` — the GitHub pack can finally read a review.** `gh pr view`'s
+  comments field covers the conversation tab only, so a PR whose whole discussion is
+  inline threads read as empty to every tool in the pack. One GraphQL query now
+  returns review threads (path, line, diff side, resolved/outdated state), review
+  submission bodies, and conversation comments.
+
+### Fixed
+- **Hooks silently degraded when a session roamed out of the HOME tree.** The home
+  walk-up started from the *shell's* cwd, so after a `cd` into a worktree every
+  subsequent hook found no marker above it and fell back to the pre-init branch:
+  SessionStart handed the agent "run init" in place of its context, and session
+  capture bailed — both silently, because the logger also refuses to write with no
+  home resolved. `CLAUDE_PROJECT_DIR` (the launch dir, which doesn't roam) now stands
+  in when cwd has wandered off.
+- **`github_pr_view` no longer 403s on repos where CI reports as check runs.** It
+  requested `statusCheckRollup`, a GitHub-App-only capability no fine-grained PAT can
+  hold, which failed the entire view. The field is dropped; `github_pr_checks` owns
+  that question and fails on its own.
+- **GitHub-pack docs matched back to reality.** The README tool table had drifted
+  (48 vs an actual 51 — `github_fast_forward`, `curl_run`, `video_frames` never
+  added), the pack-activation blurb and deconfigure list omitted the
+  `github_issue_*` grants, and the PAT walks told operators to grant **Checks** — a
+  permission that doesn't exist on fine-grained PATs (Actions: Read answers it). The
+  Contents note now also covers `github_pr_diff`, and sync's `FETCH_FAILED` guidance
+  can now discriminate an unapproved token from a missing Contents grant.
+
+### Changed
+- Sync's fast-forward docs teach the shared `AGENT_*` env spellings, with the
+  per-agent prefixed form noted as the override that wins.
+
+### Upgrade
+- `settings: additive` — if you use the GitHub pack, add
+  `mcp__plugin_agent-kevin_kevin__github_pr_comments` to `permissions.allow` (new
+  pack homes get it at activation) so review reads don't prompt. Core allow list is
+  unchanged: `list_worktrees` rides the `setup-worktree` skill's `allowed-tools`.
+- `manual: none` — if your fine-grained PAT was minted from the old walk, check it
+  has **Actions: Read** (the walk used to name a nonexistent "Checks" permission);
+  without it `github_pr_checks` can't read check-run CI. Everything else works as-is.
+
 ## [0.3.24] - 2026-08-07
 
 ### Added

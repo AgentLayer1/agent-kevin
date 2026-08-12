@@ -1,6 +1,6 @@
 /**
  * Worktree lifecycle — the shared implementation behind the `setup_worktree` /
- * `remove_worktree` MCP tools and the `kevin worktree` CLI command.
+ * `list_worktrees` / `remove_worktree` MCP tools and the `kevin worktree` CLI command.
  *
  * `setupWorktree` creates a sibling git worktree, copies the gitignored local files a fresh
  * checkout lacks (`.env*`, `.claude/settings.local.json`, `.cmux`, root `.cursor`/`.cursorignore`),
@@ -379,10 +379,13 @@ export interface RemoveWorktreeResult {
   steps: StepResult[];
 }
 
-/** Count commits reachable from HEAD that no remote-tracking branch has — the unpushed work. */
-const unpushedCount = (cwd: string): number => {
+/** Dirty-tree porcelain lines — the single definition of "dirty" for both the audit and the removal gate. */
+const dirtyStatus = (cwd: string): string[] => git(cwd, ['status', '--porcelain']).split('\n').filter(Boolean);
+
+/** Count commits reachable from `ref` that no remote-tracking branch has — the unpushed work. */
+const unpushedCount = (cwd: string, ref = 'HEAD'): number => {
   try {
-    return Number(git(cwd, ['rev-list', '--count', 'HEAD', '--not', '--remotes'])) || 0;
+    return Number(git(cwd, ['rev-list', '--count', ref, '--not', '--remotes'])) || 0;
   } catch {
     return 0;
   }
@@ -501,7 +504,7 @@ export const removeWorktree = ({
   const head = git(resolvedWorktree, ['rev-parse', '--abbrev-ref', 'HEAD']);
   const branch = head === 'HEAD' ? null : head;
 
-  const uncommitted = git(resolvedWorktree, ['status', '--porcelain']).split('\n').filter(Boolean);
+  const uncommitted = dirtyStatus(resolvedWorktree);
   const unpushed = unpushedCount(resolvedWorktree);
   const base = { worktreePath: resolvedWorktree, branch, mainCheckout, branchDeleted: false, uncommitted, unpushed };
 
@@ -573,4 +576,168 @@ export const removeWorktree = ({
   }
 
   return { ...base, status: 'removed', removed: true, branchDeleted, cleaned, steps, branchDeleteError };
+};
+
+export interface ListWorktreesOptions {
+  /** Absolute path to the repo — the main checkout or any of its worktrees. */
+  repoPath: string;
+}
+
+/**
+ * `main` is the main checkout (never removable); `missing` is registered but gone from disk
+ * (`git worktree prune` clears it); `deletable` means the branch's content is already in the base
+ * (merged, squash-merged, or no unique commits); `uncommitted`/`unpushed` mirror removeWorktree's
+ * blocking gates; `pushed-unmerged` is safe on a remote but not yet landed (likely in review).
+ */
+export type WorktreeVerdict = 'main' | 'missing' | 'uncommitted' | 'deletable' | 'unpushed' | 'pushed-unmerged';
+
+export interface WorktreeStatus {
+  path: string;
+  isMain: boolean;
+  /** The checked-out branch, or null when detached. */
+  branch: string | null;
+  head: string;
+  locked: boolean;
+  /** Registered in git but the directory no longer exists on disk. */
+  missing: boolean;
+  /** Dirty file count (`git status --porcelain` lines); 0 when the directory is missing. */
+  uncommitted: number;
+  /** Commits reachable from this worktree's HEAD that no remote has. */
+  unpushed: number;
+  aheadOfBase: number;
+  behindBase: number;
+  /** HEAD is an ancestor of the base ref — a regular merge landed it. */
+  merged: boolean;
+  /** Not an ancestor, but every unique commit is patch-equivalent to one upstream (squash/rebase merge). */
+  squashMerged: boolean;
+  /** ISO date of the last commit, or null when unresolvable. */
+  lastCommit: string | null;
+  lastCommitDays: number | null;
+  verdict: WorktreeVerdict;
+}
+
+export interface ListWorktreesResult {
+  mainCheckout: string;
+  /** The ref merged/ahead/behind are measured against (origin/<base> when it exists, else local). */
+  baseRef: string;
+  worktrees: WorktreeStatus[];
+}
+
+const DAY_MS = 86_400_000;
+
+/** True when `ref` is an ancestor of `base` (its history is fully contained in the base). */
+const isAncestor = (cwd: string, ref: string, base: string): boolean => {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ref, base], { cwd, encoding: 'utf8' });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** True when every commit in `ref` not in `base` is patch-equivalent to an upstream commit (`git cherry` all `-`). */
+const cherryEquivalent = (cwd: string, base: string, ref: string): boolean => {
+  try {
+    const lines = git(cwd, ['cherry', base, ref]).split('\n').filter(Boolean);
+    return lines.length > 0 && lines.every((line) => line.startsWith('-'));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Audit every registered worktree of a repo: what branch it holds, whether it's dirty, how it
+ * relates to the base branch (merged / squash-merged / ahead / behind), whether its commits are
+ * on a remote, and a per-worktree verdict. Read-only — nothing is touched.
+ */
+export const listWorktrees = ({ repoPath }: ListWorktreesOptions): ListWorktreesResult => {
+  const resolvedRepo = resolve(repoPath);
+  if (!existsSync(resolvedRepo) || !statSync(resolvedRepo).isDirectory()) {
+    throw new Error(`repoPath does not exist or is not a directory: ${resolvedRepo}`);
+  }
+
+  const blocks = git(resolvedRepo, ['worktree', 'list', '--porcelain'])
+    .split(/\n{2,}/)
+    .map((block) => block.split('\n').filter(Boolean))
+    .filter((lines) => lines.some((line) => line.startsWith('worktree ')));
+  const mainCheckout = blocks[0]
+    ?.find((line) => line.startsWith('worktree '))
+    ?.slice('worktree '.length)
+    .trim();
+  if (!mainCheckout) {
+    throw new Error(`Not a git repository (no worktree list): ${resolvedRepo}`);
+  }
+
+  const localBase =
+    BASE_BRANCH_PREFERENCE.find((name) => localBranchExists(mainCheckout, name)) ??
+    git(mainCheckout, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  // Compare against the remote-tracking base when it exists — the local base can lag what's merged.
+  const baseRef = refExists(mainCheckout, `refs/remotes/origin/${localBase}`) ? `origin/${localBase}` : localBase;
+
+  const worktrees = blocks.map((lines, index): WorktreeStatus => {
+    const value = (name: string) =>
+      lines
+        .find((line) => line === name || line.startsWith(`${name} `))
+        ?.slice(name.length)
+        .trim();
+    const path = value('worktree') ?? '';
+    const head = value('HEAD') ?? '';
+    const branch = value('branch')?.replace('refs/heads/', '') ?? null;
+    const isMain = index === 0;
+    const missing = !existsSync(path);
+
+    const counts = (() => {
+      try {
+        const [behind, ahead] = git(mainCheckout, ['rev-list', '--left-right', '--count', `${baseRef}...${head}`])
+          .split(/\s+/)
+          .map((count) => Number(count) || 0);
+        return { behindBase: behind ?? 0, aheadOfBase: ahead ?? 0 };
+      } catch {
+        return { behindBase: 0, aheadOfBase: 0 };
+      }
+    })();
+    const merged = head !== '' && isAncestor(mainCheckout, head, baseRef);
+    const squashMerged = !merged && counts.aheadOfBase > 0 && cherryEquivalent(mainCheckout, baseRef, head);
+    const uncommitted = missing ? 0 : dirtyStatus(path).length;
+    const unpushed = unpushedCount(mainCheckout, head);
+    const lastCommit = (() => {
+      try {
+        return git(mainCheckout, ['log', '-1', '--format=%cI', head]) || null;
+      } catch {
+        return null;
+      }
+    })();
+    const lastCommitDays = lastCommit ? Math.floor((Date.now() - Date.parse(lastCommit)) / DAY_MS) : null;
+
+    const verdict: WorktreeVerdict = isMain
+      ? 'main'
+      : missing
+        ? 'missing'
+        : uncommitted > 0
+          ? 'uncommitted'
+          : merged || squashMerged || counts.aheadOfBase === 0
+            ? 'deletable'
+            : unpushed > 0
+              ? 'unpushed'
+              : 'pushed-unmerged';
+
+    return {
+      path,
+      isMain,
+      branch,
+      head,
+      locked: lines.some((line) => line === 'locked' || line.startsWith('locked ')),
+      missing,
+      uncommitted,
+      unpushed,
+      ...counts,
+      merged,
+      squashMerged,
+      lastCommit,
+      lastCommitDays,
+      verdict
+    };
+  });
+
+  return { mainCheckout, baseRef, worktrees };
 };

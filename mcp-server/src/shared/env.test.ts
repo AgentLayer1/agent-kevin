@@ -32,17 +32,29 @@ const withHomeEnv = <T>(mutate: () => void, fn: () => T): T => {
 };
 
 describe('agentHomePath', () => {
-  /** Run `fn` with both home vars unset and cwd at `dir`, restoring all after. */
-  const withCwd = <T>(dir: string, fn: () => T): T => {
+  /** Run `fn` with both home vars unset, cwd at `dir`, and the host's project dir
+   *  set to `projectDir` (unset when omitted) — all restored after. */
+  const withCwd = <T>(dir: string, fn: () => T, projectDir?: string): T => {
     const originalCwd = process.cwd();
+    const originalProject = process.env.CLAUDE_PROJECT_DIR;
     process.chdir(dir);
     try {
       return withHomeEnv(() => {
         delete process.env[OWN_HOME_KEY];
         delete process.env.AGENT_HOME;
+        if (projectDir === undefined) {
+          delete process.env.CLAUDE_PROJECT_DIR;
+        } else {
+          process.env.CLAUDE_PROJECT_DIR = projectDir;
+        }
       }, fn);
     } finally {
       process.chdir(originalCwd);
+      if (originalProject === undefined) {
+        delete process.env.CLAUDE_PROJECT_DIR;
+      } else {
+        process.env.CLAUDE_PROJECT_DIR = originalProject;
+      }
     }
   };
 
@@ -134,6 +146,35 @@ describe('agentHomePath', () => {
       expect(agentHomePath()).toBe(process.cwd());
       expect(process.env.AGENT_HOME).toBeUndefined();
     });
+  });
+
+  // A session that `cd`s into a worktree keeps that cwd for every later hook —
+  // the launch dir is what still points at the home.
+  test("falls back to the host's project dir when cwd has roamed outside the home", () => {
+    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-roamed-')));
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
+    const worktree = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-worktree-')));
+    withCwd(
+      worktree,
+      () => {
+        expect(agentHomePath()).toBe(home);
+        expect(process.env.AGENT_HOME).toBe(home);
+      },
+      home
+    );
+  });
+
+  test('a project dir that is not this agent home rescues nothing', () => {
+    const worktree = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-worktree-')));
+    const otherProject = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-other-')));
+    withCwd(
+      worktree,
+      () => {
+        expect(agentHomePath()).toBe(process.cwd());
+        expect(process.env.AGENT_HOME).toBeUndefined();
+      },
+      otherProject
+    );
   });
 });
 

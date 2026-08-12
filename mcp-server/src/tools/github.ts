@@ -415,7 +415,6 @@ const PR_VIEW_FIELDS = [
   'deletions',
   'changedFiles',
   'files',
-  'statusCheckRollup',
   'mergeable',
   'mergeStateStatus'
 ].join(',');
@@ -433,6 +432,42 @@ const PR_LIST_FIELDS = [
   'reviewDecision',
   'labels'
 ].join(',');
+
+/**
+ * GraphQL because `isResolved` exists nowhere else — REST's `/pulls/{n}/comments` returns the
+ * inline comments flat, with no thread grouping and no resolution state, which is the half of a
+ * review that matters most. One query covers all three surfaces a reviewer writes on.
+ */
+const PR_DISCUSSION_QUERY = `
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      comments(first: 100) {
+        pageInfo { hasNextPage }
+        nodes { author { login } body createdAt url }
+      }
+      reviews(first: 100) {
+        pageInfo { hasNextPage }
+        nodes { author { login } state body submittedAt url }
+      }
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage }
+        nodes {
+          isResolved
+          isOutdated
+          path
+          line
+          startLine
+          diffSide
+          comments(first: 100) {
+            pageInfo { hasNextPage }
+            nodes { author { login } body createdAt url }
+          }
+        }
+      }
+    }
+  }
+}`;
 
 const PR_CHECKS_FIELDS = [
   'name',
@@ -535,7 +570,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_pr_view',
     description:
-      'View one pull request in full (read-only): body, reviews, comments, changed files, diff stats, label/review state, and the status-check rollup. Use github_pr_diff for the actual patch.',
+      'View one pull request in full (read-only): body, latest reviews, conversation comments, changed files, diff stats, label/review state, and mergeability. Use github_pr_comments for inline review threads, github_pr_diff for the actual patch.',
     inputSchema: { ...repoField, ...prNumberField },
     handler: async ({ repo, number }) => {
       const target = await resolveRepo(repo);
@@ -547,6 +582,29 @@ export const tools: ToolDef[] = [
         target,
         '--json',
         PR_VIEW_FIELDS
+      ]);
+    }
+  }),
+
+  defineTool({
+    name: 'github_pr_comments',
+    description:
+      'Every comment on a pull request (read-only): inline review threads with their file/line anchor and resolved + outdated state, review submission bodies, and top-level conversation comments. github_pr_view carries only the conversation half, so this is the tool for reading an actual review.',
+    inputSchema: { ...repoField, ...prNumberField },
+    handler: async ({ repo, number }) => {
+      const target = await resolveRepo(repo);
+      const [owner, name] = target.split('/');
+      return ghJson(`github:pr_comments:${target}#${number}`, [
+        'api',
+        'graphql',
+        '-f',
+        `query=${PR_DISCUSSION_QUERY}`,
+        '-f',
+        `owner=${owner}`,
+        '-f',
+        `name=${name}`,
+        '-F',
+        `number=${number}`
       ]);
     }
   }),
