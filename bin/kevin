@@ -239,12 +239,14 @@ async function run(): Promise<void> {
   const { log } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/log'));
   log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
 
+  const { FOLDERS, TIMEZONE, isInitialized } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
+
   if (group === 'ping') {
-    const { FOLDERS, TIMEZONE } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
     console.log(
       JSON.stringify(
         {
-          ok: true,
+          ok: isInitialized(),
+          initialized: isInitialized(),
           timezone: TIMEZONE,
           home: FOLDERS.HOME,
           knowledge: FOLDERS.KNOWLEDGE,
@@ -255,6 +257,31 @@ async function run(): Promise<void> {
       )
     );
     return;
+  }
+
+  // Refuse to touch a home that was never scaffolded. Resolution falls back to
+  // cwd when nothing above it is an agent home (see agentHomePath), so a CLI run
+  // from inside a code repo would otherwise read an empty tree and WRITE a
+  // knowledge/ + projects/ scaffold into that repo, reporting success. Hooks and
+  // stdio MCP servers are safe because the host exports CLAUDE_PROJECT_DIR, which
+  // doesn't roam with the shell; a plain terminal has no such anchor.
+  //
+  // The session verbs are exempt: they self-guard and return a structured
+  // "not-initialized" result the host's hook protocol expects, and failing hard
+  // there would surface as a hook error on every session in a non-home directory.
+  // `worktree` is exempt because it acts on the repo path it's given, not on
+  // home state.
+  const HOMELESS_OK = new Set(['session-start', 'session-capture', 'worktree']);
+  if (!isInitialized() && !HOMELESS_OK.has(group)) {
+    const { agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
+    const homeKey = agentKeyName('HOME');
+    console.error(
+      `${group}: no agent home at ${FOLDERS.HOME} (no SOUL.md there).\n` +
+        `The home is resolved from the current directory, so this is what you get when\n` +
+        `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
+        `  ${homeKey}=/path/to/home kevin ${group}${command ? ` ${command}` : ''}`
+    );
+    process.exit(1);
   }
 
   if (group === 'task') {
