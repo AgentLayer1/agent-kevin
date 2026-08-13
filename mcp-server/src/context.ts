@@ -14,6 +14,7 @@ import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, 
 import { agentDisplayName } from '@/shared/agent-name';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
@@ -276,8 +277,54 @@ async function gatherContext(): Promise<GatheredContext> {
   return { dateStr, entries, parts };
 }
 
+/**
+ * Scaffold placeholders left unresolved in the home's identity files.
+ *
+ * `init` and `upgrade` substitute `{{TOKEN}}` when they write these, and both
+ * check their own work — but both are skills, so the check is an instruction a
+ * model has to follow rather than something the code enforces. A miss is
+ * otherwise silent: the raw token sits in the file and loads into every session
+ * from then on. This is the mechanical backstop, and it costs four small reads
+ * once per session.
+ *
+ * Matches the template convention (`{{ALL_CAPS}}`) rather than a fixed list, so
+ * a token added later is caught without anyone remembering to update this.
+ */
+const unresolvedPlaceholders = (): string[] => {
+  const files = [FILES.CLAUDE, FILES.CLAUDE_LOCAL, FILES.SOUL, FILES.IDENTITY, FILES.USER];
+  return files.flatMap((file) => {
+    try {
+      const found = [...readFileSync(file, 'utf-8').matchAll(/\{\{[A-Z][A-Z0-9_]*\}\}/g)].map((match) => match[0]);
+      return found.length > 0 ? [`${basename(file)}: ${[...new Set(found)].join(', ')}`] : [];
+    } catch {
+      return []; // absent file — normal (CLAUDE.local.md usually, USER.md pre-init)
+    }
+  });
+};
+
 export async function assembleContext(): Promise<AssembledContext> {
   const { entries, parts } = await gatherContext();
+
+  const stranded = unresolvedPlaceholders();
+  if (stranded.length > 0) {
+    entries.push({ label: 'identity files', status: 'unavailable', bytes: 0, note: 'unresolved placeholders' });
+    parts.push(
+      [
+        '## ⚠️ Unresolved scaffold placeholders',
+        '',
+        'These files still contain template placeholders that `init` or `upgrade` should have',
+        'substituted. They are loaded into context every session, so the agent is reading its own',
+        'identity with the placeholder in place:',
+        '',
+        ...stranded.map((line) => `- ${line}`),
+        '',
+        'Tell the operator. The fix is to replace each placeholder with the intended value —',
+        `\`{{AGENT_NAME}}\` is whatever \`IDENTITY.md\` gives as **Name**. Do not re-run init to`,
+        'repair this: its re-run path offers to overwrite these same files.'
+      ].join('\n')
+    );
+  }
+
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
