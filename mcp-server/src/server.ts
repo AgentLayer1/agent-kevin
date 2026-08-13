@@ -7,9 +7,10 @@
  * playwright captures) create their parent dirs at write time. Pre-init
  * plugins must not touch disk.
  */
-import { FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
+import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
 import { log } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';
+import { existsSync } from 'node:fs';
 import type { ToolDef } from '@/shared/types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -51,11 +52,20 @@ for (const tool of TOOLS) {
           content: [
             {
               type: 'text' as const,
-              text:
-                `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
-                `(no ${runtimeDirName()}/ there). The home is resolved from the directory this ` +
-                `session was launched in, so start Claude Code from the agent home — or run ` +
-                `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
+              // Never suggest init when a SOUL.md is sitting there: that's a
+              // scaffolded brain whose data dir is missing, or another agent's
+              // home, and init's re-run path offers to overwrite exactly those
+              // identity files. Same distinction SessionStart draws.
+              text: existsSync(FILES.SOUL)
+                ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no ` +
+                  `${runtimeDirName()}/, so it is either another agent's home or this one's data dir ` +
+                  `is missing after a restore. Do NOT run init to repair it — that would offer to ` +
+                  `overwrite the identity files already there. Recreate the directory ` +
+                  `(\`mkdir -p "${FOLDERS.HOME}/${runtimeDirName()}"\`) or relaunch from the right home.`
+                : `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
+                  `(no ${runtimeDirName()}/ there). The home is resolved from the directory this ` +
+                  `session was launched in, so start Claude Code from the agent home — or run ` +
+                  `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
             }
           ],
           isError: true

@@ -288,9 +288,13 @@ async function gatherContext(): Promise<GatheredContext> {
         '',
         ...stranded.map((line) => `- ${line}`),
         '',
-        'Tell the operator. The fix is to replace each placeholder with the intended value —',
-        `\`{{AGENT_NAME}}\` is whatever \`IDENTITY.md\` gives as **Name**. Do not re-run init to`,
-        'repair this: its re-run path offers to overwrite these same files.'
+        '**Report this to the operator and let them decide. Do not edit these files yourself',
+        'unless they ask you to.** The likely cause is a failed substitution during init or',
+        'upgrade, in which case the fix is to replace each placeholder with its intended value —',
+        `\`{{AGENT_NAME}}\` is whatever \`IDENTITY.md\` gives as **Name**. But an operator may also`,
+        'have written this text deliberately (notes about a templating system, for instance), and',
+        'silently rewriting their own words would be worse than the warning. Do not re-run init to',
+        'repair it either: the re-run path offers to overwrite these same files.'
       ].join('\n')
     );
   }
@@ -305,7 +309,7 @@ async function gatherContext(): Promise<GatheredContext> {
  * check their own work — but both are skills, so the check is an instruction a
  * model has to follow rather than something the code enforces. A miss is
  * otherwise silent: the raw token sits in the file and loads into every session
- * from then on. This is the mechanical backstop, and it costs four small reads
+ * from then on. This is the mechanical backstop, and it costs five small reads
  * once per session.
  *
  * Matches the template convention (`{{ALL_CAPS}}`) rather than a fixed list, so
