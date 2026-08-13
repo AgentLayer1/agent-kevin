@@ -252,7 +252,21 @@ automatically (with the diff in the summary); optional merges wait for y/n.
 **manual** — print each manual note for the user to handle by hand; do not stamp the
 baseline past a release with an unaddressed manual step unless the user confirms.
 
-## Step 5 — Stamp the new baseline
+### Gate: no `{{TOKEN}}` may survive a merge
+
+Token resolution in step 3 is yours to perform, so nothing mechanical proves you did
+it. A missed `{{AGENT_NAME}}` doesn't fail loudly — it sits in the operator's operating
+manual and identity files and loads into every session from then on. Check before
+stamping anything:
+
+```bash
+grep -rn '{{[A-Z_]*}}' "$HOME_DIR"/{CLAUDE,CLAUDE.local,SOUL,IDENTITY}.md "$HOME_DIR/.claude/rules" 2>/dev/null
+```
+
+Any hit means a merge wrote a template placeholder verbatim. **Restore those files from
+the Step 3 backup, fix the resolution, and re-run the merge** — do not hand-patch the
+token and carry on, because a token you resolved wrongly in one section was probably
+resolved wrongly in the others too. Do not stamp the baseline until this is clean.
 
 Rewrite `$HOME_DIR/.kevin/version.json`: set `templateVersion` to `$INSTALLED`,
 preserve `initializedAt` (on the onboard path there's none — set it to today),

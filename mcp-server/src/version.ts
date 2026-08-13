@@ -152,7 +152,7 @@ export const parseChangelog = (): ChangelogEntry[] => {
  * Local, zero-network upgrade signal.
  * - `current`  — baseline == installed (or a fresh home not yet `/init`-ed).
  * - `pending`  — baseline < installed; HOME migrations from the CHANGELOG await.
- * - `onboard`  — an established home (SOUL.md present) with no version.json yet;
+ * - `onboard`  — an established home (this agent's data dir present) with no version.json yet;
  *                run `/agent-kevin:upgrade` once to start tracking.
  */
 export const getUpgradeStatus = (): UpgradeStatus => {

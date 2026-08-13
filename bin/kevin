@@ -516,6 +516,22 @@ async function run(): Promise<void> {
       return f?.slice(name.length + 3);
     };
 
+    // `--exclude` used to suppress capture for a listed path, and only mattered
+    // for the user-level hook this plugin no longer supports. Silently ignoring
+    // it would quietly widen what gets captured for anyone whose old
+    // `~/.claude/settings.json` hook is still installed — including the sibling-
+    // agent and Ring-1 paths they excluded on purpose. Say so instead.
+    if (allArgs.some((a) => a === '--exclude' || a.startsWith('--exclude='))) {
+      log
+        .with('cli')
+        .warn(
+          '--exclude is gone along with user-level hook support, and is being ignored. ' +
+            'Capture now comes only from the plugin hooks, which run solely in this agent\'s own home. ' +
+            'Delete the session-capture hooks from ~/.claude/settings.json — while they remain, ' +
+            'sessions you meant to exclude are being captured.'
+        );
+    }
+
     const mode = localFlag('mode');
     if (mode !== 'session-end' && mode !== 'pre-compact') {
       throw new Error(
