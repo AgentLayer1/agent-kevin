@@ -16,7 +16,7 @@ import { readFileSync } from 'fs';
 const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   open: ['active', 'blocked', 'cancelled'],
   active: ['blocked', 'done', 'cancelled'],
-  blocked: ['active'],
+  blocked: ['active', 'cancelled'],
   done: ['active'],
   cancelled: []
 };
