@@ -23,6 +23,7 @@ import {
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
+import { agentDisplayName } from '@/shared/agent-name';
 import { agentKeyName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import {
@@ -1132,15 +1133,12 @@ const wikiIndexDescriptions = (prefix: string): Map<string, string> => {
   return map;
 };
 
-// Pre-init fallback: derive the agent's name from the plugin id (agent-walle → Walle).
-const FALLBACK_AGENT_NAME = PLUGIN_NAME.replace(/^agent-/, '').replace(/^./, (c) => c.toUpperCase());
-
 // Rendered in the persona header (name/kind/vibe chips + bio), so their
 // sections would only duplicate it below.
 const PERSONA_HEAD_SECTIONS = new Set(['Who', 'Short Bio']);
 
 const collectPersona = (): Persona => ({
-  name: boldField(FILES.IDENTITY, 'Name') || FALLBACK_AGENT_NAME,
+  name: agentDisplayName(),
   kind: stripMarkdown(boldField(FILES.IDENTITY, 'Kind')),
   // Forks word the tagline field differently (Vibe, Register, ...).
   vibe: stripMarkdown(boldField(FILES.IDENTITY, 'Vibe') || boldField(FILES.IDENTITY, 'Register')),

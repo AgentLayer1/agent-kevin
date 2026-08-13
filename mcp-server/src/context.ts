@@ -11,6 +11,7 @@
  * a few KB.
  */
 import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { agentDisplayName } from '@/shared/agent-name';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -195,7 +196,7 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     return `    ${STATUS_ICON[e.status]} ${label}  ${size}${note}`;
   });
   const head = [
-    `  🤖 Agent:     Kevin · v${PLUGIN_VERSION}`,
+    `  🤖 Agent:     ${agentDisplayName()} · v${PLUGIN_VERSION}`,
     `  🧠 Knowledge: ${FOLDERS.KNOWLEDGE}`,
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`
