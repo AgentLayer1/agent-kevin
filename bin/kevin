@@ -239,14 +239,16 @@ async function run(): Promise<void> {
   const { log } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/log'));
   log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
 
-  const { FOLDERS, TIMEZONE, isInitialized } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
+  const { FOLDERS, TIMEZONE } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
+  const { isAgentHome } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
 
   if (group === 'ping') {
     console.log(
       JSON.stringify(
         {
-          ok: isInitialized(),
-          initialized: isInitialized(),
+          // Whether the resolved path is this agent's home, which is what decides
+          // if any other command will run — not merely whether a brain exists there.
+          ok: isAgentHome(FOLDERS.HOME),
           timezone: TIMEZONE,
           home: FOLDERS.HOME,
           knowledge: FOLDERS.KNOWLEDGE,
@@ -259,24 +261,29 @@ async function run(): Promise<void> {
     return;
   }
 
-  // Refuse to touch a home that was never scaffolded. Resolution falls back to
-  // cwd when nothing above it is an agent home (see agentHomePath), so a CLI run
-  // from inside a code repo would otherwise read an empty tree and WRITE a
-  // knowledge/ + projects/ scaffold into that repo, reporting success. Hooks and
-  // stdio MCP servers are safe because the host exports CLAUDE_PROJECT_DIR, which
-  // doesn't roam with the shell; a plain terminal has no such anchor.
+  // Refuse to touch anything that isn't THIS agent's home. Resolution falls back
+  // to cwd when nothing above it qualifies (see agentHomePath), so a CLI run from
+  // a code repo would otherwise read an empty tree and WRITE a knowledge/ +
+  // projects/ scaffold into it, reporting success. Hooks and stdio MCP servers
+  // were never exposed — the host exports CLAUDE_PROJECT_DIR and it doesn't roam
+  // with the shell — but a plain terminal has no such anchor.
   //
-  // The session verbs are exempt: they self-guard and return a structured
+  // Gate on the data dir, the same marker `agentHomePath` walks for, NOT on
+  // SOUL.md: every sibling agent's home has a SOUL.md, so a SOUL.md test passes
+  // inside another agent's brain and hands it this agent's writes. Only this
+  // agent's home carries this agent's data dir.
+  //
+  // The session verbs are exempt: they self-guard and return the structured
   // "not-initialized" result the host's hook protocol expects, and failing hard
-  // there would surface as a hook error on every session in a non-home directory.
+  // there would surface as a hook error on every session started outside a home.
   // `worktree` is exempt because it acts on the repo path it's given, not on
   // home state.
   const HOMELESS_OK = new Set(['session-start', 'session-capture', 'worktree']);
-  if (!isInitialized() && !HOMELESS_OK.has(group)) {
-    const { agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
+  if (!isAgentHome(FOLDERS.HOME) && !HOMELESS_OK.has(group)) {
+    const { agentKeyName, runtimeDirName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     const homeKey = agentKeyName('HOME');
     console.error(
-      `${group}: no agent home at ${FOLDERS.HOME} (no SOUL.md there).\n` +
+      `${group}: ${FOLDERS.HOME} is not this agent's home (no ${runtimeDirName()}/ there).\n` +
         `The home is resolved from the current directory, so this is what you get when\n` +
         `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
         `  ${homeKey}=/path/to/home kevin ${group}${command ? ` ${command}` : ''}`
