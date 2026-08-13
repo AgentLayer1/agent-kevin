@@ -1,6 +1,7 @@
 ---
 name: rename-agent
-description: Rename this agent's display name across an existing HOME — IDENTITY.md fields, avatar, and every prose mention in SOUL/CLAUDE/USER, knowledge, and projects — without forking the plugin or touching the `/agent-kevin:` namespace. Use when the operator says "rename the agent", "call it <name> instead", "I don't want it called Kevin", or invokes /rename-agent. Also the repair path when a half-finished rename left mixed names behind.
+description: Rename this agent's display name across an existing HOME — IDENTITY.md fields, avatar, and every prose mention in SOUL/CLAUDE/USER, knowledge, and projects — without forking the plugin or touching the `/agent-kevin:` namespace. Also the repair path when a half-finished rename left mixed names behind. Only runs when explicitly invoked via /rename-agent, and is deliberately left ungranted so it asks for permission every time.
+disable-model-invocation: true
 ---
 
 # Rename Agent
@@ -8,6 +9,12 @@ description: Rename this agent's display name across an existing HOME — IDENTI
 Change what this agent calls itself. The display name is data in `IDENTITY.md`; the
 namespace is code in the plugin manifest. This skill moves the first and never the
 second.
+
+**Slash-only, and unpermissioned on purpose.** It rewrites files across the whole brain
+in one pass, so it never fires on its own — not from a passing "maybe call it something
+else", not via the Skill tool from another skill. It is also deliberately absent from the
+`permissions.allow` grants `init` writes, so even `/rename-agent` raises a confirm prompt.
+Two gates, both intentional: don't "fix" either by adding a grant.
 
 ## What changes and what doesn't
 

@@ -571,7 +571,7 @@ graph LR
 |---|---|
 | `init` | First-run onboarding |
 | `configure-skills` | Configure skill packs, install third-party libraries |
-| `rename-agent` | Change the agent's display name across an existing home — persona fields, avatar, and prose — without forking the plugin |
+| `rename-agent` | Change the agent's display name across an existing home — persona fields, avatar, and prose — without forking the plugin (`/rename-agent`, and it asks before running) |
 | `knowledge-compile` | Synthesise raw sessions/feedback/inbox items into the wiki |
 | `create-project` / `archive-project` | Project lifecycle |
 | `flywheel` | Cross-project work session |
@@ -999,7 +999,7 @@ The plugin is `agent-kevin`, but your agent doesn't have to be called Kevin. Two
 
 `/agent-kevin:init` asks for a name, an emoji and an avatar up front. Everything downstream reads the answer: the templates are written in that name, the session banner and `TASKS.md` header render it, and the knowledge-compile prompts refer to it, so your compiled memory speaks about the agent you actually named.
 
-Already have a home? **`/agent-kevin:rename-agent`** does the migration: rewrites the persona fields, swaps the avatar, sweeps the prose across `SOUL.md` / `CLAUDE.md` / `USER.md` / knowledge / projects, and leaves the plumbing alone. It won't touch your home directory path, so `~/Documents/Agents/Kevin` in a settings file or a wiki page survives intact.
+Already have a home? **`/agent-kevin:rename-agent`** does the migration. It only runs when you type that command — it never fires on its own — and it asks for permission even then, because it rewrites files across the whole brain in one pass. It: rewrites the persona fields, swaps the avatar, sweeps the prose across `SOUL.md` / `CLAUDE.md` / `USER.md` / knowledge / projects, and leaves the plumbing alone. It won't touch your home directory path, so `~/Documents/Agents/Kevin` in a settings file or a wiki page survives intact.
 
 Renaming survives updates. `/agent-kevin:upgrade` resolves `{{AGENT_NAME}}` in the shipped templates from *your* `IDENTITY.md` before diffing, so template changes arrive phrased in your agent's name instead of proposing "Kevin" back on every release. The persona block is never reconciled at all.
 

@@ -43,6 +43,95 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.26] - 2026-08-13
+
+### Added
+- **Name your agent something other than Kevin.** The display name and the plugin
+  namespace were the same string, so the only way to run an agent called anything else
+  was to fork and give up clean updates. They're now separate: the name is data in
+  `IDENTITY.md`, the namespace (`/agent-kevin:`, `KEVIN_*`, `.kevin/`, MCP tool names)
+  stays in the manifest. `init` asks for a name, emoji and avatar up front; the session
+  banner, the `TASKS.md` header and the knowledge-compile prompts all render it, so
+  compiled memory speaks about the agent you actually named.
+- **`rename-agent` — rename an existing home.** Rewrites the persona fields, swaps the
+  avatar, and sweeps the prose across `SOUL.md` / `CLAUDE.md` / `USER.md` / knowledge /
+  projects, leaving the plumbing alone. It refuses to touch `Kevin` sitting against a
+  `/` or `\`, so a home at `~/Documents/Agents/Kevin` keeps every path reference intact.
+  Double-gated on purpose: `disable-model-invocation`, so it only runs from
+  `/agent-kevin:rename-agent` and never fires on its own, **and** deliberately left out of
+  the permission grants, so even that raises a confirm prompt. It rewrites the whole brain
+  in one pass; both gates are intentional.
+- **Unresolved scaffold placeholders are surfaced every session.** `init` and `upgrade`
+  substitute `{{TOKEN}}` and both check their own work, but those checks are skill
+  instructions. SessionStart now scans the identity files and reports what it finds in
+  the banner and the context, so a slip is caught on the next session instead of sitting
+  in files that load into every one.
+
+### Changed
+- **A home is identified by its data dir, never by `SOUL.md`.** Every agent's home has a
+  `SOUL.md`, so that test answered "some agent lives here" when the question is "does
+  *this* agent live here". Since the home falls back to cwd when the walk finds nothing,
+  the weaker test let one agent read and write inside another's brain.
+- **User-level session hooks are no longer supported.** Capture ships only with the
+  plugin, which Claude Code loads solely where it's enabled — its own home — so a session
+  can only be captured by the agent whose home it started in. Isolation is structural
+  instead of defended, and the machinery that defended it (self-defer, an enabled-plugin
+  probe, the repeatable `--exclude` flag) is gone. A session started outside a home is
+  no longer captured at all.
+- **The CLI and the MCP tools refuse to run outside this agent's home.** Both name the
+  resolved path and the env var that overrides it, rather than reading an empty tree and
+  scaffolding `knowledge/` + `projects/` into whatever repo you were standing in.
+- **README rewritten around the launch-from-home convention**, replacing the
+  capture-everywhere recipe, plus a new section on naming and renaming an agent.
+
+### Fixed
+- **The logger forged the marker that identifies a home.** It created the data dir on
+  first write whenever `<AGENT>_HOME` was set, and it runs on every invocation —
+  including ones the guards had just refused. Point the var at a typo or a sibling
+  agent's home and the refusal itself made the next attempt succeed. Both branches now
+  require the dir to already exist.
+- **Field readers walked past an empty value into the next line.** `\s` matches
+  newlines, so `**Name:**\s*(.+)$` against a blank field captured whatever followed —
+  an `IDENTITY.md` with an empty Name made the agent call itself "- **Kind:** AI
+  assistant" in the banner, in `TASKS.md`, and in the compile prompts that write its
+  name into long-term memory. Same bug returned `type: task` as a task's title when
+  `title:` was blank.
+- **Guards no longer recommend a destructive repair.** SessionStart told a home with a
+  `SOUL.md` but no data dir to run `init`, which offers to overwrite exactly the identity
+  files sitting there; it now names both causes (a restore that lost the dir, or another
+  agent's home) and gives the one-line fix. `configure-skills` made the same
+  recommendation keyed on a missing `CLAUDE.md`, which init legitimately writes as
+  `CLAUDE.local.md`.
+- **A blocked task can be cancelled without a detour through `active`**, which had been
+  parking abandoned work in `active` between the two hops and misreporting it.
+- **`browser_flows` drives chromium over CDP on native Windows** (#17).
+
+### Upgrade
+- `manual: required` — **Delete the `session-capture` hooks and any `KEVIN_HOME` from
+  `~/.claude/settings.json`** (and any `export KEVIN_HOME` in your shell rc). A plugin
+  update can't touch that file. While the hooks remain they still capture, but
+  `--exclude` is now ignored, so sibling-agent and Ring-1 paths you excluded on purpose
+  are being captured; the CLI warns when it sees the flag. `KEVIN_HOME` is machine-wide
+  and outranks launch-directory resolution, so it also blocks running a second home.
+  After removing them, always launch from the agent home.
+- `manual: none` — **restart Claude Code after `/plugin update`, before anything else.**
+  This release rewrites MCP-server code (the home gate, the display-name resolver, the
+  logger, session context) and the running server holds the old code until Claude Code
+  reloads. Deleting the hooks above also only takes effect on relaunch, since the host
+  reads them at launch.
+- `template/CLAUDE.md: mandatory` — placeholder-only change. Upgrade resolves
+  `{{AGENT_NAME}}` from your `IDENTITY.md` before diffing, so for a home whose Name is
+  `Kevin` the merge is a verified no-op; for a renamed home it arrives in that name.
+- `template/SOUL.md: optional` — same placeholder-only change, and it's confined to the
+  first line of `## Vibe`. If the merge offers you any *other* section, that is your own
+  earlier customization drifting from the template, not something this release changed —
+  **decline it.** Accepting would overwrite your edits with the stock text.
+
+`templates/IDENTITY.md` also changed, and is deliberately **not** listed above: the edit
+is confined to the preamble and `## Who`, which upgrade never reconciles. That block is
+your agent's persona, and the avatar line can't survive a diff round trip. New homes only,
+nothing to do.
+
 ## [0.3.25] - 2026-08-10
 
 ### Added
