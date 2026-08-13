@@ -625,12 +625,14 @@ with `Write`, so nothing mechanical guarantees you resolved their placeholders. 
 right after the four files land:
 
 ```bash
-grep -l '{{\|<AGENT_NAME>\|<NAME>\|<TIMEZONE>' "$HOME_DIR"/{SOUL,IDENTITY,USER}.md "$CLAUDE_DEST" 2>/dev/null
+grep -l '{{' "$HOME_DIR"/{SOUL,IDENTITY,USER}.md "$CLAUDE_DEST" 2>/dev/null
 ```
 
-Both spellings are checked because the two template styles differ: the bundled
-`templates/*.md` use `{{TOKEN}}`, while the `USER.md` body written inline in this skill
-uses `<TOKEN>`. A gate that knew only one would wave the other straight through.
+One pattern covers all four because every placeholder written into the home uses
+`{{TOKEN}}` — the bundled `templates/*.md` and the `USER.md` body written inline in this
+skill alike. Keep it that way: `<TOKEN>` is this skill's convention for values *you*
+fill in while following instructions, and it must never reach a file in the home, or the
+SessionStart backstop that re-checks this every session will not see it either.
 
 Any file listed still has an unresolved placeholder. Fix it before continuing — an
 unsubstituted `{{AGENT_NAME}}` sits in the agent's own identity files and is read into
@@ -959,37 +961,37 @@ Do **not** add a `hooks` block here. Hooks come from the plugin's own `hooks/hoo
 USER.md template:
 
 ```markdown
-# About <NAME>
+# About {{NAME}}
 
-<AVATAR_LINE>
+{{AVATAR_LINE}}
 
-<AGENT_NAME> reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want <AGENT_NAME> to work with me.
+{{AGENT_NAME}} reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want {{AGENT_NAME}} to work with me.
 
 ## Identity
 
-- **Name:** <NAME>
-- **Home timezone:** <TIMEZONE>
+- **Name:** {{NAME}}
+- **Home timezone:** {{TIMEZONE}}
 - **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone.
 
 ## How to Talk to Me
 
-<COMMUNICATION_STYLE_PARAGRAPH>
+{{COMMUNICATION_STYLE_PARAGRAPH}}
 
 _(Examples to pick from or replace: "Direct and technical, no preamble." / "Plain English, walk me through it." / "Bullet-point summaries first, details on request." / "I push back — expect me to challenge your first answer.")_
 
 ## Hard Rules
 
-<VALUES_OR_PLACEHOLDER>
+{{VALUES_OR_PLACEHOLDER}}
 
-_(Anything <AGENT_NAME> should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
+_(Anything {{AGENT_NAME}} should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
 
 ## Where Things Live
 
-- **Primary codebase:** `<AGENT_CODE_PATH>` (also exposed as `$AGENT_CODE_PATH` for shell/MCP use)
+- **Primary codebase:** `{{AGENT_CODE_PATH}}` (also exposed as `$AGENT_CODE_PATH` for shell/MCP use)
 
 ## Deeper
 
-These files hold my evolving long-form knowledge. <AGENT_NAME> reads them on demand and updates them on compile.
+These files hold my evolving long-form knowledge. {{AGENT_NAME}} reads them on demand and updates them on compile.
 
 - [Profile](knowledge/user/profile.md)
 - [Skills](knowledge/user/skills.md)
@@ -1000,7 +1002,7 @@ These files hold my evolving long-form knowledge. <AGENT_NAME> reads them on dem
 
 If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.AGENT_CODE_PATH` and re-running compile.
 
-`<AVATAR_LINE>` rendering:
+`{{AVATAR_LINE}}` rendering:
 - If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
 - If Step 5b was skipped → omit the line entirely (no empty placeholder).
 

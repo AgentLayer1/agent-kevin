@@ -274,6 +274,27 @@ async function gatherContext(): Promise<GatheredContext> {
     .map((log) => `### ${log.label}\n\n\`\`\`\n${log.output}\n\`\`\``);
   if (gitSections.length > 0) parts.push(`## Recent Git Activity\n\n${gitSections.join('\n\n')}`);
 
+
+  const stranded = unresolvedPlaceholders();
+  if (stranded.length > 0) {
+    entries.push({ label: 'identity files', status: 'unavailable', bytes: 0, note: 'unresolved placeholders' });
+    parts.push(
+      [
+        '## ⚠️ Unresolved scaffold placeholders',
+        '',
+        'These files still contain template placeholders that `init` or `upgrade` should have',
+        'substituted. They are loaded into context every session, so the agent is reading its own',
+        'identity with the placeholder in place:',
+        '',
+        ...stranded.map((line) => `- ${line}`),
+        '',
+        'Tell the operator. The fix is to replace each placeholder with the intended value —',
+        `\`{{AGENT_NAME}}\` is whatever \`IDENTITY.md\` gives as **Name**. Do not re-run init to`,
+        'repair this: its re-run path offers to overwrite these same files.'
+      ].join('\n')
+    );
+  }
+
   return { dateStr, entries, parts };
 }
 
@@ -304,26 +325,6 @@ const unresolvedPlaceholders = (): string[] => {
 
 export async function assembleContext(): Promise<AssembledContext> {
   const { entries, parts } = await gatherContext();
-
-  const stranded = unresolvedPlaceholders();
-  if (stranded.length > 0) {
-    entries.push({ label: 'identity files', status: 'unavailable', bytes: 0, note: 'unresolved placeholders' });
-    parts.push(
-      [
-        '## ⚠️ Unresolved scaffold placeholders',
-        '',
-        'These files still contain template placeholders that `init` or `upgrade` should have',
-        'substituted. They are loaded into context every session, so the agent is reading its own',
-        'identity with the placeholder in place:',
-        '',
-        ...stranded.map((line) => `- ${line}`),
-        '',
-        'Tell the operator. The fix is to replace each placeholder with the intended value —',
-        `\`{{AGENT_NAME}}\` is whatever \`IDENTITY.md\` gives as **Name**. Do not re-run init to`,
-        'repair this: its re-run path offers to overwrite these same files.'
-      ].join('\n')
-    );
-  }
 
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {
