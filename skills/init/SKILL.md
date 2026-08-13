@@ -5,9 +5,22 @@ disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *)
 ---
 
-# Initialize Kevin
+# Initialize the agent
 
 Guided onboarding. Follow the steps in order — each step's answers become defaults for later ones.
+
+**On the name "Kevin" below.** This plugin ships a default persona called Kevin, and
+Step 1b lets the operator call their agent something else. Two different things wear
+that name in this file, and they are not treated the same:
+
+- **The agent's display name.** Every prompt, banner, and status line you show the
+  operator, and every word you write into `SOUL.md` / `IDENTITY.md` / `USER.md` /
+  `CLAUDE.md`, uses `<AGENT_NAME>` from Step 1b. Where the prose below says "Kevin" in
+  a sentence addressed to the operator, substitute it. Before Step 1b the name isn't
+  known yet, so say "your agent" rather than guessing.
+- **The plugin.** `agent-kevin`, `/agent-kevin:*`, `KEVIN_*`, `.kevin/`,
+  `kevin-avatar.jpg`, `bin/kevin`. These are the product and its namespace, not the
+  persona. They stay exactly as written no matter what the operator picks.
 
 ---
 
@@ -149,22 +162,88 @@ Print the welcome banner inside a fenced code block (the fence preserves the ASC
 
 Then below the banner, plain prose (no leading whitespace, no numbered lists — the question-mark glyph signals "step Kevin will ask you about"):
 
-> Welcome. Kevin will set up here: `<HOME_DIR>`.
+> Welcome. Your agent will set up here: `<HOME_DIR>`.
 >
 > This onboarding takes about 5 minutes and walks through seven steps:
 >
-> ❓ Kevin's character, accept or refine
-> ❓ Kevin's role, accept or refine
+> ❓ What to call your agent (default: Kevin)
+> ❓ <AGENT_NAME>'s character, accept or refine
+> ❓ <AGENT_NAME>'s role, accept or refine
 > ❓ Your basics: name, home timezone
 > ❓ Optional: paste any URLs about you (blog, LinkedIn, GitHub, etc.)
 > ❓ Optional: paste a path or URL for your avatar (gets linked into knowledge/user/profile.md)
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
 > ❓ Communication style and values
-> ❓ Signal topics to track in your briefings (Kevin proposes a starter set)
+> ❓ Signal topics to track in your briefings (<AGENT_NAME> proposes a starter set)
 > ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, third-party libraries)
 > ❓ Confirm + scaffold
 >
 > A few of the steps will prompt Claude Code for permission to run Bash commands, write files, or fetch URLs.
+
+---
+
+## Step 1b — Name the agent
+
+The plugin is called `agent-kevin`, but the agent it scaffolds does not have to be
+called Kevin. The **display name** (what it calls itself, what the dashboard renders,
+how you address it) is pure data in `IDENTITY.md`. The **namespace** (`/agent-kevin:`
+commands, `KEVIN_*` env vars, the `.kevin/` data dir, MCP tool names) comes from the
+plugin manifest and stays put either way. Renaming costs nothing and breaks nothing.
+
+**On a re-init, the current name is the default, not `Kevin`.** Step 0's re-run path
+overwrites `IDENTITY.md`, `SOUL.md`, `USER.md` and `CLAUDE.md`, so offering `Kevin` to
+an operator who renamed their agent would quietly rename it back and rewrite every one
+of those files around the old name. Read what's there first:
+
+```bash
+grep -m1 '^- \*\*Name:\*\*' "$HOME_DIR/IDENTITY.md" 2>/dev/null
+```
+
+Whatever that returns is the default below. Only fall back to `Kevin` when the file or
+the field is absent (a genuinely fresh home).
+
+Ask it plainly with `AskUserQuestion`:
+
+> **What should this agent be called?**
+> - **`<current-or-Kevin>`** (recommended) — keep it as is
+> - **Something else** — type a name; the agent introduces itself that way from here on
+
+Then, only when the answer is NOT the default:
+
+> **An emoji for it?** (default `🍌`) — shows up in the banner and the dashboard header.
+>
+> **An avatar?** Paste a local path or URL, or `skip`. The plugin ships Kevin's avatar;
+> a differently-named agent has none, so `skip` is a fine answer and leaves the image
+> out of `IDENTITY.md` entirely.
+
+Stage three values for Steps 2, 3 and 7:
+
+- `AGENT_NAME` — the answer, or `Kevin`
+- `AGENT_EMOJI` — the answer, or `🍌`
+- `AGENT_AVATAR` — the home-relative path the image will land at, which Step 7 then
+  copies to. Default name: `.claude/assets/kevin-avatar.jpg`. Renamed with an image:
+  `.claude/assets/<name-lowercased>-avatar.<ext>`. Renamed without one: empty.
+
+Decide the path here, not in Step 7 — Step 3 writes it into `IDENTITY.md` before Step 7
+runs, so leaving it open until then strands an unresolved token in the file.
+
+**Naming rule, enforced not suggested — an allowlist, and only this one.** The name
+must match `^[A-Za-z0-9][A-Za-z0-9 -]*$`: letters, digits, spaces and hyphens, starting
+with a letter or digit. Anything else is rejected, and you offer the closest clean form
+instead of accepting it.
+
+That's stricter than markdown needs, deliberately. The value is pasted into a `sed`
+replacement in Step 7, read back out of `IDENTITY.md` by the dashboard's line parser,
+and rendered inside markdown link syntax. `&` and `\` are `sed` replacement
+metacharacters, `|` is the delimiter that block uses, and `[`, `]`, backticks and
+newlines break the parse on the way back out. One allowlist closes all of them without
+anyone having to remember which character breaks which stage.
+
+Everything downstream keys off `AGENT_NAME`: it fills `{{AGENT_NAME}}` in every
+template, and `/agent-kevin:upgrade` reads it back out of `IDENTITY.md` on every future
+update so template changes arrive phrased in this agent's name instead of proposing
+"Kevin" back. An operator can also change their mind later with
+`/agent-kevin:rename-agent`.
 
 ---
 
@@ -176,9 +255,13 @@ Read the bundled template:
 cat "${CLAUDE_PLUGIN_ROOT}/templates/SOUL.md"
 ```
 
+The template carries `{{AGENT_NAME}}`. Substitute the Step 1b name into the staged
+content before writing, and use that name (not "Kevin") in everything you say to the
+user from here on.
+
 Summarize in one sentence: *"Default: Sharp, direct, opinionated. Concise. Calls things out when wrong. Doesn't over-apologize."* Then `AskUserQuestion`:
 
-> **Kevin's character** — accept the default or refine?
+> **<AGENT_NAME>'s character** — accept the default or refine?
 > - Accept (recommended)
 > - Refine — describe what's different (e.g., "warmer and more encouraging", "even sharper and less polite")
 
@@ -197,7 +280,7 @@ cat "${CLAUDE_PLUGIN_ROOT}/templates/IDENTITY.md"
 
 Summarize: *"Default: AI assistant for learning, planning, research, coding."* Then `AskUserQuestion`:
 
-> **Kevin's primary role for you** (pick one)
+> **<AGENT_NAME>'s primary role for you** (pick one)
 > - General-purpose personal assistant (recommended)
 > - Coding + technical work focus
 > - Research + writing focus
@@ -205,6 +288,11 @@ Summarize: *"Default: AI assistant for learning, planning, research, coding."* T
 > - Custom — describe in one sentence
 
 Adjust the staged IDENTITY's `## Core Role` to match. Leave `## Operational Pattern` empty (Kevin grows it over time).
+
+Resolve the identity tokens from Step 1b: `{{AGENT_NAME}}`, `{{AGENT_EMOJI}}`, and
+`{{AGENT_AVATAR}}`. **When no avatar was staged, delete the whole `![...]({{AGENT_AVATAR}})`
+line and the `- **Avatar:**` line** rather than leaving an empty link — the dashboard
+takes the first image in the file as the avatar, and a dangling one renders broken.
 
 ---
 
@@ -225,7 +313,7 @@ esac
 
 `AskUserQuestion` (batched):
 
-> 1. **Your name** — what should Kevin call you? (Default: `<NAME_DEFAULT>`)
+> 1. **Your name** — what should <AGENT_NAME> call you? (Default: `<NAME_DEFAULT>`)
 > 2. **Your home timezone** — IANA name like `America/New_York`, where you're normally based. (System looks like: `<TZ_IANA>`)
 
 When `TZ_IANA` is blank (Windows, or the probe found nothing), drop the "System looks like" hint and prompt for the IANA name outright with an example, e.g. *"IANA name like `Asia/Kuala_Lumpur` — couldn't auto-detect, so please type yours."*
@@ -453,11 +541,23 @@ fi
 
 Note: do **not** create `.claude/skills/` here. Third-party skill libraries are installed via `/agent-kevin:configure-skills` after the user relaunches.
 
-Copy Kevin's avatar into `.claude/assets/` so it stays out of the way at the home root but is still resolvable from `IDENTITY.md`:
+Copy the agent's avatar into `.claude/assets/` so it stays out of the way at the home root but is still resolvable from `IDENTITY.md`.
+
+**Default name** — ship the bundled Kevin avatar:
 
 ```bash
 cp "${CLAUDE_PLUGIN_ROOT}/assets/kevin-avatar.jpg" "$HOME_DIR/.claude/assets/kevin-avatar.jpg"
 ```
+
+`AGENT_AVATAR=.claude/assets/kevin-avatar.jpg`.
+
+**Renamed agent with an avatar staged in Step 1b** — copy the operator's file to a
+name-matching destination (lowercase the name, keep the source extension), e.g.
+`.claude/assets/vikrum-avatar.png`, and set `AGENT_AVATAR` to that home-relative path.
+Don't ship Kevin's face under someone else's name.
+
+**Renamed agent, no avatar** — copy nothing and leave `AGENT_AVATAR` empty; Step 3
+already dropped the two image lines from `IDENTITY.md`.
 
 If a user avatar was staged in Step 5b (`<user-avatar>` path resolved to a local file), also:
 
@@ -498,6 +598,7 @@ relpath() {
 }
 KNOWLEDGE_REL="$(relpath "$KNOWLEDGE_ROOT")"
 PROJECTS_REL="$(relpath "$PROJECTS_ROOT")"
+AGENT_NAME="<the name staged in Step 1b — literal, e.g. Kevin>"
 # {{SHELL}} fills the Toolchain "Shell:" line per OS. On Windows, Claude Code's Bash tool runs under
 # Git Bash (POSIX), not PowerShell, so Kevin's commands assume bash everywhere.
 case "$KEVIN_OS" in
@@ -511,11 +612,29 @@ sed -i.bak \
   -e "s|{{PROJECTS_REL}}|${PROJECTS_REL}|g" \
   -e "s|{{PLATFORM}}|${PLATFORM_LABEL}|g" \
   -e "s|{{SHELL}}|${SHELL_NOTE}|g" \
+  -e "s|{{AGENT_NAME}}|${AGENT_NAME}|g" \
   "$CLAUDE_DEST"
 rm "$CLAUDE_DEST.bak"
 ```
 
 - `$CLAUDE_DEST` ← `cp ${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` then placeholder-substituted so `@-imports` point at the active `KNOWLEDGE_ROOT` / `PROJECTS_ROOT`
+
+**Gate: no placeholder may survive into the home.** `CLAUDE.md` is substituted by the
+`sed` above, but `SOUL.md`, `IDENTITY.md` and `USER.md` are staged by you and written
+with `Write`, so nothing mechanical guarantees you resolved their placeholders. Check,
+right after the four files land:
+
+```bash
+grep -l '{{\|<AGENT_NAME>\|<NAME>\|<TIMEZONE>' "$HOME_DIR"/{SOUL,IDENTITY,USER}.md "$CLAUDE_DEST" 2>/dev/null
+```
+
+Both spellings are checked because the two template styles differ: the bundled
+`templates/*.md` use `{{TOKEN}}`, while the `USER.md` body written inline in this skill
+uses `<TOKEN>`. A gate that knew only one would wave the other straight through.
+
+Any file listed still has an unresolved placeholder. Fix it before continuing — an
+unsubstituted `{{AGENT_NAME}}` sits in the agent's own identity files and is read into
+context every session from then on.
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows Kevin wrote to `CLAUDE.local.md`. Claude Code auto-loads `.local.md` files alongside the main `CLAUDE.md`, so the user's existing instructions and Kevin's coexist — Kevin's `@-imports` cascade still pulls in the identity stack.
 
@@ -844,7 +963,7 @@ USER.md template:
 
 <AVATAR_LINE>
 
-Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want Kevin to work with me.
+<AGENT_NAME> reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want <AGENT_NAME> to work with me.
 
 ## Identity
 
@@ -862,7 +981,7 @@ _(Examples to pick from or replace: "Direct and technical, no preamble." / "Plai
 
 <VALUES_OR_PLACEHOLDER>
 
-_(Anything Kevin should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
+_(Anything <AGENT_NAME> should respect about your personal values, ethics, taboos, or hard preferences. Optional — leave empty if not applicable.)_
 
 ## Where Things Live
 
@@ -870,7 +989,7 @@ _(Anything Kevin should respect about your personal values, ethics, taboos, or h
 
 ## Deeper
 
-These files hold my evolving long-form knowledge. Kevin reads them on demand and updates them on compile.
+These files hold my evolving long-form knowledge. <AGENT_NAME> reads them on demand and updates them on compile.
 
 - [Profile](knowledge/user/profile.md)
 - [Skills](knowledge/user/skills.md)
@@ -1215,13 +1334,15 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >
-> **Always launch Kevin from its home — `<HOME_DIR>` — and set `KEVIN_HOME` as a safety net.** Kevin's MCP server resolves all paths from `cwd` by default, so the simplest habit is `cd <HOME_DIR> && claude` every time. But if you ever open Claude from somewhere else — a subdir of the home, a sibling repo, the user-level session-capture hook from the README, or just by accident — Kevin silently resolves to the wrong place. To make it robust no matter where you launch, add this to your **user-level** settings at `~/.claude/settings.json` under `env` (create the file if it doesn't exist):
+> **Always launch <AGENT_NAME> from its home — `<HOME_DIR>`.** The habit is `cd <HOME_DIR> && claude` every time. The home is then resolved from where you launched, and a session that `cd`s off into a repo mid-flight still resolves correctly, because the launch directory doesn't roam even when your shell does.
+>
+> **Optional pin — only if you run exactly one home.** If you also want sessions started *outside* any home (a bare repo, the user-level session-capture hook from the README) to route here, add this to your **user-level** settings at `~/.claude/settings.json` under `env`:
 >
 > ```json
 > { "env": { "KEVIN_HOME": "<HOME_DIR>" } }
 > ```
 >
-> With that set, Kevin always finds its home regardless of your current directory. (You can verify it any time on the dashboard's System → Environment page — there's an info tooltip explaining what it does.)
+> **Do not set this if you have, or might later have, more than one agent-kevin home** (say a work agent and a personal one). It's machine-wide and it wins outright over launch-directory resolution, so it captures *every* session for one home and makes the others unreachable. With multiple homes, isolation comes from where you launch, and the pin actively breaks it. Same rule for any other `KEVIN_*` var in user-level settings: one value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names. (Whatever you choose is visible on the dashboard's System → Environment page, with a tooltip explaining it.)
 >
 > **One-time MCP-server install.** Kevin's MCP server runs from the plugin directory and needs its node_modules. From a separate terminal (or after `/exit`), run:
 >

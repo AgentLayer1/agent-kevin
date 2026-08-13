@@ -5,16 +5,16 @@
 @{{KNOWLEDGE_REL}}/memory/index.md
 @{{PROJECTS_REL}}/TASKS.md
 
-# CLAUDE.md — Kevin's Operating Manual
+# CLAUDE.md — {{AGENT_NAME}}'s Operating Manual
 
-Claude Code auto-loads this file from the agent home directory at session start. The `@-imports` above pull Kevin's identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memory, and the task dashboard into context before the operating manual below is read. User facets (`{{KNOWLEDGE_REL}}/user/{profile,skills,preferences,career,interests}.md`) and concept articles are **not** auto-loaded — Kevin reads them on demand via the links in `USER.md` and `{{KNOWLEDGE_REL}}/index.md`.
+Claude Code auto-loads this file from the agent home directory at session start. The `@-imports` above pull {{AGENT_NAME}}'s identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memory, and the task dashboard into context before the operating manual below is read. User facets (`{{KNOWLEDGE_REL}}/user/{profile,skills,preferences,career,interests}.md`) and concept articles are **not** auto-loaded — {{AGENT_NAME}} reads them on demand via the links in `USER.md` and `{{KNOWLEDGE_REL}}/index.md`.
 
 ## Context Loading
 
 **Static (auto-loaded by Claude Code via `@-imports`):**
 
-1. **SOUL.md** — Kevin's character
-2. **IDENTITY.md** — Kevin's role and evolving self-description
+1. **SOUL.md** — {{AGENT_NAME}}'s character
+2. **IDENTITY.md** — {{AGENT_NAME}}'s role and evolving self-description
 3. **USER.md** — who you are (headline + how to talk to you + links to deeper user facets)
 4. **{{KNOWLEDGE_REL}}/index.md** — master catalog of compiled knowledge
 5. **{{KNOWLEDGE_REL}}/memory/index.md** — what's active right now (threads, decisions, learnings)
@@ -53,16 +53,16 @@ The agent home directory is the single source of truth for memory.
 ```
 <HOME>/                              # Agent home — by convention ~/Documents/Agents/<AgentName> (the directory you launch claude from)
 ├── CLAUDE.md                        # this file — operating manual + @-imports
-├── SOUL.md                          # Kevin's character
-├── IDENTITY.md                      # Kevin's role
+├── SOUL.md                          # {{AGENT_NAME}}'s character
+├── IDENTITY.md                      # {{AGENT_NAME}}'s role
 ├── USER.md                          # YOUR headline + links to {{KNOWLEDGE_REL}}/user/
 ├── .claude/
 │   ├── settings.json                # enabledPlugins + pre-granted tool permissions (written by /init)
 │   ├── settings.local.json          # API keys, gitignored, project-scoped env block
-│   ├── assets/                      # Kevin's avatar (and any other plugin-shipped images)
+│   ├── assets/                      # {{AGENT_NAME}}'s avatar (and any other plugin-shipped images)
 │   ├── rules/                       # path-scoped coding rules, auto-applied by file glob (seeded by /init)
 │   └── skills/                      # user-authored custom skills only (lazy — pack skills stay in the plugin dir)
-├── .mcp.json                        # only if you register your own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
+├── .mcp.json                        # only if you register your own MCP servers — {{AGENT_NAME}}'s bundled `kevin` server lives in the plugin's own .mcp.json
 ├── {{KNOWLEDGE_REL}}/
 │   ├── index.md                     # master catalog
 │   ├── user/                        # evolving long-form knowledge about you
@@ -95,20 +95,20 @@ The agent home directory is the single source of truth for memory.
 Raw → compiled lifecycle:
 - Sessions auto-captured to `raw/sessions/` by the `SessionEnd` hook
 - Capture any input into `raw/inbox/` (use `kevin capture` / the MCP `capture` tool, or drop a file directly), correction-style feedback into `raw/user/feedback.md` via `capture --kind=feedback` (or appended directly)
-- Run `/agent-kevin:knowledge-compile` — Kevin synthesises wiki articles, updating `{{KNOWLEDGE_REL}}/user/`, `{{KNOWLEDGE_REL}}/concepts/`, `{{KNOWLEDGE_REL}}/memory/`, and occasionally `USER.md`
+- Run `/agent-kevin:knowledge-compile` — {{AGENT_NAME}} synthesises wiki articles, updating `{{KNOWLEDGE_REL}}/user/`, `{{KNOWLEDGE_REL}}/concepts/`, `{{KNOWLEDGE_REL}}/memory/`, and occasionally `USER.md`
 - Sessions stay on disk; inbox items archive after compile; feedback hash-tracked
 
 ## Task System
 
 Tasks live at `{{PROJECTS_REL}}/<slug>/tasks/<id>-<slug>.md`. Each task is markdown with YAML frontmatter (id, title, status, priority, type, depends_on, ...) and three body sections: Description, Checklist, Thread.
 
-**IDs:** 2-letter project prefix + 3-digit number. Globally unique. Kevin assigns IDs.
+**IDs:** 2-letter project prefix + 3-digit number. Globally unique. {{AGENT_NAME}} assigns IDs.
 
 **Status:** `open` | `active` | `blocked` | `done` | `cancelled`. Transitions validated.
 
 **Priority:** `P0` (drop everything) | `P1` (this week) | `P2` (this sprint) | `P3` (backlog).
 
-**Threads:** Append-only `## Thread` section using Obsidian callouts (`[!quote]` for your messages, `[!info]` for Kevin's responses, `[!warning]` for automated actions).
+**Threads:** Append-only `## Thread` section using Obsidian callouts (`[!quote]` for your messages, `[!info]` for {{AGENT_NAME}}'s responses, `[!warning]` for automated actions).
 
 Drive tasks via MCP tools (`mcp__plugin_agent-kevin_kevin__task_*`) inside Claude Code or `bin/kevin task ...` outside.
 
@@ -149,7 +149,7 @@ When you (or a parallel agent) need an isolated checkout of a code repo to work 
 
 Don't do this by hand. The `setup-worktree` skill does both steps: it pins which repo you mean (asks when the code root holds several), creates the sibling worktree on a new branch, and bootstraps it (copies the gitignored local files, detects the package manager, installs, and runs the repo's build script). When asked to "make a worktree for X" or work a branch in parallel, reach for that skill.
 
-## How Kevin Should Work With You
+## How {{AGENT_NAME}} Should Work With You
 
 **Proceed on your own:**
 - Writing code, content, documentation within existing projects
@@ -197,7 +197,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 
 ## Engineering Standards
 
-These guidelines apply to any code Kevin reads, writes, or reviews — even when the operator is non-technical and just wants a script. Bias toward caution over speed; for trivial tasks, use judgment.
+These guidelines apply to any code {{AGENT_NAME}} reads, writes, or reviews — even when the operator is non-technical and just wants a script. Bias toward caution over speed; for trivial tasks, use judgment.
 
 ### Think before coding
 

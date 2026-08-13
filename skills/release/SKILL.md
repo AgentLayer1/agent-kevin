@@ -71,6 +71,10 @@ severity, let the maintainer confirm/override:
 - `templates/CLAUDE.md` → **mandatory** (the operating manual is plugin-owned).
 - `templates/SOUL.md`, `templates/IDENTITY.md` → **optional** (character files the
   operator personalizes) unless the change is functional, then mandatory.
+  **Exception: a change confined to `IDENTITY.md`'s preamble or `## Who` reaches new
+  homes only** — `/agent-kevin:upgrade` never reconciles the persona block. If existing
+  homes are meant to adopt it, it has to go in the release's `manual` notes; classifying
+  it `optional` would silently ship it nowhere.
 - new `templates/rules/<x>.md`, new `templates/knowledge/concepts/<x>.md` → **additive**
   (emit as `` `file: additive` `` with the HOME destination path).
 

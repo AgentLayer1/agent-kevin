@@ -203,6 +203,16 @@ Never overwrite an existing file in this step (additive = new files only).
 
 `USER.md` and `knowledge/user/*` are pure operator data — **never** reconciled here.
 
+**`IDENTITY.md`'s preamble and its `## Who` section are never reconciled either.** They
+hold the agent's persona — name, kind, vibe, emoji, avatar — which is the operator's,
+not the plugin's. Reconciling them would fight every operator who refined their agent's
+vibe at init and every operator who renamed their agent, and the avatar line can't
+survive a round trip through a diff anyway (it's a markdown link, so "the value of the
+field" is ambiguous). Skip both; reconcile IDENTITY's other sections normally. The
+trade-off is deliberate and matches `USER.md`: a future release that adds a field to
+`## Who` reaches new homes only, and existing ones are told in the release's `manual`
+note rather than edited under them.
+
 Merge algorithm (per file):
 
 1. Read the current template (T) and the home file (H).
@@ -212,6 +222,18 @@ Merge algorithm (per file):
    `{{KNOWLEDGE_REL}}`, `{{PROJECTS_REL}}`, `{{PLATFORM}}`, `{{SHELL}}` — read the
    values straight from H's corresponding lines). If a token can't be resolved with
    confidence, leave that line as-is in H and flag it for the user.
+
+   **`{{AGENT_NAME}}` resolves from the home's `IDENTITY.md`, not from the plugin.**
+   Read the `- **Name:**` field of `$HOME_DIR/IDENTITY.md` and substitute it into T
+   before diffing. This is what keeps a renamed agent renamed: an operator who called
+   their agent something else gets template updates phrased in *their* agent's name, so
+   the diff shows the substance that actually changed and never proposes reverting the
+   name. That field is the canonical display name everywhere (it's what the dashboard
+   reads), so it is the only source consulted. If it's missing or still holds a literal
+   `{{AGENT_NAME}}`, fall back to the plugin's own name and flag it.
+
+   `{{AGENT_EMOJI}}` and `{{AGENT_AVATAR}}` need no rule here: they appear only in the
+   preamble and `## Who`, which this step never reaches.
 4. For each section in T:
    - **Not in H** → NEW. Mandatory: add it (placed after its template-neighbor, else
      appended). Optional: show it and ask.
