@@ -38,7 +38,14 @@ fi
 [ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Documents" ] && echo "ICLOUD_DOCUMENTS_SYNC=on"
 ```
 
-`SOUL.md` is Kevin's idempotency marker — its filename is unique to the plugin (unlike `CLAUDE.md`, which may pre-exist in any Claude Code project the plugin gets installed into).
+`SOUL.md` is the idempotency marker here, and **deliberately not the `.kevin/` data dir**
+that the resolver and every runtime guard key on. Those answer "is this *this* agent's
+home"; init asks the broader question "would scaffolding here destroy something", and the
+answer is yes for any agent's home, not just this one. Every agent's home carries a
+`SOUL.md` and only this one's carries this one's data dir, so the wider marker is what
+stops a re-run from overwriting a *sibling* agent's identity files. Don't "fix" this to
+match the others. (`CLAUDE.md` would be wrong in the other direction — it may pre-exist in
+any project the plugin is installed into, and init writes `CLAUDE.local.md` when it does.)
 
 Act on the probes before anything else:
 
