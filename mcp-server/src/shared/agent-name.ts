@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
  */
 export const agentDisplayName = (): string => {
   try {
-    const name = readFileSync(FILES.IDENTITY, 'utf-8').match(/\*\*Name:\*\*\s*(.+)$/m)?.[1]?.trim();
+    const name = readFileSync(FILES.IDENTITY, 'utf-8').match(/\*\*Name:\*\*[ \t]*(.+)$/m)?.[1]?.trim();
     // An unsubstituted template token means init left a placeholder behind;
     // showing "{{AGENT_NAME}}" everywhere is worse than showing the default.
     if (name && !name.includes('{{')) return name;

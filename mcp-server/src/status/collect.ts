@@ -1093,7 +1093,7 @@ const boldField = (file: string, label: string): string => {
   try {
     return (
       readFileSync(file, 'utf-8')
-        .match(new RegExp(`\\*\\*${label}:\\*\\*\\s*(.+)$`, 'm'))?.[1]
+        .match(new RegExp(`\\*\\*${label}:\\*\\*[ \\t]*(.+)$`, 'm'))?.[1]
         ?.trim() ?? ''
     );
   } catch {
@@ -1460,7 +1460,7 @@ const categoryFromHref = (href: string): string => href.split('/')[1] ?? '';
 const orphanReportTitle = (body: string, fileName: string): string => {
   const frontmatter = body.match(REPORT_FRONTMATTER_RE)?.[1];
   const fmTitle = frontmatter
-    ?.match(/^title:\s*(.+)$/m)?.[1]
+    ?.match(/^title:[ \t]*(.+)$/m)?.[1]
     ?.trim()
     .replace(/^["']|["']$/g, '');
   if (fmTitle) return fmTitle;

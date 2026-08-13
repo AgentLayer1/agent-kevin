@@ -115,7 +115,7 @@ async function readLinkInfo(filePath: string, fallback: string): Promise<LinkInf
 
   const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   const titleFromFm = fmMatch?.[1]
-    .match(/^title:\s*(.+)$/m)?.[1]
+    .match(/^title:[ \t]*(.+)$/m)?.[1]
     .trim()
     .replace(/^["']|["']$/g, '');
   if (titleFromFm) return { displayName: titleFromFm, absolutePath: filePath };

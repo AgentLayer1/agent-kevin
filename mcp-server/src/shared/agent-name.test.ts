@@ -51,6 +51,19 @@ describe('agentDisplayName', () => {
     expect(withIdentity(undefined, agentDisplayName)).toBe('Kevin');
   });
 
+  test('an empty Name falls back instead of capturing the next line', () => {
+    // `\s` matches newlines, so a `\s*(.+)$` field reader walks past an empty
+    // value and captures whatever follows — the agent ends up calling itself
+    // "- **Kind:** AI assistant" in the banner, in TASKS.md, and in the compile
+    // prompts that write its name into long-term memory.
+    const emptyName = '# Identity\n\n## Who\n\n- **Name:** \n- **Kind:** AI assistant\n';
+    expect(withIdentity(emptyName, agentDisplayName)).toBe('Kevin');
+  });
+
+  test('a Name of only whitespace falls back too', () => {
+    expect(withIdentity(identity('   '), agentDisplayName)).toBe('Kevin');
+  });
+
   test('an unsubstituted init token falls back instead of leaking the placeholder', () => {
     // A failed init leaves `{{AGENT_NAME}}` in the file. Rendering that verbatim
     // would put the raw token in the session banner, TASKS.md, and every compile
