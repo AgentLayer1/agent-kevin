@@ -11,13 +11,11 @@
  */
 import { FOLDERS, KNOWLEDGE, PLUGIN_NAME, isInitialized } from '@/config';
 import { ENTRY_SEPARATOR, formatEntryHeader } from '@/knowledge/session-format';
-import { env } from '@/shared/env';
 import { diffTurns, fingerprintTurn, loadIndex, recordCapture, saveIndex } from '@/knowledge/session-index';
 import { redactSecrets } from '@/knowledge/utils';
 import { nowTime, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
 import type { TranscriptTurn } from '@/shared/types';
-import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -96,45 +94,6 @@ const claudeExtractor: Extractor = (transcriptPath) => {
 const EXTRACTORS: Record<CaptureFormat, Extractor> = {
   claude: claudeExtractor
 };
-
-// ── Defer + exclusion helpers ────────────────────────────────────────
-
-/** True when called by Claude Code's plugin-hook invocation (sets CLAUDE_PLUGIN_ROOT). */
-function isPluginInvocation(): boolean {
-  return Boolean(env('CLAUDE_PLUGIN_ROOT'));
-}
-
-/** True when the project at `cwd` has *this* plugin (PLUGIN_NAME) enabled. */
-function pluginEnabledInCwd(cwd: string): boolean {
-  if (!cwd) return false;
-  const settingsPath = resolve(cwd, '.claude/settings.json');
-  if (!existsSync(settingsPath)) return false;
-  try {
-    const settings = JSON.parse(readFileSync(settingsPath, 'utf-8')) as {
-      enabledPlugins?: Record<string, boolean>;
-    };
-    return Object.entries(settings.enabledPlugins ?? {}).some(
-      ([key, enabled]) => enabled === true && key.startsWith(`${PLUGIN_NAME}@`)
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Returns the matching exclude path when `cwd` falls under any of them
- * (exact or `/`-bounded prefix), else null. The `/` boundary stops
- * `/foo/bar` from excluding `/foo/barbaz`.
- */
-function matchedExclude(cwd: string, excludes: string[]): string | null {
-  if (!cwd || excludes.length === 0) return null;
-  const target = resolve(cwd);
-  for (const path of excludes) {
-    const absolute = resolve(expandTilde(path));
-    if (target === absolute || target.startsWith(`${absolute}/`)) return absolute;
-  }
-  return null;
-}
 
 /** Render `cwd` as `~/<relative>` when under `$HOME`, else return unchanged. */
 function homeRelative(cwd: string): string {
@@ -240,21 +199,11 @@ export interface CaptureSessionOpts {
   cwd: string;
   sessionId: string;
   mode: CaptureMode;
-  excludes?: string[];
   format?: CaptureFormat;
-  /**
-   * When true, applies self-defer logic (skip if another plugin instance is
-   * enabled in cwd, skip if cwd is excluded). Default mirrors today's
-   * implicit behavior: defer when NOT invoked by a plugin hook (i.e. when
-   * called from the user-level `~/.claude/settings.json` hook).
-   */
-  selfDefer?: boolean;
 }
 
 export type CaptureSessionReason =
   | 'not-initialized'
-  | 'plugin-will-capture'
-  | 'excluded'
   | 'no-transcript'
   | 'no-new-turns'
   | 'too-few-turns'
@@ -269,19 +218,6 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
   if (!isInitialized()) {
     log.info(`skip (${mode}) — /${PLUGIN_NAME}:init not run yet`);
     return { saved: false, reason: 'not-initialized' };
-  }
-
-  const selfDefer = opts.selfDefer ?? !isPluginInvocation();
-  if (selfDefer) {
-    if (pluginEnabledInCwd(opts.cwd)) {
-      log.info(`skip (${mode}) — plugin hook will capture`);
-      return { saved: false, reason: 'plugin-will-capture' };
-    }
-    const excluded = matchedExclude(opts.cwd, opts.excludes ?? []);
-    if (excluded) {
-      log.info(`skip (${mode}) — ${homeRelative(opts.cwd)} is excluded`);
-      return { saved: false, reason: 'excluded', detail: excluded };
-    }
   }
 
   if (!opts.transcriptPath || !existsSync(opts.transcriptPath)) {

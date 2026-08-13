@@ -5,7 +5,7 @@
  * Subcommands:
  *   kevin ping
  *   kevin capture [text] [--file=PATH] [--url=URL] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
- *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--exclude PATH] [--format=claude]
+ *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude]
  *   kevin session-start [--hook-protocol=claude]
  *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
  *   kevin task get <id>
@@ -160,8 +160,6 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
                                     Read hook JSON from stdin and append the transcript to raw/sessions/.
   session-capture --mode=... --transcript=PATH --cwd=PATH --session-id=X
                                     Plain-CLI mode — same logic without the hook envelope. Useful for testing.
-  session-capture ... --exclude PATH (repeatable)
-                                    Skip when cwd falls under PATH (multi-agent boundary; user-level hook only).
   session-capture ... --format=claude (default)
                                     Transcript-format adapter. Future: codex, etc.
   session-start [--hook-protocol=claude]
@@ -239,8 +237,7 @@ async function run(): Promise<void> {
   const { log } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/log'));
   log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
 
-  const { FOLDERS, TIMEZONE } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
-  const { isAgentHome } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
+  const { FOLDERS, TIMEZONE, isInitialized } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
 
   if (group === 'ping') {
     console.log(
@@ -248,7 +245,7 @@ async function run(): Promise<void> {
         {
           // Whether the resolved path is this agent's home, which is what decides
           // if any other command will run — not merely whether a brain exists there.
-          ok: isAgentHome(FOLDERS.HOME),
+          ok: isInitialized(),
           timezone: TIMEZONE,
           home: FOLDERS.HOME,
           knowledge: FOLDERS.KNOWLEDGE,
@@ -279,7 +276,7 @@ async function run(): Promise<void> {
   // `worktree` is exempt because it acts on the repo path it's given, not on
   // home state.
   const HOMELESS_OK = new Set(['session-start', 'session-capture', 'worktree']);
-  if (!isAgentHome(FOLDERS.HOME) && !HOMELESS_OK.has(group)) {
+  if (!isInitialized() && !HOMELESS_OK.has(group)) {
     const { agentKeyName, runtimeDirName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     const homeKey = agentKeyName('HOME');
     console.error(
@@ -518,24 +515,11 @@ async function run(): Promise<void> {
       const f = allArgs.find((a) => a.startsWith(`--${name}=`));
       return f?.slice(name.length + 3);
     };
-    const localFlagArr = (name: string): string[] => {
-      const values: string[] = [];
-      for (let i = 0; i < allArgs.length; i += 1) {
-        const a = allArgs[i];
-        if (a === `--${name}` && i + 1 < allArgs.length) {
-          values.push(allArgs[i + 1]);
-          i += 1;
-        } else if (a.startsWith(`--${name}=`)) {
-          values.push(a.slice(name.length + 3));
-        }
-      }
-      return values;
-    };
 
     const mode = localFlag('mode');
     if (mode !== 'session-end' && mode !== 'pre-compact') {
       throw new Error(
-        'Usage: kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--exclude PATH] [--format=claude]'
+        'Usage: kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude]'
       );
     }
 
@@ -574,7 +558,6 @@ async function run(): Promise<void> {
       cwd,
       sessionId,
       mode,
-      excludes: localFlagArr('exclude'),
       format: formatFlag
     });
 

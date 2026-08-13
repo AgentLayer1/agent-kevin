@@ -26,7 +26,7 @@ let STATE_PATH: string;
 
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
-  writeFileSync(resolve(HOME, 'SOUL.md'), '# Soul', 'utf-8'); // isInitialized() gate
+  mkdirSync(resolve(HOME, '.kevin'), { recursive: true }); // isInitialized() gate — the data dir marks this agent's home
   ({ captureSession } = await import('@/knowledge/session-capture'));
   ({ pickNext, markComplete, getStatus } = await import('@/knowledge/compile'));
   ({ hashBuffer } = await import('@/knowledge/utils'));
@@ -55,7 +55,7 @@ describe('captureSession', () => {
     writeFileSync(transcriptPath, lines.join('\n'), 'utf-8');
   };
   const capture = (mode: 'session-end' | 'pre-compact') =>
-    captureSession({ transcriptPath, cwd: HOME, sessionId: 'deadbeefcafe', mode, selfDefer: false });
+    captureSession({ transcriptPath, cwd: HOME, sessionId: 'deadbeefcafe', mode });
 
   let logPath = '';
 
@@ -103,7 +103,7 @@ describe('captureSession', () => {
   test('concurrent captures of the same new session write exactly one block (mutex)', async () => {
     writeTranscript(8);
     const fire = () =>
-      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end', selfDefer: false });
+      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end' });
     const results = await Promise.all([fire(), fire()]);
     // Exactly one writes; the serialized loser sees the cursor and skips.
     expect(results.filter((r) => r.saved).length).toBe(1);
