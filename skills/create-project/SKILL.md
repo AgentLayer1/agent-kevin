@@ -80,6 +80,8 @@ Write `$PROJECTS/<slug>/README.md`:
 
 Keep the README tight. Resist the urge to pre-populate sections you don't have content for — empty `## Roadmap`, `## Architecture`, etc. rot fast.
 
+If the project later earns a plan-on-a-page, it goes at `projects/<slug>/roadmap.html` (the `roadmap` skill builds it) and gets its own line in `## Structure`. Don't scaffold the file — an empty roadmap is worse than none.
+
 ### 4. Refresh the knowledge index
 
 Run the project sync (the next compile will do this automatically, but you can trigger it explicitly via the MCP server's `syncProjectIndex`, or by calling `mcp__plugin_agent-kevin_kevin__compile_next` if you have pending work).

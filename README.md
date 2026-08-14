@@ -166,7 +166,7 @@ There's a lot going on inside an agent — and even more going on in your life a
 
 - **Today** — a time-aware greeting and stat strip, with sub-tabs: the plan (focus, next 7 days, waiting-on), your weekly/monthly/yearly goals, a "today so far" activity trail (sessions, tasks touched, commands run, output produced), and a News tab of headlines harvested from recent briefings.
 - **Tasks** — the agenda grouped by due horizon (overdue → today → this week → this month → later) and a needs-attention view (blocked with reasons, going stale).
-- **Projects** — color-coded project cards with description, done/total progress, and last-updated; click one to expand its tasks grouped by status.
+- **Projects** — color-coded project cards with description, done/total progress, and last-updated; click one to expand its tasks grouped by status, plus a 🧭 link to the project's own roadmap when it keeps one.
 - **Sessions** — your real working sessions (command runs filtered out) from the last 30 days, grouped by day with longer summaries, subtle turn counts, and the working directory only when it isn't the agent home.
 - **Brain** — active memory threads and recent decisions, the Memory tab (daily memory with summaries, learnings, pending), concept articles, the compile pipeline, and the last lint run.
 - **Reports** — everything Kevin has produced, grouped by day, skill chips color-coded, every title clickable.
@@ -174,6 +174,8 @@ There's a lot going on inside an agent — and even more going on in your life a
 - **Profile** — the operator page: your avatar, timezone, and the compiled profile rendered section by section (web links open in new tabs).
 - **Persona** — Kevin's page: avatar, vibe, bio, core role, and soul traits rendered from IDENTITY.md and SOUL.md.
 - **System** — sub-tabs for context assembly, settings (per-scope layers with their allow/deny/env contributions), and a scrollable log tail.
+
+A **Surfaces** group appears in the sidebar for the standalone pages Kevin builds alongside the dashboard, discovered by convention and never configured: `<HOME>/roadmap.html` (your north star) leads, followed by any `projects/<slug>/roadmap.html` or `projects/<slug>/dashboard.html`.
 
 Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filters narrow tasks/sessions/skills/tools/reports live, every project carries a stable color across its badges, and the pulsing health badge jumps you to whatever needs attention. Markdown links (tasks, reports, concepts, memory) open through a configurable opener app so they land rendered and editable rather than downloading as raw text — `obsidian://open?path={path}&paneType=tab` by default (the `paneType=tab` opens notes in a new Obsidian tab so the dashboard stays put); set the `MARKDOWN_URL` env var in `.claude/settings.local.json` to point elsewhere, e.g.:
 
@@ -574,7 +576,7 @@ graph LR
 | `rename-agent` | Change the agent's display name across an existing home — persona fields, avatar, and prose — without forking the plugin (`/rename-agent`, and it asks before running) |
 | `knowledge-compile` | Synthesise raw sessions/feedback/inbox items into the wiki |
 | `create-project` / `archive-project` | Project lifecycle |
-| `flywheel` | Cross-project work session |
+| `flywheel` | Cross-project work session, framed by the north-star roadmap (and each project's own), whose milestone statuses it keeps honest |
 | `sync` | End-to-end maintenance: compile → lint+fix → prune → flywheel → scan → dashboards → closing interview in one pass |
 | `morning-briefing` / `evening-briefing` | Daily orient + wrap |
 | `weekly-goals` / `monthly-goals` / `yearly-goals` | Goal-setting cadences — weeks, monthly themes, and the year planned quarter by quarter |

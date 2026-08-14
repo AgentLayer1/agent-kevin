@@ -529,11 +529,16 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
   ]
     .filter(Boolean)
     .join('<span class="dim"> · </span>');
+  // Through the opener app like every other link on the card: a relative
+  // in-frame href is swallowed by Obsidian's HTML viewer.
+  const roadmapRow = load.roadmap
+    ? `<div class="row" data-row><span style="flex:none">🧭</span><span class="grow">${mdLink(snap, load.roadmap, 'Project roadmap')}</span></div>`
+    : '';
   return `<details class="projcard" data-row><summary>
 <div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span><span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
 ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 160))}</div>` : ''}
 <div class="proj-progress"><span class="dim nowrap">☑ ${finished} / ${denominator}</span><div class="track"><span style="width:${pct}%;background:${color}"></span></div><span class="dim nowrap">${pct}%</span></div>
-</summary><div class="proj-tasks">${taskRows}</div></details>`;
+</summary><div class="proj-tasks">${roadmapRow}${taskRows}</div></details>`;
 };
 
 const pageTasks = (snap: StatusSnapshot): string => {
