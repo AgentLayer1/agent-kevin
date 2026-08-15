@@ -14,7 +14,7 @@ Three phases: **interview → harvest → render**. Don't skip the interview (a 
 
 Figure out what already exists so the wizard asks only what's genuinely open:
 
-1. **Update or create?** Glob for existing roadmaps: `<HOME>/roadmap.html`, `projects/*/references/roadmap.html`, and anything the user pointed at. If the request targets an existing file, this is an **update** — skip to Iterating below; never regenerate a roadmap that already exists.
+1. **Update or create?** Glob for existing roadmaps: `<HOME>/roadmap.html` (the north star), `projects/*/roadmap.html` (a project's own), and anything the user pointed at. If the request targets an existing file, this is an **update** — skip to Iterating below; never regenerate a roadmap that already exists.
 2. Identify the subject: the whole life/company (multi-lane), one project, or a code repo. Read the matching sources: the cross-project task dashboard and yearly goals (`projects/TASKS.md`), the project README + tasks, or the repo's docs.
 3. Note today's date and any hard external deadlines already on record (filings, events, seasons) — these become finish-line tags.
 
@@ -28,7 +28,7 @@ Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from conte
 - **Shape**: multi-lane north star (parallel bets, each with its own finish line) vs phased project roadmap (shipped history → planned quarters → long-term horizon). Recommend the one the context implies. See "Two shapes, one system" in `references/DESIGN.md`.
 - **Horizons**: offer concrete finish lines from their goals/deadlines (end of year, a launch, a season, an event) plus "you propose the cut". Multi-lane roadmaps can carry two horizons.
 - **Lanes/phases**: propose the set you inferred (from goal buckets or project epics) and let them prune or add. 3–5 lanes or 2–4 phases is the sweet spot.
-- **Where it lives**: HOME root for a personal/company north star, `projects/<slug>/references/` for a project, the repo's docs dir for a client codebase. Offer the inferred path as the recommended option.
+- **Where it lives**: the convention is `roadmap.html` at the root of whatever it covers — `<HOME>/roadmap.html` for the personal/company north star, `projects/<slug>/roadmap.html` for a project, the repo's docs dir for a client codebase. Both HOME-root and project roadmaps are auto-discovered by the dashboard at those exact paths, so don't invent a nested location. Offer the inferred path as the recommended option.
 
 **Round 2: texture (build from Round 1 answers)**
 - **Accent scheme**: offer the named presets — purple (template default; product/engineering), green (fresh/operational), gold (personal/north-star) — and let Other take a typed hue or brand color. Use option descriptions to convey the mood; DESIGN.md has the token sets and per-preset dark tints.
@@ -56,6 +56,8 @@ Rules: a `done` status needs evidence from this session (task frontmatter, git, 
 3. Write to the path settled in Round 1. Creating alongside an existing roadmap for the same subject means a new versioned name, never an overwrite.
 4. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff. In full-page shots, below-fold cards sit at opacity 0 mid entry-animation and read as blank sections — pass `css: ".ms, .bcard { animation: none !important; opacity: 1 !important; transform: none !important; }"` before concluding a section is broken.
 5. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
+
+   For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit the `ROADMAP` object in the file, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card, plus a Surfaces entry in the sidebar); no config, no manual registration.
 
 ## Iterating
 

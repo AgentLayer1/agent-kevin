@@ -1,5 +1,5 @@
 You are compiling an inbox input — an implementation spec, design doc, captured
-thought, clipped article, or other dropped artifact — into Kevin's knowledge
+thought, clipped article, or other dropped artifact — into {{agentName}}'s knowledge
 wiki. The input has been dropped (manually into `raw/inbox/` or via the
 `capture` verb); your job is to preserve its **durable reasoning** — the
 patterns, principles, and decisions that will still matter in six months —

@@ -189,7 +189,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         total: 3,
         done: 5,
         updatedAt: '2026-06-10',
-        description: 'Agentic personal AI operating system.'
+        description: 'Agentic personal AI operating system.',
+        roadmap: ''
       }
     ],
     overdueList: [],
@@ -467,6 +468,26 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('Agentic personal AI operating system.');
     expect(html).toContain('☑ 5 / 8');
     expect(html).toContain('63%');
+  });
+
+  test('a project card links its own roadmap when the project keeps one', () => {
+    const base = makeSnapshot();
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        tasks: {
+          ...base.tasks,
+          byProject: [{ ...base.tasks.byProject[0], roadmap: 'projects/life-os/roadmap.html' }]
+        }
+      })
+    );
+    expect(html).toContain(
+      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/roadmap.html')}">Project roadmap</a>`
+    );
+  });
+
+  test('a project card without a roadmap renders no roadmap row', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).not.toContain('Project roadmap');
   });
 
   test('system logs tab carries the scrollable tail', () => {

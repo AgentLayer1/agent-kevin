@@ -26,7 +26,7 @@ let STATE_PATH: string;
 
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
-  writeFileSync(resolve(HOME, 'SOUL.md'), '# Soul', 'utf-8'); // isInitialized() gate
+  mkdirSync(resolve(HOME, '.kevin'), { recursive: true }); // isInitialized() gate — the data dir marks this agent's home
   ({ captureSession } = await import('@/knowledge/session-capture'));
   ({ pickNext, markComplete, getStatus } = await import('@/knowledge/compile'));
   ({ hashBuffer } = await import('@/knowledge/utils'));
@@ -55,7 +55,7 @@ describe('captureSession', () => {
     writeFileSync(transcriptPath, lines.join('\n'), 'utf-8');
   };
   const capture = (mode: 'session-end' | 'pre-compact') =>
-    captureSession({ transcriptPath, cwd: HOME, sessionId: 'deadbeefcafe', mode, selfDefer: false });
+    captureSession({ transcriptPath, cwd: HOME, sessionId: 'deadbeefcafe', mode });
 
   let logPath = '';
 
@@ -103,7 +103,7 @@ describe('captureSession', () => {
   test('concurrent captures of the same new session write exactly one block (mutex)', async () => {
     writeTranscript(8);
     const fire = () =>
-      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end', selfDefer: false });
+      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end' });
     const results = await Promise.all([fire(), fire()]);
     // Exactly one writes; the serialized loser sees the cursor and skips.
     expect(results.filter((r) => r.saved).length).toBe(1);
@@ -130,6 +130,9 @@ describe('incremental compile', () => {
     rmSync(SESSIONS, { recursive: true, force: true });
     mkdirSync(SESSIONS, { recursive: true });
     rmSync(STATE_PATH, { force: true });
+    // A distinctive name so the prompt assertion below proves the value came
+    // from IDENTITY.md, rather than matching the plugin-derived fallback.
+    writeFileSync(resolve(HOME, 'IDENTITY.md'), '# Identity\n\n## Who\n\n- **Name:** Testbot\n', 'utf-8');
     writeFileSync(dayFile, `# Session Log: 2026-06-01\n\n${entry('09:00', 'aaa11111', '1–2', 'first topic')}`, 'utf-8');
   });
 
@@ -138,6 +141,10 @@ describe('incremental compile', () => {
     expect(item).not.toBeNull();
     expect(item?.fileName).toBe('2026-06-01.md');
     expect(item?.prompt).toContain('first topic');
+    // The compile prompt names the agent, and that name is written into compiled
+    // memory. An unresolved {{agentName}} would teach the wiki the wrong name.
+    expect(item?.prompt).toContain('Testbot');
+    expect(item?.prompt).not.toContain('{{');
     expect((await markComplete(item!.itemId)).promoted).toBe(true);
   });
 

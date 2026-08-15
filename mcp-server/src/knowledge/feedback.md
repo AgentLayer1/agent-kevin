@@ -1,6 +1,6 @@
-You are updating the `## Learnings` section of Kevin's memory index at
+You are updating the `## Learnings` section of {{agentName}}'s memory index at
 `{{memoryIndexPath}}`. The memory index is loaded into every session, so
-Learnings becomes hot context that helps Kevin self-correct in real time — NOT
+Learnings becomes hot context that helps {{agentName}} self-correct in real time — NOT
 a formal change log.
 
 ## Current memory index
@@ -46,4 +46,4 @@ _Synthesised from [raw/user/feedback.md](../raw/user/feedback.md). Source of tru
 - **Steps-not-tradeoffs preferred.** Evidence: 2 corrections on Apr 10, 12 — "tell me what to do, not the options".
 ```
 
-Keep Kevin grounded in what the user has actually told him. No speculation.
+Keep {{agentName}} grounded in what the user has actually told him. No speculation.

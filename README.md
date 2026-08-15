@@ -166,7 +166,7 @@ There's a lot going on inside an agent — and even more going on in your life a
 
 - **Today** — a time-aware greeting and stat strip, with sub-tabs: the plan (focus, next 7 days, waiting-on), your weekly/monthly/yearly goals, a "today so far" activity trail (sessions, tasks touched, commands run, output produced), and a News tab of headlines harvested from recent briefings.
 - **Tasks** — the agenda grouped by due horizon (overdue → today → this week → this month → later) and a needs-attention view (blocked with reasons, going stale).
-- **Projects** — color-coded project cards with description, done/total progress, and last-updated; click one to expand its tasks grouped by status.
+- **Projects** — color-coded project cards with description, done/total progress, and last-updated; click one to expand its tasks grouped by status, plus a 🧭 link to the project's own roadmap when it keeps one.
 - **Sessions** — your real working sessions (command runs filtered out) from the last 30 days, grouped by day with longer summaries, subtle turn counts, and the working directory only when it isn't the agent home.
 - **Brain** — active memory threads and recent decisions, the Memory tab (daily memory with summaries, learnings, pending), concept articles, the compile pipeline, and the last lint run.
 - **Reports** — everything Kevin has produced, grouped by day, skill chips color-coded, every title clickable.
@@ -174,6 +174,8 @@ There's a lot going on inside an agent — and even more going on in your life a
 - **Profile** — the operator page: your avatar, timezone, and the compiled profile rendered section by section (web links open in new tabs).
 - **Persona** — Kevin's page: avatar, vibe, bio, core role, and soul traits rendered from IDENTITY.md and SOUL.md.
 - **System** — sub-tabs for context assembly, settings (per-scope layers with their allow/deny/env contributions), and a scrollable log tail.
+
+A **Surfaces** group appears in the sidebar for the standalone pages Kevin builds alongside the dashboard, discovered by convention and never configured: `<HOME>/roadmap.html` (your north star) leads, followed by any `projects/<slug>/roadmap.html` or `projects/<slug>/dashboard.html`.
 
 Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filters narrow tasks/sessions/skills/tools/reports live, every project carries a stable color across its badges, and the pulsing health badge jumps you to whatever needs attention. Markdown links (tasks, reports, concepts, memory) open through a configurable opener app so they land rendered and editable rather than downloading as raw text — `obsidian://open?path={path}&paneType=tab` by default (the `paneType=tab` opens notes in a new Obsidian tab so the dashboard stays put); set the `MARKDOWN_URL` env var in `.claude/settings.local.json` to point elsewhere, e.g.:
 
@@ -192,8 +194,9 @@ Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filt
 ```text
 > /agent-kevin:init
 
-❓ Kevin's character (SOUL): accept default, or refine?
-❓ Kevin's role (IDENTITY): general / coding / research / planning / custom?
+❓ What should this agent be called? (default: Kevin — plus emoji + avatar if you rename)
+❓ Its character (SOUL): accept default, or refine?
+❓ Its role (IDENTITY): general / coding / research / planning / custom?
 ❓ Your name and home timezone?
 ❓ Paste any URLs about you (blog, LinkedIn, GitHub, etc.) so Kevin seeds your profile
 ❓ Paste a path or URL for your avatar (optional, gets linked to knowledge/user/profile.md)
@@ -203,7 +206,7 @@ Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filt
 ❓ Confirm + scaffold
 ```
 
-Total time: ≈ 5 minutes. Each question's answer becomes the default for later steps. The wizard writes:
+Total time: ≈ 5 minutes. Each question's answer becomes the default for later steps — the name first of all, since every file the wizard writes is phrased in it. See [Naming your agent](#-naming-your-agent) if you want something other than Kevin, now or later. The wizard writes:
 
 - `CLAUDE.md` (operating manual + identity @-imports), or `CLAUDE.local.md` if a CLAUDE.md already exists
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
@@ -223,6 +226,8 @@ cd ~/Documents/Agents/Kevin && claude
 ```
 
 **Watch for a marketplace trust prompt** on first relaunch. Accept it. If you miss it, recover with `/plugin marketplace add ...` + `/plugin install agent-kevin@agentlayer`.
+
+**That `cd` is the convention, not just this once.** Always launch from the agent home and reach your code from inside the session — it's what loads the plugin, and it's what keeps multiple agents apart. See [The one convention](#-the-one-convention-launch-from-the-agent-home).
 
 ---
 
@@ -494,16 +499,20 @@ Track your projects, plan your weeks, capture decisions, remember context across
 ### 2. SEO + content workflow for one site
 Configure GSC + PageSpeed + SerpAPI keys once. Run `/agent-kevin:google-search-audit` weekly (or wire it to cron). Get a markdown report ranked by impact, findings threaded into existing tasks. Pair with optional [third-party SEO libraries](#third-party-skill-libraries) for content drafting + EEAT scoring.
 
-### 3. Multiple flavours of Kevin
-Different homes for different roles. Each home is its own brain with its own configured skill packs.
+### 3. Several agents, one plugin install
+Different homes for different roles, each its own brain with its own name, persona, and skill packs.
 
 ```bash
-~/Documents/Agents/personal-kevin/    # personal projects, journals, life ops
-~/Work/agents/work-kevin/             # client projects, professional persona
-~/Documents/Agents/seo-kevin/         # SEO-focused, only the SEO pack configured
+~/Documents/Agents/Kevin/     # personal projects, journals, life ops
+~/Documents/Agents/Scout/     # client work, professional persona
+~/Documents/Agents/Sage/      # SEO-focused, only the SEO pack configured
 ```
 
-The plugin code lives once on disk. Each home is independent. Switch by `cd`-ing into the home you want and launching `claude`. The right brain loads automatically.
+The plugin code lives once on disk; each home is independent. Switch by `cd`-ing into the one you want and launching `claude`, and the right brain loads automatically — the home is resolved from where you launched, so nothing needs configuring to keep them apart.
+
+Give each one its own identity with [`/agent-kevin:rename-agent`](#-naming-your-agent). They'll still share the `/agent-kevin:` command namespace, which is plumbing you never see once each `IDENTITY.md` carries its own name.
+
+**The single rule: no `KEVIN_*` variable in `~/.claude/settings.json` or your shell rc.** It's machine-wide and outranks the walk-up, so one value captures every session for one brain and the rest become unreachable. Anything per-home goes in that home's `.claude/settings.local.json`.
 
 ### 4. Augmenting an existing project
 You already have a project with its own `CLAUDE.md`. You want Kevin's memory + task system layered on top, without overwriting your existing instructions.
@@ -558,15 +567,16 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (26), always loaded
+### Core skills (27), always loaded
 
 | Skill | What it does |
 |---|---|
 | `init` | First-run onboarding |
 | `configure-skills` | Configure skill packs, install third-party libraries |
+| `rename-agent` | Change the agent's display name across an existing home — persona fields, avatar, and prose — without forking the plugin (`/rename-agent`, and it asks before running) |
 | `knowledge-compile` | Synthesise raw sessions/feedback/inbox items into the wiki |
 | `create-project` / `archive-project` | Project lifecycle |
-| `flywheel` | Cross-project work session |
+| `flywheel` | Cross-project work session, framed by the north-star roadmap (and each project's own), whose milestone statuses it keeps honest |
 | `sync` | End-to-end maintenance: compile → lint+fix → prune → flywheel → scan → dashboards → closing interview in one pass |
 | `morning-briefing` / `evening-briefing` | Daily orient + wrap |
 | `weekly-goals` / `monthly-goals` / `yearly-goals` | Goal-setting cadences — weeks, monthly themes, and the year planned quarter by quarter |
@@ -630,6 +640,8 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
 - **SessionStart**: pre-init shows the setup banner. Post-init injects today's date, last session tail, today's reports (any briefings or plans written earlier today), and recent git activity (≤10KB total).
 - **SessionEnd + PreCompact**: capture transcript turns to `knowledge/raw/sessions/YYYY-MM-DD.md` with API key redaction. **This is what makes the flywheel work.** Without these hooks, Kevin would have no source material to compile into long-term memory.
+
+All three ship with the plugin, so Claude Code runs them only for sessions started where the plugin is enabled — its own home. A session can therefore only ever be captured by the agent whose home it launched in, which is what keeps two agents on one machine from writing into each other's memory. Don't add capture hooks to `~/.claude/settings.json`; see [the launch convention](#-the-one-convention-launch-from-the-agent-home).
 
 ---
 
@@ -753,11 +765,11 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 
 ## ⚙️ Configuration
 
-**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-scout` reads `SCOUT_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. The prefix earns its keep in machine-wide config (`~/.claude/settings.json` `env`), where it scopes a value to one agent on a multi-agent box. That's why `KEVIN_HOME` below keeps it: a machine-wide `AGENT_HOME` would point every agent at the same brain.
+**Two spellings per knob.** The table below lists each var under its shared, agent-neutral `AGENT_*` name — the spelling init and configure-skills write. Every one also accepts a per-agent override under this agent's prefix — `KEVIN_*`, derived from the plugin manifest name (`agent-kevin` → `KEVIN_`); a fork named `agent-scout` reads `SCOUT_*` with zero code change — and the prefixed spelling always wins, so existing `KEVIN_*` configs work unchanged. **Set these per home, in `<HOME>/.claude/settings.local.json`, under the neutral `AGENT_*` names.** The file's location is what scopes the value to that agent, which is why the portable spelling is the right one there. The prefixed form exists for the case where you genuinely want one value to reach a specific agent from anywhere, and on a machine running more than one home that case is essentially "never" — `~/.claude/settings.json` is machine-wide, so a `KEVIN_HOME` there captures every session for one brain and makes the others unreachable. See [the launch convention](#-the-one-convention-launch-from-the-agent-home).
 
 | Env var | Purpose | Default |
 |---|---|---|
-| `KEVIN_HOME` | Path to your agent home. **Export it in your shell rc** — required for anything launched outside the home (code-repo sessions, hooks, the CLI). Without it, Kevin walks up from `cwd` to the nearest directory carrying `.kevin/` (covers home subdirs) and otherwise fails loud (`NOT_AN_AGENT_HOME`) instead of writing into the wrong tree. | cwd at launch, via the `.kevin/` walk-up |
+| `KEVIN_HOME` | Path to your agent home. **Normally leave this unset** — the home is found by walking up from the launch directory for `.kevin/`, which is correct for sessions and required for running more than one home. Useful as a one-off prefix when running `bin/kevin` from a plain terminal outside the home. Never put it in `~/.claude/settings.json`. | resolved from the launch dir via the `.kevin/` walk-up |
 | `AGENT_TIMEZONE` | IANA timezone for date formatting | system timezone |
 | `AGENT_HOME_TIMEZONE` | Home-base IANA timezone; when it differs from the live timezone, session context flags the operator as traveling | unset |
 | `AGENT_KNOWLEDGE` | Override knowledge dir | `$KEVIN_HOME/knowledge` |
@@ -769,7 +781,9 @@ Note: `bin/kevin` invokes the MCP server logic locally without going through Cla
 | `AGENT_LOG_FILE` | Override log file path. Set to `off` to disable file output. | `$KEVIN_HOME/.kevin/logs/app.log` |
 | `AGENT_RUNTIME_DIR` | Rename the runtime data-dir folder (a bare folder name, not a path — validated). Machine-wide by design; the per-agent spelling also works. | `.kevin` |
 
-**On `KEVIN_HOME`.** When you launch `claude` from inside your agent home, the cwd-fallback works and you don't need to set anything. When `cwd` is somewhere else — a subdir of home, a sibling repo, or the user-level session-capture hook firing from a random project — the MCP server resolves paths relative to `cwd` instead, and writes land in the wrong place (or the `isInitialized()` guard fires and the hook silently no-ops). If you ever launch Claude Code from outside the home, set `KEVIN_HOME` in your shell rc or in `~/.claude/settings.json` `env`.
+**How the home is found.** In order: an explicit `KEVIN_HOME` / `AGENT_HOME`; then the nearest ancestor of `cwd` carrying `.kevin/`; then the same walk from the launch directory (`CLAUDE_PROJECT_DIR`, which Claude Code exports to hooks and MCP servers and which doesn't move when the shell does); then `cwd` as a last resort. Launch from the home and steps two and three cover you for the whole session, including after you `cd` into a repo.
+
+The marker is the **data dir**, never `SOUL.md`. Every agent's home has a `SOUL.md`, so testing for it answers "some agent lives here" rather than "this agent lives here" — and since resolution falls back to `cwd`, the weaker test would let one agent read and write inside another's brain. Guards use the same predicate the walk does, so if the resolved directory isn't this agent's home, the CLI refuses and hooks skip instead of writing somewhere wrong.
 
 `AGENT_KNOWLEDGE` and `AGENT_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
@@ -929,70 +943,69 @@ For every keyed service the flow is the same: `/agent-kevin:configure-skills` ac
 
 ---
 
-## 📸 Optional: capture every Claude session, machine-wide
+## 📍 The one convention: launch from the agent home
 
-By default Kevin only captures sessions when you launch `claude` from inside your agent home (the plugin's hooks fire on enabled-plugin sessions). If you want **every** Claude Code session on your machine — coding work in random repos, one-off Q&A, anything — to land in your knowledge base, add user-level hooks to `~/.claude/settings.json`:
+**Always start sessions from your agent home**, then reach code from inside the session:
+
+```bash
+cd ~/Documents/Agents/Kevin && claude
+```
+
+Everything follows from this. The plugin is enabled in `<HOME>/.claude/settings.json`, so Claude Code loads it only for sessions started there. That single fact gives you the identity stack, the skills, the MCP tools, and session capture, and it's also what keeps multiple agents apart without any configuration.
+
+**Reaching your code.** You don't `cd` to a repo to launch. You launch from the home and add the repos you work in to `permissions.additionalDirectories` in `<HOME>/.claude/settings.local.json`:
 
 ```json
 {
-  "env": {
-    "KEVIN_HOME": "/absolute/path/to/your/agent/home"
-  },
-  "hooks": {
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun /absolute/path/to/agent-kevin/bin/kevin session-capture --mode=session-end --hook-protocol=claude",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun /absolute/path/to/agent-kevin/bin/kevin session-capture --mode=pre-compact --hook-protocol=claude",
-            "timeout": 30
-          }
-        ]
-      }
+  "permissions": {
+    "additionalDirectories": [
+      "/Users/you/Developer/Acme",
+      "/Users/you/Developer/side-project"
     ]
   }
 }
 ```
 
-**Why this is useful.** Kevin's knowledge compounds from raw session inputs. The richer the input stream, the richer the wiki. A coding session in another repo that mentions a new library, a debugging conversation that surfaces a workflow rule, a one-off chat that captures a decision — all of those would normally be lost. With capture-everywhere wired in, they all land in `<HOME>/knowledge/raw/sessions/YYYY-MM-DD.md` and feed the next `/agent-kevin:knowledge-compile` run.
+Now Read, Edit, Grep and Bash all work against those trees while the session stays anchored to the brain. Set `AGENT_CODE_PATH` to your primary one and its git activity shows up in every session's context.
 
-**How it stays safe.** The CLI's `isInitialized()` guard checks for `<KEVIN_HOME>/SOUL.md` before writing — if your `KEVIN_HOME` env var is misconfigured or points at a non-Kevin directory, the verb logs a skip and exits. It won't pollute random dirs.
+**The session can wander, the anchor can't.** Once running, `cd` anywhere you like. Claude Code exports `CLAUDE_PROJECT_DIR` (the launch directory, which never moves) to hooks and MCP servers, so capture still lands in the right brain even when the shell has roamed three repos deep.
 
-**Excluding specific directories.** Pass one or more `--exclude PATH` flags (repeatable) to suppress capture when `claude` is launched from those paths or any of their children. Paths are tilde-expanded and resolved to absolutes; matching uses `/`-boundary prefixes (so `~/Developer/foo` excludes `~/Developer/foo/bar` but not `~/Developer/foobar`). Useful for sibling agents (another `SOUL.md`-rooted home), Ring-1 repos that shouldn't bleed into this knowledge base, or noisy throwaway dirs:
+### What you give up
 
-```json
-"command": "bun /absolute/path/to/agent-kevin/bin/kevin session-capture --mode=session-end --hook-protocol=claude --exclude ~/Developer/foo --exclude ~/scratch"
+**A session started outside a home isn't captured, and says nothing about it.** No plugin loads, so there are no hooks to run. That's the trade for the isolation, and the failure is silent: the conversation simply never reaches your knowledge base. If you use a terminal multiplexer that opens workspaces at repo paths, check how it launches.
+
+Earlier versions of this README recommended user-level hooks in `~/.claude/settings.json` to capture every session machine-wide, with a `KEVIN_HOME` env var to route them. **Don't.** That variable is machine-wide and outranks launch-directory resolution, so it hands every session on the box to one brain and makes a second agent unreachable. The hooks it fed needed a self-defer mode, an enabled-plugin probe, and repeatable `--exclude` flags just to avoid writing into a sibling agent's memory. All of it is gone; plugin hooks are the only supported path.
+
+**Don't put any `KEVIN_*` variable in `~/.claude/settings.json`.** One value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names, where its location scopes it.
+
+### Running the CLI outside a session
+
+`bin/kevin` resolves its home from the current directory, and a plain terminal has no `CLAUDE_PROJECT_DIR` to fall back on. Run it from inside the home, or point it at one:
+
+```bash
+KEVIN_HOME=~/Documents/Agents/Kevin kevin task query --status=active
 ```
 
-Repeat the flag in both the `SessionEnd` and `PreCompact` hook entries. The plugin's own SessionEnd hook (when you launch from the agent home itself) already takes precedence via the `pluginEnabledInCwd()` check, so excludes only need to cover *other* agent homes and dirs you actively want to skip.
+Anywhere else it refuses and tells you what it resolved, rather than scaffolding a `knowledge/` tree into whatever repo you were standing in.
 
-**Three things to choose:**
+---
 
-1. **Both hooks, recommended** — `SessionEnd` captures complete conversations; `PreCompact` captures long sessions before Claude's auto-compaction discards detail. Together they cover ~all conversational content.
-2. **`SessionEnd` only** — lighter. You'll lose detail from sessions that hit auto-compact before you exit cleanly.
-3. **Don't set this up** — only sessions launched from your agent home get captured. Simplest, but you'll miss cross-repo signal.
+## 🏷️ Naming your agent
 
-**Trade-offs:**
+The plugin is `agent-kevin`, but your agent doesn't have to be called Kevin. Two separate things:
 
-- The hardcoded plugin path means moving/uninstalling the plugin breaks the hooks. Acceptable for personal use; not portable across machines.
-- Every Claude session pays a small startup cost to run the hook (≈100ms). Negligible.
-- This does **not** enable the plugin globally — no MCP tools or identity stack loads in non-Kevin sessions. The hooks are isolated.
-- If you also want Kevin's full context (skills, MCP tools) available everywhere, enable the plugin globally instead in your `~/.claude/settings.json` `enabledPlugins` block. This is heavier and usually not what you want.
+| | Lives in | Changeable |
+|---|---|---|
+| **Display name** — what it calls itself, what the dashboard shows | `IDENTITY.md` → `- **Name:**` | freely, any time |
+| **Namespace** — `/agent-kevin:` commands, `KEVIN_*` vars, `.kevin/`, MCP tool names | the plugin manifest | only by forking |
 
-After editing `~/.claude/settings.json`, launch `claude` from any directory, have a one-turn conversation, `/exit`, then check `<KEVIN_HOME>/knowledge/raw/sessions/<today>.md` — a new block should be appended.
+`/agent-kevin:init` asks for a name, an emoji and an avatar up front. Everything downstream reads the answer: the templates are written in that name, the session banner and `TASKS.md` header render it, and the knowledge-compile prompts refer to it, so your compiled memory speaks about the agent you actually named.
+
+Already have a home? **`/agent-kevin:rename-agent`** does the migration. It only runs when you type that command — it never fires on its own — and it asks for permission even then, because it rewrites files across the whole brain in one pass. It: rewrites the persona fields, swaps the avatar, sweeps the prose across `SOUL.md` / `CLAUDE.md` / `USER.md` / knowledge / projects, and leaves the plumbing alone. It won't touch your home directory path, so `~/Documents/Agents/Kevin` in a settings file or a wiki page survives intact.
+
+Renaming survives updates. `/agent-kevin:upgrade` resolves `{{AGENT_NAME}}` in the shipped templates from *your* `IDENTITY.md` before diffing, so template changes arrive phrased in your agent's name instead of proposing "Kevin" back on every release. The persona block is never reconciled at all.
+
+**Forking is a different decision.** Change `name` in `.claude-plugin/plugin.json` and the env prefix follows automatically (`agent-scout` reads `SCOUT_*`), giving you your own slash-command namespace. The price is merging from upstream on every release, forever. If you only want the agent to feel like yours, rename it and skip the fork.
 
 ---
 
@@ -1265,7 +1278,9 @@ The mental model that keeps multi-agent setups sane: **agent brains are standalo
 └── agent-acme-data.git          #   the brain's git internals, out of the vault
 ```
 
-Why the split earns its keep: the brain opens cleanly as an Obsidian vault (no thousands of source files to index or exclude), you can run many brains against one code tree, and `~/Documents` syncing (iCloud) never drags repos with it. The brain's git *internals* live outside the vault via `git init --separate-git-dir` — the vault keeps a one-line `.git` pointer file, so version control works normally while sync tools only ever see markdown. Wake an agent with `cd ~/Documents/Agents/<Name> && claude`; point a coding session at a repo with `cd ~/Developer/<Org>/<repo>`. One agent per role/company, each with its own brain; export `KEVIN_HOME` in your shell rc so hooks and the CLI resolve the brain from anywhere.
+Why the split earns its keep: the brain opens cleanly as an Obsidian vault (no thousands of source files to index or exclude), you can run many brains against one code tree, and `~/Documents` syncing (iCloud) never drags repos with it. The brain's git *internals* live outside the vault via `git init --separate-git-dir` — the vault keeps a one-line `.git` pointer file, so version control works normally while sync tools only ever see markdown. Wake an agent with `cd ~/Documents/Agents/<Name> && claude`; point a coding session at a repo with `cd ~/Developer/<Org>/<repo>`. One agent per role/company, each with its own brain, and the brain you launched in is the one you get: the home is resolved from the launch directory, which doesn't roam even when the session `cd`s into a repo.
+
+Two homes can run off the **same** plugin install (a work agent and a personal one, both `agent-kevin`) — they stay isolated by location, and each one's `IDENTITY.md` gives it its own name via `/agent-kevin:rename-agent`. The one rule: **don't pin `KEVIN_HOME` (or any `KEVIN_*`) in user-level settings or your shell rc when you run more than one home.** It's machine-wide, it beats launch-directory resolution outright, and it hands every session to a single brain. Per-home config goes in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names.
 
 ### 10. Tower for git review
 

@@ -11,6 +11,7 @@ import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
 import { hashBuffer, listRawFiles, loadScriptTemplate, readWikiIndex, renderTemplate } from '@/knowledge/utils';
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
+import { agentDisplayName } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename } from 'node:fs/promises';
@@ -146,6 +147,7 @@ async function buildSessionPrompt(fileName: string, chunkContent: string): Promi
     readWikiIndex()
   ]);
   return renderTemplate(SESSION_TEMPLATE, {
+    agentName: agentDisplayName(),
     schema,
     user,
     wikiIndex,
@@ -166,6 +168,7 @@ async function buildFeedbackPrompt(): Promise<string> {
     )
   ]);
   return renderTemplate(FEEDBACK_TEMPLATE, {
+    agentName: agentDisplayName(),
     memoryIndexPath: FILES.MEMORY,
     memoryIndex,
     feedback,
@@ -177,6 +180,7 @@ async function buildInboxPrompt(inboxPath: string): Promise<string> {
   const fileName = basename(inboxPath);
   const [inboxContent, wikiIndex] = await Promise.all([readFile(inboxPath, 'utf-8'), readWikiIndex()]);
   return renderTemplate(INBOX_TEMPLATE, {
+    agentName: agentDisplayName(),
     wikiIndex,
     fileName,
     inboxContent,

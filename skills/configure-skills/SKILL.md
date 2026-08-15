@@ -42,7 +42,11 @@ mkdir -p "$HOME_DIR/.claude"
 - `$MCP_FILE` → `<HOME>/.mcp.json` at the project root (NOT inside `.claude/`). Claude Code reads project MCP servers from this exact location. A file at `.claude/mcp.json` is silently ignored.
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 
-If `$HOME_DIR/CLAUDE.md` doesn't exist, tell the user to run `/agent-kevin:init` first, then stop.
+The `NOT_AN_AGENT_HOME` probe above is the only setup check — don't add a second one keyed
+on `CLAUDE.md`. Init writes the operating manual to `CLAUDE.local.md` when a `CLAUDE.md`
+already exists, so an initialized home can legitimately have no `CLAUDE.md`, and telling
+that operator to run init would offer to overwrite the identity files they already have.
+The data dir is the marker; it is the same one the resolver and every runtime guard use.
 
 ---
 

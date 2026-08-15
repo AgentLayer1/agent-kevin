@@ -1,5 +1,5 @@
 import { runtimeDirName } from '@/shared/naming';
-import { agentHomePath, env, loadedSecretKeyNames } from '@/shared/env';
+import { agentHomePath, env, isAgentHome, loadedSecretKeyNames } from '@/shared/env';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -261,9 +261,15 @@ export const CONTEXT = {
   MAX_GIT_LOG_COMMITS: 15
 } as const;
 
-/** True once `/agent-kevin:init` has been run. Keyed on SOUL.md — that
- * filename is unique to the agent home (CLAUDE.md may pre-exist in projects
- * that the plugin gets installed into, so it's not a safe marker). */
+/**
+ * True once `/agent-kevin:init` has been run *here*, keyed on the same data-dir
+ * marker `agentHomePath` walks for.
+ *
+ * Not SOUL.md: every sibling agent's home carries one, so a SOUL.md test answers
+ * "some agent lives here", not "this agent lives here". The home falls back to
+ * cwd when the walk finds nothing, so the weaker test hands this agent's reads
+ * and writes to whichever brain the shell happened to be standing in.
+ */
 export function isInitialized(): boolean {
-  return existsSync(FILES.SOUL);
+  return isAgentHome(homeRoot());
 }

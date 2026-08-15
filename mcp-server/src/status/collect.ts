@@ -23,6 +23,7 @@ import {
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
+import { agentDisplayName } from '@/shared/agent-name';
 import { agentKeyName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import {
@@ -293,6 +294,8 @@ export interface ProjectLoad {
   updatedAt: string;
   /** First paragraph of the project README, markdown stripped; '' if none. */
   description: string;
+  /** HOME-relative path to the project's own roadmap.html; '' when it has none. */
+  roadmap: string;
 }
 
 export interface TaskRef {
@@ -767,6 +770,13 @@ const OPEN_STATUSES = new Set(['open', 'active', 'blocked']);
 /** First plain paragraph of a project README (frontmatter skipped). */
 const projectDescription = (project: string): string => firstParagraph(resolve(FOLDERS.PROJECTS, project, 'README.md'));
 
+/** Same convention as the HOME-root north star, one level down: a project's own
+ *  roadmap lives at `projects/<slug>/roadmap.html`. '' when absent. */
+const projectRoadmap = (project: string): string => {
+  const path = resolve(FOLDERS.PROJECTS, project, 'roadmap.html');
+  return existsSync(path) ? relative(FOLDERS.HOME, path) : '';
+};
+
 const collectTasks = (): StatusSnapshot['tasks'] => {
   const all = scanAllTasks();
   const archived = scanArchivedTasks();
@@ -786,7 +796,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     total: 0,
     done: 0,
     updatedAt: '',
-    description: ''
+    description: '',
+    roadmap: ''
   });
 
   // Seed every discovered project so those with no live tasks still render as
@@ -810,7 +821,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
       ...load,
       done:
         load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
-      description: projectDescription(load.project)
+      description: projectDescription(load.project),
+      roadmap: projectRoadmap(load.project)
     }))
     // Most recently touched project first (by latest live-task `updated:`),
     // then by open-task count, then alphabetically. Quiet projects (no live
@@ -1092,7 +1104,7 @@ const boldField = (file: string, label: string): string => {
   try {
     return (
       readFileSync(file, 'utf-8')
-        .match(new RegExp(`\\*\\*${label}:\\*\\*\\s*(.+)$`, 'm'))?.[1]
+        .match(new RegExp(`\\*\\*${label}:\\*\\*[ \\t]*(.+)$`, 'm'))?.[1]
         ?.trim() ?? ''
     );
   } catch {
@@ -1132,15 +1144,12 @@ const wikiIndexDescriptions = (prefix: string): Map<string, string> => {
   return map;
 };
 
-// Pre-init fallback: derive the agent's name from the plugin id (agent-walle → Walle).
-const FALLBACK_AGENT_NAME = PLUGIN_NAME.replace(/^agent-/, '').replace(/^./, (c) => c.toUpperCase());
-
 // Rendered in the persona header (name/kind/vibe chips + bio), so their
 // sections would only duplicate it below.
 const PERSONA_HEAD_SECTIONS = new Set(['Who', 'Short Bio']);
 
 const collectPersona = (): Persona => ({
-  name: boldField(FILES.IDENTITY, 'Name') || FALLBACK_AGENT_NAME,
+  name: agentDisplayName(),
   kind: stripMarkdown(boldField(FILES.IDENTITY, 'Kind')),
   // Forks word the tagline field differently (Vibe, Register, ...).
   vibe: stripMarkdown(boldField(FILES.IDENTITY, 'Vibe') || boldField(FILES.IDENTITY, 'Register')),
@@ -1462,7 +1471,7 @@ const categoryFromHref = (href: string): string => href.split('/')[1] ?? '';
 const orphanReportTitle = (body: string, fileName: string): string => {
   const frontmatter = body.match(REPORT_FRONTMATTER_RE)?.[1];
   const fmTitle = frontmatter
-    ?.match(/^title:\s*(.+)$/m)?.[1]
+    ?.match(/^title:[ \t]*(.+)$/m)?.[1]
     ?.trim()
     .replace(/^["']|["']$/g, '');
   if (fmTitle) return fmTitle;
@@ -1770,25 +1779,36 @@ const titleize = (slug: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-/** Surfaces are discovered by convention, never configured: a HOME-root
- *  roadmap.html leads (opened as a new Obsidian tab), followed by every
- *  project carrying a dashboard.html at its root. */
+/** One surface when the file is there, none when it isn't. appTab links go
+ *  through the opener app, which needs an absolute path; in-frame ones are
+ *  HOME-relative. */
+const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLink[] =>
+  existsSync(absPath) ? [{ ...entry, href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath) }] : [];
+
+/** Surfaces are discovered by convention, never configured: the HOME-root
+ *  roadmap.html (the north star) leads, followed by every project's own
+ *  dashboard.html and roadmap.html. Roadmaps open as a new tab so the
+ *  dashboard stays put. */
 const collectSurfaces = (): SurfaceLink[] => {
-  const roadmap: SurfaceLink[] = existsSync(FILES.ROADMAP)
-    ? [{ title: 'Roadmap', href: FILES.ROADMAP, icon: '🧭', appTab: true }]
-    : [];
+  const northStar = surfaceAt(FILES.ROADMAP, { title: 'Roadmap', icon: '🧭', appTab: true });
   const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
     ? []
     : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && existsSync(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')))
-        .map((entry) => ({
-          title: titleize(entry.name),
-          href: relative(FOLDERS.HOME, resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html')),
-          icon: '📊',
-          appTab: false
-        }))
+        .filter((entry) => entry.isDirectory())
+        .flatMap((entry) => [
+          ...surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html'), {
+            title: titleize(entry.name),
+            icon: '📊',
+            appTab: false
+          }),
+          ...surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'roadmap.html'), {
+            title: `${titleize(entry.name)} roadmap`,
+            icon: '🧭',
+            appTab: true
+          })
+        ])
         .sort((a, b) => a.title.localeCompare(b.title));
-  return [...roadmap, ...projects];
+  return [...northStar, ...projects];
 };
 
 const MAX_REPORTS = 60;

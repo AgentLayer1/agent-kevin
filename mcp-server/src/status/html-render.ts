@@ -529,11 +529,16 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
   ]
     .filter(Boolean)
     .join('<span class="dim"> · </span>');
+  // Through the opener app like every other link on the card: a relative
+  // in-frame href is swallowed by Obsidian's HTML viewer.
+  const roadmapRow = load.roadmap
+    ? `<div class="row" data-row><span style="flex:none">🧭</span><span class="grow">${mdLink(snap, load.roadmap, 'Project roadmap')}</span></div>`
+    : '';
   return `<details class="projcard" data-row><summary>
 <div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span><span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
 ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 160))}</div>` : ''}
 <div class="proj-progress"><span class="dim nowrap">☑ ${finished} / ${denominator}</span><div class="track"><span style="width:${pct}%;background:${color}"></span></div><span class="dim nowrap">${pct}%</span></div>
-</summary><div class="proj-tasks">${taskRows}</div></details>`;
+</summary><div class="proj-tasks">${roadmapRow}${taskRows}</div></details>`;
 };
 
 const pageTasks = (snap: StatusSnapshot): string => {
@@ -1059,16 +1064,15 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   }
 ];
 
-// Per-event explanations for the Reflexes tab — these hooks are how Kevin
+// Per-event explanations for the Reflexes tab — these hooks are how the agent
 // persists across sessions, so each one is worth spelling out.
-const REFLEX_TIPS: Record<string, string> = {
-  SessionStart:
-    'Fires when a session starts. Injects today’s date (with the Hijri date), the tail of your last session, today’s reports, and recent git activity — so Kevin wakes up with continuity instead of a blank slate.',
+const reflexTips = (agent: string): Record<string, string> => ({
+  SessionStart: `Fires when a session starts. Injects today’s date (with the Hijri date), the tail of your last session, today’s reports, and recent git activity — so ${agent} wakes up with continuity instead of a blank slate.`,
   SessionEnd:
     'Fires when a session ends. Captures the full transcript to `knowledge/raw/sessions/YYYY-MM-DD.md`. This is how every session is saved — later compiled into long-term memory.',
   PreCompact:
     'Fires just before Claude Code compacts (summarises) a long conversation. Captures the session up to that point so the part being compressed away is still preserved on disk.'
-};
+});
 
 const pageCapabilities = (snap: StatusSnapshot): string => {
   const { skills, mcp, hooks } = snap;
@@ -1127,7 +1131,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
 
   const hookRows = hooks.entries
     .map((entry) => {
-      const tip = REFLEX_TIPS[entry.event];
+      const tip = reflexTips(snap.persona.name)[entry.event];
       return `<div class="row"><span class="good nowrap" style="flex:none;min-width:120px">${esc(entry.event)}${
         tip ? infoTip(tip) : ''
       }</span><span class="grow dim">${esc(entry.command)}</span></div>`;
@@ -1287,24 +1291,27 @@ const MANIFEST_ICON: Record<ManifestEntry['status'], { icon: string; cls: string
  *  surfaced here as a standalone builder so pageBrain can mount it. */
 // Explanations for the load-bearing index files in the Context tab — the few
 // that aren't self-explanatory from their filename. Matched by label suffix.
-const CONTEXT_TIPS: Array<{ match: string; text: string }> = [
+const CONTEXT_TIPS: Array<{ match: string; text: (agent: string) => string }> = [
   {
     match: 'knowledge/index.md',
-    text: 'The master catalog — a table of contents for the whole knowledge base. It lists every permanent article with a one-line description, so Kevin can find and load just what it needs on demand instead of pulling the entire brain into context every session.'
+    text: (agent) =>
+      `The master catalog — a table of contents for the whole knowledge base. It lists every permanent article with a one-line description, so ${agent} can find and load just what it needs on demand instead of pulling the entire brain into context every session.`
   },
   {
     match: 'knowledge/memory/index.md',
-    text: 'Kevin’s long-term memory: active threads, recent decisions, learnings, and key context distilled from past sessions during compile (the “dreaming” step). Loaded every session so Kevin wakes up knowing where things stand.'
+    text: (agent) =>
+      `${agent}’s long-term memory: active threads, recent decisions, learnings, and key context distilled from past sessions during compile (the “dreaming” step). Loaded every session so ${agent} wakes up knowing where things stand.`
   },
   {
     match: 'TASKS.md',
-    text: 'A high-level overview of every task across projects — priorities, what’s overdue, what’s being worked on right now. A distilled snapshot, not the full per-task detail, so Kevin sees the lay of the land without loading every task file.'
+    text: (agent) =>
+      `A high-level overview of every task across projects — priorities, what’s overdue, what’s being worked on right now. A distilled snapshot, not the full per-task detail, so ${agent} sees the lay of the land without loading every task file.`
   }
 ];
 
-const contextTipFor = (label: string): string => {
+const contextTipFor = (label: string, agent: string): string => {
   const tip = CONTEXT_TIPS.find((entry) => label.endsWith(entry.match));
-  return tip ? infoTip(tip.text) : '';
+  return tip ? infoTip(tip.text(agent)) : '';
 };
 
 const buildContextBody = (snap: StatusSnapshot): string => {
@@ -1339,7 +1346,7 @@ const buildContextBody = (snap: StatusSnapshot): string => {
     return [
       [
         item.present ? '<span class="good">✓</span>' : '<span class="bad" data-issue>✗</span>',
-        `${item.present ? mdLink(snap, item.label, item.label, 'plink') : esc(item.label)}${badge}${contextTipFor(item.label)}`,
+        `${item.present ? mdLink(snap, item.label, item.label, 'plink') : esc(item.label)}${badge}${contextTipFor(item.label, snap.persona.name)}`,
         `<span class="dim">${esc(humanBytes(item.bytes))}</span>`
       ]
     ];
