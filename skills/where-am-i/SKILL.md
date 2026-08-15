@@ -22,20 +22,18 @@ Three modes, all about session continuity:
 ## Step 1 — gather
 
 ```bash
-SCOPE="$PWD"
-[ -n "$KEVIN_HOME" ] && SCOPE="$SCOPE,$KEVIN_HOME"
-[ -n "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}" ] && SCOPE="$SCOPE,$(dirname "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}")"
-bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
+bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24
 ```
 
 - Default window is 24 hours; if the user gave a number (e.g. `/agent-kevin:where-am-i 48`),
   pass it as `--hours`.
-- **Scope:** `--scope` takes comma-separated roots; a session counts when launched in any
-  root or beneath it. The default above covers the current folder, the agent HOME, and the
-  code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their sibling worktrees), so the
-  radar sees HOME sessions and code-repo sessions even though they live in separate trees.
-  Duplicate roots are fine (the script dedupes); other agents' homes stay out of scope. If
-  the user says "all" / "everywhere" / asks about other projects, pass `--scope all`.
+- **Scope:** the script derives the default roots itself — the launch cwd, `$KEVIN_HOME`
+  when set, and the code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their
+  sibling worktrees) — so the radar sees HOME sessions and code-repo sessions even though
+  they live in separate trees. `--scope` overrides with comma-separated roots; a session
+  counts when launched in any root or beneath it. Duplicate roots are fine (the script
+  dedupes); other agents' homes stay out of scope. If the user says "all" / "everywhere" /
+  asks about other projects, pass `--scope all`.
 - Output is JSON, newest first. Each session has: `session_id`, `title` (the operator's
   `/rename` name when set, else Claude Code's first-prompt auto-title), `cwd`,
   `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
