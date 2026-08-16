@@ -620,7 +620,7 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (47)
+### MCP tools (52)
 
 | Group | Tools |
 |---|---|
@@ -628,7 +628,7 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **Knowledge** (7) | `capture`, `memory_prune`, `links_rewrite`, `knowledge_lint`, `compile_status`, `compile_next`, `compile_write` |
 | **Reports** (1) | `report_write` |
 | **Dashboard** (1) | `dashboard` |
-| **Worktree** (2) | `setup_worktree`, `remove_worktree` |
+| **Worktree** (3) | `setup_worktree`, `list_worktrees`, `remove_worktree` |
 | **Upgrade** (1) | `run_upgrade` |
 | **Database** (4) | `database_list`, `database_schema`, `database_query`, `database_fork` |
 | **GitHub** (11) | `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward` |
