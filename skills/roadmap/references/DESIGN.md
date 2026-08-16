@@ -73,7 +73,7 @@ Together they close the loop: planned-but-not-now flows to the horizon and re-en
 ## Output conventions
 
 - Single self-contained file: inline CSS and JS, Google Fonts the only external dependency.
-- Path by scope: a personal/company north star lives at `<HOME>/roadmap.html`; a project roadmap at `projects/<slug>/references/roadmap.html`; a client-repo roadmap wherever that repo keeps docs. Confirm in the wizard; never guess a new location.
+- Path by scope: `roadmap.html` at the root of whatever it covers — `<HOME>/roadmap.html` for a personal/company north star, `projects/<slug>/roadmap.html` for a project (both auto-discovered by the dashboard), a client repo's docs dir for its own. Confirm in the wizard; never guess a new location.
 - The footer always explains how to read the page and that edits happen in the `ROADMAP` object.
 
 ## Render check

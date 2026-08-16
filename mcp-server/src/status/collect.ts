@@ -362,8 +362,9 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
-  /** Convention-discovered sub-dashboards: HOME-root roadmap.html first,
-   *  then projects with a dashboard.html. Empty renders nothing. */
+  /** Convention-discovered standalone pages: the HOME-root roadmap.html
+   *  first, then each project's dashboard.html and roadmap.html. Empty
+   *  renders nothing. */
   surfaces: SurfaceLink[];
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };

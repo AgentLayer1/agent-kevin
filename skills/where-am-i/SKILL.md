@@ -152,7 +152,7 @@ to / work on next / which session needs me", the question changes from *where am
 interview. Everything comes from the session JSON already gathered — no other data
 source. Triage is ephemeral — **no report**.
 
-**Scope filter.** A remaining argument (e.g. `/where-am-i triage walapay`) keeps only
+**Scope filter.** A remaining argument (e.g. `/where-am-i triage acme`) keeps only
 sessions whose `cwd` contains it, case-insensitively. No matches → say so and triage
 the full set rather than returning empty-handed.
 
