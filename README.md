@@ -265,7 +265,7 @@ Dynamic (per-session, injected by SessionStart hook):
   · today's reports (briefings, plans, audits written earlier today)
   · recent git activity in knowledge/
 
-Plugin: agent-kevin@agentlayer · 48 MCP tools loaded
+Plugin: agent-kevin@agentlayer · 52 MCP tools loaded
 
 > /agent-kevin:morning-briefing
 [Kevin reads your active threads, in-flight tasks, anything overdue, and surfaces what

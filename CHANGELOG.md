@@ -49,8 +49,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **A roadmap is a convention now, not config.** `roadmap.html` lives at the root of
   whatever it covers: the HOME root for your north star, `projects/<slug>/roadmap.html`
   for a project's own plan. The dashboard discovers both without registration — the
-  north star leads the sidebar's Surfaces group, and a project that keeps one gets a
-  🧭 row on its card.
+  north star leads the sidebar's Surfaces group, a project's own joins it there, and
+  that project also gets a 🧭 row on its card.
 - `create-project` points new projects at the convention (and says not to scaffold an
   empty roadmap); `roadmap` offers the project-root path instead of a nested
   `references/` location and reminds you to list it in the README's `## Structure`.
@@ -65,8 +65,9 @@ and prompts per optional one. The new template files are the source of truth for
   runs take.
 
 ### Fixed
-- README's MCP tool count was stale at 47 (actual: 52), and `list_worktrees` was
-  missing from the Worktree group.
+- README's MCP tool count was stale in two places (47 in the tool table, 48 in the
+  sample session banner; actual: 52), and `list_worktrees` was missing from the
+  Worktree group.
 
 ### Upgrade
 - `manual: optional` — only if you keep a project roadmap at the old nested path
