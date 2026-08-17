@@ -49,8 +49,9 @@ and prompts per optional one. The new template files are the source of truth for
 - **A roadmap is a convention now, not config.** `roadmap.html` lives at the root of
   whatever it covers: the HOME root for your north star, `projects/<slug>/roadmap.html`
   for a project's own plan. The dashboard discovers both without registration — the
-  north star leads the sidebar's Surfaces group, a project's own joins it there, and
-  that project also gets a 🧭 row on its card.
+  north star leads the sidebar's Surfaces group, and a project that keeps one gets a
+  🧭 row on its card. Only the north star is promoted to the sidebar; a project's
+  roadmap lives on that project's card, so the sidebar doesn't grow a row per project.
 - `create-project` points new projects at the convention (and says not to scaffold an
   empty roadmap); `roadmap` offers the project-root path instead of a nested
   `references/` location and reminds you to list it in the README's `## Structure`.
@@ -68,6 +69,10 @@ and prompts per optional one. The new template files are the source of truth for
 - README's MCP tool count was stale in two places (47 in the tool table, 48 in the
   sample session banner; actual: 52), and `list_worktrees` was missing from the
   Worktree group.
+- The sidebar's health and upgrade badges ran past the edge of the fixed-width
+  sidebar once the issue list grew past a couple of signals. They wrap now — between
+  whole signals, never mid-signal or onto a line-leading `·` — at the same font size,
+  in the same sidebar width.
 
 ### Upgrade
 - `manual: optional` — only if you keep a project roadmap at the old nested path

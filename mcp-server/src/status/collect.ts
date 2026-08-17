@@ -1787,27 +1787,23 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
   existsSync(absPath) ? [{ ...entry, href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath) }] : [];
 
 /** Surfaces are discovered by convention, never configured: the HOME-root
- *  roadmap.html (the north star) leads, followed by every project's own
- *  dashboard.html and roadmap.html. Roadmaps open as a new tab so the
- *  dashboard stays put. */
+ *  roadmap.html (the north star, opened as a new tab) leads, followed by every
+ *  project carrying a dashboard.html at its root. A project's own roadmap is
+ *  deliberately absent — it belongs on that project's card, not in a sidebar
+ *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] => {
   const northStar = surfaceAt(FILES.ROADMAP, { title: 'Roadmap', icon: '🧭', appTab: true });
   const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
     ? []
     : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
-        .flatMap((entry) => [
-          ...surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html'), {
+        .flatMap((entry) =>
+          surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html'), {
             title: titleize(entry.name),
             icon: '📊',
             appTab: false
-          }),
-          ...surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'roadmap.html'), {
-            title: `${titleize(entry.name)} roadmap`,
-            icon: '🧭',
-            appTab: true
           })
-        ])
+        )
         .sort((a, b) => a.title.localeCompare(b.title));
   return [...northStar, ...projects];
 };

@@ -1775,13 +1775,16 @@ const healthBadge = (snap: StatusSnapshot): string => {
   if (health.ok) {
     return `<span class="badge ok" data-nav="status" title="every health signal is clear — click for details"><span class="pulse"></span>all nominal</span>`;
   }
+  // Non-breaking spaces inside a segment and before its separator: the pill
+  // wraps in the fixed-width sidebar, and this keeps the breaks between whole
+  // signals — never mid-signal, never on a line-leading `·`.
   const issues = [
-    health.overdue && `${health.overdue} overdue`,
-    health.pendingCompiles && `${health.pendingCompiles} pending`,
-    health.logErrors && `${health.logErrors} errors`,
-    health.missingImports && `${health.missingImports} missing`
+    health.overdue && `${health.overdue}\u00a0overdue`,
+    health.pendingCompiles && `${health.pendingCompiles}\u00a0pending`,
+    health.logErrors && `${health.logErrors}\u00a0errors`,
+    health.missingImports && `${health.missingImports}\u00a0missing`
   ].filter(Boolean);
-  return `<span class="badge warn" data-nav="status" title="click for signal details"><span class="pulse"></span>${esc(issues.join(' · '))}</span>`;
+  return `<span class="badge warn" data-nav="status" title="click for signal details"><span class="pulse"></span>${esc(issues.join('\u00a0· '))}</span>`;
 };
 
 /** Sidebar "upgrade available" badge — mirrors the stale-snapshot badge but is
@@ -1801,7 +1804,7 @@ const upgradeBadge = (snap: StatusSnapshot): string => {
       `<div class="mini-how">${releasesBehind} release${releasesBehind === 1 ? '' : 's'} of HOME changes pending. Apply:</div>`,
       `<code class="mini-cmd">${esc(cmd)}</code>`
     ].join('');
-    return wrap('HOME upgrade pending — click for details', `upgrade available · ${releasesBehind}`, mini);
+    return wrap('HOME upgrade pending — click for details', `upgrade · ${releasesBehind}`, mini);
   }
   const mini = [
     `<div class="mini-how">This home predates update tracking. Run once to record your baseline and apply any pending template/setting changes:</div>`,

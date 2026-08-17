@@ -673,7 +673,9 @@ describe('renderDashboardHtml', () => {
       })
     );
     expect(html).toContain('class="badge warn" data-nav="status"');
-    expect(html).toContain('2 overdue · 1 pending');
+    // Non-breaking spaces bind each signal (and its separator) so the sidebar
+    // pill wraps between signals instead of mid-signal.
+    expect(html).toContain('2\u00a0overdue\u00a0· 1\u00a0pending');
     const status = html.slice(html.indexOf('data-page="status"'));
     expect(status).toContain('2 signal(s) need attention');
     expect(status).toContain('lo-009');
