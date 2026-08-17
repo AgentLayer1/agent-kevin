@@ -43,6 +43,37 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.27] - 2026-08-17
+
+### Added
+- **A roadmap is a convention now, not config.** `roadmap.html` lives at the root of
+  whatever it covers: the HOME root for your north star, `projects/<slug>/roadmap.html`
+  for a project's own plan. The dashboard discovers both without registration — the
+  north star leads the sidebar's Surfaces group, and a project that keeps one gets a
+  🧭 row on its card.
+- `create-project` points new projects at the convention (and says not to scaffold an
+  empty roadmap); `roadmap` offers the project-root path instead of a nested
+  `references/` location and reminds you to list it in the README's `## Structure`.
+
+### Changed
+- **Flywheel is framed by the roadmap.** It reads the north star's `ROADMAP` object
+  while orienting and uses it to break ties between equally urgent tasks, reads a
+  project's own before deciding what to advance, and reconciles milestone statuses its
+  work actually moved. Status-value edits only, evidence-backed — structural changes
+  and drift go to the operator with `/agent-kevin:roadmap`, never a regeneration.
+  `sync`'s quick form carries the same two steps, since that's the path most flywheel
+  runs take.
+
+### Fixed
+- README's MCP tool count was stale at 47 (actual: 52), and `list_worktrees` was
+  missing from the Worktree group.
+
+### Upgrade
+- `manual: optional` — only if you keep a project roadmap at the old nested path
+  `projects/<slug>/references/roadmap.html`: move it to `projects/<slug>/roadmap.html`
+  so the dashboard finds it, and add a line for it in that project README's
+  `## Structure`. Otherwise nothing — code-only, no bun install, no HOME changes.
+
 ## [0.3.26] - 2026-08-13
 
 ### Added
