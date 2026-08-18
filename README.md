@@ -28,7 +28,7 @@ This isn't a chat wrapper. It's an **operating system for personal AI**:
 - A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are five helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `permission-check` (translate + safety-grade a permission prompt you paste from another session), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are six helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `standup` (your last 24h as did / next / blocked), `permission-check` (translate + safety-grade a permission prompt you paste from another session), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -567,7 +567,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (27), always loaded
+### Core skills (28), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -579,6 +579,7 @@ graph LR
 | `flywheel` | Cross-project work session, framed by the north-star roadmap (and each project's own), whose milestone statuses it keeps honest |
 | `sync` | End-to-end maintenance: compile → lint+fix → prune → flywheel → scan → dashboards → closing interview in one pass |
 | `morning-briefing` / `evening-briefing` | Daily orient + wrap |
+| `standup` | Your standup update in three parts — what you did in the last 24h (merged PRs, hand-run prod actions, investigations with no commit), what you're picking up next, and what's blocked with named owners. Glanceable while presenting; flags older work a skipped run may have left unsaid; `/agent-kevin:standup 48` to widen (auto-invocable) |
 | `weekly-goals` / `monthly-goals` / `yearly-goals` | Goal-setting cadences — weeks, monthly themes, and the year planned quarter by quarter |
 | `quick-pulse` | 60-second status check |
 | `self-review` | Process feedback into skill refinements |
@@ -661,7 +662,7 @@ agent-kevin/
 ├── mcp-server/              # the kevin MCP server (Bun)
 │   ├── src/
 │   └── package.json
-├── skills/                  # 32 skills (25 core + 6 SEO + 1 Browser) auto-load with plugin
+├── skills/                  # 33 skills (26 core + 6 SEO + 1 Browser) auto-load with plugin
 │                            #   (per-version upgrade migrations live in skills/upgrade/scripts/<v>.ts)
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
