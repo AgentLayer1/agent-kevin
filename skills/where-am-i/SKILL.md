@@ -40,6 +40,9 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24 --scope "$SCOPE"
   `/rename` name when set, else Claude Code's first-prompt auto-title), `cwd`,
   `git_branch`, `first_user_msg`, `recent_user_msgs` (last 3),
   `last_assistant_text` (long excerpt of the final reply), `minutes_ago`, `file`.
+- **`minutes_ago` and the sort come from the transcript's last record, not file mtime** — a
+  bulk touch (a `git checkout`, a backfill) moves mtime forward and would rank a stale session
+  as live. So the ordering is trustworthy; don't second-guess it against file timestamps.
 
 ## Step 2 — write the summaries
 
