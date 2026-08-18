@@ -163,6 +163,13 @@ const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
 
   const assistantFlat = body.filter((record) => record.type === 'assistant').flatMap(assistantTexts);
 
+  // Last activity comes from the transcript's own timestamps: Claude Code keeps an OPEN session's
+  // file mtime moving even while it idles, so mtime reads "now" for every open tab. mtime is only
+  // the fallback for a transcript with no timestamped records.
+  const lastTimestamp = timestamps.at(-1) ?? null;
+  const parsedLastMs = lastTimestamp !== null ? Date.parse(lastTimestamp) : Number.NaN;
+  const lastActiveMs = Number.isNaN(parsedLastMs) ? mtimeMs : parsedLastMs;
+
   return {
     session_id: basename(path).replace(/\.jsonl$/, ''),
     file: path,
@@ -175,9 +182,9 @@ const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
       assistantFlat.length > 0 ? clip(assistantFlat[assistantFlat.length - 1], ASSISTANT_SNIPPET) : null,
     user_turns: userMessages.length,
     started: timestamps[0] ?? null,
-    last_timestamp: timestamps.at(-1) ?? null,
-    last_active: toLocalIsoMinutes(new Date(mtimeMs)),
-    minutes_ago: Math.floor((now - mtimeMs) / 60_000)
+    last_timestamp: lastTimestamp,
+    last_active: toLocalIsoMinutes(new Date(lastActiveMs)),
+    minutes_ago: Math.floor((now - lastActiveMs) / 60_000)
   };
 };
 
@@ -225,6 +232,7 @@ const sessions = listTranscripts(PROJECTS_DIR)
   .filter(({ mtimeMs }) => mtimeMs >= cutoff)
   .map(({ path, mtimeMs }) => buildInfo(path, mtimeMs, now))
   .filter((info) => info.user_turns > 0) // hook-only / empty shells, nothing to resume
+  .filter((info) => info.minutes_ago <= hours * 60) // mtime above was only the cheap pre-filter; open idle sessions keep it fresh forever
   .sort((first, second) => first.minutes_ago - second.minutes_ago);
 
 process.stdout.write(
