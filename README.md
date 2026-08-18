@@ -567,7 +567,7 @@ graph LR
 
 ## 🧱 What you get
 
-### Core skills (28), always loaded
+### Core skills (25+), always loaded
 
 | Skill | What it does |
 |---|---|
@@ -662,7 +662,7 @@ agent-kevin/
 ├── mcp-server/              # the kevin MCP server (Bun)
 │   ├── src/
 │   └── package.json
-├── skills/                  # 33 skills (26 core + 6 SEO + 1 Browser) auto-load with plugin
+├── skills/                  # 30+ skills (core + SEO + Browser) auto-load with plugin
 │                            #   (per-version upgrade migrations live in skills/upgrade/scripts/<v>.ts)
 ├── templates/               # init copies these into <HOME>
 │   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
