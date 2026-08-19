@@ -43,6 +43,55 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.28] - 2026-08-20
+
+### Added
+- `standup` skill — your update in the three parts a standup actually has: what you
+  did in the last 24h (merged PRs, prod actions run by hand, investigations that left
+  no commit, tasks filed), what you're picking up next, and what's blocked with a
+  named owner. Derived from git, PRs, session transcripts and the task board rather
+  than asked for. Crosses the day boundary a standup does, flags older work a skipped
+  run may have left unsaid, and stays glanceable while you're presenting.
+  `/agent-kevin:standup 48` widens the window.
+- `find-session` skill — locate a past session by *what it worked on* (a branch, a PR
+  number, a worktree, a bug, a task id) and get its resume command back. Content
+  search over all transcript history, ranked by did-the-work signals rather than hit
+  count, so the session that merely mentioned a thing doesn't outrank the one that
+  fixed it. The companion to `where-am-i`: that one answers *when*, this one *what*.
+- README: **Running homes on different Claude accounts** — `CLAUDE_CODE_OAUTH_TOKEN`
+  per home outranks the single `/login` slot, so two homes can bill two subscriptions
+  at once. Covers minting with `claude setup-token`, why the token is the one
+  credential that belongs in `settings.local.json`, and the five gotchas (switch
+  `/login` between mints, restart to pick up the env block, launch from the home root,
+  nothing higher-precedence shadowing it, verify with `/status` + `/usage`).
+
+### Changed
+- **Sync's briefing auto-select is catch-up-aware.** It used to read the clock alone,
+  so a morning you never briefed silently became an evening brief at 3pm. Now it
+  checks whether a morning brief actually ran today: none yet and it's 3am–9pm → a
+  catch-up morning (even at 5pm); already ran, or past 9pm → evening. The header says
+  which was picked and why.
+- `where-am-i`'s description now points at `find-session` for content-shaped asks, so
+  "which session was fixing X" routes to the right skill.
+
+### Fixed
+- **The session radar no longer trusts file mtimes for recency.** Claude Code touches
+  open sessions' transcripts while they sit idle, so every live session read as "now"
+  and a bulk touch (a `git checkout`, a backfill) could rank a stale session as the
+  freshest. `minutes_ago` and the ordering now come from the transcript's last
+  embedded record.
+
+### Removed
+- `permission-check` skill. The `permissions` report category stays wired so existing
+  graded reports keep rendering on the dashboard; nothing new writes to it.
+
+### Upgrade
+- `settings: mandatory` — add to `permissions.allow`: `Skill(agent-kevin:find-session)`,
+  `Skill(agent-kevin:standup)`. Both are model-invocable; without the grants Kevin
+  raises a confirm prompt every time it fires them.
+- `settings: optional` — `Skill(agent-kevin:permission-check)` is now a dead grant and
+  can be dropped from `permissions.allow`. Harmless if left.
+
 ## [0.3.27] - 2026-08-17
 
 ### Added
