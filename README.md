@@ -514,6 +514,8 @@ Give each one its own identity with [`/agent-kevin:rename-agent`](#-naming-your-
 
 **The single rule: no `KEVIN_*` variable in `~/.claude/settings.json` or your shell rc.** It's machine-wide and outranks the walk-up, so one value captures every session for one brain and the rest become unreachable. Anything per-home goes in that home's `.claude/settings.local.json`.
 
+Each home can even bill against its own Claude account — see [Running homes on different Claude accounts](#running-homes-on-different-claude-accounts).
+
 ### 4. Augmenting an existing project
 You already have a project with its own `CLAUDE.md`. You want Kevin's memory + task system layered on top, without overwriting your existing instructions.
 
@@ -789,6 +791,40 @@ The marker is the **data dir**, never `SOUL.md`. Every agent's home has a `SOUL.
 `AGENT_KNOWLEDGE` and `AGENT_PROJECTS` let you put those directories anywhere (e.g. a cloud-synced folder — iCloud Drive on macOS, OneDrive on WSL2 — an external drive, or a separate git repo). The init wizard offers this during scaffold and, if the chosen path is **outside the agent home**, automatically appends `permissions.allow` (and `sandbox.filesystem.allowWrite` where supported) entries to `<HOME>/.claude/settings.json` so Claude Code can read/write there without prompting. If you set these env vars after init, edit `settings.json` yourself.
 
 Two homes for env keys, split by sensitivity. **Secret credentials** (`SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN`, `AGENT_DB_*`, plus the Google OAuth files) live in `<HOME>/.kevin/secrets/.env` (and `.kevin/secrets/google/`) — a deny-gated store Kevin's own tools can't read, gitignored. **Non-secret** config (`GSC_SITE_URL`, `AGENT_CODE_PATH`, `AGENT_GIT_REPOS`) lives in `<HOME>/.claude/settings.local.json` `env` block, also gitignored. The rule: **init owns universal-infra env keys; `configure-skills` owns pack-gated keys.** Kevin's only universal-infra keys are the optional `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` pair — init writes them only if you give a codebase path at Step 4b (otherwise `/init` writes an empty `{}`). Every pack key `configure-skills` plants as an empty placeholder when you activate the matching pack — the secret ones into `secrets/.env`, `GSC_SITE_URL` into `settings.local.json`. **You fill the values in your editor** — neither flow asks for them in chat, since secrets must not enter the session transcript or the Anthropic API. (The codebase path isn't a secret, so init does ask for it in plain chat.)
+
+### Running homes on different Claude accounts
+
+Claude Code's `/login` is a single slot per OS user (last login wins), so on its own it can't keep two homes on two subscriptions. `CLAUDE_CODE_OAUTH_TOKEN` can: it sits above the `/login` slot in Claude Code's credential precedence, and each session resolves its own `settings.local.json` `env` block at launch. Give each home its own token and two homes authenticate against two different subscriptions at the same time.
+
+Mint one token per account with [`claude setup-token`](https://docs.claude.com/en/docs/claude-code/cli-reference) (requires Pro/Max/Team/Enterprise; the token is subscription-backed, inference-only, and valid for a year):
+
+```bash
+# 1. In any session: /login as account A
+claude setup-token          # runs an OAuth flow, prints a token for account A
+# 2. Put the token in home A's env block (see below)
+# 3. /login as account B, run setup-token again, put that one in home B
+```
+
+```jsonc
+// <HOME>/.claude/settings.local.json  (gitignored)
+{
+  "env": {
+    "CLAUDE_CODE_OAUTH_TOKEN": "sk-ant-oat01-..."
+  }
+}
+```
+
+This is the one credential that lives in `settings.local.json` rather than the secrets store: Claude Code itself consumes it at launch, before Kevin's tools exist, so the deny-gated `.kevin/secrets/.env` can't carry it. The file is gitignored either way.
+
+The gotchas, learned the hard way:
+
+- **Switch `/login` between mints.** `setup-token` issues a token for whatever account you're currently logged into; running it twice without switching yields two tokens for the *same* subscription.
+- **The `env` block is read at launch, not hot-reloaded.** Adding the token to an open session does nothing; restart `claude`.
+- **Launch from the home root.** `settings.local.json` resolves from the launch directory — the [same convention](#-the-one-convention-launch-from-the-agent-home) everything else here relies on.
+- **Nothing higher-precedence may shadow it.** An `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` in your shell rc or `~/.claude/settings.json` silently outranks the token machine-wide.
+- **Verify with `/status` + `/usage`, not the shell.** `/status` shows the auth method (`CLAUDE_CODE_OAUTH_TOKEN` vs the `/login` fallback) but not the account; the definitive test is independent `/usage` meters — heavy work in one home should move only that account's usage. `echo $CLAUDE_CODE_OAUTH_TOKEN` in a session reads empty even when auth is live, since Claude Code doesn't export credentials into subprocesses.
+
+One caveat: `setup-token` is documented for CI/headless use, and the docs don't address running two subscription accounts concurrently on one OS user. If per-client **cost attribution** is what you're actually after, a Console API key (`ANTHROPIC_API_KEY`) from a separate Console organization per client is the cleaner instrument: itemized per-token spend you can invoice, with no ToS ambiguity.
 
 ### Database connections (`database_*` tools)
 
