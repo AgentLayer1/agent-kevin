@@ -82,8 +82,11 @@ and prompts per optional one. The new template files are the source of truth for
   embedded record.
 
 ### Removed
-- `permission-check` skill. The `permissions` report category stays wired so existing
-  graded reports keep rendering on the dashboard; nothing new writes to it.
+- `permission-check` skill, and the `permissions` report category it was the only
+  producer for — gone from the `report_write` enum, the dashboard's filter chips, and
+  the orphan-file sweep. A home that already holds `reports/permissions/` files keeps
+  them on disk and still lists any that made it into `reports/index.md`; they just
+  lose their filter chip.
 
 ### Upgrade
 - `settings: mandatory` — add to `permissions.allow`: `Skill(agent-kevin:find-session)`,
