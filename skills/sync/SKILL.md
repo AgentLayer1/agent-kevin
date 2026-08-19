@@ -247,7 +247,7 @@ Then honor the second answer:
 - **Act now** → do the chosen step this session. External/outbound actions (emails, messages, public posts, `git push`, anything that leaves the machine) still confirm first per the operating rules — an interview pick is not standing authorization for those.
 - **Queue as a task** → if the choice maps to an existing task, `task_thread` a note and bump priority/status as fitting; otherwise `task_create` one. Confirm the id/title back in a single line, then stop.
 
-**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation` and `/upgrade` is operator-gated, so sync can't run them either way. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
+**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation`, and `upgrade` — though model-invocable — chains sync itself, so sync invoking it would recurse. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
 
 ## Output
 
