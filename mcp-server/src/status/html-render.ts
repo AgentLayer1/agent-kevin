@@ -1004,7 +1004,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   {
     when: 'Morning and evening',
     say: `/${plugin}:sync`,
-    what: 'Full refresh — compile, lint, flywheel, dashboard — then a briefing. Picks morning automatically before 3pm, evening from 3pm to 3am (or say `sync morning` / `sync evening`).'
+    what: 'Full refresh — compile, lint, flywheel, dashboard — then a briefing. Picks the briefing automatically: morning if none ran today (even in the afternoon), evening once it has or past 9pm (or say `sync morning` / `sync evening`).'
   },
   {
     when: 'Between sessions',

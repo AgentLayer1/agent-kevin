@@ -14,7 +14,10 @@ Optional first arg selects a briefing to chain after sync completes:
 
 - `morning` — run the [morning-briefing](../morning-briefing/SKILL.md) protocol at step 8.
 - `evening` — run the [evening-briefing](../evening-briefing/SKILL.md) protocol at step 8.
-- _(none)_ — pick automatically from the local clock: **morning** from 3am up to 3pm, **evening** from 3pm up to 3am. (`date +%H` if today's time isn't already in context.) State which briefing was auto-selected in the output header.
+- _(none)_ — pick automatically, catch-up-aware: a forgotten morning brief still runs in the afternoon instead of silently becoming an evening one. Check whether a morning brief already ran today (day starts at 3am): glob `<HOME>/reports/briefings/<today>-*-morning.md`, or read today's section of `reports/index.md` if the SessionStart hook already injected it. Then:
+  - **No morning brief today and it's 3am–9pm** → **morning** (catch-up — even at 5pm).
+  - **Morning already ran, or it's 9pm–3am** → **evening** (past 9pm the day is closing; a morning brief would be theater).
+  - (`date +%H` if today's time isn't already in context.) State which briefing was auto-selected — and why, if it's a catch-up morning — in the output header.
 
 The briefing reads the post-sync state, so it's strictly better than running the briefing standalone against stale data. Output gets a second block appended (see Output).
 
@@ -179,7 +182,7 @@ Read <HOME>/knowledge/memory/index.md   # for narrative context
 
 ### 8. Briefing
 
-Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the auto-selection from `## Arguments` (morning 3am–3pm, evening 3pm–3am). Then inline the matching protocol:
+Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the catch-up-aware auto-selection from `## Arguments` (morning if none ran today and it's 3am–9pm, else evening). Then inline the matching protocol:
 
 - `morning` → run [morning-briefing](../morning-briefing/SKILL.md) **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · 🍌), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool, **not** Claude's built-in `WebSearch`) **— including a geopolitics / Muslim-world news cluster, not just the work-signal one**. Then **call `report_write` per the briefing skill's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
 - `evening` → run [evening-briefing](../evening-briefing/SKILL.md) **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the briefing skill's `## Persist` section** — not done until persisted.
