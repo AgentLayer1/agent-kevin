@@ -28,7 +28,7 @@ This isn't a chat wrapper. It's an **operating system for personal AI**:
 - A 32-skill library covering onboarding, project lifecycle, daily/weekly/monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A knowledge pipeline that turns every conversation into structured, queryable memory.
 - A skill-pack system for opt-in capabilities (SEO, Browser) and an install-on-demand bridge to community skill libraries via [skills.sh](https://skills.sh).
-- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are seven helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `find-session` (locate a past session by what it worked on and hand back its resume command), `standup` (your last 24h as did / next / blocked), `permission-check` (translate + safety-grade a permission prompt you paste from another session), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
+- Bundled behaviour is `disable-model-invocation: true` — Kevin only acts when you ask, never spontaneously. The exceptions are six helper skills Kevin can run on its own when you ask: `dashboard` (refresh the mission-control page), `where-am-i` (session radar), `find-session` (locate a past session by what it worked on and hand back its resume command), `standup` (your last 24h as did / next / blocked), `api-collections` (draft API requests for you to fire in your API client — authoring only, never sends), and `roadmap` (wizard-built roadmap surfaces — always interviews before writing); none mutates knowledge or task state.
 
 > *Kevin is named after the loyal minion. Helpful, enthusiastic, a little nerdy.*
 
@@ -588,7 +588,6 @@ graph LR
 | `dashboard` | Refresh + open the Agent OS mission-control page (auto-invocable) |
 | `where-am-i` | Radar over recent Claude Code sessions — what you were working on, where you left off (auto-invocable) |
 | `find-session` | Locate a past session by what it worked on — a branch, a PR, a bug — content search over all transcript history, ranked by did-the-work signals, ending in its resume command (auto-invocable) |
-| `permission-check` | Paste a permission-dialog screenshot from another session → plain-language translation, 🟢/🟡/🔴 safety grade, recommended answer, graded report (auto-invocable) |
 | `api-collections` | Draft API requests as file-based collections in `<HOME>/reports/api/<adapter>/` (or a named location) — you visualize and fire them in your API client (Bruno adapter shipped, curl fallback); Kevin authors, never sends |
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
