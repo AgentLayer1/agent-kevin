@@ -57,11 +57,41 @@ and prompts per optional one. The new template files are the source of truth for
 - **Printed auto-mode guidance for the operator's user settings.** Kevin's memory
   lives in `knowledge/`, not the path auto mode's built-in memory exemption covers,
   so on shipped defaults the classifier can read a compile or memory write as
-  *Instruction Poisoning* — the agent's core loop flagged as an attack. Init's
-  summary now prints a copy-paste block for `~/.claude/settings.json`: an explicit
-  `permissions.defaultMode: "auto"` plus two classifier `allow` sentences that treat
-  the agent home's knowledge tree the way the built-in exceptions treat Claude's own
-  memory directory. Print-only — Kevin never writes user-global settings.
+  *Instruction Poisoning*: the agent's core loop flagged as an attack. Init's summary
+  now prints a copy-paste block for `~/.claude/settings.json` carrying an explicit
+  `permissions.defaultMode: "auto"`, environment entries (an `Agent homes:` anchor
+  with the home's real path interpolated at print time, plus an outbound-posture
+  line), and two classifier `allow` sentences
+  that treat the home's knowledge tree the way the built-in exceptions treat Claude's
+  own memory directory. Every rule keys off that environment entry, so none of them
+  depend on the classifier inferring which directory is an agent home, and the
+  knowledge-base exception self-scopes to the home the session started in: an
+  operator running two agents never grants one blanket rights over the other's
+  identity files. The exemption names all three rules the built-in Memory Directory
+  exception clears (Instruction Poisoning, Self-Modification, and Irreversible Local
+  Destruction, the last being what would otherwise flag the compile loop's
+  whole-article rewrites), and it is conditioned up front on content that neither
+  changes permissions or auto-mode behaviour, fabricates consent, nor steers a future
+  session toward a blocked action. `.claude/`, cross-home writes, content leaving the
+  home, and directory-level deletion stay outside it. Print-only: Kevin never writes
+  user-global settings.
+- **Three classifier soft-denies ship in the same block**, because excluding
+  something from an allow rule blocks nothing on its own: the classifier's default is
+  ALLOW, so anything the allow rules decline to cover needs a deny to actually stop
+  it. `Agent Home Outbound Push` covers pushes, PR creation and merges, and release
+  publication from any agent-home session, and declares the built-in `Git Push
+  Destination` exception inapplicable there; explicit user intent clears it, so
+  naming the action and its destination is enough. Treat that one as defense in depth
+  rather than the wall: a deny-side rule overriding a mandatory built-in exception is
+  a precedence conflict the classifier resolves on its own, which is why the project
+  `permissions.ask` list above stays the primary gate. `Identity File Replacement`
+  catches what would otherwise be a git-recoverable overwrite matching no built-in
+  rule: replacing, deleting, moving, or renaming an identity file, or editing away
+  more than a small part of one. `Cross-Agent Home Write` stops a session in one
+  agent home writing into another, however small the edit, since each agent's brain
+  is read back as instructions by that agent's own future sessions. Mirroring between
+  the agents' plugin repositories is untouched: those are code repositories, not
+  homes.
 
 ### Changed
 - **Upgrade gains two every-run invariants** (not gated on this entry, so homes that
@@ -101,12 +131,17 @@ and prompts per optional one. The new template files are the source of truth for
   `permissions.allow` when present: superseded by the `ask` entry above and contrary
   to the never-pre-granted doctrine. Removal, so ask first with the diff; skip
   silently when absent.
-- `manual: optional` — paste the printed auto-mode block (explicit
-  `permissions.defaultMode: "auto"` + the two classifier sentences) into
-  `~/.claude/settings.json`, then restart sessions and verify the mode indicator says
-  Auto. Reversible with `claude auto-mode reset`. Tradeoff stated in the printed
-  note: the knowledge-tree exception lowers the classifier's Instruction Poisoning
-  guard for the agent's own memory paths.
+- `manual: optional` — paste the printed auto-mode block (`permissions.defaultMode`,
+  the `Agent homes:` environment entry, two classifier `allow` sentences, two
+  soft-denies) into `~/.claude/settings.json`, then restart sessions and verify the
+  mode indicator says Auto. Keep `$defaults` in every array you set: omitting it
+  replaces that whole default list, discarding built-in rules. Review the result with
+  `claude auto-mode critique`, run from **outside** the agent home when that home
+  sets `CLAUDE_CODE_OAUTH_TOKEN` (a per-agent token shadows the credential the
+  subcommand needs, and the failure reads as an unrelated auth error). Reversible
+  with `claude auto-mode reset`. Tradeoff stated in the printed note: the
+  knowledge-tree exception lowers the classifier's Instruction Poisoning guard for
+  the agent's own memory paths.
 
 ## [0.3.28] - 2026-08-20
 
