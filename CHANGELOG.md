@@ -43,6 +43,71 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.29] - 2026-08-20
+
+### Added
+- **Outbound checkpoint that survives auto mode.** Init now writes a baseline
+  `permissions.ask` into project settings — `git push`, `gh pr create`/`merge`,
+  `gh release create`, and the `curl_run` MCP tool always stop for a human, in every
+  permission mode. Since Claude Code v2.1.228, eligible sessions start in **auto
+  mode**, where a classifier model approves actions instead of prompting; `ask` rules
+  are the one tier the classifier cannot approve past, which makes them the durable
+  form of "nothing leaves this machine without a human". The list is deliberately
+  short: prompt volume is what trains operators to blind-click.
+- **Printed auto-mode guidance for the operator's user settings.** Kevin's memory
+  lives in `knowledge/`, not the path auto mode's built-in memory exemption covers,
+  so on shipped defaults the classifier can read a compile or memory write as
+  *Instruction Poisoning* — the agent's core loop flagged as an attack. Init's
+  summary now prints a copy-paste block for `~/.claude/settings.json`: an explicit
+  `permissions.defaultMode: "auto"` plus two classifier `allow` sentences that treat
+  the agent home's knowledge tree the way the built-in exceptions treat Claude's own
+  memory directory. Print-only — Kevin never writes user-global settings.
+
+### Changed
+- **Upgrade gains two every-run invariants** (not gated on this entry, so homes that
+  skip releases still converge): union any missing baseline `permissions.ask` entries
+  into project settings (fail-soft: when the operator's sandbox protects
+  `settings.json` from agent writes, surface the exact JSON as a `manual:` note
+  instead), and print the user-global auto-mode block when `~/.claude/settings.json`
+  has no `defaultMode` — the operator profile that reports permission-prompt fatigue.
+  Silent when the operator has made any explicit mode choice.
+- Init documents that `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` (Kevin's own
+  gap-filled quality default) disables feature-flag fetching and with it Claude
+  Code's *built-in* auto-mode default — sessions silently start Manual with nothing
+  on screen saying why. The explicit `defaultMode` line in the printed block is the
+  fix; dropping the traffic kill is not required.
+- **The upgrade skill is model-invocable.** A plain "upgrade kevin" or "apply the
+  update" now reaches it — the operator doesn't have to know `/agent-kevin:upgrade`.
+  No settings action: `Skill(agent-kevin:upgrade)` was already in the canonical
+  grant list (kept latent so the slash form never prompted). Sync still surfaces the
+  slash command instead of invoking it — upgrade chains sync at the end, so the
+  reverse would recurse.
+
+### Fixed
+- **Stray `curl_run` allow grants are retired.** `curl_run` is the one sanctioned
+  request-execution path in the `api-collections` skill and was never meant to be
+  pre-granted — the whole point is that it always prompts. Some homes carry it in
+  `permissions.allow` from earlier scaffolds or pack walks. The new `ask` entry
+  outranks `allow`, so the gate holds either way, but the leftover grant is dead
+  weight that misstates the home's audit trail (`settings.json` should read as an
+  accurate record of what auto-approves). The upgrade offers the removal.
+
+### Upgrade
+- `settings: mandatory` — union the baseline `permissions.ask` list into project
+  settings (outbound gates: push / PR create + merge / release / `curl_run`). The
+  init skill's Step 7 list is the source of truth; applied by the upgrade's built-in
+  invariant, so this line is documentation of what happened, not a separate action.
+- `settings: optional` — remove `mcp__plugin_agent-kevin_kevin__curl_run` from
+  `permissions.allow` when present: superseded by the `ask` entry above and contrary
+  to the never-pre-granted doctrine. Removal, so ask first with the diff; skip
+  silently when absent.
+- `manual: optional` — paste the printed auto-mode block (explicit
+  `permissions.defaultMode: "auto"` + the two classifier sentences) into
+  `~/.claude/settings.json`, then restart sessions and verify the mode indicator says
+  Auto. Reversible with `claude auto-mode reset`. Tradeoff stated in the printed
+  note: the knowledge-tree exception lowers the classifier's Instruction Poisoning
+  guard for the agent's own memory paths.
+
 ## [0.3.28] - 2026-08-20
 
 ### Added
