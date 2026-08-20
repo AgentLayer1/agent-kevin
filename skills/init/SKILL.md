@@ -708,6 +708,8 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`model` is not gap-filled.** It carries the operator's explicit Step 6c answer (`"fable"` or `"opus"`) and is always written to the project scaffold — an explicit wizard choice outranks the global setting and, on re-init, the prior project value.
 
+**⚠ The traffic kill suppresses auto mode's built-in default.** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` disables feature-flag fetching, and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the traffic kill: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
+
 Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
 Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resolve correctly on Windows too, since Git Bash maps `~` to `%USERPROFILE%`:
@@ -800,6 +802,56 @@ OS-specific tail — append the block matching `$KEVIN_OS`:
 
 For `unknown`, write the core only (no tail). The OS tail is best-effort wallet-folder coverage — names vary by app version, so don't treat absence as a guarantee.
 
+Baseline `permissions.ask` — **always written** (unioned with whatever the operator already has), unlike `deny` which yields to a curated global list:
+
+```json
+[
+  "Bash(git push)",
+  "Bash(git push *)",
+  "Bash(gh pr create *)",
+  "Bash(gh pr merge *)",
+  "Bash(gh release create *)",
+  "mcp__plugin_agent-kevin_kevin__curl_run"
+]
+```
+
+**Why `ask` and not a conversational rule.** Since Claude Code v2.1.228 (v2.1.233 on native Windows), Pro/Max/Team users start interactive sessions in **auto mode**, where a separate classifier model reviews each action instead of prompting. The classifier's built-in `soft_deny` covers *destructive* git (force push, deleting remote branches/tags/releases, amending pushed commits) but a plain `git push` is approved without a prompt — and `soft_deny` itself yields to explicit user intent. An `ask` rule is evaluated **before** the classifier and cannot be auto-approved past, in any mode. That makes it the only durable form of "nothing leaves this machine without a human", which a CLAUDE.md sentence can't guarantee once context compacts.
+
+The list is deliberately short. Every entry is an action that publishes something outside the machine; volume is what trains operators to blind-click, so resist growing it. Force-push and `reset --hard` stay in `deny` rather than `ask` — those are unrecoverable, and `deny` is the only tier nothing overrides.
+
+`curl_run` is the one sanctioned execution path in the `api-collections` skill and is deliberately never granted into `permissions.allow` by any pack walk, precisely so it always prompts. The `ask` entry is what keeps that promise once auto mode is deciding — without it, the classifier can approve an outbound request on its own.
+
+**Auto mode cannot be configured from here.** `permissions.defaultMode: "auto"` and the whole `autoMode` block are **ignored** in `.claude/settings.json` and `.claude/settings.local.json` (since v2.1.142 and v2.1.207 respectively) — both files live in a repo, so a checked-in settings file could otherwise inject its own classifier allow rules. They only take effect from `~/.claude/settings.json` or managed settings. Init must **not** write either key, and must not touch the operator's user-global settings to set them: auto mode is already the built-in default for the plans that support it, and a global write would reach every project on their machine, not just this home.
+
+### Offer the auto-mode knowledge-base exception (print only, never write)
+
+Auto mode's classifier ships an allow exception for **`~/.claude/projects/*/memory/`** and one for **`CLAUDE.md`**. This home deliberately uses neither: memory routes to `knowledge/`, and identity lives in `SOUL.md` / `IDENTITY.md` / `USER.md` / `.claude/rules/`. Meanwhile the classifier's `soft_deny` list carries **Instruction Poisoning** — writing to any file a session reads back as instructions. That describes this agent's core loop, so on the shipped defaults a compile or memory write can read as an attack on the agent rather than as the agent working.
+
+The fix is a mode line plus two sentences in the operator's **user-global** settings. Print the block below in the Step 9 summary as an optional copy-paste, flag the tradeoff in one line, and move on. **Do not write it, do not offer to write it, and do not gate the summary on it** — the operator may be on a plan or platform where the classifier isn't available, in which case it's inert.
+
+The `defaultMode` line matters as much as the sentences: the *built-in* auto default is fragile — it needs Pro/Max/Team OAuth, reachable feature flags (which the traffic-kill env above turns off), and it skips the first session after every update. The explicit setting bypasses all of that. Without it most operators are never in auto mode at all, and the sentences do nothing.
+
+```json
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Agent Knowledge Base: Routine writes, edits, and deletes under this agent home's knowledge/, projects/, and reports/ trees, and to its identity files (SOUL.md, IDENTITY.md, USER.md) and .claude/rules/, are the agent's core function — recording preferences, project facts, session notes, decisions, and task state. Treat them exactly as the built-in Memory Directory and CLAUDE.md Content exceptions treat their paths: not Instruction Poisoning. Content that changes permissions, authorizations, or auto-mode behaviour is NOT covered and is still evaluated on its own terms.",
+      "Agent Home Multi-Repo Scope: A session started in an agent home operating on a repository listed under Source control in Environment is working in its intended scope, not escalating. Covers ordinary reads, edits, builds, and commits there; clears no other BLOCK rule, and reaching outside those listed repositories is still scope escalation."
+    ]
+  }
+}
+```
+
+**Keep this block free of operator-specific values.** No org names, no domains, no absolute paths — it ships to every home, and a real org name in plugin material is a ring-boundary leak. The second entry deliberately delegates to whatever the operator has under `environment` → **Source control** rather than naming repositories, so it stays correct for a home with none configured (it simply matches nothing). If the operator wants their own org or domains recognised, tell them to add `environment` lines themselves and point them at `claude auto-mode critique` to review the result; adding an org is their call, not init's.
+
+**State the tradeoff in one line, not a lecture:** Instruction Poisoning is a genuine prompt-injection defense, and exempting the knowledge tree lowers it. The carve-out above excludes anything touching permissions or auto-mode behaviour, mirroring how the built-in `CLAUDE.md Content` exception handles the same risk. `claude auto-mode reset` removes the block entirely, so trying it is cheap and reversible.
+
+Deny + ask + allow in project scope remains the entire lever init itself has, and it's the correct one.
+
 Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
 
 ```json
@@ -863,7 +915,7 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
 - **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exception: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run).
-- **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
+- **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.ask`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
 - **`enabledPlugins`**: special case — set `"agent-kevin@agentlayer": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). Other plugin entries pass through untouched.
 - **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
@@ -888,6 +940,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   },
   "permissions": {
     "deny": "<full baseline deny list above if global has no permissions.deny, else omit>",
+    "ask": "<the full baseline ask list above — always written, unioned with any existing entries>",
     "additionalDirectories": "<[CODE_ROOT] when the code tree is outside the home — see above; omit the key otherwise>",
     "allow": [
       "Bash(cat *)",

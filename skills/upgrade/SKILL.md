@@ -306,6 +306,35 @@ fi
 (If `.gitignore` is absent or doesn't ignore `.kevin/*`, `version.json` is already
 trackable — nothing to do.)
 
+**Backfill the `permissions.ask` guards (built-in invariant, every run).** These are the
+only rules that survive auto mode's classifier, so a home missing them has no enforced
+checkpoint before a push or an outbound request. Reconcile unconditionally rather than
+via a CHANGELOG block: the list grows over time, and version-gating each addition would
+mean a home that skipped the releases in between never gets the entries.
+
+Read `$HOME_DIR/.claude/settings.json` and union in any missing entry from the init
+skill's baseline `ask` list — **Step 7 of `skills/init/SKILL.md` is the source of truth;
+do not restate the entries here or the two copies will drift.** Never remove or reorder
+an entry the operator added. Write with the Write tool after an in-memory merge, same as
+Step 7 does; no `jq`.
+
+If the write fails with a permission error, the operator's sandbox protects
+`settings.json` from agent writes (a correct posture, and the default in some setups).
+Don't retry or work around it — surface the exact JSON block for them to paste and carry
+it into the Step 6 report as a `manual:` note.
+
+**Surface the user-global auto-mode block when it's missing (built-in invariant, every
+run).** Read `~/.claude/settings.json` (treat as `{}` if absent). If
+`permissions.defaultMode` is unset there, this operator is likely riding Claude Code's
+fragile built-in default — or, when `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set
+in any of their settings scopes, not in auto mode at all — and is the profile that
+reports permission-prompt fatigue. Print the recommended user-settings block from the
+init skill's auto-mode section (**that section is the source of truth — read it from
+`skills/init/SKILL.md`, don't restate it here**) as a `manual:` note in the Step 6
+report, with its one-line tradeoff. Same discipline as init: **print only, never write
+user-global settings, never gate the upgrade on it.** When `defaultMode` is already set
+(any value — an explicit Manual is a choice), stay silent: the operator has decided.
+
 ## Step 6 — Report
 
 One concise summary:
@@ -316,6 +345,13 @@ One concise summary:
 - skipped: anything already current
 - backup path
 - any `manual:` notes still needing the operator's hand
+- the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
+
+**Mention the first-session lag when the harness version moved.** Claude Code's built-in
+auto-mode default only takes hold from the *second* session after an upgrade that
+introduces it — the first one still starts in Manual. Operators read that as the upgrade
+having broken something, or as auto mode silently failing. One line in the report heads
+it off; skip it when only the plugin (not Claude Code) moved.
 
 ## Step 7 — Settle with a sync
 
