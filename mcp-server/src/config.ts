@@ -262,8 +262,8 @@ export const CONTEXT = {
 } as const;
 
 /**
- * True once `/agent-kevin:init` has been run *here*, keyed on the same data-dir
- * marker `agentHomePath` walks for.
+ * True once `/agent-kevin:init` has been run *here*, keyed on the same home
+ * marker (`HOME_MARKER_FILES` inside the data dir) `agentHomePath` walks for.
  *
  * Not SOUL.md: every sibling agent's home carries one, so a SOUL.md test answers
  * "some agent lives here", not "this agent lives here". The home falls back to

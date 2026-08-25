@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
 import { sessionStart } from '@/knowledge/session-start';
 
 /**
@@ -54,9 +54,12 @@ describe('sessionStart', () => {
     expect(result.error).toBeUndefined();
   });
 
-  test('the data dir alone marks the home, with no SOUL.md needed', async () => {
+  test('the home marker alone marks the home, with no SOUL.md needed', async () => {
     const result = await withHome(
-      (home) => mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true }),
+      (home) => {
+        mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
+        writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+      },
       () => sessionStart()
     );
     // Post-init path: a real banner, and none of the two setup messages.

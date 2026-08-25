@@ -2,8 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
 import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
+
+/** Scaffold `dir/` as a marked agent data dir under `home` (what init produces). */
+const scaffoldDataDir = (home: string, dir: string = RUNTIME_DIR_DEFAULT): void => {
+  mkdirSync(resolve(home, dir), { recursive: true });
+  writeFileSync(resolve(home, dir, HOME_MARKER_FILES[0]), '{}\n');
+};
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
@@ -86,7 +92,7 @@ describe('agentHomePath', () => {
     // realpath because macOS tmpdir is a symlink (/var → /private/var) and the
     // walk-up starts from the already-resolved process.cwd().
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-home-')));
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
+    scaffoldDataDir(home);
     const repo = resolve(home, 'not-really-a-repo', 'src');
     mkdirSync(repo, { recursive: true });
     withCwd(repo, () => {
@@ -100,7 +106,7 @@ describe('agentHomePath', () => {
   // or the home resolves to cwd and the secrets gate lands under the wrong root.
   test('the walk-up still anchors on the default data dir while the override points elsewhere', () => {
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-window-')));
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
+    scaffoldDataDir(home);
     const inner = resolve(home, 'projects');
     mkdirSync(inner, { recursive: true });
     process.env.AGENT_RUNTIME_DIR = '.workspace';
@@ -115,7 +121,7 @@ describe('agentHomePath', () => {
 
   test('the walk-up anchors on an AGENT_RUNTIME_DIR-overridden data dir', () => {
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-override-')));
-    mkdirSync(resolve(home, '.workspace'));
+    scaffoldDataDir(home, '.workspace');
     const inner = resolve(home, 'projects');
     mkdirSync(inner, { recursive: true });
     process.env.AGENT_RUNTIME_DIR = '.workspace';
@@ -148,11 +154,25 @@ describe('agentHomePath', () => {
     });
   });
 
+  // The forged-marker regression: a pre-guard logger once planted `.kevin/logs/`
+  // in a worktree, and the bare dir then anchored every later hook there —
+  // session captures landed inside the repo. Runtime artifacts alone must never
+  // mark a home; only init's state files do.
+  test('a data dir holding only runtime artifacts (logs/) does not anchor the walk-up', () => {
+    const repo = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-planted-')));
+    mkdirSync(resolve(repo, RUNTIME_DIR_DEFAULT, 'logs'), { recursive: true });
+    writeFileSync(resolve(repo, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'), 'skip line\n');
+    withCwd(repo, () => {
+      expect(agentHomePath()).toBe(process.cwd());
+      expect(process.env.AGENT_HOME).toBeUndefined();
+    });
+  });
+
   // A session that `cd`s into a worktree keeps that cwd for every later hook —
   // the launch dir is what still points at the home.
   test("falls back to the host's project dir when cwd has roamed outside the home", () => {
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-roamed-')));
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT));
+    scaffoldDataDir(home);
     const worktree = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-worktree-')));
     withCwd(
       worktree,

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR_DEFAULT } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT } from '@/shared/naming';
 
 /**
  * `pre-compact` differs from `session-end` in exactly two ways — a `Pre-Compact`
@@ -38,6 +38,7 @@ const capture = (mode: 'session-end' | 'pre-compact', sessionId: string) =>
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
   mkdirSync(resolve(HOME, RUNTIME_DIR_DEFAULT), { recursive: true });
+  writeFileSync(resolve(HOME, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
   ({ captureSession } = await import('@/knowledge/session-capture'));
 });
 

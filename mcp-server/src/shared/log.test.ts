@@ -1,17 +1,18 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
 
 /**
- * The logger must never create the data dir.
+ * The logger must never scaffold anything, and file output only engages for a
+ * home carrying a HOME_MARKER_FILES state file.
  *
- * That dir is the sole marker identifying a directory as this agent's home, so
- * a logger that scaffolds it forges what every guard reads — and it runs on
- * every invocation, including ones a guard has already refused. Point
- * `<AGENT>_HOME` at a typo or a sibling agent's home and the refusal itself
- * would make the next attempt succeed.
+ * The marker is what every guard reads, and the logger runs on every
+ * invocation — including ones a guard has already refused. Before the marker
+ * moved off the bare data dir, the logger's own `.kevin/logs/` write in a
+ * cwd-fallback tree was enough to make the refusal itself let the next
+ * attempt succeed.
  *
  * Each case re-imports the module because the resolved log file is cached after
  * the first write.
@@ -49,13 +50,30 @@ describe('file logging', () => {
     );
   });
 
-  test('writes into an existing data dir', async () => {
+  test('writes into a marked home data dir', async () => {
     await withHome(
-      (home) => mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true }),
+      (home) => {
+        mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
+        writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+      },
       async (home) => {
         const { log } = await import(`@/shared/log?marker=${Date.now()}`);
         log.info('should land in the log file');
         expect(existsSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'))).toBe(true);
+      }
+    );
+  });
+
+  // The planted-dir regression: a bare data dir (only runtime artifacts, no
+  // marker file) is what the pre-guard logger left in worktrees. It must not
+  // re-arm file logging there.
+  test('refuses a data dir that carries no home marker', async () => {
+    await withHome(
+      (home) => mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs'), { recursive: true }),
+      async (home) => {
+        const { log } = await import(`@/shared/log?planted=${Date.now()}`);
+        log.info('should stay on stderr only');
+        expect(existsSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'))).toBe(false);
       }
     );
   });

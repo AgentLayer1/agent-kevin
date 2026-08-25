@@ -61,15 +61,15 @@ const strandedHomeResult = (): SessionStartResult => {
       '',
       BANNER,
       '',
-      `→ ${FOLDERS.HOME} has a SOUL.md but no ${dir}/ — see the note below. Do NOT run init.`
+      `→ ${FOLDERS.HOME} has a SOUL.md but no home marker in ${dir}/ — see the note below. Do NOT run init.`
     ].join('\n'),
     additionalContext: [
-      `The ${PLUGIN_NAME} plugin is loaded and \`${FOLDERS.HOME}\` looks like an agent home (it has a SOUL.md), but it has no \`${dir}/\` directory, which is how this agent recognises its own home. Until that's resolved the agent's data is unreachable: sessions won't be captured and its tools will refuse to run.`,
+      `The ${PLUGIN_NAME} plugin is loaded and \`${FOLDERS.HOME}\` looks like an agent home (it has a SOUL.md), but its \`${dir}/\` carries no home marker (\`version.json\` or \`knowledge.json\`), which is how this agent recognises its own home. Until that's resolved the agent's data is unreachable: sessions won't be captured and its tools will refuse to run.`,
       '',
       'Two causes. Help the user work out which:',
       '',
-      `1. **This is another agent's home.** Every agent's home has a SOUL.md, only this one's has \`${dir}/\`. Launch that agent from here instead, and launch this one from its own home.`,
-      `2. **This home's \`${dir}/\` didn't survive a restore, clone, or sync.** Recreate it with \`mkdir -p "${FOLDERS.HOME}/${dir}"\` and relaunch. Compile state (\`knowledge.json\`) and the upgrade baseline (\`version.json\`) live there, so also check whether they were backed up — without them the next compile re-ingests everything and upgrade tracking resets.`,
+      `1. **This is another agent's home.** Every agent's home has a SOUL.md, only this one's \`${dir}/\` carries the marker files. Launch that agent from here instead, and launch this one from its own home.`,
+      `2. **This home's \`${dir}/\` state didn't survive a restore, clone, or sync.** Restore \`${dir}/version.json\` (upgrade baseline) and \`${dir}/knowledge.json\` (compile cursor) from the backup or the brain repo — both are git-tracked and either one marks the home. Without the compile cursor the next compile re-ingests everything, and without the baseline upgrade tracking resets.`,
       '',
       '**Do not suggest `init` to fix this.** Its re-run path offers to overwrite SOUL.md, IDENTITY.md, USER.md and CLAUDE.md, which is the operator losing their agent, not repairing it.'
     ].join('\n'),

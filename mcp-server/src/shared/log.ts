@@ -32,7 +32,7 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
-import { RUNTIME_DIR_DEFAULT, resolveEnv, runtimeDirName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, resolveEnv, runtimeDirName } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -84,16 +84,19 @@ function resolveLogFile(): string | null {
   // server's resolution (the env gate canonicalizes it even when a per-agent
   // override supplied the home); cwd stands in when nothing set it.
   //
-  // Either way the data dir must ALREADY exist — the logger never creates it.
-  // That dir is what marks a directory as this agent's home, so a logger that
-  // scaffolds it forges the marker every guard reads: point <AGENT>_HOME at a
-  // typo or at a sibling agent's home, and the first refused command writes a
-  // log there, after which the same command is allowed and operates on that
-  // tree. A hook firing in a foreign repo has the same shape. stderr still
-  // carries every line; file output waits for a home that genuinely exists.
-  const dir = runtimeDir();
+  // Either way the home must ALREADY carry a HOME_MARKER_FILES state file —
+  // the logger never scaffolds anything. The bare data dir is not enough: the
+  // logger itself once created `.kevin/logs/` under a cwd-fallback home, which
+  // planted the very dir every guard read as the marker, so a hook firing in a
+  // foreign repo turned that repo into "the home" and captured sessions into
+  // it. stderr still carries every line; file output waits for a home that
+  // genuinely exists. Both dir names are checked, mirroring `isAgentHome`'s
+  // runtime-dir migration window.
   const home = readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd();
-  return existsSync(resolve(home, dir)) ? resolve(home, dir, 'logs', 'app.log') : null;
+  const dir = [...new Set([runtimeDir(), RUNTIME_DIR_DEFAULT])].find((candidate) =>
+    HOME_MARKER_FILES.some((file) => existsSync(resolve(home, candidate, file)))
+  );
+  return dir ? resolve(home, dir, 'logs', 'app.log') : null;
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

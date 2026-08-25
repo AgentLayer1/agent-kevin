@@ -26,7 +26,8 @@ let STATE_PATH: string;
 
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
-  mkdirSync(resolve(HOME, '.kevin'), { recursive: true }); // isInitialized() gate — the data dir marks this agent's home
+  mkdirSync(resolve(HOME, '.kevin'), { recursive: true });
+  writeFileSync(resolve(HOME, '.kevin', 'version.json'), '{}\n'); // isInitialized() gate — the marker file marks this agent's home
   ({ captureSession } = await import('@/knowledge/session-capture'));
   ({ pickNext, markComplete, getStatus } = await import('@/knowledge/compile'));
   ({ hashBuffer } = await import('@/knowledge/utils'));

@@ -104,6 +104,17 @@ export const agentKeyName = (suffix: string): string => `${agentEnvPrefix()}${su
  */
 export const RUNTIME_DIR_DEFAULT = '.kevin';
 
+/**
+ * Files that mark a data dir as a scaffolded agent home: the upgrade baseline
+ * (`version.json`, written by init) and the compile cursor (`knowledge.json`).
+ * The bare directory is NOT the marker — best-effort runtime writers (the
+ * logger) can create the dir itself as a side effect in a tree that is not a
+ * home, and a marker that can be minted that way lets a hook firing in a
+ * foreign repo turn that repo into "the home" for every later guard. Both
+ * files are git-tracked in a brain repo, so a fresh clone still resolves.
+ */
+export const HOME_MARKER_FILES = ['version.json', 'knowledge.json'] as const;
+
 // A bare folder name, enforced rather than documented: this value is joined onto
 // HOME to locate the deny-gated secrets store, so a `/`, `\`, or `..` in it would
 // walk the store (and every guard keyed on it) outside the home.

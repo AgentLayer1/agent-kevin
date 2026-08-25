@@ -1,4 +1,4 @@
-import { RUNTIME_DIR_DEFAULT, agentKeyName, resolveEnv, runtimeDirName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName, resolveEnv, runtimeDirName } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -89,16 +89,23 @@ const homeAbove = (start: string): string | undefined => {
 };
 
 /**
- * True when `path` is this agent's scaffolded home — marked by its data dir,
- * which no sibling agent's home carries. Guards use this to fail loud instead
- * of writing into a repo or another agent's tree. Accepts the DEFAULT dir name
- * alongside the configured one, mirroring `gatedSecretsDirs`: during a
- * runtime-dir migration window the override flips before a home's folder is
- * renamed, and a walk-up that only knew the new name would resolve the home to
- * cwd — putting the secrets gate under the wrong root.
+ * True when `path` is this agent's scaffolded home — marked by a
+ * `HOME_MARKER_FILES` state file inside its data dir, which no sibling agent's
+ * home (and no runtime side effect) creates. The bare data dir stopped being
+ * the marker after it proved forgeable: a hook firing in a foreign repo made
+ * the pre-init logger plant `.kevin/logs/` there, and once the dir existed
+ * every later hook resolved that repo as the home and captured sessions into
+ * it. Guards use this to fail loud instead of writing into a repo or another
+ * agent's tree. Accepts the DEFAULT dir name alongside the configured one,
+ * mirroring `gatedSecretsDirs`: during a runtime-dir migration window the
+ * override flips before a home's folder is renamed, and a walk-up that only
+ * knew the new name would resolve the home to cwd — putting the secrets gate
+ * under the wrong root.
  */
 export const isAgentHome = (path: string): boolean =>
-  [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].some((dir) => existsSync(resolve(expandTilde(path), dir)));
+  [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].some((dir) =>
+    HOME_MARKER_FILES.some((file) => existsSync(resolve(expandTilde(path), dir, file)))
+  );
 
 /** `<HOME>/<data-dir>/secrets/.env`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
 const secretsEnvFile = (): string => resolve(agentHomePath(), runtimeDirName(), 'secrets', '.env');

@@ -265,10 +265,11 @@ async function run(): Promise<void> {
   // were never exposed — the host exports CLAUDE_PROJECT_DIR and it doesn't roam
   // with the shell — but a plain terminal has no such anchor.
   //
-  // Gate on the data dir, the same marker `agentHomePath` walks for, NOT on
-  // SOUL.md: every sibling agent's home has a SOUL.md, so a SOUL.md test passes
-  // inside another agent's brain and hands it this agent's writes. Only this
-  // agent's home carries this agent's data dir.
+  // Gate on the home marker (a state file inside the data dir), the same
+  // marker `agentHomePath` walks for, NOT on SOUL.md: every sibling agent's
+  // home has a SOUL.md, so a SOUL.md test passes inside another agent's brain
+  // and hands it this agent's writes. Only this agent's home carries this
+  // agent's marker files.
   //
   // The session verbs are exempt: they self-guard and return the structured
   // "not-initialized" result the host's hook protocol expects, and failing hard
@@ -280,7 +281,7 @@ async function run(): Promise<void> {
     const { agentKeyName, runtimeDirName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     const homeKey = agentKeyName('HOME');
     console.error(
-      `${group}: ${FOLDERS.HOME} is not this agent's home (no ${runtimeDirName()}/ there).\n` +
+      `${group}: ${FOLDERS.HOME} is not this agent's home (no home marker in ${runtimeDirName()}/ there).\n` +
         `The home is resolved from the current directory, so this is what you get when\n` +
         `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
         `  ${homeKey}=/path/to/home kevin ${group}${command ? ` ${command}` : ''}`
