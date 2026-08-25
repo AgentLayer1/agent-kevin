@@ -43,6 +43,27 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.30] - 2026-08-25
+
+### Fixed
+- **A planted data dir can no longer claim a directory as the agent home.** Before
+  v0.3.28 the logger scaffolded `<cwd-fallback-home>/.kevin/logs/` just to record that
+  session capture was skipping there, leaving bare `.kevin/` dirs in trees that were
+  never homes; v0.3.28's marker move from SOUL.md to the data dir then armed those
+  plants — the next session-end inside such a tree resolved it as the home and captured
+  sessions into `<tree>/knowledge/`, lost to the brain. The home marker is now a state
+  file only the agent's own flows write — `.kevin/version.json` (init/upgrade) or
+  `.kevin/knowledge.json` (compile) — named once as `HOME_MARKER_FILES` so `isAgentHome`,
+  the logger's file-output gate, and the test preload can't drift. Both files are
+  git-tracked in a brain repo, so a fresh clone still resolves. The logger's gate also
+  honors the runtime-dir migration window now, and the stranded-home messages stop
+  prescribing `mkdir -p` (which no longer repairs anything) in favor of restoring the two
+  state files. Regression tests pin the incident shape: a data dir holding only `logs/`
+  neither anchors the walk-up nor re-arms file logging.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.29] - 2026-08-20
 
 ### Added
