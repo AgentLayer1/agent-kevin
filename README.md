@@ -530,6 +530,18 @@ Init detects the pre-existing `CLAUDE.md` and writes Kevin's operating manual to
 ### 5. Team-shared agent in a shared repo
 Drop Kevin into a team repo, commit the `<HOME>/{CLAUDE.md, SOUL.md, IDENTITY.md, .claude/settings.json, knowledge/}` files, gitignore `settings.local.json`. Every teammate gets the same agent identity. Each accepts the trust prompt once on first launch.
 
+### 6. Seed a teammate's agent from yours
+You've shaped your agent — renamed it, grown project knowledge, wired up custom skills and MCP servers — and a teammate wants to start from that instead of a blank scaffold, while their memory, sessions, and credentials stay entirely their own.
+
+```bash
+/agent-kevin:seed-export          # you: interview + review gate → a zip in reports/seeds/
+# send the zip; on their machine:
+/agent-kevin:init                 # their own scaffold (any name — the seed brings identity if you exported it)
+/agent-kevin:seed-import ~/Downloads/2026-08-27-scout-seed.zip
+```
+
+The bundle is a plain zip with a manifest: identity files, selected concepts, project READMEs/roadmaps, custom skills, MCP server entries, and permission grants — plus the credential key **names** the setup needs. Values never travel; the import ends with a fill-these-in-your-editor checklist. Everything imported becomes the recipient's own (fork semantics — no sync, no link back to your agent; for that, this is the wrong tool). Unlike use case 5's shared repo, each teammate's agent diverges freely after the handoff.
+
 ---
 
 ## 🏗️ Architecture
@@ -590,6 +602,7 @@ graph LR
 | `find-session` | Locate a past session by what it worked on — a branch, a PR, a bug — content search over all transcript history, ranked by did-the-work signals, ending in its resume command (auto-invocable) |
 | `api-collections` | Draft API requests as file-based collections in `<HOME>/reports/api/<adapter>/` (or a named location) — you visualize and fire them in your API client (Bruno adapter shipped, curl fallback); Kevin authors, never sends |
 | `setup-worktree` | Create a sibling git worktree on a new branch and bootstrap it (copy local files, install, build) |
+| `seed-export` / `seed-import` | Hand your agent to a teammate as a **seed bundle** — a zip carrying the persona (name, SOUL, avatar), selected knowledge concepts, project docs/roadmaps, custom skills, MCP registrations, and pack activations (credential key *names* only, never values). Export runs an interview + per-file review gate; import dry-runs the plan, confirms conflicts, then overlays the bundle onto a fresh home with fork semantics (auto-invocable) |
 | `upgrade` / `release` | Consumer applies a new plugin version to the home; maintainer cuts one (CHANGELOG + tag) |
 | `itinerary` | Wizard-style trip planner → interviews you, researches flights/routes/prices, renders an interactive, print-ready HTML itinerary into a trips project |
 | `roadmap` | Wizard-style roadmap builder → interviews for the frame (shape, horizons, lanes, palette), mines the task board / READMEs / git history for milestones, renders a themable timeline-and-lanes HTML surface (auto-invocable) |
@@ -623,7 +636,7 @@ Installed on demand via [skills.sh](https://skills.sh). Pure-prompt content/mark
 
 Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
-### MCP tools (52)
+### MCP tools (55)
 
 | Group | Tools |
 |---|---|
@@ -633,11 +646,12 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 | **Dashboard** (1) | `dashboard` |
 | **Worktree** (3) | `setup_worktree`, `list_worktrees`, `remove_worktree` |
 | **Upgrade** (1) | `run_upgrade` |
+| **Seed** (3) | `seed_scan`, `seed_export`, `seed_import` |
 | **Database** (4) | `database_list`, `database_schema`, `database_query`, `database_fork` |
 | **GitHub** (11) | `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward` |
 | **Dispatch** (17) | `serpapi_search`, `open_page_rank`, `google_auth`, `gsc_query`, `gsc_inspect`, `gsc_sites`, `page_speed_psi`, `page_speed_audit`, `browser_screenshot`, `browser_pdf`, `browser_markdown`, `browser_record`, `browser_flows`, `web_search`, `curl_run`, `video_frames`, `ping` |
 
-**Always-on core** (`ping`, `capture`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. `remove_worktree` is deliberately **never** pre-granted — it deletes a worktree, so every call surfaces a confirm prompt. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
+**Always-on core** (`ping`, `capture`, `compile_*`, `task_*`, `knowledge_lint`, `memory_prune`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `run_upgrade`, `seed_scan`, `seed_export`) is pre-granted via `permissions.allow` at init. **Pack-gated** tools (SEO: `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`; Browser: `web_search`, `browser_*`; Database: `database_*`; GitHub: `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward`) only land in `permissions.allow` when you activate the matching pack via `/agent-kevin:configure-skills`. `remove_worktree` is deliberately **never** pre-granted — it deletes a worktree, so every call surfaces a confirm prompt. `seed_import` sits in the baseline `ask` list for the same reason: it overwrites identity files and merges permissions/MCP registrations from a foreign bundle, so it always confirms. This keeps `settings.json` an accurate audit trail — it advertises only the packs you actually opted into.
 
 ### Hooks
 
@@ -749,6 +763,7 @@ kevin help     # full command reference
 | `kevin knowledge lint [--fix]` | Structural wiki health check (broken links, orphans, missing backlinks, sparse, invalid frontmatter); `--fix` auto-rewrites links + inserts backlinks |
 | `kevin compile <subcmd>` | `status` (queue), `next` (peek), `write <id>` (mark complete). Synthesis itself runs in Claude Code via `/agent-kevin:knowledge-compile` |
 | `kevin prune` | Delete `memory/YYYY-MM-DD*.md` older than the retention window (14 days) |
+| `kevin seed <subcmd>` | `scan` (what this home could seed a teammate with), `export` (build a bundle zip from explicit paths — no review gate here, you are the gate), `import <zip> [--dry-run] [--overwrite]` (overlay a bundle onto this home) |
 | `kevin links` | Rewrite bare task IDs + shorthand into `[[wikilinks]]` across the wiki |
 | `kevin ping` | Print resolved paths + timezone (sanity check) |
 

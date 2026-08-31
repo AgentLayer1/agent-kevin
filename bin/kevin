@@ -27,6 +27,10 @@
  *
  *   kevin knowledge lint [--fix]
  *
+ *   kevin seed scan
+ *   kevin seed export --include=path1,path2 --name=AGENT [--out=PATH]
+ *   kevin seed import <bundlePath> [--overwrite] [--dry-run]
+ *
  *   kevin database list
  *   kevin database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
  *   kevin database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
@@ -136,6 +140,7 @@ Groups:
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
   worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build); \`worktree remove\` tears one down safely
+  seed                              One-shot agent handoff: scan what this home could seed a teammate with, export a reviewed selection as a zip bundle, import a bundle into a fresh home
   database                          Query/inspect/fork local Postgres via KEVIN_DB_<NAME> connections (real terminal — outside the Bash sandbox)
 
 Task commands:
@@ -167,6 +172,13 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
 
 Knowledge commands:
   knowledge lint [--fix]            Structural health check; --fix rewrites stale wikilinks + inserts backlinks
+
+Seed commands (prefer the /agent-kevin:seed-export skill inside Claude Code — it runs the interview + review gate):
+  seed scan                         Detect what this home could seed a teammate with (read-only JSON)
+  seed export --include=p1,p2 --name=AGENT [--out=PATH]
+                                    Build a seed bundle zip from home-relative paths (no review gate here — you are the gate)
+  seed import <bundlePath> [--overwrite] [--dry-run]
+                                    Overlay a bundle onto THIS home; --dry-run prints the plan + conflicts first
 
 Compile commands:
   compile status                    Show queue (pending sessions, feedback, specs)
@@ -418,6 +430,38 @@ async function run(): Promise<void> {
       }
       default:
         throw new Error(`Unknown knowledge subcommand: ${command}`);
+    }
+  }
+
+  if (group === 'seed') {
+    const SEED = 'mcp-server/src/seed';
+    switch (command) {
+      case 'scan': {
+        const { scanSeed } = await import(resolve(PLUGIN_ROOT, `${SEED}/scan`));
+        console.log(JSON.stringify(scanSeed(), null, 2));
+        return;
+      }
+      case 'export': {
+        const include = flagArr('include');
+        const name = flag('name');
+        if (!include.length || !name) {
+          throw new Error('Usage: kevin seed export --include=path1,path2 --name=AGENT [--out=PATH]');
+        }
+        const { exportSeed } = await import(resolve(PLUGIN_ROOT, `${SEED}/export`));
+        console.log(JSON.stringify(exportSeed({ include, agentName: name, out: flag('out') }), null, 2));
+        return;
+      }
+      case 'import': {
+        const bundlePath = args.find((a) => !a.startsWith('--'));
+        if (!bundlePath) throw new Error('Usage: kevin seed import <bundlePath> [--overwrite] [--dry-run]');
+        const { importSeed } = await import(resolve(PLUGIN_ROOT, `${SEED}/import`));
+        console.log(
+          JSON.stringify(importSeed({ bundlePath, overwrite: bool('overwrite'), dryRun: bool('dry-run') }), null, 2)
+        );
+        return;
+      }
+      default:
+        throw new Error(`Unknown seed subcommand: ${command}`);
     }
   }
 

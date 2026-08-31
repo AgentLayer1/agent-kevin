@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds CLAUDE.md (operating manual + @-imports), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If a CLAUDE.md already exists at the home directory, Kevin's version is written to CLAUDE.local.md instead. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(unzip -l *)
 ---
 
 # Initialize the agent
@@ -174,6 +174,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 > This onboarding takes about 5 minutes and walks through seven steps:
 >
 > ❓ What to call your agent (default: Kevin)
+> ❓ Starting from a teammate's seed bundle? (applied automatically after the scaffold)
 > ❓ <AGENT_NAME>'s character, accept or refine
 > ❓ <AGENT_NAME>'s role, accept or refine
 > ❓ Your basics: name, home timezone
@@ -251,6 +252,38 @@ template, and `/agent-kevin:upgrade` reads it back out of `IDENTITY.md` on every
 update so template changes arrive phrased in this agent's name instead of proposing
 "Kevin" back. An operator can also change their mind later with
 `/agent-kevin:rename-agent`.
+
+---
+
+## Step 1c — Starting from a seed bundle?
+
+If the operator mentioned a seed bundle when invoking init (a `*-seed.zip` from a
+teammate's `/agent-kevin:seed-export` or the AgentLayer website wizard), or you want to
+offer it, ask:
+
+> **Do you have a seed bundle from a teammate?**
+> A seed bundle pre-loads this agent with a teammate's setup — possibly its name and
+> character, plus project docs, knowledge, custom skills, and tool registrations.
+> - Yes — I'll apply it right after the scaffold
+> - No — fresh start
+
+If yes: collect the zip path and verify it exists (`test -f`). Note it for the end of
+the flow — **do not** apply it now (the import tool requires the scaffolded home this
+init is about to create).
+
+**How a seed changes the remaining steps.** Peek at what the bundle carries
+(`unzip -l <bundle> | grep -c "files/IDENTITY.md"` — 1 means identity travels):
+- **Identity in the bundle** → Steps 1b–3 (name, SOUL, IDENTITY) become
+  placeholders the import will overwrite. Say so, take the defaults quickly, and don't
+  spend the operator's attention refining prose the seed replaces.
+- **Always run Steps 4–6 fully.** They describe the OPERATOR (name, timezone, style,
+  signal topics) — a seed never carries those; they're what keeps the inherited agent
+  personal to this user.
+
+After Step 9's confirmation, finish by delegating to the seed-import flow: read
+`${CLAUDE_PLUGIN_ROOT}/skills/seed-import/SKILL.md` and follow it against the noted
+bundle path (dry-run plan → confirm → apply → credential checklist). Don't reimplement
+its steps here.
 
 ---
 
@@ -811,7 +844,8 @@ Baseline `permissions.ask` — **always written** (unioned with whatever the ope
   "Bash(gh pr create *)",
   "Bash(gh pr merge *)",
   "Bash(gh release create *)",
-  "mcp__plugin_agent-kevin_kevin__curl_run"
+  "mcp__plugin_agent-kevin_kevin__curl_run",
+  "mcp__plugin_agent-kevin_kevin__seed_import"
 ]
 ```
 
@@ -820,6 +854,8 @@ Baseline `permissions.ask` — **always written** (unioned with whatever the ope
 The list is deliberately short. Every entry is an action that publishes something outside the machine; volume is what trains operators to blind-click, so resist growing it. Force-push and `reset --hard` stay in `deny` rather than `ask` — those are unrecoverable, and `deny` is the only tier nothing overrides.
 
 `curl_run` is the one sanctioned execution path in the `api-collections` skill and is deliberately never granted into `permissions.allow` by any pack walk, precisely so it always prompts. The `ask` entry is what keeps that promise once auto mode is deciding — without it, the classifier can approve an outbound request on its own.
+
+`seed_import` is the one entry that doesn't publish anything — it's here because it overwrites identity files (SOUL.md, IDENTITY.md) and merges permission grants and MCP server registrations into this home from a foreign bundle. A confirm per call is the right cost for that; its read-only siblings `seed_scan`/`seed_export` stay in `allow`.
 
 **Auto mode cannot be configured from here.** `permissions.defaultMode: "auto"` and the whole `autoMode` block are **ignored** in `.claude/settings.json` and `.claude/settings.local.json` (since v2.1.142 and v2.1.207 respectively) — both files live in a repo, so a checked-in settings file could otherwise inject its own classifier allow rules. They only take effect from `~/.claude/settings.json` or managed settings. Init must **not** write either key, and must not touch the operator's user-global settings to set them: auto mode is already the built-in default for the plans that support it, and a global write would reach every project on their machine, not just this home.
 
@@ -990,6 +1026,8 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__ping",
       "mcp__plugin_agent-kevin_kevin__report_write",
       "mcp__plugin_agent-kevin_kevin__run_upgrade",
+      "mcp__plugin_agent-kevin_kevin__seed_export",
+      "mcp__plugin_agent-kevin_kevin__seed_scan",
       "mcp__plugin_agent-kevin_kevin__setup_worktree",
       "mcp__plugin_agent-kevin_kevin__task_close",
       "mcp__plugin_agent-kevin_kevin__task_create",
@@ -1006,6 +1044,8 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:plan-spec)",
       "Skill(agent-kevin:release)",
       "Skill(agent-kevin:roadmap)",
+      "Skill(agent-kevin:seed-export)",
+      "Skill(agent-kevin:seed-import)",
       "Skill(agent-kevin:setup-worktree)",
       "Skill(agent-kevin:simple-simplify)",
       "Skill(agent-kevin:standup)",
@@ -1019,7 +1059,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **`remove_worktree` is deliberately not granted.** It deletes a worktree (a destructive filesystem action), so it's left off the allow list on purpose — every call surfaces a confirm prompt the operator has to approve. Don't "fix" the asymmetry with `setup_worktree` by adding it here; the prompt is the safeguard.
 
@@ -1027,13 +1067,13 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `seed_scan`, `seed_export` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
 | GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
 
-The allow list also carries thirteen **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:find-session)`, `Skill(agent-kevin:standup)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:roadmap)`, `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:sync)`, and `Skill(agent-kevin:upgrade)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `find-session` is its content-search sibling, firing when the operator names *what* a session worked on rather than when it ran; `standup` builds the did/next/blocked update on "what have I done"; `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `setup-worktree` fires on "make me a worktree for X"; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration; `upgrade` applies pending HOME migrations after a `/plugin update`, so a plain "upgrade kevin" is enough — the operator doesn't have to know the slash command. `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, and `Skill(agent-kevin:release)` are **latent**: all set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `release` (producer-only) cuts a versioned release + CHANGELOG entry.
+The allow list also carries fifteen **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:find-session)`, `Skill(agent-kevin:standup)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:roadmap)`, `Skill(agent-kevin:seed-export)`, `Skill(agent-kevin:seed-import)`, `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:sync)`, and `Skill(agent-kevin:upgrade)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `find-session` is its content-search sibling, firing when the operator names *what* a session worked on rather than when it ran; `standup` builds the did/next/blocked update on "what have I done"; `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `seed-export` fires on "export the agent for a teammate" / "make a seed bundle", running the interview + review gate before anything is zipped; `seed-import` fires when the operator hands over a `*-seed.zip` (its underlying `seed_import` tool sits in `ask`, so the actual write still confirms); `setup-worktree` fires on "make me a worktree for X"; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration; `upgrade` applies pending HOME migrations after a `/plugin update`, so a plain "upgrade kevin" is enough — the operator doesn't have to know the slash command. `Skill(agent-kevin:plan-spec)`, `Skill(agent-kevin:simple-simplify)`, and `Skill(agent-kevin:release)` are **latent**: all set `disable-model-invocation` (slash-only — `/plan-spec`, `/simple-simplify`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
 **`rename-agent` is deliberately absent from this list.** It is `disable-model-invocation` like the latent three, but unlike them it gets no grant, so even `/rename-agent` raises a confirm prompt. It rewrites files across the entire brain in one pass; the prompt is the last thing standing between a mistyped invocation and a swept home. Adding the grant would look like tidying an oversight and would remove that gate.
 

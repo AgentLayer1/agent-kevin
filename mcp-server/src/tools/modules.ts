@@ -20,6 +20,7 @@ export const TOOL_MODULES = [
   'open-page-rank',
   'ping',
   'reports',
+  'seed',
   'serpapi',
   'status',
   'tasks',
