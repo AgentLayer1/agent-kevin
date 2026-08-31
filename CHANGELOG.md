@@ -43,6 +43,53 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.31] - 2026-08-31
+
+### Added
+- **Seed bundles: hand your agent to a teammate.** A one-shot export/import so an
+  operator who has shaped their agent (renamed it, grown project knowledge, wired up
+  custom skills and MCP servers) can give a teammate a starting point, while the
+  teammate's memory, sessions, and credentials stay entirely their own. Two skills:
+  `/agent-kevin:seed-export` runs a two-stage flow — an interview that builds the
+  manifest (scope: whole agent / project slice with wikilink-driven concept discovery /
+  identity only; identity; knowledge + surfaces; local setup beyond the scaffold; an
+  optional CLAUDE.local.md overlay of curated operating-manual sections), then a
+  per-file review gate over the actual bytes (approve / edit / exclude, scrub client
+  names and personal paths — no approval, no bundle). `/agent-kevin:seed-import`
+  overlays a bundle onto an initialized home with fork semantics: dry-run plan first,
+  conflicts confirmed before overwriting, and it ends with the credential checklist the
+  operator fills in their editor. Three MCP tools back them (`seed_scan`, `seed_export`,
+  `seed_import` — the import runs outside the Bash sandbox so it can merge
+  `settings.json` / `.mcp.json` and ensure the secrets store), plus a `kevin seed`
+  CLI group for terminal use.
+- **The bundle format (formatVersion 1)** is a plain zip: `manifest.json` + payload
+  files under seed-allowed roots only (identity files, `knowledge/concepts/`,
+  `projects/<slug>/{README.md,roadmap.html}`, `.claude/{skills,rules,assets}/`,
+  root `roadmap.html`, `CLAUDE.local.md`). Setup travels as manifest fields —
+  permission entries, MCP server entries, and credential key **names** — never values;
+  the import plants empty placeholders and reports what to fill. Import verifies
+  payload hashes and path containment before any write, refuses symlink payloads, and
+  never clobbers existing MCP server names; credential-shaped keys can't ride the
+  settings-env field on either side. The format accepts a minimal producer (manifest +
+  identity files, generated anywhere), so bundles don't have to come from a home.
+
+### Changed
+- **`/agent-kevin:init` can start from a seed.** New Step 1c asks whether a seed bundle
+  from a teammate exists; when the bundle carries identity, the persona steps take
+  defaults instead of interviewing for prose the seed will overwrite (operator-facts
+  steps always run in full), and after the scaffold init delegates to the seed-import
+  flow automatically.
+- README: new "Seed a teammate's agent from yours" use case, skills-table and CLI-table
+  rows, and the MCP tool listing now counts 55 with the Seed group.
+
+### Upgrade
+- `settings: mandatory` — add to `permissions.allow`:
+  `mcp__plugin_agent-kevin_kevin__seed_scan`, `mcp__plugin_agent-kevin_kevin__seed_export`,
+  `Skill(agent-kevin:seed-export)`, `Skill(agent-kevin:seed-import)`; and add to
+  `permissions.ask`: `mcp__plugin_agent-kevin_kevin__seed_import` (it overwrites identity
+  files and merges permissions/MCP registrations from a foreign bundle, so it always
+  confirms — same reasoning as `curl_run`).
+
 ## [0.3.30] - 2026-08-25
 
 ### Fixed
