@@ -29,7 +29,7 @@ export interface SeedExportOptions {
   include: string[];
   /** Display name the bundle carries — the skill reads it off IDENTITY.md during the interview. */
   agentName: string;
-  /** Skill-authored content written into the bundle (e.g. the CLAUDE.local.md overlay). */
+  /** Skill-authored content written into the bundle (e.g. the CLAUDE.md overlay section). */
   extras?: { path: string; content: string }[];
   permissions?: { allow?: string[]; ask?: string[] };
   secretKeys?: string[];

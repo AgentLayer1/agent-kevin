@@ -49,7 +49,7 @@ export interface SeedImportResult {
   conflicts: string[];
   /** Files whose local copy already matches the bundle. */
   unchanged: string[];
-  /** CLAUDE.local.md when the overlay was appended to an existing file rather than written fresh. */
+  /** CLAUDE.md when the overlay section was appended to the existing manual rather than written fresh. */
   appended: string[];
   permissionsAdded: { allow: string[]; ask: string[] };
   mcpServersAdded: string[];
@@ -126,9 +126,17 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
     for (const file of manifest.files) {
       const source = join(staging, 'files', file.path);
       const destination = resolve(home, file.path);
-      // The CLAUDE overlay composes with whatever the recipient's init wrote — append, never replace.
-      if (file.path === 'CLAUDE.local.md' && existsSync(destination)) {
-        if (!dryRun) appendFileSync(destination, `\n\n${readFileSync(source, 'utf-8')}`);
+      // The manual overlay composes with what the recipient's init wrote — append, never
+      // replace. Upgrade's template reconciliation preserves operator additions, so the
+      // appended section rides along like any hand-written customization. A re-import of
+      // the same bundle is a no-op: the section is already in the file.
+      if (file.path === 'CLAUDE.md' && existsSync(destination)) {
+        const section = readFileSync(source, 'utf-8');
+        if (readFileSync(destination, 'utf-8').includes(section)) {
+          unchanged.push(file.path);
+          continue;
+        }
+        if (!dryRun) appendFileSync(destination, `\n\n${section}`);
         appended.push(file.path);
         continue;
       }

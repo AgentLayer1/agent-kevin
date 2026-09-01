@@ -136,6 +136,7 @@ const inHome = <T>(home: string, fn: () => T): T => {
 describe('validateSeedPath', () => {
   test('accepts the allowed roots', () => {
     expect(validateSeedPath('IDENTITY.md')).toBeNull();
+    expect(validateSeedPath('CLAUDE.md')).toBeNull();
     expect(validateSeedPath('knowledge/concepts/x.md')).toBeNull();
     expect(validateSeedPath('projects/acme/README.md')).toBeNull();
     expect(validateSeedPath('.claude/skills/acme-logs/SKILL.md')).toBeNull();
@@ -146,7 +147,9 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('knowledge/concepts/../../USER.md')).not.toBeNull();
     expect(validateSeedPath('/etc/passwd')).not.toBeNull();
     expect(validateSeedPath('USER.md')).not.toBeNull();
-    expect(validateSeedPath('CLAUDE.md')).not.toBeNull();
+    // The manual's alternate location (init collision case) — compile reads it with
+    // priority, so a seeded copy would shadow the real manual.
+    expect(validateSeedPath('CLAUDE.local.md')).not.toBeNull();
     expect(validateSeedPath('knowledge/memory/index.md')).not.toBeNull();
     expect(validateSeedPath('.kevin/secrets/.env')).not.toBeNull();
     expect(validateSeedPath('.claude/settings.json')).not.toBeNull();
@@ -214,7 +217,7 @@ describe('exportSeed', () => {
           '.claude/assets/avatar.jpg'
         ],
         agentName: 'Scout',
-        extras: [{ path: 'CLAUDE.local.md', content: '## Team conventions\n\nShip > start.\n' }],
+        extras: [{ path: 'CLAUDE.md', content: '## Team conventions\n\nShip > start.\n' }],
         permissions: {
           allow: [
             'mcp__plugin_agent-kevin_kevin__web_search',
@@ -233,7 +236,7 @@ describe('exportSeed', () => {
     expect(existsSync(result.bundlePath)).toBe(true);
     const paths = result.manifest.files.map((file) => file.path);
     expect(paths).toContain('.claude/skills/acme-logs/SKILL.md');
-    expect(paths).toContain('CLAUDE.local.md');
+    expect(paths).toContain('CLAUDE.md');
     expect(result.manifest.secretKeys).toEqual(['MCP_ACME_TELEMETRY_TOKEN', 'PERPLEXITY_API_KEY']);
   });
 });
@@ -245,16 +248,16 @@ describe('importSeed', () => {
     const recipient = makeHome();
     homes.push(recipient);
     write(recipient, 'SOUL.md', '# Soul\n\nStock scaffold, different from the seed.\n');
-    write(recipient, 'CLAUDE.local.md', '# Local manual\n');
+    write(recipient, 'CLAUDE.md', '# Local manual\n');
 
     const plan = inHome(recipient, () => importSeed({ bundlePath: bundle(), dryRun: true }));
     expect(plan.dryRun).toBe(true);
     expect(plan.conflicts).toEqual(['SOUL.md']);
-    expect(plan.appended).toEqual(['CLAUDE.local.md']);
+    expect(plan.appended).toEqual(['CLAUDE.md']);
     expect(plan.written).toContain('IDENTITY.md');
     expect(plan.secretKeysToFill).toEqual(['MCP_ACME_TELEMETRY_TOKEN', 'PERPLEXITY_API_KEY']);
     expect(existsSync(join(recipient, 'IDENTITY.md'))).toBe(false);
-    expect(readFileSync(join(recipient, 'CLAUDE.local.md'), 'utf-8')).toBe('# Local manual\n');
+    expect(readFileSync(join(recipient, 'CLAUDE.md'), 'utf-8')).toBe('# Local manual\n');
     expect(existsSync(join(recipient, '.claude', 'settings.json'))).toBe(false);
   });
 
@@ -262,7 +265,7 @@ describe('importSeed', () => {
     const recipient = makeHome();
     homes.push(recipient);
     write(recipient, 'SOUL.md', '# Soul\n\nStock scaffold.\n');
-    write(recipient, 'CLAUDE.local.md', '# Local manual\n');
+    write(recipient, 'CLAUDE.md', '# Local manual\n');
     write(
       recipient,
       '.claude/settings.json',
@@ -274,7 +277,7 @@ describe('importSeed', () => {
     expect(result.conflicts).toEqual([]);
     expect(result.written).toContain('SOUL.md');
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('Scout');
-    expect(readFileSync(join(recipient, 'CLAUDE.local.md'), 'utf-8')).toContain('Ship > start.');
+    expect(readFileSync(join(recipient, 'CLAUDE.md'), 'utf-8')).toContain('Ship > start.');
     expect(readFileSync(join(recipient, '.claude/skills/acme-logs/SKILL.md'), 'utf-8')).toContain('acme-logs');
 
     const settings = JSON.parse(readFileSync(join(recipient, '.claude', 'settings.json'), 'utf-8'));
@@ -294,8 +297,9 @@ describe('importSeed', () => {
     expect(again.conflicts).toEqual([]);
     expect(again.permissionsAdded.allow).toEqual([]);
     expect(again.mcpServersSkipped).toEqual(['acme-telemetry']);
-    // The one non-idempotent surface by design: the overlay appends on every run.
-    expect(again.appended).toEqual(['CLAUDE.local.md']);
+    // Fully idempotent: the overlay section is already in the manual, so no re-append.
+    expect(again.appended).toEqual([]);
+    expect(again.unchanged).toContain('CLAUDE.md');
   });
 
   test('refuses a hostile manifest before any write', () => {

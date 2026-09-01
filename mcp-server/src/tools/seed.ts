@@ -23,14 +23,14 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'seed_export',
     description:
-      'Build a seed bundle zip from an APPROVED selection — call only after the /seed-export interview + per-file review gate. Validates every path against the seed format allowed roots (IDENTITY.md, SOUL.md, CLAUDE.local.md, roadmap.html, knowledge/concepts/, projects/<slug>/{README.md,roadmap.html}, .claude/{skills,rules,assets}/), stages files + manifest.json, zips. Directories in `include` expand recursively. `extras` carries skill-authored content (the CLAUDE overlay). Setup travels as manifest fields: permission entries, secret key NAMES, settings env key NAMES, MCP server entries — never values. Read-only against the home; the zip lands under reports/seeds/ unless `out` is given.',
+      'Build a seed bundle zip from an APPROVED selection — call only after the /seed-export interview + per-file review gate. Validates every path against the seed format allowed roots (IDENTITY.md, SOUL.md, CLAUDE.md — append-only on import, roadmap.html, knowledge/concepts/, projects/<slug>/{README.md,roadmap.html}, .claude/{skills,rules,assets}/), stages files + manifest.json, zips. Directories in `include` expand recursively. `extras` carries skill-authored content (the CLAUDE overlay). Setup travels as manifest fields: permission entries, secret key NAMES, settings env key NAMES, MCP server entries — never values. Read-only against the home; the zip lands under reports/seeds/ unless `out` is given.',
     inputSchema: {
       include: z.array(z.string()).describe('Home-relative paths (files or directories) approved for export.'),
       agentName: z.string().describe('Display name the bundle carries (from IDENTITY.md, e.g. "Scout").'),
       extras: z
         .array(z.object({ path: z.string(), content: z.string() }))
         .optional()
-        .describe('Skill-authored bundle content, e.g. [{path: "CLAUDE.local.md", content: <curated overlay>}].'),
+        .describe('Skill-authored bundle content, e.g. [{path: "CLAUDE.md", content: <curated overlay>}].'),
       permissions: z
         .object({ allow: z.array(z.string()).optional(), ask: z.array(z.string()).optional() })
         .optional()
@@ -56,7 +56,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'seed_import',
     description:
-      "Overlay a seed bundle onto THIS initialized home (fork semantics — imported files become the recipient's own). Validates containment (only seed-format roots are writable; settings/secrets/.kevin are unreachable by payload) and payload hashes before any write. CLAUDE.local.md appends rather than replaces. Merges manifest permissions into settings.json (dedupe), MCP servers into .mcp.json (existing names never clobbered), plants empty settings.local.json env placeholders, ensures the secrets store exists, and returns the secret key NAMES the operator must fill in their editor. Run with dryRun first: it returns the full plan including conflicts (existing files that differ), then confirm with the operator before re-running with overwrite.",
+      "Overlay a seed bundle onto THIS initialized home (fork semantics — imported files become the recipient's own). Validates containment (only seed-format roots are writable; settings/secrets/.kevin are unreachable by payload) and payload hashes before any write. the CLAUDE.md entry APPENDS to the scaffolded manual rather than replacing it (upgrades carry the appended section like any operator customization). Merges manifest permissions into settings.json (dedupe), MCP servers into .mcp.json (existing names never clobbered), plants empty settings.local.json env placeholders, ensures the secrets store exists, and returns the secret key NAMES the operator must fill in their editor. Run with dryRun first: it returns the full plan including conflicts (existing files that differ), then confirm with the operator before re-running with overwrite.",
     inputSchema: {
       bundlePath: z.string().describe('Absolute path to the seed bundle zip.'),
       overwrite: z

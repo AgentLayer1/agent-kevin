@@ -19,9 +19,10 @@
  * formatVersion/agentName/files is optional.
  *
  * What never travels, regardless of producer: secret VALUES, `.kevin/` state,
- * USER.md, knowledge/{user,memory,raw}, tasks, session transcripts, and the
- * scaffolded CLAUDE.md (curated sections travel as CLAUDE.local.md so the
- * recipient stays on the upgrade path). Import refuses any path outside
+ * USER.md, knowledge/{user,memory,raw}, tasks, and session transcripts. The
+ * operating manual travels only as curated sections under the `CLAUDE.md`
+ * path, which import APPENDS to the recipient's scaffolded manual (never
+ * replaces — upgrades keep carrying it). Import refuses any path outside
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
  * anything else in the home.
  */
@@ -65,7 +66,12 @@ export interface SeedManifest {
 export const ALLOWED_ROOTS = [
   'IDENTITY.md',
   'SOUL.md',
-  'CLAUDE.local.md',
+  // Append-only on import: the recipient's scaffolded manual is never replaced, and
+  // upgrade's template reconciliation carries operator additions forward. NOT
+  // CLAUDE.local.md — in this plugin that is the manual's alternate location (init
+  // collision case) and compile reads it with priority, so seeding it would
+  // shadow the real manual.
+  'CLAUDE.md',
   'roadmap.html',
   'knowledge/concepts/',
   'projects/',

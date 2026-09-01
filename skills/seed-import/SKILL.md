@@ -20,8 +20,8 @@ with `test -f`). If they only said "import the seed", ask where the file landed.
 Call `seed_import` with `dryRun: true` and present the plan grouped:
 
 - **Files to write** — by category (identity / knowledge / projects / skills / rules / surfaces)
-- **CLAUDE.local.md** — will be appended (or created); note it composes with this home's
-  own operating manual and re-importing the same bundle appends again
+- **CLAUDE.md overlay section** — appended to this home's scaffolded manual (never a
+  replacement); re-importing the same bundle appends again
 - **Conflicts** — existing files that differ from the bundle. For a fresh-after-init home
   the expected conflicts are IDENTITY.md and SOUL.md (init scaffolded them; the seed
   replaces them — that's the point of inheriting the persona). Anything else diverging
@@ -51,11 +51,15 @@ Left for you (values never go through chat):
 3. Restart Claude Code so the new MCP servers, permissions, and identity load.
 ```
 
+If the bundle seeded a roadmap draft (`knowledge/concepts/roadmap-draft.md`), offer to
+render it now: the roadmap skill takes the draft's when/milestone table as its interview
+input and produces the north-star surface at `roadmap.html`.
+
 Notes to surface when relevant:
 - The display name comes from the imported IDENTITY.md. The plugin namespace
   (`/agent-kevin:*` commands, env prefix) is unchanged — renaming that is the separate
   `rename-agent` skill, only needed for a second agent on the same machine.
 - Third-party skills.sh libraries don't travel in bundles; if the source agent used any,
   install them with `/agent-kevin:configure-skills` (Section F).
-- Re-importing the same bundle is safe: unchanged files are skipped, merges dedupe. The
-  one exception is the CLAUDE.local.md overlay, which appends each time.
+- Re-importing the same bundle is a no-op: unchanged files are skipped, merges dedupe,
+  and the CLAUDE.md overlay section is skipped when it is already in the manual.
