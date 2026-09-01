@@ -43,6 +43,23 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.32] - 2026-09-01
+
+### Changed
+- **Seed manual overlay now targets `CLAUDE.md`, append-only and idempotent.**
+  `CLAUDE.local.md` was the wrong destination — in this plugin it is the operating
+  manual's alternate location for the init-collision case and compile reads it with
+  priority, so a seeded overlay there would shadow the real manual. The seed format
+  now allows the `CLAUDE.md` path and refuses `CLAUDE.local.md`; import appends the
+  overlay section to the scaffolded manual (never replaces, never conflicts) and
+  skips it when the identical section is already present, making re-import a full
+  no-op.
+- `/agent-kevin:seed-import` now offers to render a seeded roadmap draft
+  (`knowledge/concepts/roadmap-draft.md`) via the roadmap skill.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.31] - 2026-08-31
 
 ### Added
