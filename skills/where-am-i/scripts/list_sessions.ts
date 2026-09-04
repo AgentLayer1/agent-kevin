@@ -206,14 +206,21 @@ const hours =
 // Multiple roots (comma-separated) because the agent HOME and the code repos
 // live in separate trees — a single cwd-rooted scope would go blind to one or
 // the other. Worktrees come free: they're siblings named <repo>-<slug>, which
-// the encoded prefix match already covers.
+// the encoded prefix match already covers. The default is built in-process (a
+// pre-filled --scope): cwd and env reach a native process in native form,
+// while a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows
+// and resolves against the wrong drive.
+const codePath = process.env.KEVIN_CODE_PATH?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const defaultScope = [process.cwd(), process.env.KEVIN_HOME?.trim(), codePath && dirname(codePath)]
+  .filter(Boolean)
+  .join(',');
 const scopeFlag = flags.get('scope');
 const scopes =
   scopeFlag === 'all'
     ? null
     : [
         ...new Set(
-          (scopeFlag || process.cwd())
+          (scopeFlag || defaultScope)
             .split(',')
             .map((path) => path.trim())
             .filter(Boolean)
