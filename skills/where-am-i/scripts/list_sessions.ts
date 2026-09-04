@@ -210,9 +210,10 @@ const hours =
 // pre-filled --scope): cwd and env reach a native process in native form,
 // while a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows
 // and resolves against the wrong drive.
+const agentHome = process.env.KEVIN_HOME?.trim() || process.env.AGENT_HOME?.trim();
 const codePath = process.env.KEVIN_CODE_PATH?.trim() || process.env.AGENT_CODE_PATH?.trim();
-const defaultScope = [process.cwd(), process.env.KEVIN_HOME?.trim(), codePath && dirname(codePath)]
-  .filter(Boolean)
+const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
+  .filter((path): path is string => Boolean(path))
   .join(',');
 const scopeFlag = flags.get('scope');
 const scopes =

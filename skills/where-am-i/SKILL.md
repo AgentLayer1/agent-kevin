@@ -27,8 +27,8 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24
 
 - Default window is 24 hours; if the user gave a number (e.g. `/agent-kevin:where-am-i 48`),
   pass it as `--hours`.
-- **Scope:** the script derives the default roots itself — the launch cwd, `$KEVIN_HOME`
-  when set, and the code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their
+- **Scope:** the script derives the default roots itself — the launch cwd, the agent HOME
+  (`${KEVIN_HOME:-$AGENT_HOME}`), and the code tree (the parent of `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — repos and their
   sibling worktrees) — so the radar sees HOME sessions and code-repo sessions even though
   they live in separate trees. `--scope` overrides with comma-separated roots; a session
   counts when launched in any root or beneath it. Duplicate roots are fine (the script

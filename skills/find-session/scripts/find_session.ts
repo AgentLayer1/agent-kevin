@@ -203,13 +203,20 @@ if (terms.length === 0) {
 }
 const loweredTerms = [...new Set(terms.map((term) => term.toLowerCase()))];
 
+// Default roots mirror list_sessions.ts: cwd, the agent HOME, and the code tree, built
+// in-process because a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows.
+const agentHome = process.env.KEVIN_HOME?.trim() || process.env.AGENT_HOME?.trim();
+const codePath = process.env.KEVIN_CODE_PATH?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
+  .filter((path): path is string => Boolean(path))
+  .join(',');
 const scopeFlag = flags.get('scope');
 const scopes =
   scopeFlag === 'all'
     ? null
     : [
         ...new Set(
-          (scopeFlag || process.cwd())
+          (scopeFlag || defaultScope)
             .split(',')
             .map((path) => path.trim())
             .filter(Boolean)

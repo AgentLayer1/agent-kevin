@@ -77,18 +77,20 @@ named gap in the output, never a guess.
 **1. Sessions** — the only source that sees uncommitted work, investigations, and prod actions:
 
 ```bash
-SCOPE="${KEVIN_HOME:-$AGENT_HOME}"
-[ -n "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}" ] && SCOPE="$SCOPE,$(dirname "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}")"
-bun "${CLAUDE_PLUGIN_ROOT}/skills/where-am-i/scripts/list_sessions.ts" --hours <N> --scope "$SCOPE"
+bun "${CLAUDE_PLUGIN_ROOT}/skills/where-am-i/scripts/list_sessions.ts" --hours <N>
 ```
+
+The script derives the roots itself: the launch cwd, the agent HOME
+(`${KEVIN_HOME:-$AGENT_HOME}`), and the code tree (the parent of
+`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}`). Don't rebuild them in the shell.
 
 Two things about this JSON that will mislead you if you don't know them:
 
 - **Scope keys on the session's launch directory, not its `cwd`.** Sessions launched from the
   agent HOME routinely `cd` into a worktree and do all their work there, so the HOME root is
-  *not* optional in `--scope` — drop it and you go blind to most of the day. Conversely the
-  `cwd` field is the *drifted* directory, which is what makes it useful: it names the worktree
-  the work actually happened in.
+  *not* optional — if you ever pass `--scope` yourself, keep it, or you go blind to most of
+  the day. Conversely the `cwd` field is the *drifted* directory, which is what makes it
+  useful: it names the worktree the work actually happened in.
 - **`minutes_ago` is transcript-derived**, so recency is trustworthy. (It used to come from
   file mtime, which a `git checkout` or a backfill silently moved forward.)
 

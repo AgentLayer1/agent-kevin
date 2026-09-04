@@ -29,16 +29,15 @@ first (the branch, the PR, the file) using the memory already in context.
 ## Step 2 — run the search
 
 ```bash
-SCOPE="$PWD"
-[ -n "$KEVIN_HOME" ] && SCOPE="$SCOPE,$KEVIN_HOME"
-[ -n "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}" ] && SCOPE="$SCOPE,$(dirname "${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}")"
-bun "${CLAUDE_SKILL_DIR}/scripts/find_session.ts" --scope "$SCOPE" "<term>" "<term2>" ...
+bun "${CLAUDE_SKILL_DIR}/scripts/find_session.ts" "<term>" "<term2>" ...
 ```
 
 - **No time window by default** — the whole transcript history is searched. Add
   `--hours <n>` only when the operator anchors it in time ("last week's session").
-- Scope semantics match where-am-i: comma-separated roots, sessions launched in or beneath
-  any of them. Zero matches → retry with `--scope all` before declaring it not found.
+- Scope semantics match where-am-i: the script derives the default roots itself (the launch
+  cwd, the agent HOME, and the code tree); `--scope` overrides with comma-separated roots,
+  sessions launched in or beneath any of them. Zero matches → retry with `--scope all`
+  before declaring it not found.
 - Output is JSON sorted by raw hit count — **that sort is a starting point, not the
   answer** (Step 3). Each match carries: `title` (operator's `/rename` wins over the
   auto-title), `started` / `last_timestamp`, `cwds` (every directory the session roamed
