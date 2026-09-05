@@ -43,6 +43,25 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.3.33] - 2026-09-05
+
+### Fixed
+- **Session radar now works on Windows.** The default scope for `where-am-i`,
+  `find-session`, and `standup` was assembled in the shell from `$PWD`, which Git Bash
+  hands over in POSIX form (`/c/Users/...`) — the script then resolved it against the
+  wrong drive and the radar came back empty. Both scripts (`list_sessions.ts`,
+  `find_session.ts`) now build the default themselves from `process.cwd()` plus the
+  `KEVIN_HOME`/`AGENT_HOME` and `KEVIN_CODE_PATH`/`AGENT_CODE_PATH` env vars, which
+  reach a native process in native form. `--scope` still overrides.
+
+### Changed
+- The three skills that call the radar (`where-am-i`, `find-session`, `standup`) drop
+  their shell scope preamble and just run the script; `--scope` is now an override, not
+  a required argument.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
+
 ## [0.3.32] - 2026-09-01
 
 ### Changed
