@@ -5,7 +5,7 @@
  * (with a fully-rendered prompt and source content); the calling Claude
  * session synthesizes (Read/Write/Edit) and confirms via markComplete.
  */
-import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
+import { FILES, FOLDERS, KNOWLEDGE, operatingManualPath } from '@/config';
 import { chunkSessionLog } from '@/knowledge/chunk';
 import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
@@ -120,24 +120,13 @@ async function listInboxArtifacts(): Promise<string[]> {
 
 // ── Prompt builders (parallel reads) ─────────────────────────────────
 
-/**
- * Read Kevin's operating manual. Two possible locations depending on whether
- * a pre-existing CLAUDE.md was found at /init time:
- *   1. <HOME>/CLAUDE.local.md — present only when init detected a collision
- *      with the user's existing CLAUDE.md and wrote Kevin's version alongside.
- *   2. <HOME>/CLAUDE.md       — the default location, no collision case.
- * CLAUDE.local.md takes priority because, when both exist, the local one is
- * Kevin's and the bare CLAUDE.md belongs to the user.
- */
+/** The operating manual — AGENTS.md, or the pre-0.4.0 location on a home not yet upgraded. */
 async function readOperatingManual(): Promise<string> {
-  for (const path of [FILES.CLAUDE_LOCAL, FILES.CLAUDE]) {
-    try {
-      return await readFile(path, 'utf-8');
-    } catch {
-      continue;
-    }
+  try {
+    return await readFile(operatingManualPath(), 'utf-8');
+  } catch {
+    return '(operating manual not found — run /agent-kevin:init)';
   }
-  return '(operating manual not found — run /agent-kevin:init)';
 }
 
 async function buildSessionPrompt(fileName: string, chunkContent: string): Promise<string> {

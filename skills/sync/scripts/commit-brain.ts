@@ -82,7 +82,7 @@ export const brainGroups = (home: string): Group[] => {
       name: "knowledge",
       message: "Sync: update knowledge",
       dirs: root("AGENT_KNOWLEDGE", "knowledge"),
-      files: ["USER.md", "SOUL.md", "IDENTITY.md", "CLAUDE.md"],
+      files: ["USER.md", "SOUL.md", "IDENTITY.md", "AGENTS.md", ".claude/CLAUDE.md", "CLAUDE.md"],
     },
     {
       name: "projects",

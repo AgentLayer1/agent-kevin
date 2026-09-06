@@ -1682,7 +1682,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
 
   const importsBody =
     hint(
-      'Files the CLAUDE.md @-import chain loads at session start — a missing one means a session boots without that context.'
+      'Files the .claude/CLAUDE.md @-import chain loads at session start (the AGENTS.md manual, the identity stack, the indexes) — a missing one means a session boots without that context.'
     ) +
     (missing.length
       ? missing

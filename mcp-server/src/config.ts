@@ -186,7 +186,7 @@ export const FILES = {
     return resolve(dataRoot(), 'knowledge.json');
   },
   /** HOME template baseline — which plugin version this home's scaffolded files
-   *  (CLAUDE.md, SOUL.md, settings, rules…) were last reconciled to. Written by
+   *  (AGENTS.md, SOUL.md, settings, rules…) were last reconciled to. Written by
    *  `/init` (fresh homes) and `/agent-kevin:upgrade` (thereafter); read by the
    *  banner + dashboard to flag pending HOME migrations. See version.ts. */
   get VERSION() {
@@ -201,13 +201,25 @@ export const FILES = {
   get IDENTITY() {
     return resolve(homeRoot(), 'IDENTITY.md');
   },
-  /** The agent's operating manual. Lives at <HOME>/CLAUDE.md by default. If a
-   *  CLAUDE.md already existed when /init ran (plugin installed into an
-   *  existing project), init writes to CLAUDE_LOCAL instead and leaves the
-   *  user's CLAUDE.md untouched. */
+  /** The agent's operating manual — harness-neutral, read natively by every
+   *  AGENTS.md-aware CLI. Claude Code reaches it through the CLAUDE bridge. */
+  get AGENTS() {
+    return resolve(homeRoot(), 'AGENTS.md');
+  },
+  /** The Claude Code bridge: `@-imports` the manual + identity stack and holds
+   *  the rules that apply only under Claude Code. Lives in `.claude/` so the
+   *  home root carries one manual, not one per harness. */
   get CLAUDE() {
+    return resolve(homeRoot(), '.claude', 'CLAUDE.md');
+  },
+  /** Pre-0.4.0 manual location (root CLAUDE.md), still read until the home's
+   *  upgrade migrates it. After that, a root CLAUDE.md here is the operator's
+   *  own project file, never the agent's. */
+  get CLAUDE_ROOT() {
     return resolve(homeRoot(), 'CLAUDE.md');
   },
+  /** Pre-0.4.0 alternate manual location — init wrote here when a root
+   *  CLAUDE.md already existed. Read with priority until migrated. */
   get CLAUDE_LOCAL() {
     return resolve(homeRoot(), 'CLAUDE.local.md');
   },
@@ -231,6 +243,16 @@ export const FILES = {
   }
 } as const;
 
+/**
+ * Where the operating manual is right now. `AGENTS.md` once the home is on the
+ * 0.4.0 layout; before that the legacy locations, local first (in the init
+ * collision case the local file was the agent's and the root one the user's).
+ * Falls back to the AGENTS path when nothing exists, so writers land on the
+ * current layout.
+ */
+export const operatingManualPath = (): string =>
+  [FILES.AGENTS, FILES.CLAUDE_LOCAL, FILES.CLAUDE_ROOT].find((path) => existsSync(path)) ?? FILES.AGENTS;
+
 export const KNOWLEDGE = {
   MEMORY_PRUNE_DAYS: 14,
   MAX_TURN_CHARS: 10_000,
@@ -243,7 +265,7 @@ export const KNOWLEDGE = {
   MAX_CHUNK_BYTES: 300 * 1024,
   // Cap on the raw chunk inlined into each compile_next prompt. Observed MCP
   // tool-response cap is ~16K tokens / ~50KB chars. With ~20KB overhead
-  // (CLAUDE.md ~8KB + USER.md ~2KB + wiki index ~5KB + template boilerplate
+  // (AGENTS.md ~8KB + USER.md ~2KB + wiki index ~5KB + template boilerplate
   // ~3KB), a 30KB chunk leaves margin under the cap.
   MAX_SESSION_LOG_CHUNK_BYTES: 30 * 1024,
   MAX_COMPILE_TURNS: 60,

@@ -20,7 +20,7 @@
  *
  * What never travels, regardless of producer: secret VALUES, `.kevin/` state,
  * USER.md, knowledge/{user,memory,raw}, tasks, and session transcripts. The
- * operating manual travels only as curated sections under the `CLAUDE.md`
+ * operating manual travels only as curated sections under the `AGENTS.md`
  * path, which import APPENDS to the recipient's scaffolded manual (never
  * replaces — upgrades keep carrying it). Import refuses any path outside
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
@@ -37,7 +37,7 @@ export interface SeedFileEntry {
   path: string;
   /** `sha256:<hex>` of the payload bytes — verified on import. */
   hash: string;
-  /** True when the content was authored during export (e.g. the CLAUDE overlay), not copied from disk. */
+  /** True when the content was authored during export (e.g. the manual overlay), not copied from disk. */
   generated?: boolean;
 }
 
@@ -63,15 +63,16 @@ export interface SeedManifest {
  * writes are both validated against this list — it is the structural privacy
  * gate and the import blast-radius limit in one.
  */
+/** Bundle path of the operating-manual overlay (append-only on import). */
+export const MANUAL_SEED_PATH = 'AGENTS.md';
+
 export const ALLOWED_ROOTS = [
   'IDENTITY.md',
   'SOUL.md',
   // Append-only on import: the recipient's scaffolded manual is never replaced, and
-  // upgrade's template reconciliation carries operator additions forward. NOT
-  // CLAUDE.local.md — in this plugin that is the manual's alternate location (init
-  // collision case) and compile reads it with priority, so seeding it would
-  // shadow the real manual.
-  'CLAUDE.md',
+  // upgrade's template reconciliation carries operator additions forward. Never
+  // .claude/CLAUDE.md — that is the Claude Code bridge, not the manual.
+  MANUAL_SEED_PATH,
   'roadmap.html',
   'knowledge/concepts/',
   'projects/',

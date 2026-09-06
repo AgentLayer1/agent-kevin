@@ -14,8 +14,8 @@
  * settings.local.json, and secret key NAMES come back as a fill-this checklist
  * (the store is ensured to exist; its contents are never read or written).
  */
-import { FOLDERS } from '@/config';
-import { CREDENTIAL_KEY_RE, type SeedManifest, sha256, validateSeedPath } from '@/seed/format';
+import { FOLDERS, operatingManualPath } from '@/config';
+import { CREDENTIAL_KEY_RE, MANUAL_SEED_PATH, type SeedManifest, sha256, validateSeedPath } from '@/seed/format';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -30,7 +30,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 
 export interface SeedImportOptions {
   /** Absolute path to the seed bundle zip. */
@@ -49,7 +49,7 @@ export interface SeedImportResult {
   conflicts: string[];
   /** Files whose local copy already matches the bundle. */
   unchanged: string[];
-  /** CLAUDE.md when the overlay section was appended to the existing manual rather than written fresh. */
+  /** The manual's home-relative path when the overlay section was appended to it rather than written fresh. */
   appended: string[];
   permissionsAdded: { allow: string[]; ask: string[] };
   mcpServersAdded: string[];
@@ -129,15 +129,26 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
       // The manual overlay composes with what the recipient's init wrote — append, never
       // replace. Upgrade's template reconciliation preserves operator additions, so the
       // appended section rides along like any hand-written customization. A re-import of
-      // the same bundle is a no-op: the section is already in the file.
-      if (file.path === 'CLAUDE.md' && existsSync(destination)) {
+      // the same bundle is a no-op: the section is already in the file. It lands on the
+      // manual the home actually has, including one not yet moved to AGENTS.md.
+      if (file.path === MANUAL_SEED_PATH) {
+        const manual = operatingManualPath();
+        const manualRel = relative(home, manual).split(/[\\/]/).join('/');
         const section = readFileSync(source, 'utf-8');
-        if (readFileSync(destination, 'utf-8').includes(section)) {
-          unchanged.push(file.path);
+        if (existsSync(manual)) {
+          if (readFileSync(manual, 'utf-8').includes(section)) {
+            unchanged.push(manualRel);
+            continue;
+          }
+          if (!dryRun) appendFileSync(manual, `\n\n${section}`);
+          appended.push(manualRel);
           continue;
         }
-        if (!dryRun) appendFileSync(destination, `\n\n${section}`);
-        appended.push(file.path);
+        if (!dryRun) {
+          mkdirSync(dirname(manual), { recursive: true });
+          writeFileSync(manual, section);
+        }
+        written.push(manualRel);
         continue;
       }
       if (existsSync(destination)) {

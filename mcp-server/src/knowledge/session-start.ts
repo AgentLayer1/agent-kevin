@@ -14,8 +14,9 @@
  *  - **Stranded**: a `SOUL.md` but no data dir — another agent's home, or this
  *    one's marker lost in a restore. Explain, and steer away from init.
  *  - **Post-init**: assemble the dynamic lane (today, last session tail, git
- *    activity, today's reports). Static identity (SOUL/IDENTITY/USER/CLAUDE)
- *    is loaded natively by the harness via `@-imports` or `AGENTS.md`.
+ *    activity, today's reports). Static identity (SOUL/IDENTITY/USER + the
+ *    AGENTS.md manual) is loaded natively by the harness — Claude Code via the
+ *    `@-imports` in `.claude/CLAUDE.md`, AGENTS.md-aware hosts directly.
  *
  * Always returns a result — internal errors are caught and emitted as an
  * empty payload + `error` field so the host never chokes on hook output.
@@ -71,7 +72,7 @@ const strandedHomeResult = (): SessionStartResult => {
       `1. **This is another agent's home.** Every agent's home has a SOUL.md, only this one's \`${dir}/\` carries the marker files. Launch that agent from here instead, and launch this one from its own home.`,
       `2. **This home's \`${dir}/\` state didn't survive a restore, clone, or sync.** Restore \`${dir}/version.json\` (upgrade baseline) and \`${dir}/knowledge.json\` (compile cursor) from the backup or the brain repo — both are git-tracked and either one marks the home. Without the compile cursor the next compile re-ingests everything, and without the baseline upgrade tracking resets.`,
       '',
-      '**Do not suggest `init` to fix this.** Its re-run path offers to overwrite SOUL.md, IDENTITY.md, USER.md and CLAUDE.md, which is the operator losing their agent, not repairing it.'
+      '**Do not suggest `init` to fix this.** Its re-run path offers to overwrite SOUL.md, IDENTITY.md, USER.md and the operating manual, which is the operator losing their agent, not repairing it.'
     ].join('\n'),
     hasIssues: true
   };

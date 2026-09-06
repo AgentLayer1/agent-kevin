@@ -40,7 +40,7 @@ import { resolveTasks } from '@/tasks/resolve';
 import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 export interface SettingsLayer {
   label: string;
@@ -261,7 +261,7 @@ export interface StaticImport {
   bytes: number;
   present: boolean;
   group: ContextGroup;
-  /** Which CLAUDE.md layer this instruction source comes from, when relevant —
+  /** Which instructions layer this source comes from, when relevant —
    *  user (`~/.claude`), project (HOME), or local (`CLAUDE.local.md`). */
   level?: 'user' | 'project' | 'local';
 }
@@ -862,7 +862,7 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
 
 /** Classify a static-context source into a group for the segmented bar. */
 const classifyImport = (label: string): ContextGroup => {
-  if (/CLAUDE(\.local)?\.md$/.test(label)) return 'instructions';
+  if (/(CLAUDE(\.local)?|AGENTS)\.md$/.test(label)) return 'instructions';
   if (/knowledge\/user\//.test(label)) return 'facets';
   if (/^(SOUL|IDENTITY|USER)\.md$/.test(label)) return 'identity';
   if (/index\.md$/.test(label)) return 'knowledge';
@@ -871,26 +871,38 @@ const classifyImport = (label: string): ContextGroup => {
 };
 
 const collectContext = async (): Promise<StatusSnapshot['context']> => {
-  const source = existsSync(FILES.CLAUDE) ? FILES.CLAUDE : FILES.CLAUDE_LOCAL;
+  // The file carrying the @-import chain: the bridge on the 0.4.0 layout, else the
+  // pre-migration manual. Imports resolve relative to the importing file, so labels are
+  // re-expressed HOME-relative for display (`../SOUL.md` → `SOUL.md`).
+  const source = [FILES.CLAUDE, FILES.CLAUDE_ROOT, FILES.CLAUDE_LOCAL].find((path) => existsSync(path));
   let labels: string[] = [];
   try {
-    labels = readFileSync(source, 'utf-8')
-      .split('\n')
-      .map((line) => line.match(/^@(\S+)/)?.[1])
-      .filter((value): value is string => Boolean(value));
+    labels = source
+      ? readFileSync(source, 'utf-8')
+          .split('\n')
+          .map((line) => line.match(/^@(\S+)/)?.[1])
+          .filter((value): value is string => Boolean(value))
+          .map((label) => {
+            const target = resolve(dirname(source), label);
+            const rel = relative(FOLDERS.HOME, target);
+            return rel.startsWith('..') || isAbsolute(rel) ? target : rel.split(sep).join('/');
+          })
+      : [];
   } catch {
     labels = [];
   }
 
-  // Claude Code loads CLAUDE.md at the user (~/.claude) and project levels
-  // *before* the project file's @-imports — surface them as instruction sources.
+  // Claude Code loads instructions at the user (~/.claude) and project levels *before*
+  // the project file's @-imports — surface them as instruction sources. AGENTS.md itself
+  // arrives through the import chain above.
   const claudeChain: Array<{ label: string; path: string; level: StaticImport['level'] }> = [
     {
       label: '~/.claude/CLAUDE.md',
       path: resolve(homedir(), '.claude', 'CLAUDE.md'),
       level: 'user'
     },
-    { label: 'CLAUDE.md', path: FILES.CLAUDE, level: 'project' },
+    { label: '.claude/CLAUDE.md', path: FILES.CLAUDE, level: 'project' },
+    { label: 'CLAUDE.md', path: FILES.CLAUDE_ROOT, level: 'project' },
     { label: 'CLAUDE.local.md', path: FILES.CLAUDE_LOCAL, level: 'local' }
   ];
   const claudeImports: StaticImport[] = claudeChain

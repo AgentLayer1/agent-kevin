@@ -48,7 +48,7 @@ The compiler distinguishes signal from noise. Each Learning includes a **Why:** 
 
 ## Optional: Prompt Evolution
 
-A periodic review (monthly or as-needed) reads compiled feedback themes against current personality and operational files (`SOUL.md`, `CLAUDE.md`, skills). The agent proposes specific, minimal diffs — shown as before/after — for user approval. On approval, changes are committed with a `self-evolve:` prefix for traceability.
+A periodic review (monthly or as-needed) reads compiled feedback themes against current personality and operational files (`SOUL.md`, `AGENTS.md`, skills). The agent proposes specific, minimal diffs — shown as before/after — for user approval. On approval, changes are committed with a `self-evolve:` prefix for traceability.
 
 ## Guardrails
 
@@ -58,7 +58,7 @@ The approval hierarchy prevents unchecked self-modification:
 |------|-------------------|
 | `IDENTITY.md` (safety rules) | Never modified without explicit approval |
 | `SOUL.md` (personality) | Requires approval; diffs shown before apply |
-| `CLAUDE.md` (operational rules) | Approval with lighter review |
+| `AGENTS.md` (operational rules) | Approval with lighter review |
 | Skills and scheduled prompts | Lower friction; still approval-gated |
 
 The agent can never bypass the approval gate. All proposed changes are shown as diffs, not applied silently.

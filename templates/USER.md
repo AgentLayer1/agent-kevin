@@ -1,6 +1,6 @@
 # About {{NAME}}
 
-Kevin reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want Kevin to work with me. Keep it tight — depth lives in `knowledge/user/*.md`.
+Kevin reads this every session (it is part of the identity stack loaded at session start). The headline of who I am and how I want Kevin to work with me. Keep it tight — depth lives in `knowledge/user/*.md`.
 
 ## Identity
 

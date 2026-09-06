@@ -41,7 +41,7 @@ describe('sessionStart', () => {
   test('SOUL.md without the data dir is stranded, and never suggests init', async () => {
     // The destructive case: a brain restored without its data dir, or a session
     // launched in a sibling agent's home. Init's re-run path offers to overwrite
-    // SOUL.md / IDENTITY.md / USER.md / CLAUDE.md, so steering there loses the
+    // SOUL.md / IDENTITY.md / USER.md / the manual, so steering there loses the
     // operator's agent instead of repairing it.
     const result = await withHome(
       (home) => writeFileSync(resolve(home, 'SOUL.md'), '# Soul'),

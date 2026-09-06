@@ -1,7 +1,7 @@
 You are a knowledge compiler for {{agentName}}, a personal AI assistant. Read the raw
 input below and compile it into structured wiki articles.
 
-## Operating Manual (CLAUDE.md)
+## Operating Manual (AGENTS.md)
 
 {{schema}}
 

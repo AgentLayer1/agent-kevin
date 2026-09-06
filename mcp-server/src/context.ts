@@ -1,16 +1,17 @@
 /**
  * Per-session DYNAMIC context preamble.
  *
- * Static identity (SOUL, IDENTITY, USER, CLAUDE) and knowledge indexes are
- * loaded natively by Claude Code via `@-imports` inside `<HOME>/CLAUDE.md` —
- * no hook involvement needed when CC opens in (or under) AGENT_HOME.
+ * Static identity (SOUL, IDENTITY, USER, the AGENTS.md manual) and knowledge
+ * indexes are loaded natively by Claude Code via `@-imports` inside
+ * `<HOME>/.claude/CLAUDE.md` — no hook involvement needed when CC opens in (or
+ * under) AGENT_HOME.
  *
  * This hook only injects what CC can't know from files alone: today's date in
  * the user's timezone, the tail of yesterday's session log for continuity, and
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, operatingManualPath, PLUGIN_VERSION, TIMEZONE } from '@/config';
 import { agentDisplayName } from '@/shared/agent-name';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
@@ -316,13 +317,13 @@ async function gatherContext(): Promise<GatheredContext> {
  * a token added later is caught without anyone remembering to update this.
  */
 const unresolvedPlaceholders = (): string[] => {
-  const files = [FILES.CLAUDE, FILES.CLAUDE_LOCAL, FILES.SOUL, FILES.IDENTITY, FILES.USER];
+  const files = [operatingManualPath(), FILES.CLAUDE, FILES.SOUL, FILES.IDENTITY, FILES.USER];
   return files.flatMap((file) => {
     try {
       const found = [...readFileSync(file, 'utf-8').matchAll(/\{\{[A-Z][A-Z0-9_]*\}\}/g)].map((match) => match[0]);
       return found.length > 0 ? [`${basename(file)}: ${[...new Set(found)].join(', ')}`] : [];
     } catch {
-      return []; // absent file — normal (CLAUDE.local.md usually, USER.md pre-init)
+      return []; // absent file — normal (the bridge before migration, USER.md pre-init)
     }
   });
 };

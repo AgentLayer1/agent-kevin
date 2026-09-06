@@ -3,8 +3,9 @@
  *
  * The Recent tab links each session card to the tasks it worked on and the
  * plans it produced, derived from the session's transcript. A RAW transcript
- * scan is useless: CLAUDE.md @-imports TASKS.md + the memory index into every
- * session, so every transcript carries the same context IDs. We scan only the
+ * scan is useless: the `.claude/CLAUDE.md` @-import chain pulls TASKS.md + the
+ * memory index into every session, so every transcript carries the same context
+ * IDs. We scan only the
  * actual conversation — real user text, assistant text, and assistant tool_use
  * inputs (file paths, task-tool args) — never the injected context or tool
  * *results*. (Mirrors list_sessions.ts's isRealUserText.)
