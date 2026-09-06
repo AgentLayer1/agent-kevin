@@ -5,7 +5,7 @@ All notable changes to **agent-kevin** are recorded here. The format follows
 [Semantic Versioning](https://semver.org/).
 
 The version that matters is the one in `.claude-plugin/plugin.json`. `/plugin update`
-pulls new plugin **code**; it does not touch a consumer's HOME files (`CLAUDE.md`,
+pulls new plugin **code**; it does not touch a consumer's HOME files (`AGENTS.md`,
 `SOUL.md`, settings, rules, …) or run `bun install`. The **Upgrade** block in each
 release below is the machine-actionable contract that `/agent-kevin:upgrade` reads
 to reconcile a HOME after a code update. Producers write these with
@@ -42,6 +42,99 @@ and prompts per optional one. The new template files are the source of truth for
 *content*; these tags only say *which* files changed and *how aggressively* to apply.
 
 <!-- Add new releases below this line, newest first. -->
+
+## [0.4.0] - 2026-09-06
+
+### Added
+- **`AGENTS.md` is the operating manual.** The agent home's manual is now a
+  harness-neutral `AGENTS.md` at the root, read natively by Codex and every other
+  AGENTS.md-aware CLI. Claude Code, which does not read `AGENTS.md`, reaches it through
+  a new `.claude/CLAUDE.md` bridge: `@-imports` for the manual, the identity stack
+  (SOUL, IDENTITY, USER) and the indexes, plus the few rules that apply only under
+  Claude Code (plan mode, the auto-memory override, hook-driven capture). One manual at
+  the root, no per-harness copies. `templates/AGENTS.md` is the manual;
+  `templates/CLAUDE.md` is now the bridge.
+- **`0.4.0` migration** (`skills/upgrade/scripts/0.4.0.ts`): builds `AGENTS.md` from
+  the legacy root `CLAUDE.md` (or `CLAUDE.local.md`): template preamble, sections
+  carried verbatim, operator preamble kept, operator-added `@-imports` re-rooted into
+  the bridge. Writes the bridge, retargets markdown links to the moved file, then
+  removes the legacy file. Backs up every touched file to
+  `.kevin/updates/0.4.0-manual-<stamp>/`, rolls back every write of the run on any
+  verification failure, keeps CRLF line endings, idempotent.
+- `ping` reports the plugin `version` the server process loaded, so
+  `/agent-kevin:upgrade` can detect a server older than the code on disk and stop
+  before a migration silently reads as already applied.
+- **The recommended auto-mode block is generated, not transcribed.**
+  `skills/init/scripts/automode-block.ts` renders it from the init skill's source of truth
+  with the home's path substituted, checks the operator's user-global copy rule by rule
+  (exact text, matched by rule name; `environment` is never compared), and writes a
+  readable note with the changed sentences and paste-ready replacement entries to
+  `.kevin/updates/automode-block.md`. `init`
+  prints it at the end of onboarding; `upgrade` re-checks it every run. Print-only, as
+  before: the plugin never writes `~/.claude/settings.json`.
+- **Session start flags a broken manual layout.** When `AGENTS.md` exists but the
+  `.claude/CLAUDE.md` bridge is missing, or a pre-0.4.0 root `CLAUDE.md` still sits beside
+  `AGENTS.md`, the banner says so every session until `/agent-kevin:upgrade` fixes it —
+  the two states in which Claude Code would load nothing or load the manual twice.
+
+### Changed
+- `init` writes `AGENTS.md` and the `.claude/CLAUDE.md` bridge. A project's own
+  `AGENTS.md` at the home root gets the manual appended; a root `CLAUDE.md` is no
+  longer a collision, and `CLAUDE.local.md` as the manual's alternate location retires.
+- `upgrade` maps both templates to their new homes (`AGENTS.md`, `.claude/CLAUDE.md`),
+  runs the `0.4.0` migration before any template merge, refuses to proceed when the
+  running server is older than the installed code, surfaces a user-global auto-mode
+  block that predates `AGENTS.md` with paste-ready replacements, and no longer offers a
+  seed template over a concept article the knowledge compile has taken over.
+- The server resolves the manual wherever a home currently keeps it (`AGENTS.md`, the
+  legacy root `CLAUDE.md`, or `CLAUDE.local.md`), so compile, seed import, and the
+  session-start placeholder scan keep working between a plugin update and the home's
+  upgrade.
+- **Seed format: the operating-manual overlay travels as `AGENTS.md` only.** Bundles
+  exported before 0.4.0 carry it as `CLAUDE.md` and are rejected by import; re-export
+  them from a 0.4.0 plugin. Importing into a home not yet on the 0.4.0 layout still
+  appends the overlay to its legacy manual.
+- The status collector reads the `@-import` chain from the bridge and labels imports
+  HOME-relative in the dashboard; `rename-agent` sweeps the bridge despite the
+  dot-directory exclusion; seed-export, release, self-review, sync, configure-skills,
+  setup-worktree, and the project skills name the new files. README and the printed
+  auto-mode block follow: the Agent Knowledge Base allow and the Identity File
+  Replacement soft-deny now name `AGENTS.md`.
+
+### Upgrade
+- `manual: none` — **restart Claude Code after `/plugin update`, before running this
+  upgrade.** The MCP server changed; `upgrade` now compares `ping`'s `version` with the
+  installed code and stops on a stale server instead of treating the migration as
+  already applied.
+- `script: required` — run `skills/upgrade/scripts/0.4.0.ts` via `run_upgrade`. Moves
+  the manual from the root `CLAUDE.md` (or `CLAUDE.local.md`) to `AGENTS.md` and writes
+  the `.claude/CLAUDE.md` bridge; retargets markdown links to the moved file; removes
+  the legacy file. Backs up to `.kevin/updates/0.4.0-manual-<stamp>/`, rolls back on
+  any verification failure, idempotent. Runs before any template merge.
+- `template/AGENTS.md: mandatory` — the operating manual. Claude Code-only mechanics
+  (`@-import` context loading, the auto-memory override, the plan-mode rule, the hook
+  capture note) moved out to the bridge; section text is otherwise carried from the
+  previous `CLAUDE.md` template.
+- `template/CLAUDE.md: mandatory` — new file at `.claude/CLAUDE.md` (the Claude Code
+  bridge). The migration writes it from this same template, so on a freshly migrated home
+  this merge is a no-op; its `@-import` lines sit in the preamble, which section merges
+  never touch.
+- `template/knowledge/concepts/self-evolution-loop.md: optional` — two `CLAUDE.md` →
+  `AGENTS.md` mentions (the prompt-evolution paragraph and the guardrails table).
+- `manual: optional` — if you pasted the printed auto-mode block into
+  `~/.claude/settings.json`, two of its rules changed: **Agent Knowledge Base** (allow)
+  and **Identity File Replacement** (soft-deny) now name `AGENTS.md`. The upgrade checks
+  your copy, prints the changed sentences and the exact replacement entries, and writes the
+  same as a note to `.kevin/updates/automode-block.md`; paste each over the entry with the
+  same name. Until
+  refreshed, auto mode classifies every write to `AGENTS.md` (template merges,
+  seed-import appends) as Instruction Poisoning and may prompt or block.
+- `manual: none` — the migration retargets markdown links to the moved file and the one
+  template sentence in `USER.md` that named it; every other mention of `CLAUDE.md` in
+  operator-authored files is left as history. On the first session after upgrading, run
+  `/context` and confirm `.claude/CLAUDE.md` lists its seven imports and no root
+  `CLAUDE.md` remains.
+
 
 ## [0.3.33] - 2026-09-05
 
