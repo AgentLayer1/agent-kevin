@@ -54,6 +54,58 @@ describe('sessionStart', () => {
     expect(result.error).toBeUndefined();
   });
 
+  const markedHome = (home: string, files: Record<string, string>): void => {
+    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
+    writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}');
+    mkdirSync(resolve(home, '.claude'), { recursive: true });
+    for (const [rel, content] of Object.entries(files)) writeFileSync(resolve(home, rel), content);
+  };
+
+  test('a migrated home with the bridge in place raises no layout warning', async () => {
+    const result = await withHome(
+      (home) =>
+        markedHome(home, { 'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n', '.claude/CLAUDE.md': '@../AGENTS.md\n' }),
+      () => sessionStart()
+    );
+    expect(result.additionalContext).not.toContain('Operating manual layout');
+  });
+
+  test('AGENTS.md without the bridge is flagged every session', async () => {
+    const result = await withHome(
+      (home) => markedHome(home, { 'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n' }),
+      () => sessionStart()
+    );
+    expect(result.hasIssues).toBe(true);
+    expect(result.additionalContext).toContain('Operating manual layout');
+    expect(result.additionalContext).toContain('is missing, so Claude Code loads neither');
+  });
+
+  test('a pre-0.4.0 root CLAUDE.md beside AGENTS.md is flagged as a double load', async () => {
+    const result = await withHome(
+      (home) =>
+        markedHome(home, {
+          'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n',
+          '.claude/CLAUDE.md': '@../AGENTS.md\n',
+          'CLAUDE.md': '@SOUL.md\n\n# CLAUDE.md\n\n## Memory Routing\n'
+        }),
+      () => sessionStart()
+    );
+    expect(result.additionalContext).toContain('loads twice');
+  });
+
+  test("a project's own root CLAUDE.md beside AGENTS.md is not a double load", async () => {
+    const result = await withHome(
+      (home) =>
+        markedHome(home, {
+          'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n',
+          '.claude/CLAUDE.md': '@../AGENTS.md\n',
+          'CLAUDE.md': '# My project rules\n'
+        }),
+      () => sessionStart()
+    );
+    expect(result.additionalContext).not.toContain('Operating manual layout');
+  });
+
   test('the home marker alone marks the home, with no SOUL.md needed', async () => {
     const result = await withHome(
       (home) => {

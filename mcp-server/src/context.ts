@@ -11,11 +11,20 @@
  * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
-import { CONTEXT, extraGitRepos, FILES, FOLDERS, HOME_TIMEZONE, operatingManualPath, PLUGIN_VERSION, TIMEZONE } from '@/config';
+import {
+  CONTEXT,
+  extraGitRepos,
+  FILES,
+  FOLDERS,
+  HOME_TIMEZONE,
+  operatingManualPath,
+  PLUGIN_VERSION,
+  TIMEZONE
+} from '@/config';
 import { agentDisplayName } from '@/shared/agent-name';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
@@ -275,7 +284,6 @@ async function gatherContext(): Promise<GatheredContext> {
     .map((log) => `### ${log.label}\n\n\`\`\`\n${log.output}\n\`\`\``);
   if (gitSections.length > 0) parts.push(`## Recent Git Activity\n\n${gitSections.join('\n\n')}`);
 
-
   const stranded = unresolvedPlaceholders();
   if (stranded.length > 0) {
     entries.push({ label: 'identity files', status: 'unavailable', bytes: 0, note: 'unresolved placeholders' });
@@ -296,6 +304,21 @@ async function gatherContext(): Promise<GatheredContext> {
         'have written this text deliberately (notes about a templating system, for instance), and',
         'silently rewriting their own words would be worse than the warning. Do not re-run init to',
         'repair it either: the re-run path offers to overwrite these same files.'
+      ].join('\n')
+    );
+  }
+
+  const layout = manualLayoutIssues();
+  if (layout.length > 0) {
+    entries.push({ label: 'manual layout', status: 'unavailable', bytes: 0, note: 'needs upgrade' });
+    parts.push(
+      [
+        '## ⚠️ Operating manual layout',
+        '',
+        ...layout.map((line) => `- ${line}`),
+        '',
+        '**Report this to the operator.** Do not move or delete the files yourself; the upgrade',
+        'backs up, verifies, and rolls back, and a by-hand move has none of that.'
       ].join('\n')
     );
   }
@@ -326,6 +349,31 @@ const unresolvedPlaceholders = (): string[] => {
       return []; // absent file — normal (the bridge before migration, USER.md pre-init)
     }
   });
+};
+
+/**
+ * Layout states the 0.4.0 manual migration can leave behind when interrupted, or an
+ * operator can create by hand — each one means Claude Code loads the wrong thing at
+ * session start, so it is worth a line in the banner every session until fixed.
+ */
+const manualLayoutIssues = (): string[] => {
+  if (!existsSync(FILES.AGENTS)) return [];
+  const issues: string[] = [];
+  if (!existsSync(FILES.CLAUDE)) {
+    issues.push(
+      '`.claude/CLAUDE.md` is missing, so Claude Code loads neither the manual nor the identity stack — run `/agent-kevin:upgrade` to write the bridge'
+    );
+  }
+  try {
+    if (/^## Memory Routing\s*$/m.test(readFileSync(FILES.CLAUDE_ROOT, 'utf-8'))) {
+      issues.push(
+        'the root `CLAUDE.md` is still the pre-0.4.0 operating manual, so the manual loads twice — run `/agent-kevin:upgrade` to move it aside'
+      );
+    }
+  } catch {
+    // no root CLAUDE.md — the normal state
+  }
+  return issues;
 };
 
 export async function assembleContext(): Promise<AssembledContext> {

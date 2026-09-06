@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(unzip -l *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
 
 # Initialize the agent
@@ -927,6 +927,19 @@ The `defaultMode` line matters as much as the sentences: the *built-in* auto def
   }
 }
 ```
+
+**Generate the block, don't transcribe it.** The JSON below is the source of truth, and
+`skills/init/scripts/automode-block.ts` reads it from this file:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/automode-block.ts" --home "$HOME_DIR" \
+  --out "$HOME_DIR/.kevin/updates/automode-block.md"
+```
+
+It prints the block with `<HOME_DIR>` substituted and writes a readable note at
+`.kevin/updates/automode-block.md` so the operator can open it after the session (the upgrade
+skill regenerates and re-checks that note on every run). Paste the printed output into the
+Step 9 summary verbatim.
 
 **Substitute `<HOME_DIR>` with the home's real absolute path when printing.** The two allow sentences anchor on "an agent home named in Environment" — without the `environment` line they dangle, and any directory with a `knowledge/` tree could claim the exception. The SKILL.md source stays path-free (it ships to every home), but the printed output goes only to this operator's terminal, so interpolating their path there leaks nothing. An operator running several agent homes extends the `Agent homes:` entry with each home's path and appends one `Additional trusted repo:` line per home into the same `environment` array, rather than pasting the whole block twice; the knowledge-base exception self-scopes to the home the session started in, so listing every home does not let one agent write another agent's brain under the exception.
 

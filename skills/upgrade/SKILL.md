@@ -226,6 +226,14 @@ on their say-so either way.
 
 `USER.md` and `knowledge/user/*` are pure operator data — **never** reconciled here.
 
+**A concept article that compile has taken over is operator data too.** The seeded
+`knowledge/concepts/<x>.md` files start as template copies, but the knowledge compile
+rewrites them as the home learns, and the result can diverge from the seed completely.
+Before reconciling one, read its frontmatter: if `sources:` no longer reads
+`seeded by /agent-kevin:init` (or the body has grown past the template's shape), compile
+owns it — skip the merge and say so in the report, never offer the seed's text as a
+replacement. Reconcile only articles still in their seeded form.
+
 **`IDENTITY.md`'s preamble and its `## Who` section are never reconciled either.** They
 hold the agent's persona — name, kind, vibe, emoji, avatar — which is the operator's,
 not the plugin's. Reconciling them would fight every operator who refined their agent's
@@ -351,44 +359,46 @@ If the write fails with a permission error, the operator's sandbox protects
 Don't retry or work around it — surface the exact JSON block for them to paste and carry
 it into the Step 6 report as a `manual:` note.
 
-**Surface the user-global auto-mode block when it's missing (built-in invariant, every
-run).** Read `~/.claude/settings.json` (treat as `{}` if absent). If
-`permissions.defaultMode` is unset there, this operator is likely riding Claude Code's
-fragile built-in default — or, when `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set
-in any of their settings scopes, not in auto mode at all — and is the profile that
-reports permission-prompt fatigue. Print the recommended user-settings block from the
-init skill's auto-mode section (**that section is the source of truth — read it from
-`skills/init/SKILL.md`, don't restate it here**) as a `manual:` note in the Step 6
-report, with its one-line tradeoff. Same discipline as init: **print only, never write
-user-global settings, never gate the upgrade on it.** When `defaultMode` is already set
-(any value — an explicit Manual is a choice), stay silent: the operator has decided.
-
-**Surface a stale custom auto-mode block (built-in invariant, every run).** An operator
-who adopted the printed block earlier has rules that name the identity files by filename.
-When the plugin's own rule text moves on (0.4.0 added `AGENTS.md`, the operating manual,
-to the Agent Knowledge Base allow and the Identity File Replacement soft-deny), their copy
-silently stops covering the new file and every write to it is judged as Instruction
-Poisoning. Detect it mechanically rather than by reading prose:
+**Check the user-global auto-mode block (built-in invariant, every run).** The recommended
+block lives in the init skill's auto-mode section, and it moves with the plugin (0.4.0 added
+`AGENTS.md`, the operating manual, to the Agent Knowledge Base allow and the Identity File
+Replacement soft-deny). A copy the operator pasted earlier goes stale silently, and from
+then on every write to the file the new rule names is judged as Instruction Poisoning.
+Never transcribe the block or compare its prose by eye — generate and check it:
 
 ```bash
-bun -e 'const fs=require("node:fs"),os=require("node:os"),p=require("node:path");
-let s={};try{s=JSON.parse(fs.readFileSync(p.join(os.homedir(),".claude/settings.json"),"utf8"))}catch{}
-const rules=[...(s.autoMode?.allow??[]),...(s.autoMode?.soft_deny??[])].filter(r=>/Agent Knowledge Base|Identity File Replacement/.test(r));
-const stale=rules.filter(r=>!/AGENTS\.md/.test(r)).length;
-console.log(rules.length===0?"AUTOMODE_CUSTOM=absent":stale?"AUTOMODE_CUSTOM=stale":"AUTOMODE_CUSTOM=current")'
+bun "$PLUGIN_ROOT/skills/init/scripts/automode-block.ts" --home "$HOME_DIR" --check \
+  --out "$HOME_DIR/.kevin/updates/automode-block.md"
 ```
 
-- `absent` — the operator never adopted the block; the missing-block rule above already
-  covers them. Nothing more to print.
+It prints a JSON report and writes a readable note to `.kevin/updates/automode-block.md`
+(status, the sentences that changed per rule, the full replacement strings, the full block),
+so the operator can open it after the session instead of scrolling back. In the JSON: `status` is `absent`
+(never adopted), `stale` (one or more rules differ from the current text), or `current`;
+`rules` lists every canonical rule with `current` / `stale` / `missing`; `replacements`
+carries the exact text of each rule that needs replacing; `block` is the whole recommended
+block with this home's path substituted. `environment` is never compared or proposed —
+operators extend it per home.
+
 - `current` — silent.
-- `stale` — print, as a `manual:` note in the Step 6 report, the exact sentences that
-  changed: quote the current Agent Knowledge Base allow sentence and the Identity File
-  Replacement soft-deny **from `skills/init/SKILL.md`'s printed block** (the source of
-  truth — never restate them here), and tell the operator to replace their two entries
-  with them. Same discipline as above: **print only, never write user-global settings,
-  never gate the upgrade on it.** Mention the one consequence of ignoring it: under auto
-  mode, template merges and seed-import appends to `AGENTS.md` will be classified and
-  may prompt or block until the block is refreshed.
+- `stale` — a `manual:` note in the Step 6 report: for each `replacements` entry, its list and
+  name, its `changes` (the OLD/NEW sentences, so the operator sees what actually moved), and
+  the full `text` **verbatim** inside a json fence, plus the note path and the one
+  consequence of ignoring it: under auto mode, template merges and seed-import appends to
+  `AGENTS.md` will be classified and may prompt or block until the block is refreshed.
+- `absent` and `defaultMode` unset — this operator is likely riding Claude Code's fragile
+  built-in default (it needs Pro/Max/Team OAuth and reachable feature flags, and it skips
+  the first session after every update), and is the profile that reports
+  permission-prompt fatigue. Print `block` in full as a `manual:` note with its one-line
+  tradeoff (Instruction Poisoning is a genuine defense and the knowledge-tree exception
+  lowers it, bounded by the carve-outs the block spells out) and the file path.
+- `absent` and `defaultMode` set (any value — an explicit Manual is a choice) — stay
+  silent: the operator has decided.
+
+Same discipline as init in every case: **print only, never write user-global settings,
+never gate the upgrade on it.** That file governs every project on the machine and the
+block is the classifier's own rule set; an agent rewriting it from inside a session is
+the edit the classifier exists to catch.
 
 ## Step 6 — Report
 
@@ -399,7 +409,9 @@ One concise summary:
 - asked: optional merges and what the user chose
 - skipped: anything already current
 - backup path
-- any `manual:` notes still needing the operator's hand
+- any `manual:` notes still needing the operator's hand — **quoted verbatim** from the
+  CHANGELOG or the generated report, never paraphrased: a note the operator cannot act on
+  by copy-paste is a note that gets skipped
 - the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
 
 **Mention the first-session lag when the harness version moved.** Claude Code's built-in
