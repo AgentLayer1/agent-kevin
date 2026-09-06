@@ -1,13 +1,13 @@
 ---
 name: upgrade
-description: Apply pending HOME migrations after a plugin code update. `/plugin update` refreshes plugin code (skills, hooks, MCP server, templates) but never touches a home's scaffolded files (CLAUDE.md, SOUL.md, settings, rules) or runs bun install. This skill reads the CHANGELOG's Upgrade blocks from the home's recorded baseline up to the installed version, backs up, runs bun install when needed, auto-applies functionality-critical changes, and asks before touching anything you may have personalized. Use when the SessionStart banner / dashboard shows "upgrade available" or "enable update tracking", or the user says "upgrade kevin", "apply the update", "I just ran /plugin update".
-allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__run_upgrade
+description: Apply pending HOME migrations after a plugin code update. `/plugin update` refreshes plugin code (skills, hooks, MCP server, templates) but never touches a home's scaffolded files (AGENTS.md, SOUL.md, settings, rules) or runs bun install. This skill reads the CHANGELOG's Upgrade blocks from the home's recorded baseline up to the installed version, backs up, runs bun install when needed, auto-applies functionality-critical changes, and asks before touching anything you may have personalized. Use when the SessionStart banner / dashboard shows "upgrade available" or "enable update tracking", or the user says "upgrade kevin", "apply the update", "I just ran /plugin update".
+allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__ping, mcp__plugin_agent-kevin_kevin__run_upgrade
 ---
 
 # Upgrade — apply pending HOME migrations
 
 `/plugin update` pulls new plugin **code**. It does **not** touch this home's
-scaffolded files (`CLAUDE.md`, `SOUL.md`, `IDENTITY.md`, `.claude/settings.json`,
+scaffolded files (`AGENTS.md`, `.claude/CLAUDE.md`, `SOUL.md`, `IDENTITY.md`, `.claude/settings.json`,
 `.claude/rules/`, `knowledge/concepts/`) — those were copied from `templates/`
 during `/init` — and it does **not** run `bun install`, so a release that added an
 MCP dependency leaves the server unable to start until deps are installed.
@@ -76,6 +76,15 @@ the user to run this from their agent home (or set `KEVIN_HOME`).
 Read `$PLUGIN_ROOT/CHANGELOG.md`. Each release is a `## [x.y.z] - DATE` heading
 with an `### Upgrade` block (format documented at the top of the CHANGELOG).
 
+- **The running server is older than the code on disk** → call the `ping` tool and
+  compare its `version` with `$INSTALLED`. They differ when the plugin code was updated
+  (a marketplace pull, or a merge into a directory-marketplace checkout) while this
+  session's MCP server kept running: skills and hooks already read the new files, but
+  `run_upgrade` and every other tool are still the old process. In that state a
+  `script:` action comes back `found: false` from a server that has no such script, and
+  the skill would read that as "already applied". Tell the user to restart Claude Code
+  and re-run this; **stop**. (A server that returns no `version` field predates this
+  check — proceed.)
 - **No CHANGELOG / no entries** → the installed plugin predates release tracking.
   Tell the user there's nothing to apply; stop.
 - **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)."; stop.
@@ -134,7 +143,7 @@ Upgrade vBASELINE → vINSTALLED (N releases)
   settings:  +2 permissions                          [auto]
   files:     +1 new rule (.claude/rules/python.md)   [auto]
   script:    run scripts/0.3.0.ts (secrets move)     [auto, required]
-  CLAUDE.md: 1 new section "Upgrades"                 [auto, mandatory]
+  AGENTS.md: 1 new section "Upgrades"                 [auto, mandatory]
   SOUL.md:   1 changed section "Writing Style"        [ask]
 ```
 
@@ -149,6 +158,9 @@ mkdir -p "$BACKUP"
 # for each file in the plan that exists:
 #   mkdir -p "$BACKUP/$(dirname REL)"; cp "$HOME_DIR/REL" "$BACKUP/REL"
 ```
+
+A `script:` action's note names the files its migration moves or rewrites — snapshot those
+too, even though migrations keep their own backup.
 
 Tell the user the backup path. If anything looks wrong afterward, they restore from there.
 
@@ -194,11 +206,23 @@ Never overwrite an existing file in this step (additive = new files only).
 
 | Template | HOME destination |
 |---|---|
-| `templates/CLAUDE.md` | `CLAUDE.md` (or `CLAUDE.local.md` if that's what `/init` wrote) |
+| `templates/AGENTS.md` | `AGENTS.md` (the operating manual) |
+| `templates/CLAUDE.md` | `.claude/CLAUDE.md` (the Claude Code bridge) |
 | `templates/SOUL.md` | `SOUL.md` |
 | `templates/IDENTITY.md` | `IDENTITY.md` |
 | `templates/rules/<x>.md` | `.claude/rules/<x>.md` |
 | `templates/knowledge/concepts/<x>.md` | `knowledge/concepts/<x>.md` |
+
+Both manual files exist only on the 0.4.0 layout. A home still carrying its manual as a root
+`CLAUDE.md` (or `CLAUDE.local.md`) is moved by the `0.4.0` `script:` action, which runs
+earlier in this step; if `AGENTS.md` is still missing when you reach a template merge, stop
+and surface it rather than merging into the legacy file.
+
+**Before the first merge into `AGENTS.md`, run the stale auto-mode check** (the built-in
+invariant at the end of this step). If it reports `stale`, say so now and offer to pause: under auto
+mode, a Write or Edit to `AGENTS.md` may be classified until the operator refreshes their
+block, and it is better they fix that before the merges than discover it mid-merge. Continue
+on their say-so either way.
 
 `USER.md` and `knowledge/user/*` are pure operator data — **never** reconciled here.
 
@@ -219,8 +243,12 @@ Merge algorithm (per file):
    `##` heading text.
 3. Resolve any `{{TOKENS}}` in T the same way the existing H resolved them (e.g.
    `{{KNOWLEDGE_REL}}`, `{{PROJECTS_REL}}`, `{{PLATFORM}}`, `{{SHELL}}` — read the
-   values straight from H's corresponding lines). If a token can't be resolved with
-   confidence, leave that line as-is in H and flag it for the user.
+   values straight from H's corresponding lines — the token is the value only, so on
+   `- **Shell:** zsh, Homebrew at `/opt/homebrew`.` the value ends before the period). In
+   `.claude/CLAUDE.md`,
+   `{{KNOWLEDGE_IMPORT}}` / `{{PROJECTS_IMPORT}}` are the roots as the bridge imports them
+   (`../knowledge`, or an absolute path) — read them from H's own `@` lines. If a token
+   can't be resolved with confidence, leave that line as-is in H and flag it for the user.
 
    **`{{AGENT_NAME}}` resolves from the home's `IDENTITY.md`, not from the plugin.**
    Read the `- **Name:**` field of `$HOME_DIR/IDENTITY.md` and substitute it into T
@@ -259,7 +287,7 @@ manual and identity files and loads into every session from then on. Check befor
 stamping anything:
 
 ```bash
-grep -rn '{{[A-Z_]*}}' "$HOME_DIR"/{CLAUDE,CLAUDE.local,SOUL,IDENTITY}.md "$HOME_DIR/.claude/rules" 2>/dev/null
+grep -rn '{{[A-Z_]*}}' "$HOME_DIR"/{AGENTS,SOUL,IDENTITY}.md "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.claude/rules" 2>/dev/null
 ```
 
 Any hit means a merge wrote a template placeholder verbatim. **Restore those files from
@@ -334,6 +362,33 @@ init skill's auto-mode section (**that section is the source of truth — read i
 report, with its one-line tradeoff. Same discipline as init: **print only, never write
 user-global settings, never gate the upgrade on it.** When `defaultMode` is already set
 (any value — an explicit Manual is a choice), stay silent: the operator has decided.
+
+**Surface a stale custom auto-mode block (built-in invariant, every run).** An operator
+who adopted the printed block earlier has rules that name the identity files by filename.
+When the plugin's own rule text moves on (0.4.0 added `AGENTS.md`, the operating manual,
+to the Agent Knowledge Base allow and the Identity File Replacement soft-deny), their copy
+silently stops covering the new file and every write to it is judged as Instruction
+Poisoning. Detect it mechanically rather than by reading prose:
+
+```bash
+bun -e 'const fs=require("node:fs"),os=require("node:os"),p=require("node:path");
+let s={};try{s=JSON.parse(fs.readFileSync(p.join(os.homedir(),".claude/settings.json"),"utf8"))}catch{}
+const rules=[...(s.autoMode?.allow??[]),...(s.autoMode?.soft_deny??[])].filter(r=>/Agent Knowledge Base|Identity File Replacement/.test(r));
+const stale=rules.filter(r=>!/AGENTS\.md/.test(r)).length;
+console.log(rules.length===0?"AUTOMODE_CUSTOM=absent":stale?"AUTOMODE_CUSTOM=stale":"AUTOMODE_CUSTOM=current")'
+```
+
+- `absent` — the operator never adopted the block; the missing-block rule above already
+  covers them. Nothing more to print.
+- `current` — silent.
+- `stale` — print, as a `manual:` note in the Step 6 report, the exact sentences that
+  changed: quote the current Agent Knowledge Base allow sentence and the Identity File
+  Replacement soft-deny **from `skills/init/SKILL.md`'s printed block** (the source of
+  truth — never restate them here), and tell the operator to replace their two entries
+  with them. Same discipline as above: **print only, never write user-global settings,
+  never gate the upgrade on it.** Mention the one consequence of ignoring it: under auto
+  mode, template merges and seed-import appends to `AGENTS.md` will be classified and
+  may prompt or block until the block is refreshed.
 
 ## Step 6 — Report
 

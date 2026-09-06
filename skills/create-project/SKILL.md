@@ -73,7 +73,7 @@ Write `$PROJECTS/<slug>/README.md`:
 ## Structure
 
 - `README.md` — this file
-- `tasks/` — task files (see CLAUDE.md → Task System)
+- `tasks/` — task files (see AGENTS.md → Task System)
 
 <Add sections as the project grows. Don't pre-create empty folders.>
 ```

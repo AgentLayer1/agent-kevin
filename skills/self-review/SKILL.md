@@ -107,12 +107,12 @@ Plan body sections:
 - It's **durable** — a settled preference, not an in-flight experiment.
 - It survives a **framing audit** (mandatory before any text goes into a shared template):
   - No personal references, real repo names, private accounts, or private path/fixture data. Genericize to `Acme` if an example is needed.
-  - **No literal agent name.** `templates/SOUL.md` and `templates/CLAUDE.md` carry `{{AGENT_NAME}}`, which every home resolves to whatever it calls its agent. Writing "Kevin" (or this home's name, if it was renamed) into a shared template hardcodes one operator's persona for every install and reintroduces the name that `/agent-kevin:upgrade` then can't reconcile. Use the token.
+  - **No literal agent name.** `templates/SOUL.md`, `templates/AGENTS.md` and `templates/CLAUDE.md` carry `{{AGENT_NAME}}`, which every home resolves to whatever it calls its agent. Writing "Kevin" (or this home's name, if it was renamed) into a shared template hardcodes one operator's persona for every install and reintroduces the name that `/agent-kevin:upgrade` then can't reconcile. Use the token.
   - Re-frame personal-agent assumptions (personal accounts, personal cost) for the generic context a fresh-install template runs in.
 
 For each Track D proposal:
 - **Source rule** — the Track A edit it derives from.
-- **Target template file** — `templates/SOUL.md` or `templates/CLAUDE.md` (exact path).
+- **Target template file** — `templates/SOUL.md` or `templates/AGENTS.md` (exact path).
 - **Generic text** — the framing-audited wording (NOT a copy of the personal Track A text).
 - **Audit note** — one line confirming what was genericized/re-framed, or "nothing personal to scrub."
 

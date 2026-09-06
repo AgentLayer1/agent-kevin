@@ -102,7 +102,7 @@ Inside the session, register the local marketplace and install:
 
 Then `claude` again and `/agent-kevin:init` as above.
 
-> Already have a `CLAUDE.md` in the directory? Kevin writes its operating manual to `CLAUDE.local.md` instead and leaves yours alone. Both files load at session start.
+> Already have an `AGENTS.md` or `CLAUDE.md` in the directory? Kevin appends its operating manual to an existing `AGENTS.md` and never touches your `CLAUDE.md` — its own Claude Code file lives at `.claude/CLAUDE.md`, and both load at session start.
 
 ### Updating an installed plugin
 
@@ -123,7 +123,7 @@ Prefer hands-off? Turn on auto-update via `/plugin` → **Marketplaces** tab →
 #### Then apply the home-side changes: `/agent-kevin:upgrade`
 
 `/plugin update` refreshes the plugin **code** only — it never touches your home's
-scaffolded files (`CLAUDE.md`, `SOUL.md`, settings, rules) or runs `bun install`. After
+scaffolded files (`AGENTS.md`, `SOUL.md`, settings, rules) or runs `bun install`. After
 pulling a new version, run `/agent-kevin:upgrade` to reconcile your home:
 
 ```text
@@ -208,7 +208,7 @@ Pages and sub-tabs deep-link by hash (`dashboard.html#work/projects`), text filt
 
 Total time: ≈ 5 minutes. Each question's answer becomes the default for later steps — the name first of all, since every file the wizard writes is phrased in it. See [Naming your agent](#-naming-your-agent) if you want something other than Kevin, now or later. The wizard writes:
 
-- `CLAUDE.md` (operating manual + identity @-imports), or `CLAUDE.local.md` if a CLAUDE.md already exists
+- `AGENTS.md` (the operating manual, harness-neutral — Codex and every other AGENTS.md-aware CLI read it natively) and `.claude/CLAUDE.md` (the Claude Code bridge: `@-imports` the manual + identity stack, holds Claude-only rules)
 - `SOUL.md`, `IDENTITY.md`, `USER.md` (Kevin's character / role / your headline)
 - `knowledge/` and `projects/` directory trees, optionally at custom locations
 - `.claude/settings.json` (marketplace registration + pre-granted permissions for the **always-on core** MCP tools: `ping`, `compile_*`, `task_*`, `knowledge_lint`, `links_rewrite`, `memory_prune`, `report_write`. SEO + Browser pack tools land here only when you activate the matching pack via `configure-skills`)
@@ -244,15 +244,16 @@ $ cd ~/Documents/Agents/Kevin && claude
     ✓ git activity   0.3KB  (15 commits in the last week)
 
 > /context
-Context loaded from <HOME>/CLAUDE.md and its @-imports:
+Context loaded from <HOME>/.claude/CLAUDE.md and its @-imports:
 
-  CLAUDE.md                                operating manual + @-imports
-  └─ @SOUL.md                              Kevin's character
-  └─ @IDENTITY.md                          Kevin's role
-  └─ @USER.md                              your headline + links to deeper user facets
-  └─ @knowledge/index.md                   master catalog
-  └─ @knowledge/memory/index.md            active threads · decisions · learnings
-  └─ @projects/TASKS.md                    cross-project task dashboard
+  .claude/CLAUDE.md                        Claude Code bridge + @-imports
+  └─ @../AGENTS.md                         operating manual (harness-neutral)
+  └─ @../SOUL.md                           Kevin's character
+  └─ @../IDENTITY.md                       Kevin's role
+  └─ @../USER.md                           your headline + links to deeper user facets
+  └─ @../knowledge/index.md                master catalog
+  └─ @../knowledge/memory/index.md         active threads · decisions · learnings
+  └─ @../projects/TASKS.md                 cross-project task dashboard
 
 Read on demand (not auto-loaded — Kevin pulls them when relevant):
   · knowledge/user/{profile,skills,preferences,career,interests}.md
@@ -461,7 +462,7 @@ graph LR
     LN["knowledge/memory/<br/>index.md ## Learnings"]
     NEXT["next session"]
     REV["self-review skill"]
-    EDIT["edits to SOUL,<br/>CLAUDE.md, skills"]
+    EDIT["edits to SOUL,<br/>AGENTS.md, skills"]
     PLANS["plans to<br/>reports/plans/"]
 
     CAP --> FB
@@ -481,7 +482,7 @@ Each theme gets classified as **missing**, **buried**, **present-but-violated**,
 
 Proposals come in three tracks:
 
-- **Track A — prompt/skill edits.** Applied synchronously in-session, you pick which to accept. Surface choice is deliberate: identity → SOUL, procedural → CLAUDE.md, skill-specific → that skill's body.
+- **Track A — prompt/skill edits.** Applied synchronously in-session, you pick which to accept. Surface choice is deliberate: identity → SOUL, procedural → AGENTS.md, skill-specific → that skill's body.
 - **Track B — code-change plans.** Written to `<HOME>/reports/plans/` via the `report_write` MCP tool, never auto-applied. You implement them in a separate session.
 - **Track C — skill install or create.** Only when the signal is a recurring multi-step procedure. Requires explicit in-session approval.
 
@@ -517,7 +518,7 @@ Give each one its own identity with [`/agent-kevin:rename-agent`](#-naming-your-
 Each home can even bill against its own Claude account — see [Running homes on different Claude accounts](#running-homes-on-different-claude-accounts).
 
 ### 4. Augmenting an existing project
-You already have a project with its own `CLAUDE.md`. You want Kevin's memory + task system layered on top, without overwriting your existing instructions.
+You already have a project with its own `AGENTS.md` or `CLAUDE.md`. You want Kevin's memory + task system layered on top, without overwriting your existing instructions.
 
 ```bash
 cd ~/Developer/my-existing-project
@@ -525,10 +526,10 @@ claude
 /agent-kevin:init
 ```
 
-Init detects the pre-existing `CLAUDE.md` and writes Kevin's operating manual to `CLAUDE.local.md` instead. Both files load at session start (Claude Code natively merges them). Your project context and Kevin's identity coexist.
+Init never touches a root `CLAUDE.md` (Kevin's own Claude Code file is `.claude/CLAUDE.md`, and Claude Code loads both), and it appends its manual to a pre-existing `AGENTS.md` rather than replacing it. Your project context and Kevin's identity coexist.
 
 ### 5. Team-shared agent in a shared repo
-Drop Kevin into a team repo, commit the `<HOME>/{CLAUDE.md, SOUL.md, IDENTITY.md, .claude/settings.json, knowledge/}` files, gitignore `settings.local.json`. Every teammate gets the same agent identity. Each accepts the trust prompt once on first launch.
+Drop Kevin into a team repo, commit the `<HOME>/{AGENTS.md, .claude/CLAUDE.md, SOUL.md, IDENTITY.md, .claude/settings.json, knowledge/}` files, gitignore `settings.local.json`. Every teammate gets the same agent identity. Each accepts the trust prompt once on first launch.
 
 ### 6. Seed a teammate's agent from yours
 You've shaped your agent — renamed it, grown project knowledge, wired up custom skills and MCP servers — and a teammate wants to start from that instead of a blank scaffold, while their memory, sessions, and credentials stay entirely their own.
@@ -681,7 +682,8 @@ agent-kevin/
 ├── skills/                  # 30+ skills (core + SEO + Browser) auto-load with plugin
 │                            #   (per-version upgrade migrations live in skills/upgrade/scripts/<v>.ts)
 ├── templates/               # init copies these into <HOME>
-│   ├── CLAUDE.md            # → <HOME>/CLAUDE.md (or CLAUDE.local.md on collision)
+│   ├── AGENTS.md            # → <HOME>/AGENTS.md (the operating manual, harness-neutral)
+│   ├── CLAUDE.md            # → <HOME>/.claude/CLAUDE.md (Claude Code bridge: @-imports the manual + identity stack)
 │   ├── IDENTITY.md          # Kevin's role (includes Kevin's avatar)
 │   ├── SOUL.md              # Kevin's character
 │   ├── USER.md              # YOUR headline + links to knowledge/user/
@@ -698,6 +700,7 @@ agent-kevin/
 ```
 <HOME>/
 ├── .claude/
+│   ├── CLAUDE.md            # Claude Code bridge: @-imports AGENTS.md + the identity stack, Claude-only rules
 │   ├── assets/              # Kevin's avatar (kept out of the home root)
 │   ├── skills/              # third-party skill libraries installed via skills.sh (lazy)
 │   ├── settings.json        # enabledPlugins + pre-granted permissions
@@ -733,8 +736,7 @@ agent-kevin/
 │   ├── captures/            # browser-tool artifacts (screenshots, pdfs, recordings) — gitignored, regenerable
 │   └── plans/               # self-review code-change proposals (Track B) + native plan-mode saves (plansDirectory)
 ├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
-├── CLAUDE.md                # operating manual + @-imports for identity stack
-│                            # (or CLAUDE.local.md if CLAUDE.md pre-existed)
+├── AGENTS.md                # operating manual — harness-neutral; Claude Code reaches it via .claude/CLAUDE.md
 ├── IDENTITY.md              # Kevin's role + evolving self-description
 ├── SOUL.md                  # Kevin's character
 └── USER.md                  # YOUR headline + links to knowledge/user/
@@ -884,7 +886,7 @@ graph LR
 ```
 
 **Why two steps at all?** A plugin update replaces files in the *plugin* directory.
-Your *home* (`CLAUDE.md`, `SOUL.md`, `.claude/settings.json`, `knowledge/`, …) was
+Your *home* (`AGENTS.md`, `SOUL.md`, `.claude/settings.json`, `knowledge/`, …) was
 copied out of `templates/` once, at `/init`, and has been yours to edit ever since. A
 code update can't safely overwrite it. So the home is reconciled separately, on your
 terms.
@@ -914,7 +916,7 @@ on the SessionStart banner and the dashboard's sidebar badge:
    - `deps` → runs `bun install` in the MCP server
    - `settings` → merges missing `permissions.allow` entries (never removes yours)
    - `file` → copies new rule/concept files (only if absent)
-   - `template/<file>` → **section-aware merge** of `CLAUDE.md` / `SOUL.md` / etc.: adds
+   - `template/<file>` → **section-aware merge** of `AGENTS.md` / `SOUL.md` / etc.: adds
      new sections, updates changed ones, and **preserves any sections you added**
      (your personal blocks are never touched or deleted)
 5. **Stamp.** Writes the new baseline to `.kevin/version.json`.
@@ -1053,7 +1055,7 @@ The plugin is `agent-kevin`, but your agent doesn't have to be called Kevin. Two
 
 `/agent-kevin:init` asks for a name, an emoji and an avatar up front. Everything downstream reads the answer: the templates are written in that name, the session banner and `TASKS.md` header render it, and the knowledge-compile prompts refer to it, so your compiled memory speaks about the agent you actually named.
 
-Already have a home? **`/agent-kevin:rename-agent`** does the migration. It only runs when you type that command — it never fires on its own — and it asks for permission even then, because it rewrites files across the whole brain in one pass. It: rewrites the persona fields, swaps the avatar, sweeps the prose across `SOUL.md` / `CLAUDE.md` / `USER.md` / knowledge / projects, and leaves the plumbing alone. It won't touch your home directory path, so `~/Documents/Agents/Kevin` in a settings file or a wiki page survives intact.
+Already have a home? **`/agent-kevin:rename-agent`** does the migration. It only runs when you type that command — it never fires on its own — and it asks for permission even then, because it rewrites files across the whole brain in one pass. It: rewrites the persona fields, swaps the avatar, sweeps the prose across `SOUL.md` / `AGENTS.md` / `USER.md` / knowledge / projects, and leaves the plumbing alone. It won't touch your home directory path, so `~/Documents/Agents/Kevin` in a settings file or a wiki page survives intact.
 
 Renaming survives updates. `/agent-kevin:upgrade` resolves `{{AGENT_NAME}}` in the shipped templates from *your* `IDENTITY.md` before diffing, so template changes arrive phrased in your agent's name instead of proposing "Kevin" back on every release. The persona block is never reconciled at all.
 
@@ -1120,8 +1122,8 @@ A: You need to clone a git repo, run `bun install`, and launch Claude Code. Afte
 **Q: I finished `/init` and relaunched, but no SessionStart banner appears.**
 A: The marketplace trust prompt was missed. Recover inside Claude Code with `/plugin marketplace add github:AgentLayer1/agentlayer-claude-marketplace` followed by `/plugin install agent-kevin@agentlayer`, then `/exit` and relaunch.
 
-**Q: I already had a CLAUDE.md in this directory before installing Kevin. Did it get overwritten?**
-A: No. Init detects pre-existing `CLAUDE.md` and writes Kevin's operating manual to `CLAUDE.local.md` instead. Both files load at session start.
+**Q: I already had a CLAUDE.md (or AGENTS.md) in this directory before installing Kevin. Did it get overwritten?**
+A: No. Kevin's operating manual is `AGENTS.md` and its Claude Code file is `.claude/CLAUDE.md`, so your root `CLAUDE.md` is never touched (Claude Code loads both). A pre-existing `AGENTS.md` gets Kevin's manual appended below your content, never replaced.
 
 **Q: How do I update the plugin?**
 A: `/plugin marketplace update agentlayer` from inside Claude Code. Or if you cloned locally, `git pull` the marketplace repo. Your `<HOME>/` data is untouched.

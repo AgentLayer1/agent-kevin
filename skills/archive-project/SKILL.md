@@ -108,7 +108,7 @@ Run all of these. Anything red = stop and fix.
 
 - Grep the project name across active paths — should return zero hits:
   ```
-  CLAUDE.md .claude/ knowledge/index.md knowledge/memory/ knowledge/concepts/
+  AGENTS.md .claude/ knowledge/index.md knowledge/memory/ knowledge/concepts/
   ```
 - `archive/<project>/` exists, `$PROJECTS/<project>/` does not.
 - `knowledge/index.md` Projects table no longer lists the project.

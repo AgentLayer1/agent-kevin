@@ -1,6 +1,6 @@
 ---
 name: rename-agent
-description: Rename this agent's display name across an existing HOME — IDENTITY.md fields, avatar, and every prose mention in SOUL/CLAUDE/USER, knowledge, and projects — without forking the plugin or touching the `/agent-kevin:` namespace. Also the repair path when a half-finished rename left mixed names behind. Only runs when explicitly invoked via /rename-agent, and is deliberately left ungranted so it asks for permission every time.
+description: Rename this agent's display name across an existing HOME — IDENTITY.md fields, avatar, and every prose mention in SOUL/AGENTS/USER, the .claude/CLAUDE.md bridge, knowledge, and projects — without forking the plugin or touching the `/agent-kevin:` namespace. Also the repair path when a half-finished rename left mixed names behind. Only runs when explicitly invoked via /rename-agent, and is deliberately left ungranted so it asks for permission every time.
 disable-model-invocation: true
 ---
 
@@ -22,7 +22,7 @@ Two gates, both intentional: don't "fix" either by adding a grant.
 |---|---|
 | `IDENTITY.md` → `Name`, `Emoji`, `Avatar` | `/agent-kevin:*` slash commands |
 | The avatar image file | `mcp__plugin_agent-kevin_kevin__*` tool names |
-| Prose in `SOUL.md`, `CLAUDE.md`, `USER.md` | `KEVIN_*` / `AGENT_*` env vars |
+| Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `KEVIN_*` / `AGENT_*` env vars |
 | Prose in `knowledge/`, `projects/`, reports | `.kevin/` runtime dir |
 | | `enabledPlugins` in `.claude/settings.json` |
 
@@ -74,7 +74,9 @@ rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l | he
   `--hidden` to get around it.** `.kevin/` is runtime state (compile cursor, logs,
   config) and `.claude/settings*.json` plus `.mcp.json` are harness config holding
   absolute paths and permission rules. A stray edit there breaks the session rather
-  than mislabeling a document.
+  than mislabeling a document. **One exception, swept explicitly in Step 4:**
+  `.claude/CLAUDE.md`, the Claude Code bridge — it is prose (its title reads
+  `# CLAUDE.md — Claude Code bridge for Kevin`), not config.
 - **Path segments** — see the lookarounds in the pattern below.
 
 **The home directory is not renamed and must not be.** By convention it's
@@ -117,6 +119,8 @@ rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l \
   | while IFS= read -r file; do
       perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vikrum}g' "$file"
     done
+# The bridge is prose too, but it lives under .claude/ where rg does not look.
+[ -f .claude/CLAUDE.md ] && perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vikrum}g' .claude/CLAUDE.md
 ```
 
 Three properties do the work, and all three are required:
@@ -147,8 +151,9 @@ Possessives (`Kevin's`) are handled: `\b` sits before the apostrophe.
 Then verify. Two checks, and the second one matters more:
 
 ```bash
-# 1. Nothing renameable left (path hits are expected and correct).
-rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' || echo "clean"
+# 1. Nothing renameable left (path hits are expected and correct). The bridge is named
+#    explicitly because it is hidden from rg's default walk.
+rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' . .claude/CLAUDE.md || echo "clean"
 
 # 2. Home paths survived intact — this must still return hits, not zero.
 rg -n 'Agents/Kevin|agent-kevin|\.kevin/|KEVIN_' --glob '!knowledge/raw/sessions/**' | head -20

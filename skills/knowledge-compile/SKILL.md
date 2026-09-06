@@ -16,7 +16,7 @@ Compile raw inputs from `<HOME>/knowledge/raw/` into structured wiki articles. T
    - If `done: true`, you're finished. Stop.
    - Otherwise, item is `{ itemId, kind, fileName, prompt, meta }`. `kind` is `session` | `feedback` | `inbox`.
 3. **Read the `prompt` field carefully.** It contains:
-   - The CLAUDE.md operating manual (how to organise the wiki)
+   - The AGENTS.md operating manual (how to organise the wiki)
    - The current `USER.md` (who the user is)
    - The current knowledge/index.md
    - Every existing wiki article (markdown-fenced for grounding)

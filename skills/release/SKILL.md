@@ -68,7 +68,8 @@ git diff --stat $RANGE -- templates/
 
 For each changed `templates/<file>`, emit `` `template/<file>: <severity>` ``. Propose
 severity, let the maintainer confirm/override:
-- `templates/CLAUDE.md` → **mandatory** (the operating manual is plugin-owned).
+- `templates/AGENTS.md`, `templates/CLAUDE.md` → **mandatory** (the operating manual and its
+  Claude Code bridge are plugin-owned).
 - `templates/SOUL.md`, `templates/IDENTITY.md` → **optional** (character files the
   operator personalizes) unless the change is functional, then mandatory.
   **Exception: a change confined to `IDENTITY.md`'s preamble or `## Who` reaches new
@@ -173,7 +174,7 @@ Prepend a new entry **below** the `<!-- Add new releases below this line -->` ma
 ### Upgrade
 - `deps: required` — new dep `foo`; run bun install in mcp-server.
 - `settings: mandatory` — add permission `Skill(agent-kevin:foo)`.
-- `template/CLAUDE.md: mandatory` — new "X" section.
+- `template/AGENTS.md: mandatory` — new "X" section.
 ```
 
 Use today's date (`date +%Y-%m-%d`). Omit empty Added/Changed/Fixed groups. The Upgrade

@@ -12,8 +12,8 @@ recipient's own, freely editable. Nothing leaves this machine without the operat
 approving the exact contents.
 
 **Never in a bundle, no exceptions:** secret values, `.kevin/` state, USER.md,
-`knowledge/{user,memory,raw}`, tasks, session transcripts, the scaffolded CLAUDE.md
-(curated sections travel as a CLAUDE.md overlay section instead), machine-specific paths.
+`knowledge/{user,memory,raw}`, tasks, session transcripts, the scaffolded AGENTS.md
+(curated sections travel as an AGENTS.md overlay section instead), machine-specific paths.
 The `seed_export` tool enforces the structural excludes; this skill enforces judgment —
 client names, personal context, and operator-specific material must be caught in review.
 
@@ -73,18 +73,17 @@ Present each detected item by name, per-item tick:
   machine-specific paths (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`) unless the operator says
   the team shares the layout.
 
-### 5. Operating-manual overlay (appended to CLAUDE.md)
+### 5. Operating-manual overlay (appended to AGENTS.md)
 
 Never export the manual wholesale — it's init-scaffolded and upgrade-migrated, and it can
-hold operator-personal sections. Instead: `Read` the home's CLAUDE.md, compare against the
-plugin's `templates/CLAUDE.md`, and draft an overlay containing only the operator-added
+hold operator-personal sections. Instead: `Read` the home's AGENTS.md, compare against the
+plugin's `templates/AGENTS.md`, and draft an overlay containing only the operator-added
 sections that make sense for the team (working rules, conventions — not personal context).
 Show the draft; the operator edits or drops it. If approved it travels as an `extras`
-entry with path `CLAUDE.md` — the import APPENDS it to the recipient's scaffolded manual
+entry with path `AGENTS.md` — the import APPENDS it to the recipient's scaffolded manual
 (never replaces), and upgrade's template reconciliation carries appended sections forward
-like any operator customization. (Never target `CLAUDE.local.md`: in this plugin that is
-the manual's alternate location for the init-collision case, and compile reads it with
-priority — seeding it would shadow the real manual.)
+like any operator customization. (Never target `.claude/CLAUDE.md`: that is the Claude Code
+bridge, not the manual, and a home on another harness never reads it.)
 
 ## Stage 2 — Review gate (confirms the bytes)
 
@@ -102,7 +101,7 @@ servers) and one last confirm.
 Call `seed_export` with the approved selection:
 - `include` — approved paths (directories like `.claude/skills/<name>` expand)
 - `agentName` — from the identity round
-- `extras` — the CLAUDE.md overlay section, if approved
+- `extras` — the AGENTS.md overlay section, if approved
 - `permissions` / `secretKeys` / `settingsEnv` / `mcpServers` — the approved setup
 
 Report the bundle path and hand the operator the recipient instructions:

@@ -1,8 +1,8 @@
 ---
 name: init
-description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds CLAUDE.md (operating manual + @-imports), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If a CLAUDE.md already exists at the home directory, Kevin's version is written to CLAUDE.local.md instead. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
+description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(unzip -l *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(unzip -l *)
 ---
 
 # Initialize the agent
@@ -15,7 +15,7 @@ that name in this file, and they are not treated the same:
 
 - **The agent's display name.** Every prompt, banner, and status line you show the
   operator, and every word you write into `SOUL.md` / `IDENTITY.md` / `USER.md` /
-  `CLAUDE.md`, uses `<AGENT_NAME>` from Step 1b. Where the prose below says "Kevin" in
+  `AGENTS.md`, uses `<AGENT_NAME>` from Step 1b. Where the prose below says "Kevin" in
   a sentence addressed to the operator, substitute it. Before Step 1b the name isn't
   known yet, so say "your agent" rather than guessing.
 - **The plugin.** `agent-kevin`, `/agent-kevin:*`, `KEVIN_*`, `.kevin/`,
@@ -44,8 +44,8 @@ home"; init asks the broader question "would scaffolding here destroy something"
 answer is yes for any agent's home, not just this one. Every agent's home carries a
 `SOUL.md` and only this one's carries this one's data dir, so the wider marker is what
 stops a re-run from overwriting a *sibling* agent's identity files. Don't "fix" this to
-match the others. (`CLAUDE.md` would be wrong in the other direction — it may pre-exist in
-any project the plugin is installed into, and init writes `CLAUDE.local.md` when it does.)
+match the others. (`AGENTS.md` would be wrong in the other direction — it may pre-exist in
+any project the plugin is installed into, and init appends to it when it does.)
 
 Act on the probes before anything else:
 
@@ -59,7 +59,7 @@ Act on the probes before anything else:
 
 - **`ICLOUD_DOCUMENTS_SYNC=on`** (macOS, and only relevant when the home is under `~/Documents`) — surface a one-line FYI and continue, never warn or block: *"Heads-up: your Documents folder syncs to iCloud, so the agent's knowledge and secrets will sync with it."*
 
-**Detect the operating system.** Several later steps scaffold OS-specific content — the timezone probe (Step 4), the external-storage suggestion (Step 5c), the security deny-list (Step 7), and the `{{PLATFORM}}` line recorded in CLAUDE.md. Resolve it once here. Claude Code's Bash tool runs under Git Bash on Windows, so `uname` is available everywhere.
+**Detect the operating system.** Several later steps scaffold OS-specific content — the timezone probe (Step 4), the external-storage suggestion (Step 5c), the security deny-list (Step 7), and the `{{PLATFORM}}` line recorded in AGENTS.md. Resolve it once here. Claude Code's Bash tool runs under Git Bash on Windows, so `uname` is available everywhere.
 
 ```bash
 case "$(uname -s)" in
@@ -139,7 +139,7 @@ If `ALREADY_INITIALIZED`, `AskUserQuestion` with an explicit enumeration of what
 
 > You've already initialized at `<HOME_DIR>`. Re-running will:
 >
-> ✏️  Overwrite SOUL.md, IDENTITY.md, USER.md, CLAUDE.md / CLAUDE.local.md (operator re-supplies tone/role/name)
+> ✏️  Overwrite SOUL.md, IDENTITY.md, USER.md, AGENTS.md (operator re-supplies tone/role/name); `.claude/CLAUDE.md` is left in place when it already bridges
 > ✓  Preserve `knowledge/memory/index.md` if it has content (compile output safe — Active Threads, Recent Decisions, Learnings)
 > ✓  Preserve `knowledge/index.md` if it has content (operator-curated catalog bullets safe)
 > ✓  Preserve `knowledge/user/<facet>.md` files that have content (operator-curated facets safe; conflict prompt if Step 5 also synthesises content)
@@ -199,7 +199,7 @@ commands, `KEVIN_*` env vars, the `.kevin/` data dir, MCP tool names) comes from
 plugin manifest and stays put either way. Renaming costs nothing and breaks nothing.
 
 **On a re-init, the current name is the default, not `Kevin`.** Step 0's re-run path
-overwrites `IDENTITY.md`, `SOUL.md`, `USER.md` and `CLAUDE.md`, so offering `Kevin` to
+overwrites `IDENTITY.md`, `SOUL.md`, `USER.md` and `AGENTS.md`, so offering `Kevin` to
 an operator who renamed their agent would quietly rename it back and rewrite every one
 of those files around the old name. Read what's there first:
 
@@ -613,22 +613,23 @@ Write the three identity files (Kevin-unique filenames — won't collide with an
 - `$HOME_DIR/IDENTITY.md` ← staged content from Step 3
 - `$HOME_DIR/USER.md` ← rendered from Steps 4 + 4b + 6 (template below)
 
-Write the operating manual + Claude Code memory file. **Collision-aware**: if `$HOME_DIR/CLAUDE.md` already exists (plugin installed into an existing project), don't overwrite — write to `$HOME_DIR/CLAUDE.local.md` instead and inform the user.
+Write the operating manual and the Claude Code bridge. The manual is `AGENTS.md` at the home root: harness-neutral, read natively by every AGENTS.md-aware CLI. Claude Code does not read `AGENTS.md`, so `.claude/CLAUDE.md` bridges it — `@-imports` for the manual, the identity stack and the indexes, plus the few rules that apply only under Claude Code. **Collision-aware**: if `$HOME_DIR/AGENTS.md` already exists and is a project's own file (plugin installed into a repo that has one), append the manual below it rather than overwriting; a pre-existing `.claude/CLAUDE.md` likewise gets the bridge appended. A pre-existing root `CLAUDE.md` is **not** a collision — it stays the project's own file, and Claude Code loads it alongside the bridge. (An `AGENTS.md` that is already this agent's manual — a re-run the operator approved in Step 0 — is overwritten, not appended to.)
 
 ```bash
-if [ -f "$HOME_DIR/CLAUDE.md" ]; then
-  CLAUDE_DEST="$HOME_DIR/CLAUDE.local.md"
-  COLLISION="yes"
+mkdir -p "$HOME_DIR/.claude"
+if grep -q '^## Memory Routing' "$HOME_DIR/AGENTS.md" 2>/dev/null; then
+  COLLISION="no"    # our own manual from an earlier init — Step 0 approved overwriting it
+elif [ -f "$HOME_DIR/AGENTS.md" ]; then
+  COLLISION="yes"   # a project's own AGENTS.md — the manual joins it
 else
-  CLAUDE_DEST="$HOME_DIR/CLAUDE.md"
   COLLISION="no"
 fi
-cp "${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md" "$CLAUDE_DEST"
 
-# Substitute placeholders: the @-import paths reflect the chosen
-# KNOWLEDGE_ROOT / PROJECTS_ROOT (may differ from the defaults if the user
-# picked "Specify" in Step 6; relative when under HOME_DIR, absolute otherwise),
-# and {{PLATFORM}} records the OS detected in Step 0.
+# Substitute placeholders: the manual's paths reflect the chosen KNOWLEDGE_ROOT /
+# PROJECTS_ROOT (may differ from the defaults if the user picked "Specify" in Step 5c;
+# relative when under HOME_DIR, absolute otherwise), and {{PLATFORM}} records the OS
+# detected in Step 0. The bridge sits one level down in .claude/, so it imports a
+# relative root with a leading ../ and an absolute root as-is.
 relpath() {
   case "$1" in
     "$HOME_DIR") echo "." ;;
@@ -636,8 +637,17 @@ relpath() {
     *) echo "$1" ;;
   esac
 }
+importpath() {
+  case "$1" in
+    /*|[A-Za-z]:*) echo "$1" ;;
+    .) echo ".." ;;
+    *) echo "../$1" ;;
+  esac
+}
 KNOWLEDGE_REL="$(relpath "$KNOWLEDGE_ROOT")"
 PROJECTS_REL="$(relpath "$PROJECTS_ROOT")"
+KNOWLEDGE_IMPORT="$(importpath "$KNOWLEDGE_REL")"
+PROJECTS_IMPORT="$(importpath "$PROJECTS_REL")"
 AGENT_NAME="<the name staged in Step 1b — literal, e.g. Kevin>"
 # {{SHELL}} fills the Toolchain "Shell:" line per OS. On Windows, Claude Code's Bash tool runs under
 # Git Bash (POSIX), not PowerShell, so Kevin's commands assume bash everywhere.
@@ -647,28 +657,52 @@ case "$KEVIN_OS" in
   wsl)     SHELL_NOTE='bash (WSL2)' ;;
   *)       SHELL_NOTE='bash' ;;
 esac
-sed -i.bak \
-  -e "s|{{KNOWLEDGE_REL}}|${KNOWLEDGE_REL}|g" \
-  -e "s|{{PROJECTS_REL}}|${PROJECTS_REL}|g" \
-  -e "s|{{PLATFORM}}|${PLATFORM_LABEL}|g" \
-  -e "s|{{SHELL}}|${SHELL_NOTE}|g" \
-  -e "s|{{AGENT_NAME}}|${AGENT_NAME}|g" \
-  "$CLAUDE_DEST"
-rm "$CLAUDE_DEST.bak"
+render_manual() {
+  sed \
+    -e "s|{{KNOWLEDGE_REL}}|${KNOWLEDGE_REL}|g" \
+    -e "s|{{PROJECTS_REL}}|${PROJECTS_REL}|g" \
+    -e "s|{{PLATFORM}}|${PLATFORM_LABEL}|g" \
+    -e "s|{{SHELL}}|${SHELL_NOTE}|g" \
+    -e "s|{{AGENT_NAME}}|${AGENT_NAME}|g" \
+    "${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md"
+}
+render_bridge() {
+  sed \
+    -e "s|{{KNOWLEDGE_IMPORT}}|${KNOWLEDGE_IMPORT}|g" \
+    -e "s|{{PROJECTS_IMPORT}}|${PROJECTS_IMPORT}|g" \
+    -e "s|{{AGENT_NAME}}|${AGENT_NAME}|g" \
+    "${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md"
+}
+if [ "$COLLISION" = "yes" ]; then
+  printf '\n\n' >> "$HOME_DIR/AGENTS.md"
+  render_manual >> "$HOME_DIR/AGENTS.md"
+else
+  render_manual > "$HOME_DIR/AGENTS.md"
+fi
+# Substring greps on purpose: a CRLF home would defeat whole-line (-x) matching.
+if grep -qF '@../AGENTS.md' "$HOME_DIR/.claude/CLAUDE.md" 2>/dev/null; then
+  : # already bridged (re-run) — leave it; upgrade reconciles the bridge against its template
+elif [ -f "$HOME_DIR/.claude/CLAUDE.md" ]; then
+  printf '\n\n' >> "$HOME_DIR/.claude/CLAUDE.md"
+  render_bridge >> "$HOME_DIR/.claude/CLAUDE.md"
+else
+  render_bridge > "$HOME_DIR/.claude/CLAUDE.md"
+fi
 ```
 
-- `$CLAUDE_DEST` ← `cp ${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` then placeholder-substituted so `@-imports` point at the active `KNOWLEDGE_ROOT` / `PROJECTS_ROOT`
+- `$HOME_DIR/AGENTS.md` ← `templates/AGENTS.md`, placeholder-substituted so every path in the manual points at the active `KNOWLEDGE_ROOT` / `PROJECTS_ROOT`
+- `$HOME_DIR/.claude/CLAUDE.md` ← `templates/CLAUDE.md`, placeholder-substituted so its `@-imports` resolve from inside `.claude/`
 
-**Gate: no placeholder may survive into the home.** `CLAUDE.md` is substituted by the
-`sed` above, but `SOUL.md`, `IDENTITY.md` and `USER.md` are staged by you and written
-with `Write`, so nothing mechanical guarantees you resolved their placeholders. Check,
-right after the four files land:
+**Gate: no placeholder may survive into the home.** `AGENTS.md` and `.claude/CLAUDE.md` are
+substituted by the `sed` above, but `SOUL.md`, `IDENTITY.md` and `USER.md` are staged by you
+and written with `Write`, so nothing mechanical guarantees you resolved their placeholders.
+Check, right after the five files land:
 
 ```bash
-grep -l '{{' "$HOME_DIR"/{SOUL,IDENTITY,USER}.md "$CLAUDE_DEST" 2>/dev/null
+grep -l '{{' "$HOME_DIR"/{SOUL,IDENTITY,USER,AGENTS}.md "$HOME_DIR/.claude/CLAUDE.md" 2>/dev/null
 ```
 
-One pattern covers all four because every placeholder written into the home uses
+One pattern covers all five because every placeholder written into the home uses
 `{{TOKEN}}` — the bundled `templates/*.md` and the `USER.md` body written inline in this
 skill alike. Keep it that way: `<TOKEN>` is this skill's convention for values *you*
 fill in while following instructions, and it must never reach a file in the home, or the
@@ -678,7 +712,7 @@ Any file listed still has an unresolved placeholder. Fix it before continuing �
 unsubstituted `{{AGENT_NAME}}` sits in the agent's own identity files and is read into
 context every session from then on.
 
-If `COLLISION="yes"`, note this for the Step 9 status block so the user knows Kevin wrote to `CLAUDE.local.md`. Claude Code auto-loads `.local.md` files alongside the main `CLAUDE.md`, so the user's existing instructions and Kevin's coexist — Kevin's `@-imports` cascade still pulls in the identity stack.
+If `COLLISION="yes"`, note this for the Step 9 status block so the user knows the manual was appended below their existing `AGENTS.md`. Their instructions and Kevin's coexist in one file that every harness reads, and the `.claude/CLAUDE.md` bridge still pulls in the identity stack for Claude Code.
 
 Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds local config, `.kevin/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets (`.kevin/secrets/` lives under `.kevin/*`) / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
 
@@ -861,7 +895,7 @@ The list is deliberately short. Every entry is an action that publishes somethin
 
 ### Offer the auto-mode knowledge-base exception (print only, never write)
 
-Auto mode's classifier ships an allow exception for **`~/.claude/projects/*/memory/`** and one for **`CLAUDE.md`**. This home deliberately uses neither: memory routes to `knowledge/`, and identity lives in `SOUL.md` / `IDENTITY.md` / `USER.md` / `.claude/rules/`. Meanwhile the classifier's `soft_deny` list carries **Instruction Poisoning** — writing to any file a session reads back as instructions. That describes this agent's core loop, so on the shipped defaults a compile or memory write can read as an attack on the agent rather than as the agent working.
+Auto mode's classifier ships an allow exception for **`~/.claude/projects/*/memory/`** and one for **`CLAUDE.md`**. This home deliberately uses neither for what matters: memory routes to `knowledge/`, and identity lives in `SOUL.md` / `IDENTITY.md` / `USER.md` / `AGENTS.md` / `.claude/rules/` (the `.claude/CLAUDE.md` bridge is a thin import shim). Meanwhile the classifier's `soft_deny` list carries **Instruction Poisoning** — writing to any file a session reads back as instructions. That describes this agent's core loop, so on the shipped defaults a compile or memory write can read as an attack on the agent rather than as the agent working.
 
 The fix is a small `autoMode` block in the operator's **user-global** settings: a mode line, an environment anchor, two allow exceptions, and two soft-denies (outbound push, identity-file replacement — the latter because an exclusion from an allow blocks nothing on its own; a git-recoverable replacement matches no default block rule). Print the block below in the Step 9 summary as an optional copy-paste, flag the tradeoff in one line, and move on. **Do not write it, do not offer to write it, and do not gate the summary on it** — the operator may be on a plan or platform where the classifier isn't available, in which case it's inert.
 
@@ -881,13 +915,13 @@ The `defaultMode` line matters as much as the sentences: the *built-in* auto def
     ],
     "allow": [
       "$defaults",
-      "Agent Knowledge Base: Routine writes, edits, individually-named-file deletes, and local git commits under the agent home this session started in (per the Agent homes entry in Environment) — its knowledge/, projects/, and reports/ trees, its generated root surfaces (dashboard.html, roadmap.html — local files opened from disk, never served or published), and its root identity files (SOUL.md, IDENTITY.md, USER.md) — are the agent's core function: recording preferences, project facts, session notes, decisions, and task state. Full-file rewrites under these trees are part of that function — the compile loop regenerates whole articles, and any knowledge file may be rewritten wholesale. The home is a git repository that tracks these trees by design, so presume files under them tracked unless the transcript shows otherwise; an overwrite may still cost an uncommitted working-tree delta, an accepted residual of this workflow, and a file shown to be untracked is judged under Irreversible Local Destruction as usual. The presumption reaches tracked files only: a path the home's .gitignore excludes even though it sits inside these trees (capture artifacts, scratch, runtime state) has no history behind it and is judged under that rule like any other untracked file. That residual is bounded per file: rewriting more than three files wholesale in a single action, or looping or globbing over a directory to rewrite it, with no intervening commit, is outside the routine pattern and is judged on its own terms — as is a run of actions that together rewrite most of a tree with no intervening commit, which the per-action count would otherwise wave through three files at a time. Provided the content neither changes permissions, authorizations, or auto-mode behaviour, nor fabricates user authorization, consent, or approval, nor records classifier workarounds or instructions steering a future session toward a blocked action, treat these writes exactly as the built-in Memory Directory and CLAUDE.md Content exceptions treat their paths: not Instruction Poisoning, not Self-Modification, and not Irreversible Local Destruction (subject to the tracking presumption above). Identity files are covered for incremental changes only, and the test is magnitude rather than structure: an Edit to SOUL.md, IDENTITY.md, or USER.md is covered when its removes span a small part of the file body, and an Edit whose removes go beyond a small part is a replacement however many section headings survive (the Identity File Replacement rule uses the same threshold, so there is no middle band). When the file's length is not visible in the transcript, judge that threshold in absolute terms rather than as a proportion: removes confined to a few lines or one short passage are covered, while removes spanning many lines or reaching across sections are not. A full-file write is covered only when the file's prior content is visible earlier in the transcript and the write retains both its existing section headings and most of its prose. Whatever the classifier cannot see is a replacement: a full-file write with no visible prior content, and an Edit whose removes are truncated, both fall outside this exception — deliberately fail-closed, since evidence that never reached the classifier cannot establish what the file held. Any deletion, move, or rename of those files is likewise not covered, whichever tool performs it (see the Identity File Replacement rule, which gates these). Also outside the exception entirely: anything under .claude/ (rules, settings, hooks); content leaving the home or written to any other agent home; and deletion by directory, pattern, or glob — all evaluated on their own terms.",
+      "Agent Knowledge Base: Routine writes, edits, individually-named-file deletes, and local git commits under the agent home this session started in (per the Agent homes entry in Environment) — its knowledge/, projects/, and reports/ trees, its generated root surfaces (dashboard.html, roadmap.html — local files opened from disk, never served or published), and its root identity files (SOUL.md, IDENTITY.md, USER.md) and its operating manual (AGENTS.md, read back as instructions every session by every harness) — are the agent's core function: recording preferences, project facts, session notes, decisions, and task state. Full-file rewrites under these trees are part of that function — the compile loop regenerates whole articles, and any knowledge file may be rewritten wholesale. The home is a git repository that tracks these trees by design, so presume files under them tracked unless the transcript shows otherwise; an overwrite may still cost an uncommitted working-tree delta, an accepted residual of this workflow, and a file shown to be untracked is judged under Irreversible Local Destruction as usual. The presumption reaches tracked files only: a path the home's .gitignore excludes even though it sits inside these trees (capture artifacts, scratch, runtime state) has no history behind it and is judged under that rule like any other untracked file. That residual is bounded per file: rewriting more than three files wholesale in a single action, or looping or globbing over a directory to rewrite it, with no intervening commit, is outside the routine pattern and is judged on its own terms — as is a run of actions that together rewrite most of a tree with no intervening commit, which the per-action count would otherwise wave through three files at a time. Provided the content neither changes permissions, authorizations, or auto-mode behaviour, nor fabricates user authorization, consent, or approval, nor records classifier workarounds or instructions steering a future session toward a blocked action, treat these writes exactly as the built-in Memory Directory and CLAUDE.md Content exceptions treat their paths: not Instruction Poisoning, not Self-Modification, and not Irreversible Local Destruction (subject to the tracking presumption above). Identity files are covered for incremental changes only, and the test is magnitude rather than structure: an Edit to SOUL.md, IDENTITY.md, USER.md, or AGENTS.md is covered when its removes span a small part of the file body, and an Edit whose removes go beyond a small part is a replacement however many section headings survive (the Identity File Replacement rule uses the same threshold, so there is no middle band). When the file's length is not visible in the transcript, judge that threshold in absolute terms rather than as a proportion: removes confined to a few lines or one short passage are covered, while removes spanning many lines or reaching across sections are not. A full-file write is covered only when the file's prior content is visible earlier in the transcript and the write retains both its existing section headings and most of its prose. Whatever the classifier cannot see is a replacement: a full-file write with no visible prior content, and an Edit whose removes are truncated, both fall outside this exception — deliberately fail-closed, since evidence that never reached the classifier cannot establish what the file held. Any deletion, move, or rename of those files is likewise not covered, whichever tool performs it (see the Identity File Replacement rule, which gates these). Also outside the exception entirely: anything under .claude/ (rules, settings, hooks); content leaving the home or written to any other agent home; and deletion by directory, pattern, or glob — all evaluated on their own terms.",
       "Agent Home Multi-Repo Scope: A session started in an agent home (per the Agent homes entry in Environment) routinely works across the code repositories Environment lists under source control — moving between them is intended scope, not escalation. Covers ordinary reads, edits, builds, and commits in those repositories, and clears nothing else: every other block rule, hard or soft, applies as usual; pushes are deliberately not covered; and the content rules still judge what is written — routine mirroring between listed repositories never blesses the mirrored content itself (Instruction Poisoning applies to skill and instruction files wherever they are copied). This rule never reaches an agent home: the session's own home is governed by the Agent Knowledge Base exception, and any other agent home lies outside both rules, judged on its own terms however Environment lists it. Reaching outside the listed repositories is still scope escalation."
     ],
     "soft_deny": [
       "$defaults",
       "Agent Home Outbound Push [named+specifics — must name: the outbound action (push / PR create / PR merge / release) and its destination repo, plus the branch for pushes]: Any git push, PR creation or merge, or release publication from a session started in an agent home (per the Agent homes entry in Environment) — including pushes to any other repository the session works in. The built-in Git Push Destination exception does not apply to sessions started in an agent home; this rule governs all pushes there. Agent homes gate outbound actions on a human: listing a repository as trusted or under source control trusts it for reads, edits, builds, and commits — not for unattended pushes. An outbound action the user named, with its destination, in this session is fine — though this rule's bar is cumulative with other rules' own bars (a named PR merge must still clear Merge Without Review, for example).",
-      "Identity File Replacement [named+specifics — must name: the file and the replacement or deletion itself]: Replacing, deleting, moving, or renaming SOUL.md, IDENTITY.md, or USER.md at the root of an agent home (per the Agent homes entry in Environment), and any edit to one whose removes go beyond a small part of the file body, however many section headings survive — judged in absolute terms (many lines, or reaching across sections) whenever the file's length is not visible in the transcript. These files are the agent's persistent identity, read back as instructions every session; git recoverability does not make their replacement routine.",
+      "Identity File Replacement [named+specifics — must name: the file and the replacement or deletion itself]: Replacing, deleting, moving, or renaming SOUL.md, IDENTITY.md, USER.md, or AGENTS.md at the root of an agent home (per the Agent homes entry in Environment), and any edit to one whose removes go beyond a small part of the file body, however many section headings survive — judged in absolute terms (many lines, or reaching across sections) whenever the file's length is not visible in the transcript. These files are the agent's persistent identity and operating manual, read back as instructions every session; git recoverability does not make their replacement routine.",
       "Cross-Agent Home Write [named+specifics — must name: the target home and the file]: Any write, edit, or delete from a session started in one agent home into a different agent home (per the Agent homes entry in Environment), however small the change and whatever the content. Each agent's knowledge base and identity files are read back as instructions by that agent's own future sessions, so one agent editing another's brain is an influence path even when the content grants no permission. Mirroring between the agents' plugin repositories is not this: those are code repositories listed under source control, not agent homes."
     ]
   }
@@ -1088,7 +1122,7 @@ USER.md template:
 
 {{AVATAR_LINE}}
 
-{{AGENT_NAME}} reads this every session (via `@-import` in `CLAUDE.md`). The headline of who I am and how I want {{AGENT_NAME}} to work with me.
+{{AGENT_NAME}} reads this every session (it is part of the identity stack loaded at session start). The headline of who I am and how I want {{AGENT_NAME}} to work with me.
 
 ## Identity
 
@@ -1126,7 +1160,7 @@ These files hold my evolving long-form knowledge. {{AGENT_NAME}} reads them on d
 If Step 4b returned `skip`, omit the `## Where Things Live` section entirely — Kevin's a personal agent and many operators have no primary codebase, so an empty placeholder is just noise. The operator can add it later by setting `env.AGENT_CODE_PATH` and re-running compile.
 
 `{{AVATAR_LINE}}` rendering:
-- If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, since CLAUDE.md `@-imports` USER.md from there).
+- If Step 5b staged a user avatar at `<KNOWLEDGE_ROOT>/user/assets/avatar.<ext>` → render `![Avatar](knowledge/user/assets/avatar.<ext>)` (path relative to `<HOME_DIR>`, where USER.md lives).
 - If Step 5b was skipped → omit the line entirely (no empty placeholder).
 
 **Write the five `knowledge/user/<facet>.md` files — preservation-aware.** For each of `profile.md`, `skills.md`, `preferences.md`, `career.md`, `interests.md`:
@@ -1424,7 +1458,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 
 > ✅ Home          `<HOME_DIR>`
 > ✅ Identity      SOUL.md · IDENTITY.md · USER.md
-> ✅ Operating manual   `<MANUAL_PATH>` (`@-imports` the above)
+> ✅ Operating manual   `<MANUAL_PATH>` (+ `.claude/CLAUDE.md`, the Claude Code bridge that `@-imports` it and the above)
 > ✅ Plugin reg    .claude/settings.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
 > ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/TASKS.md
@@ -1440,9 +1474,11 @@ For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activate
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
 For the operating-manual row:
-- No collision: `<MANUAL_PATH>` = `CLAUDE.md`
-- Collision detected (pre-existing CLAUDE.md): `<MANUAL_PATH>` = `CLAUDE.local.md` — also append a callout line:
-  > ℹ️ Existing `CLAUDE.md` detected at home — Kevin's operating manual was written to `CLAUDE.local.md` alongside it. Both files load; your prior CLAUDE.md is untouched.
+- No collision: `<MANUAL_PATH>` = `AGENTS.md`
+- Collision detected (pre-existing project AGENTS.md): `<MANUAL_PATH>` = `AGENTS.md (appended)` — also append a callout line:
+  > ℹ️ Existing `AGENTS.md` detected at home — Kevin's operating manual was appended below your content, and `.claude/CLAUDE.md` bridges it for Claude Code. Review the combined file once; your prior text is untouched.
+- Re-init of a home still on the pre-0.4.0 layout (`$HOME_DIR/CLAUDE.md` exists and `grep -q '^## Memory Routing'` matches it): the old manual is still there and Claude Code will load it alongside the new files — append a callout line:
+  > ℹ️ Your previous operating manual is still at `CLAUDE.md`. Run `/agent-kevin:upgrade` to move it aside (it backs up, then removes the duplicate) so the manual isn't loaded twice.
 
 Blank line, then the **Next** heading (same style as Ready), then the relaunch prose. **Important: the user must exit and relaunch** so the new `.claude/settings.json` is picked up by Claude Code:
 
@@ -1508,8 +1544,8 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 ## Notes for you (the orchestrating Claude)
 
 - **Idempotent.** Step 0 catches re-runs and surfaces the explicit write list. Step 7's facet + index writes preserve operator-curated content (`knowledge/user/*.md`, `knowledge/index.md`) and never replace existing compile output (`knowledge/memory/index.md`). Re-running on an active HOME is safe.
-- **No secrets in identity files.** API keys go to `<HOME>/.claude/settings.local.json` via the configure-skills flow (Step 8 inline or `/agent-kevin:configure-skills` later), never to CLAUDE/SOUL/IDENTITY/USER.
-- **CLAUDE.md (or CLAUDE.local.md) is never customised.** Copy verbatim. SOUL.md adjusts tone. USER.md gets the user's headline. IDENTITY.md adjusts role.
+- **No secrets in identity files.** API keys go to `<HOME>/.claude/settings.local.json` via the configure-skills flow (Step 8 inline or `/agent-kevin:configure-skills` later), never to AGENTS/SOUL/IDENTITY/USER.
+- **AGENTS.md and .claude/CLAUDE.md are never customised.** Copy verbatim (placeholders substituted). SOUL.md adjusts tone. USER.md gets the user's headline. IDENTITY.md adjusts role.
 - **Stage before write.** Build all content through Steps 2–6. Only Step 7 writes to disk.
 - **Step 8 delegates, doesn't duplicate.** When the user opts to configure skills inline, *read* `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow its Section A walks. Don't reimplement key-prompts/MCP-writes/permission-grants here — keep configure-skills as the single source of truth so standalone use and inline use behave identically.
 - **No `.claude/skills/` creation in Step 7.** That directory is only needed for custom-authored skills (configure-skills Section B). Sandbox often denies it; let configure-skills create it lazily.

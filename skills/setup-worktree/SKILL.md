@@ -275,9 +275,9 @@ connection pointing at the repo's local Postgres server (e.g.
 v0.3.0 credential env vars live there, not in `.claude/settings.local.json`). It defaults to the
 first configured connection; when a repo has several, pick the right one in this order:
 
-1. A declaration in the **repo's root `CLAUDE.md`** — a line of the form
+1. A declaration in the **repo's `AGENTS.md`** (or its `CLAUDE.md`, root or `.claude/`) — a line of the form
    `Worktree DB connection: <kevin-db-name>` (e.g. `acme`).
-2. If the repo doesn't declare one and **`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set**, check that repo's `CLAUDE.md`
+2. If the repo doesn't declare one and **`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set**, check that repo's `AGENTS.md` / `CLAUDE.md`
    for the same line.
 3. Otherwise run `database_list` and, if exactly one connection matches the repo's local server, use it;
    if it's ambiguous or none is configured, **ask the operator** (and have them add the

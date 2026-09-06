@@ -20,8 +20,8 @@ with `test -f`). If they only said "import the seed", ask where the file landed.
 Call `seed_import` with `dryRun: true` and present the plan grouped:
 
 - **Files to write** — by category (identity / knowledge / projects / skills / rules / surfaces)
-- **CLAUDE.md overlay section** — appended to this home's scaffolded manual (never a
-  replacement); re-importing the same bundle appends again
+- **AGENTS.md overlay section** — appended to this home's scaffolded manual (never a
+  replacement); re-importing the same bundle is skipped when the section is already there
 - **Conflicts** — existing files that differ from the bundle. For a fresh-after-init home
   the expected conflicts are IDENTITY.md and SOUL.md (init scaffolded them; the seed
   replaces them — that's the point of inheriting the persona). Anything else diverging
@@ -62,4 +62,4 @@ Notes to surface when relevant:
 - Third-party skills.sh libraries don't travel in bundles; if the source agent used any,
   install them with `/agent-kevin:configure-skills` (Section F).
 - Re-importing the same bundle is a no-op: unchanged files are skipped, merges dedupe,
-  and the CLAUDE.md overlay section is skipped when it is already in the manual.
+  and the AGENTS.md overlay section is skipped when it is already in the manual.
