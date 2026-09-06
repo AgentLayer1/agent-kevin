@@ -34,7 +34,7 @@ Claude Code auto-loads this file from the agent home directory at session start.
 |------|----------|
 | Feedback | \`${knowledge}/raw/user/feedback.md\` |
 
-## Sibling Agent — Walle
+## Team Conventions
 
 Operator-personal section. Keep every byte: acme, \`~/Developer/acme\`.
 
@@ -104,7 +104,7 @@ describe('0.4.0 manual migration', () => {
     expect(agents).not.toContain('Claude Code auto-loads this file');
     expect(agents).toContain('## Context Loading');
     expect(agents).toContain(
-      '## Sibling Agent — Walle\n\nOperator-personal section. Keep every byte: acme, `~/Developer/acme`.'
+      '## Team Conventions\n\nOperator-personal section. Keep every byte: acme, `~/Developer/acme`.'
     );
     expect(agents).toContain('### Comments\n\nDefault: none.');
     expect(agents).not.toContain('{{');
@@ -156,7 +156,7 @@ describe('0.4.0 manual migration', () => {
     expect(report.removed).toEqual(['CLAUDE.local.md']);
     expect(read(home, 'CLAUDE.md')).toBe('# My project\n\nProject instructions, not the agent.\n');
     expect(existsSync(join(home, 'CLAUDE.local.md'))).toBe(false);
-    expect(read(home, 'AGENTS.md')).toContain('## Sibling Agent — Walle');
+    expect(read(home, 'AGENTS.md')).toContain('## Team Conventions');
     expect(String(report.notes)).toContain('Your own CLAUDE.md stays at the home root');
   });
 
@@ -222,7 +222,7 @@ describe('0.4.0 manual migration', () => {
     expect(agents.startsWith("# AGENTS.md — Scout's Operating Manual\r\n")).toBe(true);
     expect(agents.match(/^# /gm)).toHaveLength(1);
     expect(agents).not.toContain('Claude Code auto-loads this file');
-    expect(agents).toContain('## Sibling Agent — Walle\r\n\r\nOperator-personal section.');
+    expect(agents).toContain('## Team Conventions\r\n\r\nOperator-personal section.');
     expect(agents).not.toMatch(/[^\r]\n/);
   });
 
