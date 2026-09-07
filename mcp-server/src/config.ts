@@ -1,19 +1,4 @@
-imp
-/**
- * The identity stack every session starts with, in load order: what the Claude Code
- * bridge (`templates/CLAUDE.md`) `@-imports` after the operating manual. A harness
- * without `@-import` (Codex) injects these same files from its SessionStart hook; the
- * manual itself is not listed because such harnesses read `AGENTS.md` natively.
- */
-export const staticContextFiles = (): string[] => [
-  FILES.SOUL,
-  FILES.IDENTITY,
-  FILES.USER,
-  FILES.KNOWLEDGE,
-  FILES.MEMORY,
-  resolve(FOLDERS.PROJECTS, 'TASKS.md')
-];
-ort { runtimeDirName } from '@/shared/naming';
+import { runtimeDirName } from '@/shared/naming';
 import { agentHomePath, env, isAgentHome, loadedSecretKeyNames } from '@/shared/env';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
@@ -257,6 +242,21 @@ export const FILES = {
     return resolve(FOLDERS.SESSIONS, 'index.json');
   }
 } as const;
+
+/**
+ * The identity stack every session starts with, in load order: what the Claude Code
+ * bridge (`templates/CLAUDE.md`) `@-imports` after the operating manual. A harness
+ * without `@-import` (Codex) injects these same files from its SessionStart hook; the
+ * manual itself is not listed because such harnesses read `AGENTS.md` natively.
+ */
+export const staticContextFiles = (): string[] => [
+  FILES.SOUL,
+  FILES.IDENTITY,
+  FILES.USER,
+  FILES.KNOWLEDGE,
+  FILES.MEMORY,
+  resolve(FOLDERS.PROJECTS, 'TASKS.md')
+];
 
 /**
  * Where the operating manual is right now. `AGENTS.md` once the home is on the
