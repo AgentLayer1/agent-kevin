@@ -214,9 +214,9 @@ from, its own plugin cache carrying only the skills):
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-On native Windows (Git Bash, where `uname -s` starts with `MINGW` or `MSYS`) skip this whole
-step and do not ask the Codex question: the generator exits 3 with "not available on native
-Windows yet", and the report says so in one line.
+On native Windows (Git Bash, where `uname -s` starts with `MINGW` or `MSYS`) the step runs
+the same way; add one line to the report that Codex on Windows is unverified (the wiring is
+shaped to parse under the PowerShell Codex uses there, but Kevin's skills are bash).
 
 `hooks.changed: true` means the hook commands are new or moved and Codex does not trust them
 yet: carry the re-trust line into the Step 6 report, and for a first wiring add the two

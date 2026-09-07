@@ -57,10 +57,14 @@ and prompts per optional one. The new template files are the source of truth for
   `.codex/config.toml` with `AGENT_HOME` set. The generator merges into existing files,
   replaces only Kevin's own entries, and validates the TOML before writing. `init`
   (Step 7c) and `upgrade` run it; the operator trusts the folder and the three hook entries
-  via `/hooks`. macOS and Linux only for now: on native Windows `init` and `upgrade` skip
-  the wiring and say so. Supported today: an existing home run from Codex (`$upgrade` from a Codex
-  session writes the wiring). A fresh `$init` under Codex, and the upgrade cycle across
-  Codex plugin versions, are not exercised yet.
+  via `/hooks`. The hook commands carry the home as a double-quoted `--home=` argument
+  (`bun "<plugin>/bin/kevin" session-start --hook-protocol=codex --home="<home>"`), no env
+  prefix, shaped to parse under sh and under the PowerShell Codex uses on Windows alike.
+  Supported today: an existing home run from Codex (`$upgrade` from a Codex session writes
+  the wiring). A fresh `$init` under Codex, the upgrade cycle across Codex plugin versions,
+  and native Windows (where the skills are bash and Codex runs PowerShell) are not exercised yet.
+- `bin/kevin … --home=PATH` pins the agent home from the command line; it is how the Codex
+  hooks name their home.
 - `session-start --hook-protocol=codex` prints the static stack (identity files, indexes,
   task board) ahead of the same dynamic lane Claude gets, as one payload; the hook is
   registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's

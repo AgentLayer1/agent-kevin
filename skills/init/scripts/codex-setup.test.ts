@@ -5,6 +5,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const SCRIPT = resolve(import.meta.dir, 'codex-setup.ts');
+const CLI = resolve(import.meta.dir, '..', '..', '..', 'bin', 'kevin');
+const HOME = resolve('/Users/ada/Agents/Scout');
+const PLUGIN = resolve('/opt/kevin');
+const command = (rest: string, home = HOME, plugin = PLUGIN): string =>
+  `bun "${resolve(plugin, 'bin', 'kevin')}" ${rest} --home="${home}"`;
 const dirs: string[] = [];
 const scratch = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'codex-setup-'));
@@ -25,39 +30,54 @@ afterAll(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 });
 
-describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
+describe('codex-setup hooks', () => {
   test('prints the SessionStart context entry with the cap lifted plus the SessionEnd capture, pinned to the home and plugin', () => {
-    const { code, json } = run('--home', '/Users/ada/Agents/Scout', '--plugin-root', '/opt/kevin');
+    const { code, json } = run('--home', HOME, '--plugin-root', PLUGIN);
     expect(code).toBe(0);
     const starts = json.hooks.SessionStart;
     expect(starts).toHaveLength(1);
     expect(starts[0].hooks[0]).toEqual({
       type: 'command',
-      command: "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-start --hook-protocol=codex",
+      command: command('session-start --hook-protocol=codex'),
       timeout: 15,
       additionalContextLimit: 0
     });
     expect(json.hooks.SessionEnd[0].hooks[0].command).toBe(
-      "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-capture --mode=session-end --hook-protocol=codex"
+      command('session-capture --mode=session-end --hook-protocol=codex')
     );
     expect(json.hooks.SessionEnd[0].hooks[0].timeout).toBe(3);
     expect(json.hooks.PreCompact[0].hooks[0].command).toBe(
-      "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-capture --mode=pre-compact --hook-protocol=codex"
+      command('session-capture --mode=pre-compact --hook-protocol=codex')
     );
   });
 
   test('defaults the plugin root to the checkout this script lives in', () => {
-    const { json } = run('--home', '/Users/ada/Agents/Scout');
-    expect(json.hooks.SessionEnd[0].hooks[0].command).toContain(
-      `'${resolve(import.meta.dir, '..', '..', '..', 'bin', 'kevin')}'`
+    const { json } = run('--home', HOME);
+    expect(json.hooks.SessionEnd[0].hooks[0].command).toContain(`"${CLI}"`);
+  });
+
+  test('double-quotes paths with spaces and apostrophes, the one quoting sh and PowerShell share', () => {
+    const home = resolve("/Users/ada/Agent's Homes/Scout");
+    const plugin = resolve('/opt/my kevin');
+    const { json } = run('--home', home, '--plugin-root', plugin);
+    expect(json.hooks.SessionEnd[0].hooks[0].command).toBe(
+      command('session-capture --mode=session-end --hook-protocol=codex', home, plugin)
     );
   });
 
-  test('quotes paths with spaces and apostrophes for the shell', () => {
-    const { json } = run('--home', "/Users/ada/Agent's Homes/Scout", '--plugin-root', '/opt/my kevin');
-    expect(json.hooks.SessionEnd[0].hooks[0].command).toBe(
-      "AGENT_HOME='/Users/ada/Agent'\\''s Homes/Scout' bun '/opt/my kevin/bin/kevin' session-capture --mode=session-end --hook-protocol=codex"
-    );
+  test('refuses a path either shell would expand inside double quotes, and writes nothing', () => {
+    const home = join(scratch(), 'Ag"ent');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(code).not.toBe(0);
+    expect(stderr).toContain('may not contain');
+    expect(existsSync(join(home, '.codex'))).toBe(false);
+  });
+
+  test('the CLI resolves the home from the --home= argument the hook commands carry', () => {
+    const home = scratch();
+    const proc = spawnSync(process.execPath, [CLI, 'ping', `--home=${home}`], { encoding: 'utf-8' });
+    expect(proc.status).toBe(0);
+    expect(JSON.parse(proc.stdout).home).toBe(home);
   });
 
   test("keeps the operator's other hooks, events, and top-level fields", () => {
@@ -69,7 +89,7 @@ describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
         SessionStart: [{ matcher: '', hooks: [{ type: 'command', command: 'echo also-mine', timeout: 5 }] }]
       }
     });
-    const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(json.hooks.changed).toBe(true);
     const written = JSON.parse(readFileSync(json.hooks.path, 'utf-8'));
     expect(written.note).toBe('mine');
@@ -120,12 +140,12 @@ describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
         ]
       }
     });
-    const first = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(first.json.hooks.path, 'utf-8');
     expect(written).not.toContain('/old/kevin');
     expect(JSON.parse(written).hooks.SessionStart).toHaveLength(1);
     expect(JSON.parse(written).hooks.SessionEnd).toHaveLength(1);
-    const again = run('--home', home, '--plugin-root', '/opt/kevin', '--write').json;
+    const again = run('--home', home, '--plugin-root', PLUGIN, '--write').json;
     expect(again.hooks.changed).toBe(false);
     expect(again.mcp.changed).toBe(false);
   });
@@ -133,7 +153,7 @@ describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
   test('refuses to touch a hooks file it cannot parse', () => {
     const home = scratch();
     const path = seed(home, 'hooks.json', '{ not json');
-    const { code, stderr } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
     expect(stderr).toContain('JSON');
     expect(readFileSync(path, 'utf-8')).toBe('{ not json');
@@ -141,20 +161,20 @@ describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
   });
 });
 
-describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', () => {
+describe('codex-setup mcp registration', () => {
   test('writes the kevin server with the home pinned in its env', () => {
     const home = scratch();
-    const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(json.mcp).toEqual({ path: join(home, '.codex', 'config.toml'), changed: true });
     expect(json.entries).toBe(3);
     expect(readFileSync(json.mcp.path, 'utf-8')).toBe(
       [
         '[mcp_servers.kevin]',
         'command = "bun"',
-        'args = ["/opt/kevin/mcp-server/src/server.ts"]',
+        `args = [${JSON.stringify(resolve(PLUGIN, 'mcp-server', 'src', 'server.ts'))}]`,
         '',
         '[mcp_servers.kevin.env]',
-        `AGENT_HOME = "${home}"`,
+        `AGENT_HOME = ${JSON.stringify(home)}`,
         'PLAYWRIGHT_BROWSERS_PATH = "0"',
         ''
       ].join('\n')
@@ -181,7 +201,7 @@ describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', ()
         ''
       ].join('\n')
     );
-    const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(
       written.startsWith('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[mcp_servers.kevin]\n')
@@ -191,16 +211,18 @@ describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', ()
     expect(written.match(/\[mcp_servers\.kevin\]/g)).toHaveLength(1);
   });
 
-  test('escapes quotes and backslashes in paths', () => {
-    const home = join(scratch(), 'Ag"ent');
-    const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
-    expect(readFileSync(json.mcp.path, 'utf-8')).toContain(`AGENT_HOME = "${home.replace(/"/g, '\\"')}"`);
+  test('escapes backslashes in paths', () => {
+    const home = join(scratch(), 'back\\slash');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const written = readFileSync(json.mcp.path, 'utf-8');
+    expect(written).toContain(`AGENT_HOME = ${JSON.stringify(home)}`);
+    expect(Bun.TOML.parse(written)).toMatchObject({ mcp_servers: { kevin: { env: { AGENT_HOME: home } } } });
   });
 
   test('keeps an indented unrelated table that follows the kevin table', () => {
     const home = scratch();
     seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n  [mcp_servers.other]\ncommand = "keep-me"\n');
-    const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const parsed = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as {
       mcp_servers: Record<string, { command: string; env?: Record<string, string> }>;
     };
@@ -211,19 +233,19 @@ describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', ()
   test('recognises a quoted kevin table and never registers kevin twice', () => {
     const home = scratch();
     seed(home, 'config.toml', '[mcp_servers."kevin"]\ncommand = "bun"\nargs = ["/old/kevin/server.ts"]\n');
-    const { code, json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { code, json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).toBe(0);
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written.match(/\[mcp_servers\.("?)kevin\1\]/g)).toHaveLength(1);
     expect(Bun.TOML.parse(written)).toMatchObject({
-      mcp_servers: { kevin: { args: ['/opt/kevin/mcp-server/src/server.ts'] } }
+      mcp_servers: { kevin: { args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')] } }
     });
   });
 
   test('refuses malformed TOML and writes neither file', () => {
     const home = scratch();
     const path = seed(home, 'config.toml', 'model = [\n');
-    const { code, stderr } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
     expect(stderr).toContain('not valid TOML');
     expect(readFileSync(path, 'utf-8')).toBe('model = [\n');
@@ -233,7 +255,7 @@ describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', ()
   test('refuses a kevin registration it cannot rewrite, such as an inline table, and writes nothing', () => {
     const home = scratch();
     const path = seed(home, 'config.toml', 'mcp_servers = { kevin = { command = "bun" } }\n');
-    const { code, stderr } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
     expect(stderr).toContain('remove it by hand');
     expect(readFileSync(path, 'utf-8')).toBe('mcp_servers = { kevin = { command = "bun" } }\n');

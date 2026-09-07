@@ -8,7 +8,9 @@
  * server that knows which home it serves (the server is launched inside the plugin
  * cache, with no workspace variable and no MCP roots), so init and upgrade write both
  * files. Only Kevin's own entries are replaced: the operator's other hooks, MCP servers,
- * and settings survive, and a file that does not parse is left alone.
+ * and settings survive, and a file that does not parse is left alone. The hook commands
+ * carry the home as a `--home=` argument rather than an env prefix, double-quoted, so the
+ * same line parses under sh and under the PowerShell Codex uses on Windows.
  *
  * Usage: codex-setup.ts --home <dir> [--plugin-root <dir>] [--write]
  *   Prints the merged hooks document. With --write it writes both files when their
@@ -19,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 /** A hook command of ours, whichever checkout (quoted or not) it points at. */
-const AGENT_COMMAND = /bin\/kevin'? session-(start|capture) .*--hook-protocol=codex/;
+const AGENT_COMMAND = /bin[\\/]kevin["']? session-(start|capture) .*--hook-protocol=codex/;
 interface HookItem {
   type: string;
   command?: string;
@@ -46,20 +48,20 @@ if (!home) {
   process.stderr.write('usage: codex-setup.ts --home <dir> [--plugin-root <dir>] [--write]\n');
   process.exit(2);
 }
-if (process.platform === 'win32') {
-  // TODO(windows): the hook commands use POSIX env-prefix syntax; a Windows shape needs a real box to verify.
-  process.stderr.write('codex-setup: Codex wiring is not available on native Windows yet\n');
-  process.exit(3);
-}
-
 const homeDir = resolve(home);
 const pluginRoot = resolve(flag('plugin-root') ?? resolve(import.meta.dir, '..', '..', '..'));
 const hooksPath = resolve(homeDir, '.codex', 'hooks.json');
 const configPath = resolve(homeDir, '.codex', 'config.toml');
 
-const quote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+/** Double quotes are the one quoting sh and PowerShell agree on; a path either shell would expand inside them is refused. */
+const quote = (value: string): string => {
+  if (/["$`]/.test(value)) {
+    throw new Error(`${value}: a path in a hook command may not contain ", $, or a backtick`);
+  }
+  return `"${value}"`;
+};
 const command = (rest: string): string =>
-  `AGENT_HOME=${quote(homeDir)} bun ${quote(resolve(pluginRoot, 'bin', 'kevin'))} ${rest}`;
+  `bun ${quote(resolve(pluginRoot, 'bin', 'kevin'))} ${rest} --home=${quote(homeDir)}`;
 const entry = (commandLine: string, timeout: number, extra: Partial<HookItem> = {}): HookGroup => ({
   matcher: '',
   hooks: [{ type: 'command', command: commandLine, timeout, ...extra }]
