@@ -88,7 +88,10 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
   check — proceed.)
 - **No CHANGELOG / no entries** → the installed plugin predates release tracking.
   Tell the user there's nothing to apply; stop.
-- **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)."; stop.
+- **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)." One check
+  still runs before stopping: the **codex wiring** paragraph in Step 4. It is not a migration
+  and has no version (an existing, current home run from Codex for the first time has no
+  `.codex/` yet), so it must not hide behind the release range. Then stop.
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
   tell the user to run `/plugin marketplace update <marketplace>` then
   `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.

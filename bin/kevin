@@ -149,7 +149,7 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
                                     Plain-CLI mode — same logic without the hook envelope. Useful for testing.
   session-capture ... --format=claude (default)
                                     Transcript-format adapter. Future: codex, etc.
-  session-start [--hook-protocol=claude]
+  session-start [--hook-protocol=claude|codex]
                                     Emit dynamic SessionStart context. Without the flag, prints the structured result for testing.
 
 Knowledge commands:

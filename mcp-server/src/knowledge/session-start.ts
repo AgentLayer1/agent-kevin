@@ -91,16 +91,39 @@ export async function sessionStartCodex(): Promise<string> {
     const guidance = existsSync(FILES.SOUL) ? strandedHomeResult().additionalContext : PRE_INIT_RESULT.systemMessage;
     return `${guidance.trim()}\n`;
   }
-  const { context } = await assembleContext();
-  const files = [FILES.SOUL, FILES.IDENTITY, FILES.USER, FILES.KNOWLEDGE, FILES.MEMORY, resolve(FOLDERS.PROJECTS, 'TASKS.md')]
+  const files = [
+    FILES.SOUL,
+    FILES.IDENTITY,
+    FILES.USER,
+    FILES.KNOWLEDGE,
+    FILES.MEMORY,
+    resolve(FOLDERS.PROJECTS, 'TASKS.md')
+  ]
     .filter((path) => existsSync(path))
-    .map((path) => `<!-- file: ${relative(FOLDERS.HOME, path).split(sep).join('/')} -->\n${readFileSync(path, 'utf-8').trimEnd()}`);
-  const lane = context.trim() ? [`<!-- session context (dynamic lane) -->\n${context.trimEnd()}`] : [];
-  return [
-    "<!-- kevin static context · harness: codex · delivered by the plugin's SessionStart hook because Codex has no @-import -->",
-    ...files,
-    ...lane
-  ].join('\n\n') + '\n';
+    .map(
+      (path) =>
+        `<!-- file: ${relative(FOLDERS.HOME, path).split(sep).join('/')} -->\n${readFileSync(path, 'utf-8').trimEnd()}`
+    );
+  // The static files never depend on git or reports, so a dynamic-lane failure costs
+  // only the lane, the same containment Claude's path has.
+  const lane = await assembleContext()
+    .then(({ context, banner, hasIssues }) => {
+      (hasIssues ? log.warn.bind(log) : log.info.bind(log))('hook fired (codex)\n' + banner);
+      return context.trim() ? [`<!-- session context (dynamic lane) -->\n${context.trimEnd()}`] : [];
+    })
+    .catch((err: unknown) => {
+      log.error('hook failed (codex): dynamic lane skipped', err);
+      return [
+        `<!-- kevin: dynamic session context unavailable: ${err instanceof Error ? err.message : String(err)} -->`
+      ];
+    });
+  return (
+    [
+      "<!-- kevin static context · harness: codex · delivered by the plugin's SessionStart hook because Codex has no @-import -->",
+      ...files,
+      ...lane
+    ].join('\n\n') + '\n'
+  );
 }
 
 export async function sessionStart(): Promise<SessionStartResult> {
