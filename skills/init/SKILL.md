@@ -78,7 +78,7 @@ echo "KEVIN_OS=$KEVIN_OS"
 
 Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
-**Detect the harness.** Kevin runs under Claude Code or OpenAI Codex, and a few later steps differ by host. Codex wraps this skill's text in a `<skill>` block with a `<path>`, invokes skills as `$name`, and delivers Kevin's identity stack as sliced `developer` messages whose first line reads `<!-- kevin static context · slice 1/N · harness: codex …`; Claude Code prefixes the skill with `Base directory for this skill:` and loads the stack through the `.claude/CLAUDE.md` `@-imports`. Set `KEVIN_HARNESS` to `codex` or `claude` and carry it through the walk.
+**Detect the harness.** Kevin runs under Claude Code or OpenAI Codex, and a few later steps differ by host. Codex wraps this skill's text in a `<skill>` block with a `<path>`, invokes skills as `$name`, and delivers Kevin's identity stack as a `developer` message whose first line reads `<!-- kevin static context · harness: codex …`; Claude Code prefixes the skill with `Base directory for this skill:` and loads the stack through the `.claude/CLAUDE.md` `@-imports`. Set `KEVIN_HARNESS` to `codex` or `claude` and carry it through the walk.
 
 **Resolve the plugin checkout.** `$PLUGIN_ROOT` is the directory this skill loaded from: two levels above the skill's base directory (the `Base directory for this skill:` line under Claude Code, the `<skill>` block's `<path>` under Codex). Under Claude Code that is the same path as `${CLAUDE_PLUGIN_ROOT}`; wherever a later step says `${CLAUDE_PLUGIN_ROOT}`, use `$PLUGIN_ROOT`.
 
@@ -1435,9 +1435,9 @@ Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a 
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. It prints `{ hooks: { path, changed }, mcp: { path, changed }, entries }`: twelve `SessionStart` entries each deliver one slice of the static context (entries past the stack print nothing, so the count only bounds growth), one `SessionEnd` entry captures the session, and the `[mcp_servers.kevin]` table launches the server with `AGENT_HOME` set. Other hooks, other MCP servers, and other settings in those files are preserved. Skip this step when `KEVIN_HARNESS=claude` unless the operator says they also launch `codex` from this home; ask once if unsure.
+If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. It prints `{ hooks: { path, changed }, mcp: { path, changed }, entries }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), one `SessionEnd` entry captures the session, and the `[mcp_servers.kevin]` table launches the server with `AGENT_HOME` set. Other hooks, other MCP servers, and other settings in those files are preserved. Skip this step when `KEVIN_HARNESS=claude` unless the operator says they also launch `codex` from this home; ask once if unsure.
 
-**Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all 13 entries, or Codex sessions start without Kevin's context and are never captured.
+**Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust both entries, or Codex sessions start without Kevin's context and are never captured.
 
 ## Step 8 — Optional: configure skill packs
 
@@ -1497,7 +1497,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > `<SKILL_PACK_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
-For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (13 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server)`; otherwise omit the row.
+For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (2 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server)`; otherwise omit the row.
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
@@ -1552,7 +1552,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > claude
 > ```
 >
-> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 13 Kevin entries (`session-start` ×12, `session-end` ×1). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
+> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 2 Kevin entries (`session-start`, `session-end`). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
 >
 > **Watch for a marketplace trust prompt.** On first relaunch, Claude Code asks "this project wants to register a marketplace and enable a plugin — trust it?" **Accept it.** If you dismiss/miss the prompt, the plugin won't load and the SessionStart banner won't appear — recover by running:
 >

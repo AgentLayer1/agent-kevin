@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * The per-home Codex wiring: hooks in `<home>/.codex/hooks.json` (one SessionStart
- * entry per static-context slice plus the SessionEnd capture) and the `kevin` MCP
+ * The per-home Codex wiring: hooks in `<home>/.codex/hooks.json` (the SessionStart
+ * context, with Codex's per-hook output cap lifted, plus the SessionEnd capture) and the `kevin` MCP
  * server in `<home>/.codex/config.toml`, every command pointing at this plugin checkout
  * and this home. Codex has no `@-import`, and a plugin cannot bundle hooks or an MCP
  * server that knows which home it serves (the server is launched inside the plugin
@@ -17,14 +17,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-/** Registered SessionStart entries. Entries past the stack print nothing, so this only bounds growth. */
-const SESSION_START_SLICES = 12;
 /** A hook command of ours, whichever checkout (quoted or not) it points at. */
 const KEVIN_COMMAND = /bin\/kevin'? session-(start|capture) .*--hook-protocol=codex/;
 interface HookItem {
   type: string;
   command?: string;
   timeout?: number;
+  /** Codex truncates a hook's context at ~2,500 tokens unless this is raised; 0 lifts the cap. */
+  additionalContextLimit?: number;
 }
 interface HookGroup {
   matcher?: string;
@@ -59,9 +59,9 @@ const configPath = resolve(homeDir, '.codex', 'config.toml');
 const quote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 const command = (rest: string): string =>
   `AGENT_HOME=${quote(homeDir)} bun ${quote(resolve(pluginRoot, 'bin', 'kevin'))} ${rest}`;
-const entry = (commandLine: string, timeout: number): HookGroup => ({
+const entry = (commandLine: string, timeout: number, extra: Partial<HookItem> = {}): HookGroup => ({
   matcher: '',
-  hooks: [{ type: 'command', command: commandLine, timeout }]
+  hooks: [{ type: 'command', command: commandLine, timeout, ...extra }]
 });
 const isKevin = (item: HookItem): boolean => typeof item.command === 'string' && KEVIN_COMMAND.test(item.command);
 const withoutKevin = (groups: HookGroup[] = []): HookGroup[] =>
@@ -90,9 +90,7 @@ const hooksDocument: HooksDocument = {
     ...existingHooks.hooks,
     SessionStart: [
       ...withoutKevin(existingHooks.hooks?.SessionStart),
-      ...Array.from({ length: SESSION_START_SLICES }, (_unused, index) =>
-        entry(command(`session-start --hook-protocol=codex --slice=${index + 1}/${SESSION_START_SLICES}`), 15)
-      )
+      entry(command('session-start --hook-protocol=codex'), 15, { additionalContextLimit: 0 })
     ],
     SessionEnd: [
       ...withoutKevin(existingHooks.hooks?.SessionEnd),
@@ -175,5 +173,5 @@ if (!args.includes('--write')) {
 } else {
   const hooks = writeIfChanged(hooksPath, hooksText);
   const mcp = writeIfChanged(configPath, configText);
-  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: SESSION_START_SLICES + 1 })}\n`);
+  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 2 })}\n`);
 }

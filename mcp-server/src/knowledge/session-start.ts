@@ -1,11 +1,12 @@
 /**
  * Harness-agnostic SessionStart core. Used by:
  *  - Claude Code's SessionStart hook via `bin/kevin session-start --hook-protocol=claude`.
- *  - Codex CLI's SessionStart hooks via `bin/kevin session-start --hook-protocol=codex
- *    --slice=N/M`: Codex takes a hook's stdout as developer context but caps each
- *    hook at ~10,000 chars, and it has no `@-import`, so the static stack (identity
- *    files, indexes, task board) plus the dynamic lane is delivered as M hook
- *    entries, each printing one line-bounded slice. See `sessionStartCodex`.
+ *  - Codex CLI's SessionStart hook via `bin/kevin session-start --hook-protocol=codex`:
+ *    Codex takes a hook's stdout as developer context and has no `@-import`, so the
+ *    static stack (identity files, indexes, task board) is printed ahead of the same
+ *    dynamic lane. The hook is registered with `additionalContextLimit: 0`, since
+ *    Codex otherwise truncates a hook's output at about 2,500 tokens. See
+ *    `sessionStartCodex`.
  *
  * Three disjoint paths:
  *  - **Pre-init**: nothing scaffolded here — emit the banner + setup hint. NO
@@ -24,11 +25,11 @@
  */
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
 import { assembleContext } from '@/context';
-import { buildStaticStack, renderSlice, type SliceRequest } from '@/knowledge/context-slices';
 import { BANNER } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { relative, resolve, sep } from 'node:path';
 
 const log = baseLog.session.with('start');
 
@@ -81,17 +82,25 @@ const strandedHomeResult = (): SessionStartResult => {
 };
 
 /**
- * One slice of the Codex session-start payload: the static stack followed by the
- * same dynamic lane Claude gets, chunked under Codex's per-hook cap. Pre-init and
- * stranded homes get the same guidance as Claude, in slice 1 only.
+ * The Codex session-start payload: the files Claude Code gets through the
+ * `.claude/CLAUDE.md` bridge, each introduced by its home-relative path, then the
+ * same dynamic lane Claude gets. Pre-init and stranded homes get Claude's guidance.
  */
-export async function sessionStartCodex(request: SliceRequest): Promise<string> {
+export async function sessionStartCodex(): Promise<string> {
   if (!isInitialized()) {
     const guidance = existsSync(FILES.SOUL) ? strandedHomeResult().additionalContext : PRE_INIT_RESULT.systemMessage;
-    return request.index === 1 ? `${guidance.trim()}\n` : '';
+    return `${guidance.trim()}\n`;
   }
   const { context } = await assembleContext();
-  return renderSlice(buildStaticStack(context), request);
+  const files = [FILES.SOUL, FILES.IDENTITY, FILES.USER, FILES.KNOWLEDGE, FILES.MEMORY, resolve(FOLDERS.PROJECTS, 'TASKS.md')]
+    .filter((path) => existsSync(path))
+    .map((path) => `<!-- file: ${relative(FOLDERS.HOME, path).split(sep).join('/')} -->\n${readFileSync(path, 'utf-8').trimEnd()}`);
+  const lane = context.trim() ? [`<!-- session context (dynamic lane) -->\n${context.trimEnd()}`] : [];
+  return [
+    "<!-- kevin static context · harness: codex · delivered by the plugin's SessionStart hook because Codex has no @-import -->",
+    ...files,
+    ...lane
+  ].join('\n\n') + '\n';
 }
 
 export async function sessionStart(): Promise<SessionStartResult> {

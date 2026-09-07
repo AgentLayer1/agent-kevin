@@ -26,15 +26,17 @@ afterAll(() => {
 });
 
 describe('codex-setup hooks', () => {
-  test('prints one SessionStart entry per slice plus the SessionEnd capture, pinned to the home and plugin', () => {
+  test('prints the SessionStart context entry with the cap lifted plus the SessionEnd capture, pinned to the home and plugin', () => {
     const { code, json } = run('--home', '/Users/ada/Agents/Scout', '--plugin-root', '/opt/kevin');
     expect(code).toBe(0);
     const starts = json.hooks.SessionStart;
-    expect(starts).toHaveLength(12);
-    expect(starts[0].hooks[0].command).toBe(
-      "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-start --hook-protocol=codex --slice=1/12"
-    );
-    expect(starts[11].hooks[0].command).toContain('--slice=12/12');
+    expect(starts).toHaveLength(1);
+    expect(starts[0].hooks[0]).toEqual({
+      type: 'command',
+      command: "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-start --hook-protocol=codex",
+      timeout: 15,
+      additionalContextLimit: 0
+    });
     expect(json.hooks.SessionEnd[0].hooks[0].command).toBe(
       "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-capture --mode=session-end --hook-protocol=codex"
     );
@@ -69,7 +71,7 @@ describe('codex-setup hooks', () => {
     const written = JSON.parse(readFileSync(json.hooks.path, 'utf-8'));
     expect(written.note).toBe('mine');
     expect(written.hooks.Stop[0].hooks[0].command).toBe('echo keep-me');
-    expect(written.hooks.SessionStart).toHaveLength(13);
+    expect(written.hooks.SessionStart).toHaveLength(2);
     expect(written.hooks.SessionStart[0].hooks[0].command).toBe('echo also-mine');
     expect(written.hooks.SessionEnd).toHaveLength(1);
   });
@@ -118,7 +120,7 @@ describe('codex-setup hooks', () => {
     const first = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
     const written = readFileSync(first.json.hooks.path, 'utf-8');
     expect(written).not.toContain('/old/kevin');
-    expect(JSON.parse(written).hooks.SessionStart).toHaveLength(12);
+    expect(JSON.parse(written).hooks.SessionStart).toHaveLength(1);
     expect(JSON.parse(written).hooks.SessionEnd).toHaveLength(1);
     const again = run('--home', home, '--plugin-root', '/opt/kevin', '--write').json;
     expect(again.hooks.changed).toBe(false);

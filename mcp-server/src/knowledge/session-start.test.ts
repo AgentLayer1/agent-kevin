@@ -106,8 +106,8 @@ describe('sessionStart', () => {
     expect(result.additionalContext).not.toContain('Operating manual layout');
   });
 
-  test('codex protocol: slice 1 carries the identity files with file markers; entries past the stack print nothing', async () => {
-    const [first, beyond] = await withHome(
+  test('codex protocol: the payload carries the identity files with file markers and the dynamic lane', async () => {
+    const first = await withHome(
       (home) =>
         markedHome(home, {
           'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n',
@@ -116,25 +116,23 @@ describe('sessionStart', () => {
           'IDENTITY.md': '# Identity\n\n## Who\n\n- **Name:** Scout\n',
           'USER.md': '# About Ada\n'
         }),
-      async () => [await sessionStartCodex({ index: 1, total: 12 }), await sessionStartCodex({ index: 12, total: 12 })]
+      () => sessionStartCodex()
     );
-    expect(first).toContain('kevin static context · slice 1/');
+    expect(first).toContain('kevin static context · harness: codex');
     expect(first).toContain('<!-- file: SOUL.md -->');
     expect(first).toContain('Sharp, a little spicy.');
     expect(first).toContain('<!-- file: IDENTITY.md -->');
     expect(first).toContain('<!-- file: USER.md -->');
     expect(first).toContain('<!-- session context (dynamic lane) -->');
     expect(first).not.toContain('AGENTS.md —'); // the manual is Codex-native, never re-sent
-    expect(beyond).toBe('');
   });
 
-  test('codex protocol: a pre-init directory gets the setup hint in slice 1 and nothing after', async () => {
-    const [first, second] = await withHome(
+  test('codex protocol: a pre-init directory gets the setup hint', async () => {
+    const hint = await withHome(
       () => {},
-      async () => [await sessionStartCodex({ index: 1, total: 4 }), await sessionStartCodex({ index: 2, total: 4 })]
+      () => sessionStartCodex()
     );
-    expect(first).toContain('init');
-    expect(second).toBe('');
+    expect(hint).toContain('init');
   });
 
   test('the home marker alone marks the home, with no SOUL.md needed', async () => {
