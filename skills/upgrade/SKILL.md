@@ -198,18 +198,27 @@ never reorder or remove existing entries; never touch operator keys like
 `hooks`/`theme`/`env` unless an action names them). Write back valid JSON. Idempotent:
 re-running adds nothing.
 
-**codex wiring (always, when applicable)** — if `$HOME_DIR/.codex/hooks.json` exists, or this
-session itself runs under Codex (the `<skill>` block wrapper; no Kevin context or tools yet is
-the symptom of an unwired home), this home runs Codex. Generate or regenerate the hooks and
-the `[mcp_servers.kevin]` registration in `$HOME_DIR/.codex/config.toml` so both point at the
-checkout that just loaded (a version-pinned plugin cache moves on every release):
+**codex wiring (always, when applicable)** — this home runs Codex when any of these holds:
+`$HOME_DIR/.codex/hooks.json` exists; this session itself runs under Codex (the `<skill>`
+block wrapper; no Kevin context or tools yet is the symptom of an unwired home); or the
+release range includes **0.4.1**, the release that added Codex, and `$HOME_DIR/.codex/` is
+absent — then ask the operator once (`AskUserQuestion` under Claude Code): "Do you also run
+Codex from this home?" A yes wires it now; a no writes nothing, and a later `$upgrade` run
+from a Codex session wires it then. When it holds, generate or regenerate the hooks and the
+`[mcp_servers.kevin]` registration in `$HOME_DIR/.codex/config.toml` so both point at the
+checkout that just loaded (a version-pinned plugin cache moves on every release; under
+Claude Code that is Claude's copy of the plugin, which Codex runs the hooks and the server
+from, its own plugin cache carrying only the skills):
 
 ```bash
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-`hooks.changed: true` means the hook commands moved and Codex no longer trusts them: carry
-the re-trust line into the Step 6 report. Never drop it. An untrusted hook does not run at
+`hooks.changed: true` means the hook commands are new or moved and Codex does not trust them
+yet: carry the re-trust line into the Step 6 report, and for a first wiring add the two
+install lines the operator still owes if the plugin is not installed in Codex yet
+(`codex plugin marketplace add <plugin checkout or marketplace>` then
+`codex plugin add agent-kevin@<marketplace>`) and the folder-trust prompt on first launch. Never drop it. An untrusted hook does not run at
 all, silently under `codex exec`, which is a home that stops capturing its Codex sessions.
 
 **file (additive)** — copy the template to its HOME destination **only if absent**:

@@ -118,7 +118,7 @@ mkdir -p ~/Documents/Agents/Kevin && cd ~/Documents/Agents/Kevin
 codex
 ```
 
-Inside the session run `$init` (an existing home: `$upgrade`, which writes the same Codex wiring). Codex reads the home's `AGENTS.md` natively; the identity stack, the indexes, and the session capture arrive through per-home hooks that `init` writes to `.codex/hooks.json` (trusted once via `/hooks`), and Kevin's MCP server is registered per home in `.codex/config.toml` (Codex reads it once you trust the folder). A home works from both CLIs, and a session ended in one is in the other's context next time. Codex installs a *copy* of the checkout into its plugin cache, so after pulling new code run `codex plugin remove agent-kevin@agentdev-kevin && codex plugin add agent-kevin@agentdev-kevin`, then `$upgrade` from the home.
+Inside the session run `$init`. For a home that already exists, run `$upgrade` there instead, or `/agent-kevin:upgrade` from Claude Code, which asks whether you also run Codex from the home and writes the same wiring. Codex reads the home's `AGENTS.md` natively; the identity stack, the indexes, and the session capture arrive through per-home hooks that `init` writes to `.codex/hooks.json` (trusted once via `/hooks`), and Kevin's MCP server is registered per home in `.codex/config.toml` (Codex reads it once you trust the folder). A home works from both CLIs, and a session ended in one is in the other's context next time. Codex installs a *copy* of the checkout into its plugin cache, so after pulling new code run `codex plugin remove agent-kevin@agentdev-kevin && codex plugin add agent-kevin@agentdev-kevin`, then `$upgrade` from the home.
 
 ### Updating an installed plugin
 

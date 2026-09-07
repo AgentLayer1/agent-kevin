@@ -88,7 +88,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `template/AGENTS.md: optional` — the tree-diagram comment on `.mcp.json` now says the bundled `kevin` server is registered in the plugin manifest (one comment line; declining loses nothing).
-- `manual: optional` — Codex homes only: run `$upgrade` from a Codex session started in the home. It writes `.codex/hooks.json` and the `[mcp_servers.kevin]` table in `.codex/config.toml`; then trust the folder when Codex asks and trust the two Kevin entries via `/hooks`. Claude Code homes have nothing to do.
+- `manual: optional` — Codex: this upgrade asks once whether the home also runs Codex and, on yes, writes `.codex/hooks.json` and the `[mcp_servers.kevin]` table in `.codex/config.toml`. Then install the plugin in Codex if you have not (`codex plugin marketplace add <checkout or marketplace>`, `codex plugin add agent-kevin@<marketplace>`), launch `codex` from the home, trust the folder when asked, and trust the two Kevin entries via `/hooks`. A Codex-only home gets the same wiring from `$upgrade` run inside Codex. Claude Code-only homes answer no and have nothing to do.
 
 ## [0.4.0] - 2026-09-06
 
