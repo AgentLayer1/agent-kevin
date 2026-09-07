@@ -44,7 +44,7 @@ beforeAll(async () => {
       ),
       message('user', '<environment_context>\n  <cwd>/Users/x/Test</cwd>\n</environment_context>'),
       message('developer', '<skills_instructions>\n## Skills\n</skills_instructions>'),
-      message('developer', 'KEVIN-STACK-BEGIN\n...\nKEVIN-STACK-END'),
+      message('developer', 'AGENT-STACK-BEGIN\n...\nAGENT-STACK-END'),
       JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: 't1' } }),
       JSON.stringify({ type: 'turn_context', payload: { turn_id: 't1', model: 'gpt-6-astra' } }),
       message('user', "Who are you and what's active right now?"),
@@ -101,7 +101,7 @@ describe('codex rollout capture', () => {
       '<environment_context>',
       '<skill>',
       '<skills_instructions>',
-      'KEVIN-STACK-BEGIN',
+      'AGENT-STACK-BEGIN',
       'tools.mcp__kevin__task_scan',
       'Script completed'
     ]) {

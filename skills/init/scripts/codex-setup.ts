@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 /** A hook command of ours, whichever checkout (quoted or not) it points at. */
-const KEVIN_COMMAND = /bin\/kevin'? session-(start|capture) .*--hook-protocol=codex/;
+const AGENT_COMMAND = /bin\/kevin'? session-(start|capture) .*--hook-protocol=codex/;
 interface HookItem {
   type: string;
   command?: string;
@@ -64,10 +64,10 @@ const entry = (commandLine: string, timeout: number, extra: Partial<HookItem> = 
   matcher: '',
   hooks: [{ type: 'command', command: commandLine, timeout, ...extra }]
 });
-const isKevin = (item: HookItem): boolean => typeof item.command === 'string' && KEVIN_COMMAND.test(item.command);
-const withoutKevin = (groups: HookGroup[] = []): HookGroup[] =>
+const isAgentEntry = (item: HookItem): boolean => typeof item.command === 'string' && AGENT_COMMAND.test(item.command);
+const withoutAgentEntries = (groups: HookGroup[] = []): HookGroup[] =>
   groups
-    .map((group) => ({ ...group, hooks: group.hooks.filter((item) => !isKevin(item)) }))
+    .map((group) => ({ ...group, hooks: group.hooks.filter((item) => !isAgentEntry(item)) }))
     .filter((group) => group.hooks.length > 0);
 
 const readHooks = (): HooksDocument => {
@@ -90,15 +90,15 @@ const hooksDocument: HooksDocument = {
   hooks: {
     ...existingHooks.hooks,
     SessionStart: [
-      ...withoutKevin(existingHooks.hooks?.SessionStart),
+      ...withoutAgentEntries(existingHooks.hooks?.SessionStart),
       entry(command('session-start --hook-protocol=codex'), 15, { additionalContextLimit: 0 })
     ],
     SessionEnd: [
-      ...withoutKevin(existingHooks.hooks?.SessionEnd),
+      ...withoutAgentEntries(existingHooks.hooks?.SessionEnd),
       entry(command('session-capture --mode=session-end --hook-protocol=codex'), 3)
     ],
     PreCompact: [
-      ...withoutKevin(existingHooks.hooks?.PreCompact),
+      ...withoutAgentEntries(existingHooks.hooks?.PreCompact),
       entry(command('session-capture --mode=pre-compact --hook-protocol=codex'), 30)
     ]
   }
@@ -125,21 +125,21 @@ const headerPath = (line: string): string[] | undefined => {
   const match = /^\s*\[\[?\s*(.+?)\s*\]\]?\s*(?:#.*)?$/.exec(line);
   return match ? [...match[1].matchAll(/"([^"]*)"|'([^']*)'|([^.\s]+)/g)].map((m) => m[1] ?? m[2] ?? m[3]) : undefined;
 };
-const isKevinHeader = (path: string[]): boolean => path[0] === 'mcp_servers' && path[1] === 'kevin';
-const withoutKevinTables = (text: string): string => {
+const isAgentTableHeader = (path: string[]): boolean => path[0] === 'mcp_servers' && path[1] === 'kevin';
+const withoutAgentTables = (text: string): string => {
   let dropping = false;
   return text
     .split('\n')
     .filter((line) => {
       const path = headerPath(line);
-      if (path) dropping = isKevinHeader(path);
+      if (path) dropping = isAgentTableHeader(path);
       return !dropping;
     })
     .join('\n');
 };
 
 const tomlString = (value: string): string => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-const kevinTables = [
+const agentTables = [
   '[mcp_servers.kevin]',
   'command = "bun"',
   `args = [${tomlString(resolve(pluginRoot, 'mcp-server', 'src', 'server.ts'))}]`,
@@ -151,7 +151,7 @@ const kevinTables = [
 ].join('\n');
 const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : '';
 parseToml(existingConfig, configPath);
-const otherConfig = withoutKevinTables(existingConfig)
+const otherConfig = withoutAgentTables(existingConfig)
   .replace(/\n{3,}/g, '\n\n')
   .trim();
 if (lookup(parseToml(otherConfig, configPath), ['mcp_servers', 'kevin']) !== undefined) {
@@ -159,7 +159,7 @@ if (lookup(parseToml(otherConfig, configPath), ['mcp_servers', 'kevin']) !== und
     `${configPath} registers mcp_servers.kevin in a form this script does not rewrite (inline table or dotted keys); remove it by hand and rerun`
   );
 }
-const configText = otherConfig ? `${otherConfig}\n\n${kevinTables}` : kevinTables;
+const configText = otherConfig ? `${otherConfig}\n\n${agentTables}` : agentTables;
 if (lookup(parseToml(configText, 'the generated config'), ['mcp_servers', 'kevin', 'env', 'AGENT_HOME']) !== homeDir) {
   throw new Error(`the generated ${configPath} does not register this home; nothing written`);
 }
