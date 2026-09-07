@@ -23,13 +23,13 @@
  * Always returns a result — internal errors are caught and emitted as an
  * empty payload + `error` field so the host never chokes on hook output.
  */
-import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
+import { FILES, FOLDERS, PLUGIN_NAME, isInitialized, staticContextFiles } from '@/config';
 import { assembleContext } from '@/context';
 import { BANNER } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';
 import { existsSync, readFileSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import { relative, sep } from 'node:path';
 
 const log = baseLog.session.with('start');
 
@@ -91,14 +91,7 @@ export async function sessionStartCodex(): Promise<string> {
     const guidance = existsSync(FILES.SOUL) ? strandedHomeResult().additionalContext : PRE_INIT_RESULT.systemMessage;
     return `${guidance.trim()}\n`;
   }
-  const files = [
-    FILES.SOUL,
-    FILES.IDENTITY,
-    FILES.USER,
-    FILES.KNOWLEDGE,
-    FILES.MEMORY,
-    resolve(FOLDERS.PROJECTS, 'TASKS.md')
-  ]
+  const files = staticContextFiles()
     .filter((path) => existsSync(path))
     .map(
       (path) =>

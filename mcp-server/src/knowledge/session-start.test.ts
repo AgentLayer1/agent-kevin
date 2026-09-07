@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { FOLDERS, staticContextFiles } from '@/config';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 
@@ -125,6 +126,22 @@ describe('sessionStart', () => {
     expect(first).toContain('<!-- file: USER.md -->');
     expect(first).toContain('<!-- session context (dynamic lane) -->');
     expect(first).not.toContain('AGENTS.md —'); // the manual is Codex-native, never re-sent
+  });
+
+  test('the Codex stack is exactly what the Claude bridge template imports after the manual', () => {
+    const template = readFileSync(resolve(import.meta.dir, '..', '..', '..', 'templates', 'CLAUDE.md'), 'utf-8');
+    const imported = template
+      .split('\n')
+      .filter((line) => line.startsWith('@') && !line.endsWith('/AGENTS.md'))
+      .map((line) =>
+        line
+          .slice(1)
+          .replace('{{KNOWLEDGE_IMPORT}}', FOLDERS.KNOWLEDGE)
+          .replace('{{PROJECTS_IMPORT}}', FOLDERS.PROJECTS)
+          .replace(/^\.\.\//, `${FOLDERS.HOME}/`)
+      )
+      .map((path) => resolve(path));
+    expect(staticContextFiles().map((path) => resolve(path))).toEqual(imported);
   });
 
   test('codex protocol: a pre-init directory gets the setup hint', async () => {
