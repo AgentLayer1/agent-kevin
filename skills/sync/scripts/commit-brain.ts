@@ -99,7 +99,7 @@ export const brainGroups = (home: string): Group[] => {
     {
       name: "state",
       message: "Sync: update state",
-      dirs: [runtimeDirName(), ".claude", "archive"],
+      dirs: [runtimeDirName(), ".claude", ".codex", "archive"],
       files: ["dashboard.html", "roadmap.html", ".mcp.json"],
     },
   ];

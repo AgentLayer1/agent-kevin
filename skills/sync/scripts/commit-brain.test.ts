@@ -120,6 +120,7 @@ describe("commitBrain grouping", () => {
     write(home, "projects/TASKS.md", "changed\n");
     write(home, "reports/briefings/2026-08-06-morning.md", "new report\n");
     write(home, "dashboard.html", "changed\n");
+    write(home, ".codex/hooks.json", "{}\n");
     write(home, ".env", "SECRET=1\n");
     write(home, "stray.txt", "scratch\n");
 
@@ -140,7 +141,7 @@ describe("commitBrain grouping", () => {
     ]);
     expect(filesIn(home, projects.sha)).toEqual(["M\tprojects/TASKS.md"]);
     expect(filesIn(home, reports.sha)).toEqual(["A\treports/briefings/2026-08-06-morning.md"]);
-    expect(filesIn(home, state.sha)).toEqual(["M\tdashboard.html"]);
+    expect(filesIn(home, state.sha).sort()).toEqual(["A\t.codex/hooks.json", "M\tdashboard.html"]);
 
     expect(outcome.leftUncommitted).toEqual(["stray.txt"]);
     expect(git(home, "status", "--porcelain")).toBe("?? stray.txt");
