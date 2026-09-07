@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-kevin",
   "version": "0.4.0",
   "description": "Portable, file-based personal AI assistant. Compiles raw sessions into a queryable wiki, manages tasks across project lifecycles, drives SEO/web tools (GSC, PageSpeed, SerpAPI, headless browser, web search), and ships 20+ skills covering onboarding, daily/weekly/monthly cadences, audits, and content workflows. All data stays as local markdown + YAML.",
@@ -20,18 +19,23 @@
     "playwright",
     "google-search-console"
   ],
-  "hooks": "./hooks/claude.json",
-  "mcpServers": {
-    "kevin": {
-      "command": "bun",
-      "args": [
-        "${CLAUDE_PLUGIN_ROOT}/mcp-server/src/server.ts"
-      ],
-      "env": {
-        "AGENT_PLUGIN_ROOT": "${CLAUDE_PLUGIN_ROOT}",
-        "AGENT_PLUGIN_DATA": "${CLAUDE_PLUGIN_DATA}",
-        "PLAYWRIGHT_BROWSERS_PATH": "0"
-      }
-    }
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Kevin",
+    "shortDescription": "Portable, file-based personal AI assistant",
+    "longDescription": "Kevin keeps a local markdown brain: identity files, a compiled wiki, active memory, and a task system. Every session is captured and compiled back into that brain, so the next session, in Codex or Claude Code, picks up where the last one left off.",
+    "developerName": "AgentLayer",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://agentlayer.one",
+    "defaultPrompt": [
+      "Who are you and what's on my task list?",
+      "$quick-pulse",
+      "$standup"
+    ]
   }
 }

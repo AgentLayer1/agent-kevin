@@ -73,7 +73,7 @@ export function diffTurns(allTurns: TranscriptTurn[], prior: SessionRecord | nul
 // ── Pure: record a capture into the index ────────────────────────────
 
 /**
- * Entries written before 0.4.1 were keyed by the id's first 8 chars, which
+ * Entries written by earlier releases were keyed by the id's first 8 chars, which
  * collide for Codex's time-ordered UUIDv7 ids. Fold such an entry onto the full
  * id when the full id has no entry of its own.
  */

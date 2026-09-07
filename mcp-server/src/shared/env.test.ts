@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
-import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
+import { agentHomePath, env, loadSecretsEnv, loadSettingsEnv, readEnvFile } from './env';
 
 /** Scaffold `dir/` as a marked agent data dir under `home` (what init produces). */
 const scaffoldDataDir = (home: string, dir: string = RUNTIME_DIR_DEFAULT): void => {
@@ -325,6 +325,36 @@ describe('loadSecretsEnv', () => {
       process.env.AGENT_HOME = original;
       loadSecretsEnv();
       delete process.env.AGENT_PROBE_SECRET;
+    }
+  });
+});
+
+describe('loadSettingsEnv', () => {
+  test('hydrates the nearest settings env, local over shared, never over the existing environment', () => {
+    const home = mkdtempSync(resolve(tmpdir(), 'settings-env-'));
+    mkdirSync(resolve(home, '.claude'), { recursive: true });
+    mkdirSync(resolve(home, 'sub', '.claude'), { recursive: true });
+    writeFileSync(
+      resolve(home, '.claude', 'settings.json'),
+      JSON.stringify({ env: { SETTINGS_A: 'shared', SETTINGS_B: 'shared' } })
+    );
+    writeFileSync(
+      resolve(home, '.claude', 'settings.local.json'),
+      JSON.stringify({ env: { SETTINGS_A: 'local', SETTINGS_C: 'local' } })
+    );
+    writeFileSync(
+      resolve(home, 'sub', '.claude', 'settings.json'),
+      JSON.stringify({ env: { SETTINGS_B: 'nearest', SETTINGS_D: 7 } })
+    );
+    process.env.SETTINGS_C = 'shell';
+    try {
+      loadSettingsEnv(resolve(home, 'sub'));
+      expect(process.env.SETTINGS_A).toBe('local');
+      expect(process.env.SETTINGS_B).toBe('nearest');
+      expect(process.env.SETTINGS_C).toBe('shell');
+      expect(process.env.SETTINGS_D).toBeUndefined();
+    } finally {
+      for (const key of ['SETTINGS_A', 'SETTINGS_B', 'SETTINGS_C', 'SETTINGS_D']) delete process.env[key];
     }
   });
 });

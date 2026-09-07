@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
 /**
  * Kevin MCP Server — entrypoint.
- * stdio transport; spawned by Claude Code on plugin enable.
+ * stdio transport; spawned by Claude Code from the plugin manifest, by Codex from the
+ * home's `.codex/config.toml` registration (see `skills/init/scripts/codex-setup.ts`).
  *
  * Boot is side-effect-free. Tools that write (compile state, OAuth tokens,
  * playwright captures) create their parent dirs at write time. Pre-init
  * plugins must not touch disk.
  */
+import '@/bootstrap';
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
 import { log } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';

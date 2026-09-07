@@ -40,7 +40,8 @@ const StepSchema = z.object({
 type Step = z.infer<typeof StepSchema>;
 
 async function getChromium(): Promise<ChromiumLike> {
-  // `PLAYWRIGHT_BROWSERS_PATH=0` is set by `.mcp.json` so playwright resolves
+  // `PLAYWRIGHT_BROWSERS_PATH=0` is set by whatever launches the server (the Claude manifest,
+  // the home's Codex registration) so playwright resolves
   // the browser binary inside the plugin's own `node_modules/playwright/.local-browsers/`
   // (matching the postinstall location). No runtime env mutation needed here.
 

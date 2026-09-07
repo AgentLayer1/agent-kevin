@@ -67,7 +67,7 @@ export const renderSlice = (stack: string, request: SliceRequest): string => {
   const count = slices.length;
   if (request.index < 1 || request.index > Math.min(count, request.total)) return '';
   const body = slices[request.index - 1];
-  const preamble = `<!-- kevin static context · slice ${request.index}/${count} · delivered by the plugin's SessionStart hooks because this harness has no @-import -->`;
+  const preamble = `<!-- kevin static context · slice ${request.index}/${count} · harness: codex · delivered by the plugin's SessionStart hooks because Codex has no @-import -->`;
   const undelivered = request.index === request.total && count > request.total ? count - request.total : 0;
   const warning = undelivered
     ? `\n\n<!-- ⚠️ kevin: ${undelivered} more slice(s) of static context were not delivered. Raise the number of session-start entries in .codex/hooks.json (${request.total} registered, ${count} needed). -->`

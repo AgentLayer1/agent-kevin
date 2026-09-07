@@ -663,7 +663,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ```
 
 **Prefix rule** (use this whenever you need to know how a tool surfaces to permissions.allow):
-- Plugin-bundled MCP tools (from the plugin's own `.mcp.json` → any `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the read-only `github_*` PR/Actions tools).
+- Plugin-bundled MCP tools (from the plugin manifest's `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the read-only `github_*` PR/Actions tools).
 - Standalone MCP servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs, but users can add their own): `mcp__<server>__<tool>`
 
 **Revoke** (remove entries — deconfigure path):

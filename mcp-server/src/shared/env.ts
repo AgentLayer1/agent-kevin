@@ -107,6 +107,33 @@ export const isAgentHome = (path: string): boolean =>
     HOME_MARKER_FILES.some((file) => existsSync(resolve(expandTilde(path), dir, file)))
   );
 
+/**
+ * Hydrate process.env from every `.claude/settings*.json` `env` block on the ancestor
+ * path of `start`: nearest directory wins, `settings.local.json` over `settings.json`,
+ * and anything already in the environment always wins. Claude Code does this for its
+ * own sessions; the CLI and, under Codex, the MCP server do it themselves.
+ */
+export function loadSettingsEnv(start: string): void {
+  let dir = resolve(start);
+  for (;;) {
+    for (const file of ['settings.local.json', 'settings.json']) {
+      const path = resolve(dir, '.claude', file);
+      if (!existsSync(path)) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(path, 'utf-8')) as { env?: Record<string, unknown> };
+        for (const [key, value] of Object.entries(parsed.env ?? {})) {
+          if (typeof value === 'string') process.env[key] ??= value;
+        }
+      } catch {
+        // a malformed settings file contributes nothing; `kevin ping` shows the resolved paths
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return;
+    dir = parent;
+  }
+}
+
 /** `<HOME>/<data-dir>/secrets/.env`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
 const secretsEnvFile = (): string => resolve(agentHomePath(), runtimeDirName(), 'secrets', '.env');
 

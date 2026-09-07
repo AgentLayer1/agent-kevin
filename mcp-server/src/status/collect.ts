@@ -606,7 +606,7 @@ const summarizeHookCommand = (command: string): string => {
 };
 
 const collectHooks = (): StatusSnapshot['hooks'] => {
-  const parsed = readJson<{ hooks?: Record<string, HookConfig[]> }>(resolve(FOLDERS.ROOT, 'hooks', 'hooks.json'));
+  const parsed = readJson<{ hooks?: Record<string, HookConfig[]> }>(resolve(FOLDERS.ROOT, 'hooks', 'claude.json'));
   const hookMap = parsed?.hooks ?? {};
   const entries: HookEntry[] = Object.keys(hookMap).map((event) => {
     const command = hookMap[event]?.[0]?.hooks?.[0]?.command ?? '';

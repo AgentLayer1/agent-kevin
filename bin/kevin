@@ -36,8 +36,7 @@
  *   kevin database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
  *   kevin database fork [--connection=NAME] [--source=DB] [--fork=NAME] [--cwd=PATH] [--repoint-env] [--env-var=DATABASE_URL] [--force] [--terminate-source] [--drop]
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 // Resolve plugin root from this script's location so the CLI works whether
 // you invoke it via bin/kevin, /full/path/to/bin/kevin, or the plugin PATH.
@@ -58,25 +57,8 @@ process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 // live and secret loading re-keys on the home — but it stays because it's the
 // order a reader expects.
 async function loadProjectEnv(): Promise<void> {
-  let dir = process.cwd();
-  while (true) {
-    for (const file of ['settings.local.json', 'settings.json']) {
-      const path = resolve(dir, '.claude', file);
-      if (!existsSync(path)) continue;
-      try {
-        const parsed = JSON.parse(readFileSync(path, 'utf-8')) as { env?: Record<string, string> };
-        for (const [key, value] of Object.entries(parsed.env ?? {})) {
-          if (typeof value === 'string') process.env[key] ??= value;
-        }
-      } catch {
-        // malformed settings file — skip silently; user can run `kevin ping` to see resolved paths
-      }
-    }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  const { agentHomePath } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
+  const { agentHomePath, loadSettingsEnv } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
+  loadSettingsEnv(process.cwd());
   agentHomePath();
 }
 await loadProjectEnv();

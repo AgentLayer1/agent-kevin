@@ -148,8 +148,9 @@ concrete target — e.g. if `plugin.json` is `0.2.2`, the options read `patch �
 Recommend the bump that matches the change magnitude from Steps 1–2 (put it first, label
 it "(Recommended)"), but the maintainer's choice wins.
 
-Then bump `.claude-plugin/plugin.json` `version` to the chosen (or determined) value (edit
-that one field).
+Then bump `version` in both manifests, `.claude-plugin/plugin.json` and
+`.codex-plugin/plugin.json`, to the chosen (or determined) value (edit that one field in
+each; `mcp-server/src/manifests.test.ts` fails when they drift).
 
 > Note: `mcp-server/package.json` carries its own, separate `version` that is not used
 > for plugin versioning and has drifted — leave it unless the maintainer asks to sync it.
@@ -187,7 +188,7 @@ The version + CHANGELOG edits are made, but **nothing in git has run yet**. Show
 maintainer the full diff to be committed:
 
 ```bash
-git --no-pager diff -- .claude-plugin/plugin.json CHANGELOG.md
+git --no-pager diff -- .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md
 git status --short
 ```
 
@@ -202,7 +203,7 @@ rule). Offer exactly these options:
 ("Other" lets the maintainer abort or hand-tune.) Then run **only** the chosen subset:
 
 ```bash
-git add .claude-plugin/plugin.json CHANGELOG.md   # + any release-scoped files
+git add .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md   # + any release-scoped files
 git commit -m "Release vX.Y.Z"
 git tag -a vX.Y.Z -m "vX.Y.Z"      # commit+tag and above only
 git push && git push --tags        # push option only
@@ -217,6 +218,17 @@ Remind the maintainer of the consumer upgrade path so it can go in release notes
 /plugin update agent-kevin@<marketplace>
 # restart Claude Code, then:
 /agent-kevin:upgrade
+```
+
+And for a home run from Codex (`<marketplace>` is `agentdev-kevin` for a checkout; the plugin
+installs into a version-pinned cache, so `upgrade` regenerates the home's wiring and asks for
+a hook re-trust):
+
+```
+codex plugin marketplace upgrade <marketplace>
+codex plugin add agent-kevin@<marketplace>
+# start a new Codex session from the home, then:
+$upgrade
 ```
 
 ## Notes

@@ -26,7 +26,8 @@ ask before anything optional.
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
 [ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"   # Claude Code fills this in; under Codex set it to the checkout two levels above this skill's base directory (the <skill> block's <path>)
+[ -n "$PLUGIN_ROOT" ] || echo "SET PLUGIN_ROOT: no harness variable here — derive it from the skill's base directory"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 VERSION_FILE="$HOME_DIR/.kevin/version.json"
 # NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
@@ -193,6 +194,20 @@ of the server, so a deps/code change means restart **before** the script can run
 never reorder or remove existing entries; never touch operator keys like
 `hooks`/`theme`/`env` unless an action names them). Write back valid JSON. Idempotent:
 re-running adds nothing.
+
+**codex wiring (always, when applicable)** — if `$HOME_DIR/.codex/hooks.json` exists, or this
+session itself runs under Codex (the `<skill>` block wrapper; no Kevin context or tools yet is
+the symptom of an unwired home), this home runs Codex. Generate or regenerate the hooks and
+the `[mcp_servers.kevin]` registration in `$HOME_DIR/.codex/config.toml` so both point at the
+checkout that just loaded (a version-pinned plugin cache moves on every release):
+
+```bash
+bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
+```
+
+`hooks.changed: true` means the hook commands moved and Codex no longer trusts them: carry
+the re-trust line into the Step 6 report. Never drop it. An untrusted hook does not run at
+all, silently under `codex exec`, which is a home that stops capturing its Codex sessions.
 
 **file (additive)** — copy the template to its HOME destination **only if absent**:
 
@@ -413,6 +428,9 @@ One concise summary:
   CHANGELOG or the generated report, never paraphrased: a note the operator cannot act on
   by copy-paste is a note that gets skipped
 - the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
+- **Codex hooks re-trust, whenever the regeneration reported `changed: true`:** "Run
+  `/hooks` in your next Codex session from this home and trust the 13 Kevin entries;
+  until then Codex starts without Kevin's context and captures nothing." Verbatim, every time.
 
 **Mention the first-session lag when the harness version moved.** Claude Code's built-in
 auto-mode default only takes hold from the *second* session after an upgrade that
@@ -432,7 +450,7 @@ still holds the OLD code until Claude Code reloads, so a sync now would run agai
 the stale server. Therefore:
 
 - **If `bun install` ran this session, or the update pulled new MCP-server code** →
-  do NOT sync yet. Tell the user to **restart / reload Claude Code first**, then run
+  do NOT sync yet. Tell the user to **restart / reload the harness (Claude Code or Codex) first**, then run
   `/agent-kevin:sync`. (End the skill here with that instruction.)
 - **Otherwise** (HOME-only changes — settings, rules, templates) → invoke the `sync`
   skill now via the Skill tool as the final step.
