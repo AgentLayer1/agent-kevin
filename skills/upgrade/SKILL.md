@@ -214,6 +214,10 @@ from, its own plugin cache carrying only the skills):
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
+On native Windows (Git Bash, where `uname -s` starts with `MINGW` or `MSYS`) skip this whole
+step and do not ask the Codex question: the generator exits 3 with "not available on native
+Windows yet", and the report says so in one line.
+
 `hooks.changed: true` means the hook commands are new or moved and Codex does not trust them
 yet: carry the re-trust line into the Step 6 report, and for a first wiring add the two
 install lines the operator still owes if the plugin is not installed in Codex yet

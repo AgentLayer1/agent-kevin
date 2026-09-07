@@ -57,7 +57,8 @@ and prompts per optional one. The new template files are the source of truth for
   `.codex/config.toml` with `AGENT_HOME` set. The generator merges into existing files,
   replaces only Kevin's own entries, and validates the TOML before writing. `init`
   (Step 7c) and `upgrade` run it; the operator trusts the folder and the three hook entries
-  via `/hooks`. Supported today: an existing home run from Codex (`$upgrade` from a Codex
+  via `/hooks`. macOS and Linux only for now: on native Windows `init` and `upgrade` skip
+  the wiring and say so. Supported today: an existing home run from Codex (`$upgrade` from a Codex
   session writes the wiring). A fresh `$init` under Codex, and the upgrade cycle across
   Codex plugin versions, are not exercised yet.
 - `session-start --hook-protocol=codex` prints the static stack (identity files, indexes,

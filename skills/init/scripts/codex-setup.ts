@@ -47,9 +47,9 @@ if (!home) {
   process.exit(2);
 }
 if (process.platform === 'win32') {
-  throw new Error(
-    'TODO(windows): the hook commands use POSIX env-prefix syntax, which Codex on native Windows does not run'
-  );
+  // TODO(windows): the hook commands use POSIX env-prefix syntax; a Windows shape needs a real box to verify.
+  process.stderr.write('codex-setup: Codex wiring is not available on native Windows yet\n');
+  process.exit(3);
 }
 
 const homeDir = resolve(home);

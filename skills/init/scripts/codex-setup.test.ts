@@ -25,7 +25,7 @@ afterAll(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 });
 
-describe('codex-setup hooks', () => {
+describe.skipIf(process.platform === 'win32')('codex-setup hooks', () => {
   test('prints the SessionStart context entry with the cap lifted plus the SessionEnd capture, pinned to the home and plugin', () => {
     const { code, json } = run('--home', '/Users/ada/Agents/Scout', '--plugin-root', '/opt/kevin');
     expect(code).toBe(0);
@@ -141,7 +141,7 @@ describe('codex-setup hooks', () => {
   });
 });
 
-describe('codex-setup mcp registration', () => {
+describe.skipIf(process.platform === 'win32')('codex-setup mcp registration', () => {
   test('writes the kevin server with the home pinned in its env', () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
