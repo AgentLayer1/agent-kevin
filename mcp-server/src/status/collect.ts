@@ -1270,9 +1270,9 @@ const commandBriefing = (raw: string): string => {
   return [command, args].filter(Boolean).join(' ');
 };
 
-/** `idShort → HH:MM` of each session's latest captured block, harvested from
+/** `sessionId → HH:MM` of each session's latest captured block, harvested from
  *  the given day-files (oldest first, so newer blocks win). */
-const BLOCK_TIME_RE = /^### (?:Session|Pre-Compact) \((\d{2}:\d{2})\) \[([0-9a-fA-F]+)\]/gm;
+const BLOCK_TIME_RE = /^### (?:Session|Pre-Compact) \((\d{2}:\d{2})\) \[([0-9a-fA-F-]+)\]/gm;
 
 const collectBlockTimes = (days: string[]): Map<string, string> => {
   const times = new Map<string, string>();

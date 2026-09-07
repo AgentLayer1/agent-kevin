@@ -72,6 +72,19 @@ export function diffTurns(allTurns: TranscriptTurn[], prior: SessionRecord | nul
 
 // ── Pure: record a capture into the index ────────────────────────────
 
+/**
+ * Entries written before 0.4.1 were keyed by the id's first 8 chars, which
+ * collide for Codex's time-ordered UUIDv7 ids. Fold such an entry onto the full
+ * id when the full id has no entry of its own.
+ */
+export function adoptLegacyKey(index: SessionIndex, sessionId: string): SessionIndex {
+  const legacyKey = sessionId.slice(0, 8);
+  const legacy = index.sessions[legacyKey];
+  if (!legacy || legacyKey === sessionId || index.sessions[sessionId]) return index;
+  const sessions = Object.fromEntries(Object.entries(index.sessions).filter(([key]) => key !== legacyKey));
+  return { ...index, sessions: { ...sessions, [sessionId]: legacy } };
+}
+
 export interface CaptureEvent {
   sessionId: string;
   date: string;
@@ -123,7 +136,7 @@ export async function rebuildFromDayFiles(): Promise<SessionIndex> {
     const content = await readFile(file, 'utf-8').catch(() => '');
     for (const header of parseEntryHeaders(content)) {
       index = recordCapture(index, {
-        sessionId: header.idShort,
+        sessionId: header.sessionId,
         date: header.date,
         cwd: header.source,
         from: header.from,

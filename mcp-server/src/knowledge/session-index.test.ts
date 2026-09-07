@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { formatEntryHeader, parseEntryHeaders } from '@/knowledge/session-format';
-import { diffTurns, fingerprintTurn, recordCapture } from '@/knowledge/session-index';
+import { adoptLegacyKey, diffTurns, fingerprintTurn, recordCapture } from '@/knowledge/session-index';
 import type { SessionIndex, SessionRecord, TranscriptTurn } from '@/shared/types';
 
 const turn = (role: 'user' | 'assistant', text: string): TranscriptTurn => ({ role, text });
@@ -155,12 +155,41 @@ describe('recordCapture', () => {
   });
 });
 
+describe('adoptLegacyKey', () => {
+  const record = {
+    first_seen: '2026-09-01',
+    last_seen: '2026-09-01',
+    cwd: '~',
+    captured_turns: 4,
+    last_turn_fp: 'fp',
+    briefing: 'b',
+    blocks: []
+  };
+
+  test('folds a pre-0.4.1 short-key entry onto the full id', () => {
+    const index = { schema: 1, sessions: { '01a0795e': record } };
+    const adopted = adoptLegacyKey(index, '01a0795e-2ef1-7a60-b59c-0e2360c2d352');
+    expect(Object.keys(adopted.sessions)).toEqual(['01a0795e-2ef1-7a60-b59c-0e2360c2d352']);
+    expect(adopted.sessions['01a0795e-2ef1-7a60-b59c-0e2360c2d352']).toBe(record);
+  });
+
+  test('leaves the index alone when the full id already has an entry or nothing matches', () => {
+    const both = {
+      schema: 1,
+      sessions: { '01a0795e': record, '01a0795e-2ef1-7a60-b59c-0e2360c2d352': { ...record, captured_turns: 9 } }
+    };
+    expect(adoptLegacyKey(both, '01a0795e-2ef1-7a60-b59c-0e2360c2d352')).toBe(both);
+    const none = { schema: 1, sessions: { deadbeef: record } };
+    expect(adoptLegacyKey(none, '01a0795e-2ef1-7a60-b59c-0e2360c2d352')).toBe(none);
+  });
+});
+
 describe('header format ↔ parse round-trip', () => {
   test('fresh-session header parses back to the same fields', () => {
     const header = formatEntryHeader({
       heading: 'Session',
       time: '09:14',
-      idShort: 'abc12345',
+      sessionId: 'abc12345',
       date: '2026-06-01',
       source: '~/Documents/Agents/Kevin',
       from: 1,
@@ -170,7 +199,7 @@ describe('header format ↔ parse round-trip', () => {
     const [parsed] = parseEntryHeaders(header);
     expect(parsed).toEqual({
       heading: 'Session',
-      idShort: 'abc12345',
+      sessionId: 'abc12345',
       date: '2026-06-01',
       source: '~/Documents/Agents/Kevin',
       from: 1,
@@ -182,7 +211,7 @@ describe('header format ↔ parse round-trip', () => {
     const header = formatEntryHeader({
       heading: 'Session',
       time: '11:02',
-      idShort: 'abc12345',
+      sessionId: 'abc12345',
       date: '2026-06-03',
       source: '~/Kevin',
       from: 9,
@@ -197,14 +226,14 @@ describe('header format ↔ parse round-trip', () => {
     const [parsed] = parseEntryHeaders(header);
     expect(parsed.from).toBe(9);
     expect(parsed.to).toBe(15);
-    expect(parsed.idShort).toBe('abc12345');
+    expect(parsed.sessionId).toBe('abc12345');
   });
 
   test('preserves the load-bearing `### Session (HH:MM) ` prefix', () => {
     const header = formatEntryHeader({
       heading: 'Session',
       time: '09:14',
-      idShort: 'abc12345',
+      sessionId: 'abc12345',
       date: '2026-06-01',
       source: '~/Kevin',
       from: 1,
@@ -212,6 +241,23 @@ describe('header format ↔ parse round-trip', () => {
       harness: 'claude'
     });
     expect(header.startsWith('### Session (09:14) ')).toBe(true);
+  });
+
+  test('a full UUID session id round-trips', () => {
+    const header = formatEntryHeader({
+      heading: 'Session',
+      time: '08:57',
+      sessionId: '01a0795e-2ef1-7a60-b59c-0e2360c2d352',
+      date: '2026-09-07',
+      source: '~/Test',
+      from: 1,
+      to: 3,
+      harness: 'codex',
+      model: 'gpt-6-astra'
+    });
+    const [parsed] = parseEntryHeaders(header);
+    expect(parsed.sessionId).toBe('01a0795e-2ef1-7a60-b59c-0e2360c2d352');
+    expect(parsed.to).toBe(3);
   });
 
   test('legacy headers without a turn range are skipped', () => {

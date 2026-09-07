@@ -89,7 +89,7 @@ describe('codex rollout capture', () => {
     expect(result.turns).toBe(5);
     const dayFile = readdirSync(SESSIONS).find((name) => name.endsWith('.md')) ?? '';
     const day = readFileSync(resolve(SESSIONS, dayFile), 'utf-8');
-    expect(day).toContain('[01a077d1]');
+    expect(day).toContain('[01a077d1-91e1-7cc1-a3a8-ced457819b33]');
     expect(day).toContain('· turns 1–5 · codex: gpt-6-astra');
     expect(day).toContain("Who are you and what's active right now?");
     expect(day).toContain("I'm Scout, your personal AI assistant");

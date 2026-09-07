@@ -68,7 +68,7 @@ describe('captureSession', () => {
     logPath = result.path;
     expect(result.turns).toBe(8);
     const log = readFileSync(logPath, 'utf-8');
-    expect(log).toContain('[deadbeef]');
+    expect(log).toContain('[deadbeefcafe]');
     expect(log).toContain('turns 1–8');
     expect(log).toContain('message number 1');
     expect(log).toContain('message number 8');
@@ -95,7 +95,7 @@ describe('captureSession', () => {
 
   test('the index tracks the cursor and turn coverage', () => {
     const index = JSON.parse(readFileSync(SESSION_INDEX, 'utf-8'));
-    const rec = index.sessions.deadbeef;
+    const rec = index.sessions.deadbeefcafe;
     expect(rec.captured_turns).toBe(12);
     expect(rec.blocks).toEqual([{ date: rec.last_seen, from: 1, to: 12 }]);
     expect(rec.briefing.length).toBeGreaterThan(0);
@@ -103,17 +103,16 @@ describe('captureSession', () => {
 
   test('concurrent captures of the same new session write exactly one block (mutex)', async () => {
     writeTranscript(8);
-    const fire = () =>
-      captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end' });
+    const fire = () => captureSession({ transcriptPath, cwd: HOME, sessionId: 'racer123beef', mode: 'session-end' });
     const results = await Promise.all([fire(), fire()]);
     // Exactly one writes; the serialized loser sees the cursor and skips.
     expect(results.filter((r) => r.saved).length).toBe(1);
     expect(results.filter((r) => !r.saved && r.reason === 'no-new-turns').length).toBe(1);
     const log = readFileSync(logPath, 'utf-8');
-    expect(log.match(/\[racer123\]/g)).toHaveLength(1);
+    expect(log.match(/\[racer123beef\]/g)).toHaveLength(1);
     const index = JSON.parse(readFileSync(SESSION_INDEX, 'utf-8'));
-    expect(index.sessions.racer123.captured_turns).toBe(8);
-    expect(index.sessions.racer123.blocks).toHaveLength(1);
+    expect(index.sessions.racer123beef.captured_turns).toBe(8);
+    expect(index.sessions.racer123beef.blocks).toHaveLength(1);
   });
 });
 

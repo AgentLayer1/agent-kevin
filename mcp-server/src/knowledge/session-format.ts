@@ -41,7 +41,7 @@ export const TRAILING_SEPARATOR_RE = new RegExp(`${ESCAPED_SEPARATOR}\\s*$`);
 // the SessionStart tail regexes above key off it, so date / turn-range /
 // markers are appended only as suffix fields):
 //
-//   ### Session (11:02) [abc12345] · 2026-06-03 · ~/Kevin · turns 9–15 · claude: claude-opus-5 · ↩ continues 2026-06-01
+//   ### Session (11:02) [7c1e0d5a-…-4f2b] · 2026-06-03 · ~/Kevin · turns 9–15 · claude: claude-opus-5 · ↩ continues 2026-06-01
 //
 // The turn range makes every block self-describing — capture and compile
 // can reconstruct the whole session index from headers alone.
@@ -54,8 +54,8 @@ export interface EntryHeaderFields {
   heading: string;
   /** HH:MM */
   time: string;
-  /** short session id (first 8 chars) */
-  idShort: string;
+  /** the harness's full session id */
+  sessionId: string;
   /** YYYY-MM-DD this block was written */
   date: string;
   /** home-relative cwd */
@@ -77,7 +77,7 @@ export interface EntryHeaderFields {
 /** Render an entry header line (no trailing newline). */
 export function formatEntryHeader(fields: EntryHeaderFields): string {
   const parts = [
-    `### ${fields.heading} (${fields.time}) [${fields.idShort}]`,
+    `### ${fields.heading} (${fields.time}) [${fields.sessionId}]`,
     fields.date,
     fields.source,
     `turns ${fields.from}${TURN_DASH}${fields.to}`
@@ -91,7 +91,7 @@ export function formatEntryHeader(fields: EntryHeaderFields): string {
 /** One parsed header — the subset needed to rebuild the session index. */
 export interface ParsedEntryHeader {
   heading: string;
-  idShort: string;
+  sessionId: string;
   date: string;
   source: string;
   from: number;
@@ -99,7 +99,7 @@ export interface ParsedEntryHeader {
 }
 
 const PARSE_HEADER_RE = new RegExp(
-  `^### (Session|Pre-Compact) \\(\\d{2}:\\d{2}\\) \\[([0-9a-fA-F]+)\\] · (\\d{4}-\\d{2}-\\d{2}) · (.+?) · turns (\\d+)${TURN_DASH}(\\d+)`,
+  `^### (Session|Pre-Compact) \\(\\d{2}:\\d{2}\\) \\[([0-9a-fA-F-]+)\\] · (\\d{4}-\\d{2}-\\d{2}) · (.+?) · turns (\\d+)${TURN_DASH}(\\d+)`,
   'gm'
 );
 
@@ -113,7 +113,7 @@ export function parseEntryHeaders(content: string): ParsedEntryHeader[] {
   for (const match of content.matchAll(PARSE_HEADER_RE)) {
     out.push({
       heading: match[1],
-      idShort: match[2],
+      sessionId: match[2],
       date: match[3],
       source: match[4],
       from: parseInt(match[5], 10),

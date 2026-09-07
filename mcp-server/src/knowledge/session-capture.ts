@@ -13,7 +13,14 @@
  */
 import { FOLDERS, KNOWLEDGE, PLUGIN_NAME, isInitialized } from '@/config';
 import { ENTRY_SEPARATOR, formatEntryHeader } from '@/knowledge/session-format';
-import { diffTurns, fingerprintTurn, loadIndex, recordCapture, saveIndex } from '@/knowledge/session-index';
+import {
+  adoptLegacyKey,
+  diffTurns,
+  fingerprintTurn,
+  loadIndex,
+  recordCapture,
+  saveIndex
+} from '@/knowledge/session-index';
 import { redactSecrets } from '@/knowledge/utils';
 import { nowTime, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
@@ -286,15 +293,13 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
   // Resume-safe dedup: write only the turns appended since this session was
   // last captured. The cursor lives in the session index, keyed by sessionId,
   // so a session resumed on a later day still resolves to the right offset.
-  const idShort = opts.sessionId.slice(0, 8);
-
   // Hold the capture mutex across the whole read-modify-write: load the index,
   // diff, append the block, and save the cursor as one atomic unit so two
   // concurrent hooks can't both write a first-capture block for this session.
   const release = await acquireCaptureLock();
   try {
-    const index = await loadIndex();
-    const prior = index.sessions[idShort] ?? null;
+    const index = adoptLegacyKey(await loadIndex(), opts.sessionId);
+    const prior = index.sessions[opts.sessionId] ?? null;
     const diff = diffTurns(turns, prior);
 
     if (diff.newTurns.length === 0) {
@@ -308,7 +313,7 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     }
     if (diff.reanchored) {
       log.warn(
-        `(${mode}) [${idShort}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`
+        `(${mode}) [${opts.sessionId}] cursor anchor mismatch — transcript rewritten; re-anchoring at turn ${diff.from}`
       );
     }
 
@@ -332,7 +337,7 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     const header = formatEntryHeader({
       heading: cfg.heading,
       time: nowTime(),
-      idShort,
+      sessionId: opts.sessionId,
       date: today,
       source,
       from: diff.from,
@@ -345,7 +350,7 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     await appendFile(logPath, `${header}\n\n${redacted}${ENTRY_SEPARATOR}`, 'utf-8');
 
     const updated = recordCapture(index, {
-      sessionId: idShort,
+      sessionId: opts.sessionId,
       date: today,
       cwd: source,
       from: diff.from,

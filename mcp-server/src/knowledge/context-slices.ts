@@ -32,11 +32,12 @@ export const buildStaticStack = (dynamicContext: string): string => {
   return parts.join('\n\n');
 };
 
-/** Chunk on line boundaries so no slice exceeds `limit`; a single over-long line becomes its own slice. */
+/** Chunk on line boundaries so no slice exceeds `limit`; a line longer than that is hard-wrapped first. */
 export const sliceText = (text: string, limit: number): string[] => {
   const slices: string[] = [];
   let current = '';
-  for (const line of text.split('\n')) {
+  const wrapped = text.split('\n').flatMap((line) => line.match(new RegExp(`.{1,${limit}}`, 'gs')) ?? ['']);
+  for (const line of wrapped) {
     const candidate = current ? `${current}\n${line}` : line;
     if (candidate.length > limit && current) {
       slices.push(current);

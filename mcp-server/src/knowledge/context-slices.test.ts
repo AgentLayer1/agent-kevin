@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { renderSlice, sliceText } from '@/knowledge/context-slices';
+import { SLICE_CHARS, renderSlice, sliceText } from '@/knowledge/context-slices';
+
+/** Codex truncates a hook's stdout past this many characters (head + tail kept). */
+const CODEX_HOOK_CAP = 10_000;
 
 const lines = (n: number, width = 80): string =>
   Array.from({ length: n }, (_, i) => `line ${i + 1} `.padEnd(width, 'x')).join('\n');
@@ -16,10 +19,11 @@ describe('sliceText', () => {
     expect(slices.join('\n')).toBe(text);
   });
 
-  test('an over-long line becomes its own slice rather than being dropped', () => {
+  test('an over-long line is hard-wrapped so no slice can exceed the limit', () => {
     const long = 'y'.repeat(12_000);
     const slices = sliceText(`a\n${long}\nb`, 9_500);
-    expect(slices).toEqual(['a', long, 'b']);
+    expect(slices.map((slice) => slice.length)).toEqual([1, 9_500, 2_502]);
+    expect(slices.join('').replace(/\n/g, '')).toBe(`a${long}b`);
   });
 });
 
@@ -41,6 +45,15 @@ describe('renderSlice', () => {
     expect(last).toContain('slice 1/' + count);
     expect(last).toContain(`${count - 1} more slice(s) of static context were not delivered`);
     expect(renderSlice(stack, { index: 2, total: 1 })).toBe('');
+  });
+
+  test('every rendered entry, preamble and warning included, stays under the Codex cap', () => {
+    const long = 'z'.repeat(SLICE_CHARS * 3);
+    for (const total of [1, 2, 3]) {
+      for (let index = 1; index <= total; index++) {
+        expect(renderSlice(long, { index, total }).length).toBeLessThanOrEqual(CODEX_HOOK_CAP);
+      }
+    }
   });
 
   test('slices reassemble to the whole stack', () => {
