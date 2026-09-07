@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *)
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Configure Skills
 
 This skill manages Kevin's optional capabilities. Use it to:

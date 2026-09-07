@@ -4,6 +4,8 @@ description: Real Google SERP data (organic results, AI overview, shopping carou
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # SerpAPI (Kevin's SERP plugin)
 
 Live SERP ground-truth for SEO diagnosis. Requires `SERPAPI_KEY` (paid plan at https://serpapi.com).

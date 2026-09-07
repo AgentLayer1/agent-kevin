@@ -19,6 +19,8 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__browser_flows
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # browser-flows
 
 Drive real browser flows as the operator, for automation and exploratory work. Each flow is a **folder** under `flows/` with an `index.ts` entry + `index.md` guidance, dispatched generically. Start from the **`hacker-news`** reference flow.

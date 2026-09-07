@@ -4,6 +4,8 @@ description: Review the target (script/app/area/change) and simplify it. Ensure 
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Simple Simplify
 
 Double-check and review the target the user named (script, app, area, or change). Make sure it is elegant, simple, concise, accurate, robust, reliable, and good — not over-engineered or over-complicated. Make sure things are using best practices.

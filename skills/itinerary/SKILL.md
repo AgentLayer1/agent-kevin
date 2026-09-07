@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: AskUserQuestion, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__web_search, mcp__plugin_agent-kevin_kevin__browser_pdf, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Itinerary
 
 Turn a trip idea into a researched, beautiful, printable HTML itinerary. The deliverable is a single self-contained file the family can scroll on a phone, click through on a laptop, or print and stick on the fridge.

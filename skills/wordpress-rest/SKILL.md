@@ -4,6 +4,8 @@ description: Query WordPress content via the public WP REST API — posts, pages
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # WordPress REST API
 
 Plain HTTP, no auth, no plugin. Every WordPress site exposes the REST API at `/wp-json/wp/v2/` for published content. This skill documents the endpoints Kevin actually uses.

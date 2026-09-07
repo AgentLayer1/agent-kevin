@@ -4,6 +4,8 @@ description: Pull real Google Search Console data (queries, impressions, clicks,
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Google Search Console (Kevin's analytics plugin)
 
 Real search traffic data for the configured site. The `GSC_SITE_URL` env var names the Search Console property; the authenticated OAuth2 client lives under `app/.config/` and is **shared with other google-* plugins** (currently `google-page-speed`) — one consent flow covers all.

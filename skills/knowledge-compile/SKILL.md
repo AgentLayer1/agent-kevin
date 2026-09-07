@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, Read, Write, Edit, Glob, Grep
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Compile
 
 Compile raw inputs from `<HOME>/knowledge/raw/` into structured wiki articles. The orchestration loop runs in **this session** — the MCP server is pure I/O, no LLM calls.

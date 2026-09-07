@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__web_search, Read, Glob, Bash
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Morning Briefing
 
 A single phone-screen of orientation: what matters today, what's moved since yesterday, where the world shifted on the topics that touch your work. The previous daemon-era briefing was rich on purpose — match that depth, not a 30-line summary.

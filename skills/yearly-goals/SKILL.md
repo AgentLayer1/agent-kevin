@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Edit, Bash
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Yearly Goals
 
 The longest planning horizon Kevin keeps. Quarters, not weeks: each quarter gets 1-3 outcomes with a falsifiable end-of-quarter check. Monthly themes ladder up into these; weekly goals ladder into monthly.

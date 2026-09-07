@@ -4,6 +4,8 @@ description: Run Google PageSpeed Insights (Lighthouse performance scores + Core
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Google PageSpeed Insights (Kevin's performance plugin)
 
 Lighthouse-backed performance audit for any publicly reachable URL. Uses the free PSI v5 API (25k requests/day per OAuth project).

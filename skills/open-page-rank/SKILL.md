@@ -4,6 +4,8 @@ description: Free domain-authority proxy via Open Page Rank — returns a 0–10
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Open Page Rank (Kevin's DA proxy)
 
 A free domain-authority proxy. Requires `OPENPAGERANK_API_KEY` (free tier: 1,000 requests/day at https://www.domcop.com/openpagerank/).

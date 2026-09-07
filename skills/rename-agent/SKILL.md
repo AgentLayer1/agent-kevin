@@ -4,6 +4,8 @@ description: Rename this agent's display name across an existing HOME — IDENTI
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Rename Agent
 
 Change what this agent calls itself. The display name is data in `IDENTITY.md`; the

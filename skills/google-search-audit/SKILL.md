@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__gsc_query, mcp__plugin_agent-kevin_kevin__gsc_inspect, mcp__plugin_agent-kevin_kevin__gsc_sites, mcp__plugin_agent-kevin_kevin__page_speed_audit, mcp__plugin_agent-kevin_kevin__page_speed_psi, mcp__plugin_agent-kevin_kevin__serpapi_search, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_thread, Read, Write, Edit, Glob, Grep, Bash(curl *), Bash(date *)
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Google Search Audit
 
 Read-only SEO audit for your configured site. Diagnostic — surfaces problems for you to action manually. Never publishes or edits anything live.

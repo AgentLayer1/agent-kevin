@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Release — cut a versioned plugin release
 
 Maintainer tool. Produces the **contract** that `/agent-kevin:upgrade` consumes:

@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, AskUserQuestion, Read, Bash
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Monthly Goals
 
 Strategic, not tactical. 2-4 themes max. Each theme has a concrete success criterion you'll evaluate against next month.

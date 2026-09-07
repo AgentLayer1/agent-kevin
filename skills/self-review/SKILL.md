@@ -4,6 +4,8 @@ description: Interactive session where you and Kevin look at accumulated feedbac
 disable-model-invocation: true
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Self-Review
 
 Close the feedback loop. Turn what you've told Kevin into actual edits — with you in the room.

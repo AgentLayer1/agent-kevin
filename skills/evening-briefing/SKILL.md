@@ -5,6 +5,8 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, Read, Glob, Bash
 ---
 
+> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+
 # Evening Briefing
 
 Close the day cleanly. Show what landed, name what didn't, flag what'll bite tomorrow if ignored. Match the morning's depth in shape — same number of sections, similar word budget (~350–550 words). Phone-screen of value, not a status report.
