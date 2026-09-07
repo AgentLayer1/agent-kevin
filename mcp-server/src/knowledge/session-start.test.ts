@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
-import { sessionStart } from '@/knowledge/session-start';
+import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 
 /**
  * Run `fn` against a throwaway home built by `setup`. This agent's own
@@ -104,6 +104,37 @@ describe('sessionStart', () => {
       () => sessionStart()
     );
     expect(result.additionalContext).not.toContain('Operating manual layout');
+  });
+
+  test('codex protocol: slice 1 carries the identity files with file markers; entries past the stack print nothing', async () => {
+    const [first, beyond] = await withHome(
+      (home) =>
+        markedHome(home, {
+          'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n',
+          '.claude/CLAUDE.md': '@../AGENTS.md\n',
+          'SOUL.md': '# Soul\n\nSharp, a little spicy.\n',
+          'IDENTITY.md': '# Identity\n\n## Who\n\n- **Name:** Scout\n',
+          'USER.md': '# About Ada\n'
+        }),
+      async () => [await sessionStartCodex({ index: 1, total: 12 }), await sessionStartCodex({ index: 12, total: 12 })]
+    );
+    expect(first).toContain('kevin static context · slice 1/');
+    expect(first).toContain('<!-- file: SOUL.md -->');
+    expect(first).toContain('Sharp, a little spicy.');
+    expect(first).toContain('<!-- file: IDENTITY.md -->');
+    expect(first).toContain('<!-- file: USER.md -->');
+    expect(first).toContain('<!-- session context (dynamic lane) -->');
+    expect(first).not.toContain('AGENTS.md —'); // the manual is Codex-native, never re-sent
+    expect(beyond).toBe('');
+  });
+
+  test('codex protocol: a pre-init directory gets the setup hint in slice 1 and nothing after', async () => {
+    const [first, second] = await withHome(
+      () => {},
+      async () => [await sessionStartCodex({ index: 1, total: 4 }), await sessionStartCodex({ index: 2, total: 4 })]
+    );
+    expect(first).toContain('init');
+    expect(second).toBe('');
   });
 
   test('the home marker alone marks the home, with no SOUL.md needed', async () => {

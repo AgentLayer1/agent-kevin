@@ -1,8 +1,10 @@
 /**
  * Harness-agnostic session-capture core. Used by:
  *  - Claude Code's SessionEnd / PreCompact hooks via `bin/kevin session-capture --hook-protocol=claude`.
- *  - Future harnesses (Codex, Pi, ...) — each adds a transcript-format adapter
- *    + a `--hook-protocol=<host>` envelope in `bin/kevin`.
+ *  - Codex CLI's SessionEnd hook via `bin/kevin session-capture --hook-protocol=codex`
+ *    (`--format=codex` reads its rollout JSONL).
+ *  - Future harnesses — each adds a transcript-format adapter + a
+ *    `--hook-protocol=<host>` envelope in `bin/kevin`.
  *
  * This module knows nothing about hook envelopes (stdin/stdout JSON shapes) —
  * that's the CLI wrapper's job. It takes plain args, applies self-defer +
@@ -24,7 +26,7 @@ import { relative, resolve } from 'node:path';
 const log = baseLog.session.with('capture');
 
 export type CaptureMode = 'session-end' | 'pre-compact';
-export type CaptureFormat = 'claude';
+export type CaptureFormat = 'claude' | 'codex';
 
 interface ModeConfig {
   heading: string;
@@ -86,13 +88,65 @@ const claudeExtractor: Extractor = (transcriptPath) => {
     if (!text) continue;
     if (text.startsWith('<system-reminder>') || text.startsWith('<command-name>')) continue;
 
-    turns.push({ role, text });
+    // "<synthetic>" marks Claude Code's own notices (API errors, limits), not a model.
+    const model = typeof msg.model === 'string' && !msg.model.startsWith('<') ? msg.model : undefined;
+    turns.push(role === 'assistant' && model ? { role, text, model } : { role, text });
+  }
+  return turns;
+};
+
+/**
+ * Codex CLI rollout extractor. A rollout is JSONL, one record per line:
+ * `response_item` records carrying `payload.type: "message"` and a role are the
+ * turns, and each turn's `turn_context` record names the model behind it. Only
+ * user/assistant text is a turn. Codex also writes the operator's project
+ * instructions, its environment block, and every `$skill` expansion as
+ * user-role messages, and its own preambles as `developer` — none of those is
+ * something the operator said, so they are dropped like Claude's reminders.
+ */
+const CODEX_INJECTED_USER_PREFIXES = [
+  '# AGENTS.md instructions',
+  '<environment_context>',
+  '<skill>',
+  '<user_instructions>'
+];
+
+const codexExtractor: Extractor = (transcriptPath) => {
+  const turns: TranscriptTurn[] = [];
+  let model: string | undefined;
+  for (const line of readFileSync(transcriptPath, 'utf-8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let record: unknown;
+    try {
+      record = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!isRecord(record) || !isRecord(record.payload)) continue;
+    const { payload } = record;
+    if (record.type === 'turn_context') {
+      if (typeof payload.model === 'string') model = payload.model;
+      continue;
+    }
+    if (record.type !== 'response_item' || payload.type !== 'message') continue;
+    const role = payload.role;
+    if (role !== 'user' && role !== 'assistant') continue;
+    const text = (Array.isArray(payload.content) ? payload.content : [])
+      .map((block) => (isRecord(block) && typeof block.text === 'string' ? block.text : ''))
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    if (!text) continue;
+    if (role === 'user' && CODEX_INJECTED_USER_PREFIXES.some((prefix) => text.startsWith(prefix))) continue;
+    turns.push(role === 'assistant' && model ? { role, text, model } : { role, text });
   }
   return turns;
 };
 
 const EXTRACTORS: Record<CaptureFormat, Extractor> = {
-  claude: claudeExtractor
+  claude: claudeExtractor,
+  codex: codexExtractor
 };
 
 /** Render `cwd` as `~/<relative>` when under `$HOME`, else return unchanged. */
@@ -225,8 +279,8 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     return { saved: false, reason: 'no-transcript' };
   }
 
-  const extract = EXTRACTORS[opts.format ?? 'claude'];
-  const turns = extract(opts.transcriptPath);
+  const format = opts.format ?? 'claude';
+  const turns = EXTRACTORS[format](opts.transcriptPath);
   const cfg = MODES[mode];
 
   // Resume-safe dedup: write only the turns appended since this session was
@@ -274,6 +328,7 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     }
 
     const source = homeRelative(opts.cwd);
+    const models = new Set(diff.newTurns.flatMap((turn) => (turn.model ? [turn.model] : [])));
     const header = formatEntryHeader({
       heading: cfg.heading,
       time: nowTime(),
@@ -282,6 +337,8 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
       source,
       from: diff.from,
       to: diff.to,
+      harness: format,
+      model: [...models].join(', '),
       continues: prior && diff.from !== 1 ? prior.first_seen : undefined,
       reanchored: diff.reanchored
     });

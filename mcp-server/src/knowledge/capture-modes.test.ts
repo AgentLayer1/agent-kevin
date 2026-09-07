@@ -26,7 +26,11 @@ let captureSession: typeof import('@/knowledge/session-capture').captureSession;
 const writeTranscript = (turns: number): void => {
   const lines = Array.from({ length: turns }, (_unused, index) =>
     JSON.stringify({
-      message: { role: index % 2 === 0 ? 'user' : 'assistant', content: `message number ${index + 1}` }
+      message: {
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `message number ${index + 1}`,
+        model: 'claude-test-1'
+      }
     })
   );
   writeFileSync(transcriptPath, lines.join('\n'), 'utf-8');
@@ -62,6 +66,7 @@ describe('capture modes', () => {
     expect(result.saved).toBe(true);
     const written = readFileSync(resolve(SESSIONS, `${result.saved && result.filename}`), 'utf-8');
     expect(written).toContain('### Pre-Compact');
+    expect(written).toContain('· turns 1–5 · claude: claude-test-1');
     expect(written).not.toContain('### Session (');
   });
 

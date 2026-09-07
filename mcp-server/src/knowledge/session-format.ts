@@ -41,7 +41,7 @@ export const TRAILING_SEPARATOR_RE = new RegExp(`${ESCAPED_SEPARATOR}\\s*$`);
 // the SessionStart tail regexes above key off it, so date / turn-range /
 // markers are appended only as suffix fields):
 //
-//   ### Session (11:02) [abc12345] · 2026-06-03 · ~/Kevin · turns 9–15 · ↩ continues 2026-06-01
+//   ### Session (11:02) [abc12345] · 2026-06-03 · ~/Kevin · turns 9–15 · claude: claude-opus-5 · ↩ continues 2026-06-01
 //
 // The turn range makes every block self-describing — capture and compile
 // can reconstruct the whole session index from headers alone.
@@ -64,6 +64,10 @@ export interface EntryHeaderFields {
   from: number;
   /** last turn number in this block (inclusive) */
   to: number;
+  /** harness whose transcript this came from — the capture format name (claude, codex) */
+  harness: string;
+  /** model(s) that produced the block's assistant turns, comma-separated; empty when the transcript doesn't say */
+  model?: string;
   /** when set, this block continues a session first seen on this earlier date */
   continues?: string;
   /** when true, the cursor was re-anchored after a transcript rewrite */
@@ -78,6 +82,7 @@ export function formatEntryHeader(fields: EntryHeaderFields): string {
     fields.source,
     `turns ${fields.from}${TURN_DASH}${fields.to}`
   ];
+  parts.push(fields.model ? `${fields.harness}: ${fields.model}` : fields.harness);
   if (fields.continues) parts.push(`↩ continues ${fields.continues}`);
   if (fields.reanchored) parts.push('⚠ re-anchored');
   return parts.join(' · ');

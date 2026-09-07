@@ -7,9 +7,7 @@ const turn = (role: 'user' | 'assistant', text: string): TranscriptTurn => ({ ro
 
 /** A deterministic N-turn transcript: u1, a1, u2, a2, … */
 const transcript = (n: number): TranscriptTurn[] =>
-  Array.from({ length: n }, (_unused, i) =>
-    turn(i % 2 === 0 ? 'user' : 'assistant', `turn ${i + 1}`)
-  );
+  Array.from({ length: n }, (_unused, i) => turn(i % 2 === 0 ? 'user' : 'assistant', `turn ${i + 1}`));
 
 const recordFor = (turns: TranscriptTurn[], capturedTurns: number): SessionRecord => ({
   first_seen: '2026-06-01',
@@ -166,7 +164,8 @@ describe('header format ↔ parse round-trip', () => {
       date: '2026-06-01',
       source: '~/Documents/Agents/Kevin',
       from: 1,
-      to: 8
+      to: 8,
+      harness: 'claude'
     });
     const [parsed] = parseEntryHeaders(header);
     expect(parsed).toEqual({
@@ -188,10 +187,12 @@ describe('header format ↔ parse round-trip', () => {
       source: '~/Kevin',
       from: 9,
       to: 15,
+      harness: 'claude',
+      model: 'claude-opus-5, claude-fable-5',
       continues: '2026-06-01',
       reanchored: true
     });
-    expect(header).toContain('↩ continues 2026-06-01');
+    expect(header).toContain('· turns 9–15 · claude: claude-opus-5, claude-fable-5 · ↩ continues 2026-06-01');
     expect(header).toContain('⚠ re-anchored');
     const [parsed] = parseEntryHeaders(header);
     expect(parsed.from).toBe(9);
@@ -207,7 +208,8 @@ describe('header format ↔ parse round-trip', () => {
       date: '2026-06-01',
       source: '~/Kevin',
       from: 1,
-      to: 8
+      to: 8,
+      harness: 'claude'
     });
     expect(header.startsWith('### Session (09:14) ')).toBe(true);
   });

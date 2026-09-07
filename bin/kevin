@@ -5,8 +5,8 @@
  * Subcommands:
  *   kevin ping
  *   kevin capture [text] [--file=PATH] [--url=URL] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
- *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude]
- *   kevin session-start [--hook-protocol=claude]
+ *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude|codex] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude|codex]
+ *   kevin session-start [--hook-protocol=claude|codex] [--slice=N/M]
  *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
  *   kevin task get <id>
  *   kevin task create --project=NAME --title=... --description=... [--priority=P2]
@@ -533,8 +533,21 @@ async function run(): Promise<void> {
     };
 
     const hookProtocol = localFlag('hook-protocol');
-    if (hookProtocol !== undefined && hookProtocol !== 'claude') {
-      throw new Error(`Unknown --hook-protocol: ${hookProtocol} (supported: claude)`);
+    if (hookProtocol !== undefined && hookProtocol !== 'claude' && hookProtocol !== 'codex') {
+      throw new Error(`Unknown --hook-protocol: ${hookProtocol} (supported: claude, codex)`);
+    }
+
+    if (hookProtocol === 'codex') {
+      // Codex: stdout is developer context, capped per hook. --slice=N/M names which
+      // of the M registered hook entries this invocation is.
+      const slice = localFlag('slice') ?? '1/1';
+      const [index, total] = slice.split('/').map((n) => Number.parseInt(n, 10));
+      if (!Number.isInteger(index) || !Number.isInteger(total) || index < 1 || total < 1 || index > total) {
+        throw new Error(`--slice must be N/M with 1 ≤ N ≤ M (got ${slice})`);
+      }
+      const { sessionStartCodex } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start'));
+      process.stdout.write(await sessionStartCodex({ index, total }));
+      return;
     }
 
     const { sessionStart } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start'));
@@ -589,7 +602,8 @@ async function run(): Promise<void> {
     let cwd: string;
     let sessionId: string;
 
-    if (hookProtocol === 'claude') {
+    // Codex's hook payload uses Claude's field names (session_id, transcript_path, cwd).
+    if (hookProtocol === 'claude' || hookProtocol === 'codex') {
       const raw = await new Promise<string>((resolveFn) => {
         let data = '';
         process.stdin.setEncoding('utf-8');
@@ -608,9 +622,9 @@ async function run(): Promise<void> {
       sessionId = localFlag('session-id') ?? 'cli';
     }
 
-    const formatFlag = localFlag('format');
-    if (formatFlag !== undefined && formatFlag !== 'claude') {
-      throw new Error(`Unknown --format: ${formatFlag} (supported: claude)`);
+    const formatFlag = localFlag('format') ?? (hookProtocol === 'codex' ? 'codex' : undefined);
+    if (formatFlag !== undefined && formatFlag !== 'claude' && formatFlag !== 'codex') {
+      throw new Error(`Unknown --format: ${formatFlag} (supported: claude, codex)`);
     }
 
     const { captureSession } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-capture'));

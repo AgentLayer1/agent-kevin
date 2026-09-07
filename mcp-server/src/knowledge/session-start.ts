@@ -1,10 +1,11 @@
 /**
  * Harness-agnostic SessionStart core. Used by:
  *  - Claude Code's SessionStart hook via `bin/kevin session-start --hook-protocol=claude`.
- *  - Future harnesses (Codex, ...) — each adds a `--hook-protocol=<host>` envelope
- *    in `bin/kevin`. The Codex SessionStart hook happens to use the same
- *    `additionalContext` field name and semantics as Claude's, so the per-host
- *    envelope work is minimal.
+ *  - Codex CLI's SessionStart hooks via `bin/kevin session-start --hook-protocol=codex
+ *    --slice=N/M`: Codex takes a hook's stdout as developer context but caps each
+ *    hook at ~10,000 chars, and it has no `@-import`, so the static stack (identity
+ *    files, indexes, task board) plus the dynamic lane is delivered as M hook
+ *    entries, each printing one line-bounded slice. See `sessionStartCodex`.
  *
  * Three disjoint paths:
  *  - **Pre-init**: nothing scaffolded here — emit the banner + setup hint. NO
@@ -23,6 +24,7 @@
  */
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
 import { assembleContext } from '@/context';
+import { buildStaticStack, renderSlice, type SliceRequest } from '@/knowledge/context-slices';
 import { BANNER } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';
@@ -77,6 +79,20 @@ const strandedHomeResult = (): SessionStartResult => {
     hasIssues: true
   };
 };
+
+/**
+ * One slice of the Codex session-start payload: the static stack followed by the
+ * same dynamic lane Claude gets, chunked under Codex's per-hook cap. Pre-init and
+ * stranded homes get the same guidance as Claude, in slice 1 only.
+ */
+export async function sessionStartCodex(request: SliceRequest): Promise<string> {
+  if (!isInitialized()) {
+    const guidance = existsSync(FILES.SOUL) ? strandedHomeResult().additionalContext : PRE_INIT_RESULT.systemMessage;
+    return request.index === 1 ? `${guidance.trim()}\n` : '';
+  }
+  const { context } = await assembleContext();
+  return renderSlice(buildStaticStack(context), request);
+}
 
 export async function sessionStart(): Promise<SessionStartResult> {
   try {

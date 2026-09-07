@@ -2,10 +2,12 @@ import type { z } from 'zod';
 
 // ── Knowledge types ───────────────────────────────────────────────────
 
-/** A single text-bearing turn from a Claude Code transcript. */
+/** A single text-bearing turn from a harness transcript. */
 export interface TranscriptTurn {
   role: 'user' | 'assistant';
   text: string;
+  /** Model that produced an assistant turn, when the transcript records it. */
+  model?: string;
 }
 
 /** Kinds of feedback written to raw/user/feedback.md. */
