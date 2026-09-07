@@ -1435,9 +1435,9 @@ Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a 
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. It prints `{ hooks: { path, changed }, mcp: { path, changed }, entries }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), one `SessionEnd` entry captures the session, and the `[mcp_servers.kevin]` table launches the server with `AGENT_HOME` set. Other hooks, other MCP servers, and other settings in those files are preserved. Skip this step when `KEVIN_HARNESS=claude` unless the operator says they also launch `codex` from this home; ask once if unsure.
+If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. It prints `{ hooks: { path, changed }, mcp: { path, changed }, entries }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), a `SessionEnd` and a `PreCompact` entry capture the session (the second one before Codex compacts a long thread, as on Claude Code), and the `[mcp_servers.kevin]` table launches the server with `AGENT_HOME` set. Other hooks, other MCP servers, and other settings in those files are preserved. Skip this step when `KEVIN_HARNESS=claude` unless the operator says they also launch `codex` from this home; ask once if unsure.
 
-**Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust both entries, or Codex sessions start without Kevin's context and are never captured.
+**Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all three entries, or Codex sessions start without Kevin's context and are never captured.
 
 ## Step 8 — Optional: configure skill packs
 
@@ -1497,7 +1497,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > `<SKILL_PACK_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
-For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (2 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server)`; otherwise omit the row.
+For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (3 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server)`; otherwise omit the row.
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
@@ -1552,7 +1552,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > claude
 > ```
 >
-> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 2 Kevin entries (`session-start`, `session-end`). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
+> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 3 Kevin entries (`session-start`, `session-end`, `pre-compact`). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
 >
 > **Watch for a marketplace trust prompt.** On first relaunch, Claude Code asks "this project wants to register a marketplace and enable a plugin — trust it?" **Accept it.** If you dismiss/miss the prompt, the plugin won't load and the SessionStart banner won't appear — recover by running:
 >

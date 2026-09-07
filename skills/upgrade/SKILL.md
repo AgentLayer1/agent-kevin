@@ -441,7 +441,7 @@ One concise summary:
   by copy-paste is a note that gets skipped
 - the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
 - **Codex hooks re-trust, whenever the regeneration reported `changed: true`:** "Run
-  `/hooks` in your next Codex session from this home and trust the 2 Kevin entries;
+  `/hooks` in your next Codex session from this home and trust the 3 Kevin entries;
   until then Codex starts without Kevin's context and captures nothing." Verbatim, every time.
 
 **Mention the first-session lag when the harness version moved.** Claude Code's built-in

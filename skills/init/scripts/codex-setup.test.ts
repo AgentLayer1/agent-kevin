@@ -41,6 +41,9 @@ describe('codex-setup hooks', () => {
       "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-capture --mode=session-end --hook-protocol=codex"
     );
     expect(json.hooks.SessionEnd[0].hooks[0].timeout).toBe(3);
+    expect(json.hooks.PreCompact[0].hooks[0].command).toBe(
+      "AGENT_HOME='/Users/ada/Agents/Scout' bun '/opt/kevin/bin/kevin' session-capture --mode=pre-compact --hook-protocol=codex"
+    );
   });
 
   test('defaults the plugin root to the checkout this script lives in', () => {
@@ -143,6 +146,7 @@ describe('codex-setup mcp registration', () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', '/opt/kevin', '--write');
     expect(json.mcp).toEqual({ path: join(home, '.codex', 'config.toml'), changed: true });
+    expect(json.entries).toBe(3);
     expect(readFileSync(json.mcp.path, 'utf-8')).toBe(
       [
         '[mcp_servers.kevin]',

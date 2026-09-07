@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /**
  * The per-home Codex wiring: hooks in `<home>/.codex/hooks.json` (the SessionStart
- * context, with Codex's per-hook output cap lifted, plus the SessionEnd capture) and the `kevin` MCP
+ * context with Codex's per-hook output cap lifted, the SessionEnd capture, and the
+ * PreCompact capture that saves a long session before Codex compacts it) and the `kevin` MCP
  * server in `<home>/.codex/config.toml`, every command pointing at this plugin checkout
  * and this home. Codex has no `@-import`, and a plugin cannot bundle hooks or an MCP
  * server that knows which home it serves (the server is launched inside the plugin
@@ -95,6 +96,10 @@ const hooksDocument: HooksDocument = {
     SessionEnd: [
       ...withoutKevin(existingHooks.hooks?.SessionEnd),
       entry(command('session-capture --mode=session-end --hook-protocol=codex'), 3)
+    ],
+    PreCompact: [
+      ...withoutKevin(existingHooks.hooks?.PreCompact),
+      entry(command('session-capture --mode=pre-compact --hook-protocol=codex'), 30)
     ]
   }
 };
@@ -173,5 +178,5 @@ if (!args.includes('--write')) {
 } else {
   const hooks = writeIfChanged(hooksPath, hooksText);
   const mcp = writeIfChanged(configPath, configText);
-  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 2 })}\n`);
+  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 3 })}\n`);
 }
