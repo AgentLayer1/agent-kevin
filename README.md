@@ -756,7 +756,7 @@ agent-kevin/
 │   ├── briefings/           # morning/evening briefings, weekly/monthly goals, self-review summaries
 │   ├── captures/            # browser-tool artifacts (screenshots, pdfs, recordings) — gitignored, regenerable
 │   └── plans/               # self-review code-change proposals (Track B) + native plan-mode saves (plansDirectory)
-├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server lives in the plugin's own .mcp.json
+├── .mcp.json                # only present if the user adds their own MCP servers — Kevin's bundled `kevin` server is registered in the plugin manifest (`.claude-plugin/plugin.json`)
 ├── AGENTS.md                # operating manual — harness-neutral; Claude Code reaches it via .claude/CLAUDE.md
 ├── IDENTITY.md              # Kevin's role + evolving self-description
 ├── SOUL.md                  # Kevin's character

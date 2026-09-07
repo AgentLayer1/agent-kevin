@@ -58,7 +58,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── assets/                      # {{AGENT_NAME}}'s avatar (and any other plugin-shipped images)
 │   ├── rules/                       # path-scoped coding rules, auto-applied by file glob (seeded by /init)
 │   └── skills/                      # user-authored custom skills only (lazy — pack skills stay in the plugin dir)
-├── .mcp.json                        # only if you register your own MCP servers — {{AGENT_NAME}}'s bundled `kevin` server lives in the plugin's own .mcp.json
+├── .mcp.json                        # only if you register your own MCP servers — {{AGENT_NAME}}'s bundled `kevin` server is registered in the plugin manifest
 ├── {{KNOWLEDGE_REL}}/
 │   ├── index.md                     # master catalog
 │   ├── user/                        # evolving long-form knowledge about you
