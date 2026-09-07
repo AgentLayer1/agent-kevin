@@ -179,11 +179,14 @@ function formatTurnList(turns: TranscriptTurn[]): string {
   return turns
     .map((turn) => {
       const role = turn.role === 'user' ? 'User' : 'Assistant';
-      const text =
+      const kept = turn.text.slice(0, KNOWLEDGE.MAX_TURN_CHARS);
+      // A turn cut (or pasted) inside a code fence would swallow every block after it.
+      const fence = (kept.match(/^\s*```/gm) ?? []).length % 2 === 1 ? '\n```' : '';
+      const truncated =
         turn.text.length > KNOWLEDGE.MAX_TURN_CHARS
-          ? `${turn.text.slice(0, KNOWLEDGE.MAX_TURN_CHARS)}\n[… ${turn.text.length - KNOWLEDGE.MAX_TURN_CHARS} chars truncated]`
-          : turn.text;
-      return `**${role}:** ${text}\n`;
+          ? `\n[… ${turn.text.length - KNOWLEDGE.MAX_TURN_CHARS} chars truncated]`
+          : '';
+      return `**${role}:** ${kept}${fence}${truncated}\n`;
     })
     .join('\n');
 }

@@ -77,4 +77,15 @@ describe('capture modes', () => {
     const written = readFileSync(resolve(SESSIONS, `${result.saved && result.filename}`), 'utf-8');
     expect(written).toContain('### Session (');
   });
+
+  test('a turn cut inside a code fence gets the fence closed before the truncation marker', async () => {
+    const opened = `look:\n\`\`\`ts\n${'x'.repeat(20_000)}\n\`\`\`\ndone`;
+    writeFileSync(transcriptPath, JSON.stringify({ message: { role: 'user', content: opened } }), 'utf-8');
+    const result = await capture('session-end', 'fencecut');
+    expect(result.saved).toBe(true);
+    const written = readFileSync(resolve(SESSIONS, `${result.saved && result.filename}`), 'utf-8');
+    const block = written.slice(written.indexOf('[fencecut]'));
+    expect(block).toMatch(/\n\`\`\`\n\[… \d+ chars truncated\]/);
+    expect((block.match(/^\s*\`\`\`/gm) ?? []).length % 2).toBe(0);
+  });
 });
