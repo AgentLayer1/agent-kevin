@@ -90,21 +90,8 @@ and prompts per optional one. The new template files are the source of truth for
   where the frontmatter already gates them.
 - The sync's brain commit sweeps `.codex/` with the rest of the home's state, so the
   Codex wiring is committed instead of reported as left uncommitted on every run.
-- Every `disable-model-invocation` skill opens with a one-line operator-only guard: Codex
-  lists every plugin skill to the model and ignores that field, so without it the model
-  could run `init`, `release`, or `rename-agent` on its own there. Inert under Claude Code,
-  where the frontmatter already gates them.
-- The sync's brain commit sweeps `.codex/` with the rest of the home's state, so the
-  Codex wiring is committed instead of reported as left uncommitted on every run.
 - README, `templates/AGENTS.md`, and the init skill name the plugin manifest as where the
   bundled `kevin` server and the Claude hooks are registered.
-
-### Fixed
-- A turn truncated (or pasted) inside a fenced code block left the fence open in the day
-  file, rendering every later block as code; the capture formatter now closes it before
-  the truncation marker.
-- The Codex session start delivers the identity files even when the dynamic lane fails
-  to assemble (a marker line takes the lane's place), matching Claude Code's containment.
 
 ### Fixed
 - A turn truncated (or pasted) inside a fenced code block left the fence open in the day
