@@ -87,8 +87,8 @@ bun "$PLUGIN_ROOT/skills/upgrade/scripts/registration-check.ts" --home "$HOME_DI
 
 It reads the host registries and the home's settings, writes nothing, and prints
 `{ ok, findings, settings, warnings }`. A `warnings` entry names a registry file that did not
-parse; carry it into the Step 6 report as a `manual:` note. `ok: true` → continue to Step 1.
-Otherwise:
+parse; carry it into the Step 6 report as a `manual:` note. `ok: true` means no finding and
+no settings rename → continue to Step 1. Otherwise (a finding, a rename, or both):
 
 1. Print every finding's `detail` and its `commands` **verbatim**, in a fenced block, in the
    order given. They are `/plugin` slash commands (Claude Code) or `codex plugin` shell

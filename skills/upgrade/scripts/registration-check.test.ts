@@ -102,7 +102,7 @@ describe('registration-check', () => {
     });
     write('home/.claude/settings.json', { enabledPlugins: { 'agent-scout@scoutco': true } });
     expect(run()).toMatchObject({
-      ok: true,
+      ok: false,
       settings: { enabledPlugins: { from: 'agent-scout@scoutco', to: 'agent-scout@agentdev-scout' } }
     });
   });

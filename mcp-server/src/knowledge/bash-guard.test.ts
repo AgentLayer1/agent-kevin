@@ -14,7 +14,11 @@ process.on('exit', () => rmSync(root, { recursive: true, force: true }));
 describe('homeRelativeLeak', () => {
   test('flags a home tree written relatively from a cwd outside the home', () => {
     expect(
-      homeRelativeLeak("mkdir -p projects/blog-dev/posts && cat > projects/blog-dev/posts/outline.md <<'EOF'", repo, home)
+      homeRelativeLeak(
+        "mkdir -p projects/blog-dev/posts && cat > projects/blog-dev/posts/outline.md <<'EOF'",
+        repo,
+        home
+      )
     ).toBe('projects/blog-dev/posts');
     expect(homeRelativeLeak('echo hi >> knowledge/memory/index.md', repo, home)).toBe('knowledge/memory/index.md');
     expect(homeRelativeLeak("cat > 'reports/plans/a b.md'", repo, home)).toBe('reports/plans/a b.md');
@@ -28,6 +32,7 @@ describe('homeRelativeLeak', () => {
     expect(homeRelativeLeak(`cd ${repo}; echo x > knowledge/index.md`, home, home)).toBe('knowledge/index.md');
     expect(homeRelativeLeak(`pushd ${repo} && echo x > projects/y.md`, home, home)).toBe('projects/y.md');
     expect(homeRelativeLeak(`cd ../../Developer/acme && touch projects/z`, home, home)).toBe('projects/z');
+    expect(homeRelativeLeak(`(cd -- "${repo}" && echo x > projects/sub.md)`, home, home)).toBe('projects/sub.md');
   });
 
   test('a cd back into the home clears the drift', () => {
@@ -45,7 +50,9 @@ describe('homeRelativeLeak', () => {
     expect(homeRelativeLeak('cat knowledge/memory/index.md', repo, home)).toBeUndefined();
     expect(homeRelativeLeak("grep -rn 'projects/' mcp-server/src", repo, home)).toBeUndefined();
     expect(homeRelativeLeak('git commit -m "docs: note projects/ layout"', repo, home)).toBeUndefined();
-    expect(homeRelativeLeak("cat > notes.md <<'EOF'\nSee knowledge/index.md for the map.\nEOF", repo, home)).toBeUndefined();
+    expect(
+      homeRelativeLeak("cat > notes.md <<'EOF'\nSee knowledge/index.md for the map.\nEOF", repo, home)
+    ).toBeUndefined();
     expect(homeRelativeLeak('git add . && git commit -m "projects/ done"', repo, home)).toBeUndefined();
   });
 

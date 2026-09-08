@@ -172,6 +172,5 @@ if (existsSync(codexConfigPath)) {
   }
 }
 
-process.stdout.write(
-  `${JSON.stringify({ plugin, ok: findings.length === 0, findings, settings, warnings }, null, 2)}\n`
-);
+const ok = findings.length === 0 && Object.keys(settings).length === 0;
+process.stdout.write(`${JSON.stringify({ plugin, ok, findings, settings, warnings }, null, 2)}\n`);

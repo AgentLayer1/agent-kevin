@@ -25,9 +25,10 @@
  */
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized, staticContextFiles } from '@/config';
 import { assembleContext } from '@/context';
+import { drainDeferredCaptures } from '@/knowledge/session-capture';
 import { BANNER } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
-import { runtimeDirName } from '@/shared/naming';
+import { resolveEnv, runtimeDirName } from '@/shared/naming';
 import { existsSync, readFileSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 
@@ -91,6 +92,7 @@ export async function sessionStartCodex(): Promise<string> {
     const guidance = existsSync(FILES.SOUL) ? strandedHomeResult().additionalContext : PRE_INIT_RESULT.systemMessage;
     return `${guidance.trim()}\n`;
   }
+  await drainDeferredCaptures().catch((err: unknown) => log.error('deferred captures not drained', err));
   const files = staticContextFiles()
     .filter((path) => existsSync(path))
     .map((path) => {
@@ -117,7 +119,7 @@ export async function sessionStartCodex(): Promise<string> {
     });
   return (
     [
-      "<!-- kevin static context · harness: codex · delivered by the plugin's SessionStart hook because Codex has no @-import -->",
+      `<!-- ${PLUGIN_NAME.replace(/^agent-/, '')} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
       ...files,
       ...lane
     ].join('\n\n') + '\n'

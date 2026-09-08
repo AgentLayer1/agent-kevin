@@ -10,7 +10,7 @@ const RELATIVE_TREE = new RegExp(
 );
 /** Only a write can misplace a file; a read from the wrong cwd merely fails. */
 const WRITES = /(?:^|[\s;&|(])(?:mkdir|touch|cp|mv|tee|install|rsync|ln|sed\s+-i)\s|>/;
-const CD = /^\s*(?:cd|pushd)(?:\s+(.+?))?\s*$/;
+const CD = /^\s*\(?\s*(?:cd|pushd)(?:\s+(?:--\s+)?(.+?))?\s*$/;
 const HEREDOC = /<<-?\s*(["']?)(\w+)\1/;
 const COMPUTED = /[$`(]/;
 

@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
-import { agentHomePath, env, loadSecretsEnv, loadSettingsEnv, readEnvFile } from './env';
+import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
+import { loadSettingsEnv } from './settings-env';
 
 /** Scaffold `dir/` as a marked agent data dir under `home` (what init produces). */
 const scaffoldDataDir = (home: string, dir: string = RUNTIME_DIR_DEFAULT): void => {

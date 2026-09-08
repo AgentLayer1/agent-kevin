@@ -202,14 +202,16 @@ function briefingStub(turns: TranscriptTurn[]): string {
 
 const LOCK_STALE_MS = 10_000;
 const LOCK_RETRY_MS = 50;
-const LOCK_MAX_WAIT_MS = 5_000;
+// Codex kills a SessionEnd hook after 3 seconds, so the wait leaves room to defer instead.
+const LOCK_MAX_WAIT_MS = 1_500;
+const PENDING_FILE = 'capture-pending.jsonl';
 
 /**
  * Cross-process mutex via atomic `mkdir`. Serializes the read-modify-write of
  * the session index + day-file append so two hooks firing for the same session
  * at once can't both read an empty cursor and both write a first-capture block.
  * A stale lock (a hook that crashed mid-capture) is stolen after LOCK_STALE_MS;
- * if the lock can't be taken within LOCK_MAX_WAIT_MS we proceed anyway —
+ * if the lock can't be taken within LOCK_MAX_WAIT_MS the caller defers —
  * dropping a capture is worse than a once-in-a-blue-moon duplicate.
  *
  * Each holder writes a unique token into the lock dir; release only removes the
@@ -217,7 +219,7 @@ const LOCK_MAX_WAIT_MS = 5_000;
  * LOCK_STALE_MS and got its lock stolen would, on its own release, delete the
  * *stealer's* lock — letting a third process run concurrently (ABA race).
  */
-async function acquireCaptureLock(): Promise<() => Promise<void>> {
+async function acquireCaptureLock(): Promise<(() => Promise<void>) | null> {
   const lockDir = resolve(FOLDERS.DATA, 'capture.lock');
   await mkdir(FOLDERS.DATA, { recursive: true }); // ensure lock's parent exists
   const deadline = Date.now() + LOCK_MAX_WAIT_MS;
@@ -248,8 +250,7 @@ async function acquireCaptureLock(): Promise<() => Promise<void>> {
         continue;
       }
       if (Date.now() >= deadline) {
-        log.warn('capture lock contended past timeout — proceeding without it');
-        return async () => {};
+        return null;
       }
       await new Promise((resolveFn) => setTimeout(resolveFn, LOCK_RETRY_MS));
     }
@@ -271,7 +272,8 @@ export type CaptureSessionReason =
   | 'no-transcript'
   | 'no-new-turns'
   | 'too-few-turns'
-  | 'empty-after-redaction';
+  | 'empty-after-redaction'
+  | 'deferred';
 
 export type CaptureSessionResult =
   | { saved: true; turns: number; path: string; filename: string }
@@ -289,23 +291,70 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
     return { saved: false, reason: 'no-transcript' };
   }
 
-  const format = opts.format ?? 'claude';
-  const turns = EXTRACTORS[format](opts.transcriptPath);
-  const cfg = MODES[mode];
-
   // Resume-safe dedup: write only the turns appended since this session was
   // last captured. The cursor lives in the session index, keyed by sessionId,
   // so a session resumed on a later day still resolves to the right offset.
   // Hold the capture mutex across the whole read-modify-write: load the index,
   // diff, append the block, and save the cursor as one atomic unit so two
   // concurrent hooks can't both write a first-capture block for this session.
+  // A lock that cannot be taken in time is not skipped past: the request is
+  // queued in the pending file and the next capture to hold the lock runs it.
   const release = await acquireCaptureLock();
+  if (!release) {
+    await appendFile(resolve(FOLDERS.DATA, PENDING_FILE), `${JSON.stringify(opts)}\n`, 'utf-8');
+    log.warn(`deferred (${mode}) [${opts.sessionId}] — capture lock held; queued for the next capture`);
+    return { saved: false, reason: 'deferred' };
+  }
   try {
-    const index = adoptLegacyKey(await loadIndex(), opts.sessionId);
+    await drainPending();
+    return await captureUnderLock(opts);
+  } finally {
+    await release();
+  }
+}
+
+/** Run every capture queued while the lock was held, oldest first; the cursor makes a repeat harmless. */
+async function drainPending(): Promise<void> {
+  const pendingPath = resolve(FOLDERS.DATA, PENDING_FILE);
+  if (!existsSync(pendingPath)) return;
+  const lines = (await readFile(pendingPath, 'utf-8')).split('\n').filter((line) => line.trim());
+  await rm(pendingPath, { force: true });
+  for (const line of lines) {
+    const queued = JSON.parse(line) as CaptureSessionOpts;
+    if (!existsSync(queued.transcriptPath)) continue;
+    const result = await captureUnderLock(queued);
+    log.info(
+      `drained (${queued.mode}) [${queued.sessionId}] — ${result.saved ? `saved ${result.turns} turns` : result.reason}`
+    );
+  }
+}
+
+/** Drain whatever the last session's end could not write; a no-op when nothing is queued. */
+export async function drainDeferredCaptures(): Promise<void> {
+  if (!isInitialized() || !existsSync(resolve(FOLDERS.DATA, PENDING_FILE))) return;
+  const release = await acquireCaptureLock();
+  if (!release) return;
+  try {
+    await drainPending();
+  } finally {
+    await release();
+  }
+}
+
+async function captureUnderLock(opts: CaptureSessionOpts): Promise<CaptureSessionResult> {
+  const { mode } = opts;
+  const format = opts.format ?? 'claude';
+  const turns = EXTRACTORS[format](opts.transcriptPath);
+  const cfg = MODES[mode];
+  {
+    const loaded = await loadIndex();
+    const index = adoptLegacyKey(loaded, opts.sessionId);
     const prior = index.sessions[opts.sessionId] ?? null;
     const diff = diffTurns(turns, prior);
 
     if (diff.newTurns.length === 0) {
+      // An adopted legacy key is still worth keeping.
+      if (index !== loaded) await saveIndex(index);
       log.info(`skip (${mode}) — no new turns since last capture (cursor ${prior?.captured_turns ?? 0})`);
       return { saved: false, reason: 'no-new-turns', turns: 0 };
     }
@@ -365,7 +414,5 @@ export async function captureSession(opts: CaptureSessionOpts): Promise<CaptureS
 
     log.info(`saved turns ${diff.from}–${diff.to} → ${filename} (${mode})`);
     return { saved: true, turns: diff.newTurns.length, path: logPath, filename };
-  } finally {
-    await release();
   }
 }

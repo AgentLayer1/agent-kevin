@@ -181,6 +181,7 @@ describe('codex-setup mcp registration', () => {
         '',
         '[mcp_servers.kevin.env]',
         `AGENT_HOME = ${JSON.stringify(home)}`,
+        `KEVIN_HOME = ${JSON.stringify(home)}`,
         'PLAYWRIGHT_BROWSERS_PATH = "0"',
         ''
       ].join('\n')
@@ -237,7 +238,12 @@ describe('codex-setup mcp registration', () => {
       mcp_servers: { kevin: { startup_timeout_sec: number; env: Record<string, string> } };
     };
     expect(parsed.mcp_servers.kevin.startup_timeout_sec).toBe(60);
-    expect(parsed.mcp_servers.kevin.env).toEqual({ AGENT_HOME: home, PLAYWRIGHT_BROWSERS_PATH: '0', SERPAPI_KEY: 'k' });
+    expect(parsed.mcp_servers.kevin.env).toEqual({
+      AGENT_HOME: home,
+      KEVIN_HOME: home,
+      PLAYWRIGHT_BROWSERS_PATH: '0',
+      SERPAPI_KEY: 'k'
+    });
     seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n[mcp_servers.kevin.extra]\nnested = 1\n');
     const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
@@ -265,6 +271,17 @@ describe('codex-setup mcp registration', () => {
     expect(Bun.TOML.parse(written)).toMatchObject({
       mcp_servers: { kevin: { args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')] } }
     });
+  });
+
+  test('leaves a multiline string with blank lines exactly as it was', () => {
+    const home = scratch();
+    const instructions = 'model_instructions = """\nfirst\n\n\nsecond\n"""\n';
+    seed(home, 'config.toml', instructions);
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const written = readFileSync(json.mcp.path, 'utf-8');
+    expect(written.startsWith(instructions)).toBe(true);
+    const value = (text: string) => (Bun.TOML.parse(text) as { model_instructions: string }).model_instructions;
+    expect(value(written)).toBe(value(instructions));
   });
 
   test('refuses malformed TOML and writes neither file', () => {

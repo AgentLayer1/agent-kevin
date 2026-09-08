@@ -5,7 +5,7 @@ disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, AskUserQuestion, Read, Bash
 ---
 
-> Operator-invoked only. If you were not invoked by the operator naming this skill, stop and ask before doing anything: Claude Code enforces this through the frontmatter above, Codex does not.
+> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Monthly Goals
 

@@ -63,8 +63,14 @@ and prompts per optional one. The new template files are the source of truth for
   Supported today: an existing home run from Codex (`$upgrade` from a Codex session writes
   the wiring). A fresh `$init` under Codex, the upgrade cycle across Codex plugin versions,
   and native Windows (where the skills are bash and Codex runs PowerShell) are not exercised yet.
-- `bin/kevin … --home=PATH` pins the agent home from the command line; it is how the Codex
-  hooks name their home.
+  Known limits under Codex: skills that name `${CLAUDE_PLUGIN_ROOT}` rely on the plugin-root
+  line the SessionStart header carries (an instruction, not a variable); the session radar
+  (`where-am-i`, `list_sessions`) reads Claude transcripts only; and nothing in Codex denies
+  the model reading the runtime secrets store the way the Claude settings do. Parity for those
+  is the next release's scope.
+- `bin/kevin … --home=PATH` pins the agent home from the command line, setting both
+  `AGENT_HOME` and `KEVIN_HOME` so an inherited override cannot outrank it; the generated
+  Codex MCP registration sets both the same way. It is how the Codex hooks name their home.
 - `session-start --hook-protocol=codex` prints the static stack (identity files, indexes,
   task board) ahead of the same dynamic lane Claude gets, as one payload; the hook is
   registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's
@@ -103,7 +109,8 @@ and prompts per optional one. The new template files are the source of truth for
   keeping `first_seen`, briefing, and block history.
 - The Claude manifest declares its hooks (`hooks/claude.json`, was `hooks/hooks.json`)
   and MCP server explicitly; the plugin-root `.mcp.json` is gone, since Codex
-  auto-discovers both default locations. Nothing changes for a Claude Code home.
+  auto-discovers both default locations. A Claude Code home keeps its three hooks and gains
+  the `PreToolUse` guard above; nothing else about it moves.
 - The MCP server hydrates the home's `.claude/settings*.json` env on first import
   (Codex does not inject it); the CLI shares the loader. Anything already in the
   environment always wins.
@@ -124,9 +131,13 @@ and prompts per optional one. The new template files are the source of truth for
   bundled `kevin` server and the Claude hooks are registered.
 
 ### Fixed
-- A turn truncated (or pasted) inside a fenced code block left the fence open in the day
-  file, rendering every later block as code; the capture formatter now closes it before
-  the truncation marker.
+- A turn truncated (or pasted) inside a three-backtick code fence left the fence open in the
+  day file, rendering every later block as code; the capture formatter now closes it before
+  the truncation marker (longer and tilde fences are not counted).
+- A capture that cannot take the capture lock in time no longer proceeds unlocked or dies to
+  Codex's 3-second SessionEnd limit: it is queued in the runtime dir and the next capture, or
+  the next session start, drains it. A legacy 8-character index key is now persisted onto the
+  full id even when the capture finds no new turns.
 - The Codex session start delivers the identity files even when the dynamic lane fails
   to assemble (a marker line takes the lane's place), matching Claude Code's containment.
 

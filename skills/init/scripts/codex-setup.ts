@@ -3,13 +3,14 @@
  * The per-home Codex wiring: hooks in `<home>/.codex/hooks.json` (the SessionStart
  * context with Codex's per-hook output cap lifted, the SessionEnd capture, the
  * PreCompact capture that saves a long session before Codex compacts it, and the
- * PreToolUse guard against home trees written relative to a drifted cwd) and the `kevin` MCP
+ * PreToolUse guard against home trees written relative to a drifted cwd) and the agent's MCP
  * server in `<home>/.codex/config.toml`, every command pointing at this plugin checkout
  * and this home. Codex has no `@-import`, and a plugin cannot bundle hooks or an MCP
  * server that knows which home it serves (the server is launched inside the plugin
  * cache, with no workspace variable and no MCP roots), so init and upgrade write both
- * files. Only Kevin's own entries are replaced: the operator's other hooks, MCP servers,
- * and settings survive, and a file that does not parse is left alone. The hook commands
+ * files. Only the agent's own entries are replaced: the operator's other hooks, MCP servers,
+ * and settings survive; a file that does not parse, or one whose other settings would not
+ * survive the rewrite byte for byte in meaning, is left alone. The hook commands
  * carry the home as a `--home=` argument rather than an env prefix, double-quoted, so the
  * same line parses under sh and under the PowerShell Codex uses on Windows.
  *
@@ -136,15 +137,22 @@ const headerPath = (line: string): string[] | undefined => {
 };
 const isAgentTableHeader = (path: string[]): boolean => path[0] === 'mcp_servers' && path[1] === 'kevin';
 const withoutAgentTables = (text: string): string => {
+  const kept: string[] = [];
   let dropping = false;
-  return text
-    .split('\n')
-    .filter((line) => {
-      const path = headerPath(line);
-      if (path) dropping = isAgentTableHeader(path);
-      return !dropping;
-    })
-    .join('\n');
+  for (const line of text.split('\n')) {
+    const path = headerPath(line);
+    if (path) {
+      const wasDropping = dropping;
+      dropping = isAgentTableHeader(path);
+      if (dropping) {
+        while (kept.length > 0 && kept[kept.length - 1].trim() === '') kept.pop();
+      } else if (wasDropping && kept.length > 0 && kept[kept.length - 1].trim() !== '') {
+        kept.push('');
+      }
+    }
+    if (!dropping) kept.push(line);
+  }
+  return kept.join('\n');
 };
 
 const tomlString = (value: string): string => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -157,7 +165,13 @@ const tomlScalar = (key: string, value: unknown): string => {
 };
 const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : '';
 const existingTables = parseToml(existingConfig, configPath);
-/** Whatever the operator added to Kevin's own tables (a startup timeout, an extra env var) survives regeneration. */
+/** The agent's env prefix (`agent-kevin` reads `KEVIN_*`), from the manifest of the checkout being wired, else this one. */
+const manifestPath = [pluginRoot, resolve(import.meta.dir, '..', '..', '..')]
+  .map((root) => resolve(root, '.claude-plugin', 'plugin.json'))
+  .find((path) => existsSync(path));
+const pluginName = String((JSON.parse(readFileSync(String(manifestPath), 'utf-8')) as { name?: unknown }).name ?? '');
+const homeKey = `${pluginName.replace(/^agent-/, '').toUpperCase()}_HOME`;
+/** Whatever the operator added to the agent's own tables (a startup timeout, an extra env var) survives regeneration. */
 const keptEntries = (path: string[], own: string[]): string[] =>
   Object.entries((lookup(existingTables, path) as Record<string, unknown> | undefined) ?? {})
     .filter(([key]) => !own.includes(key))
@@ -170,21 +184,31 @@ const agentTables = [
   '',
   '[mcp_servers.kevin.env]',
   `AGENT_HOME = ${tomlString(homeDir)}`,
+  `${homeKey} = ${tomlString(homeDir)}`,
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
-  ...keptEntries(['mcp_servers', 'kevin', 'env'], ['AGENT_HOME', 'PLAYWRIGHT_BROWSERS_PATH']),
+  ...keptEntries(['mcp_servers', 'kevin', 'env'], ['AGENT_HOME', homeKey, 'PLAYWRIGHT_BROWSERS_PATH']),
   ''
 ].join('\n');
-const otherConfig = withoutAgentTables(existingConfig)
-  .replace(/\n{3,}/g, '\n\n')
-  .trim();
+const otherConfig = withoutAgentTables(existingConfig).trim();
 if (lookup(parseToml(otherConfig, configPath), ['mcp_servers', 'kevin']) !== undefined) {
   throw new Error(
     `${configPath} registers mcp_servers.kevin in a form this script does not rewrite (inline table or dotted keys); remove it by hand and rerun`
   );
 }
 const configText = otherConfig ? `${otherConfig}\n\n${agentTables}` : agentTables;
-if (lookup(parseToml(configText, 'the generated config'), ['mcp_servers', 'kevin', 'env', 'AGENT_HOME']) !== homeDir) {
+const generatedTables = parseToml(configText, 'the generated config');
+if (lookup(generatedTables, ['mcp_servers', 'kevin', 'env', 'AGENT_HOME']) !== homeDir) {
   throw new Error(`the generated ${configPath} does not register this home; nothing written`);
+}
+const withoutOwn = (document: TomlDocument): TomlDocument => {
+  const servers = { ...((document.mcp_servers as TomlDocument | undefined) ?? {}) };
+  delete servers.kevin;
+  const rest = { ...document };
+  delete rest.mcp_servers;
+  return Object.keys(servers).length > 0 ? { ...rest, mcp_servers: servers } : rest;
+};
+if (JSON.stringify(withoutOwn(existingTables)) !== JSON.stringify(withoutOwn(generatedTables))) {
+  throw new Error(`${configPath}: rewriting it would change a setting outside mcp_servers.kevin; nothing written`);
 }
 
 const writeIfChanged = (path: string, text: string): { path: string; changed: boolean } => {

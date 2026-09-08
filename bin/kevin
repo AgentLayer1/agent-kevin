@@ -67,8 +67,11 @@ async function loadProjectEnv(): Promise<void> {
     process.env.AGENT_HOME = home;
     process.env[agentKeyName('HOME')] = home;
   }
-  const { agentHomePath, loadSettingsEnv } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
+  // Settings first, through the side-effect-free loader: importing shared/env resolves the
+  // home and loads secrets on import, which would freeze a home a settings block meant to set.
+  const { loadSettingsEnv } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/settings-env'));
   loadSettingsEnv(process.cwd());
+  const { agentHomePath } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
   agentHomePath();
 }
 await loadProjectEnv();
@@ -159,7 +162,7 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
   session-capture --mode=... --transcript=PATH --cwd=PATH --session-id=X
                                     Plain-CLI mode — same logic without the hook envelope. Useful for testing.
   session-capture ... --format=claude (default)
-                                    Transcript-format adapter. Future: codex, etc.
+                                    Transcript-format adapter (claude, codex).
   session-start [--hook-protocol=claude|codex]
                                     Emit dynamic SessionStart context. Without the flag, prints the structured result for testing.
   session-start|session-capture ... --home=PATH

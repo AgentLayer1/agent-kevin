@@ -64,16 +64,16 @@ describe('config path resolution', () => {
  * Convention guard: `process.env` is read in exactly one place — `shared/env.ts`, which exposes
  * `env()` / `dbConnections()` / `scrubValues()` to the rest of the codebase. That module
  * self-loads the home's `secrets/.env` before any read, so secrets loading is order-independent
- * instead of depending on which file imported config first. Three modules are exempt, all of
+ * instead of depending on which file imported config first. Four modules are exempt, all of
  * them BELOW that gate: `shared/naming.ts` owns the shared/override resolution rule the
- * gate is built from; `shared/log.ts` is a logger that must stay off the secrets path; and
+ * gate is built from; `shared/settings-env.ts` hydrates env from settings before the home resolves; `shared/log.ts` is a logger that must stay off the secrets path; and
  * `test.ts` pins `AGENT_HOME` before any module loads, since importing `@/shared/env` there
  * would self-load secrets from the un-pinned home — the exact thing it exists to prevent. The
  * `...process.env` spread (forwarding the env to a spawned child) is allowed everywhere — only
  * value reads (`process.env.X` / `process.env[x]`) are banned. See shared/env.ts.
  */
 const SRC = resolve(import.meta.dir);
-const ALLOWED = new Set(['shared/naming.ts', 'shared/env.ts', 'shared/log.ts', 'test.ts']);
+const ALLOWED = new Set(['shared/naming.ts', 'shared/env.ts', 'shared/settings-env.ts', 'shared/log.ts', 'test.ts']);
 
 const sourceFiles = readdirSync(SRC, { recursive: true, encoding: 'utf-8' })
   .filter((path) => path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.includes('generated/'))
