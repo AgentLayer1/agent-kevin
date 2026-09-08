@@ -98,6 +98,7 @@ const hooksDocument: HooksDocument = {
     ],
     SessionEnd: [
       ...withoutAgentEntries(existingHooks.hooks?.SessionEnd),
+      // Codex clamps a SessionEnd hook to 3 seconds whatever the entry says.
       entry(command('session-capture --mode=session-end --hook-protocol=codex'), 3)
     ],
     PreCompact: [
@@ -147,18 +148,32 @@ const withoutAgentTables = (text: string): string => {
 };
 
 const tomlString = (value: string): string => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+const tomlScalar = (key: string, value: unknown): string => {
+  if (typeof value === 'string') return `${key} = ${tomlString(value)}`;
+  if (typeof value === 'number' || typeof value === 'boolean') return `${key} = ${String(value)}`;
+  throw new Error(
+    `${configPath}: mcp_servers.kevin carries ${key}, which this script cannot rewrite; move it out of the kevin tables and rerun`
+  );
+};
+const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : '';
+const existingTables = parseToml(existingConfig, configPath);
+/** Whatever the operator added to Kevin's own tables (a startup timeout, an extra env var) survives regeneration. */
+const keptEntries = (path: string[], own: string[]): string[] =>
+  Object.entries((lookup(existingTables, path) as Record<string, unknown> | undefined) ?? {})
+    .filter(([key]) => !own.includes(key))
+    .map(([key, value]) => tomlScalar(key, value));
 const agentTables = [
   '[mcp_servers.kevin]',
   'command = "bun"',
   `args = [${tomlString(resolve(pluginRoot, 'mcp-server', 'src', 'server.ts'))}]`,
+  ...keptEntries(['mcp_servers', 'kevin'], ['command', 'args', 'env']),
   '',
   '[mcp_servers.kevin.env]',
   `AGENT_HOME = ${tomlString(homeDir)}`,
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
+  ...keptEntries(['mcp_servers', 'kevin', 'env'], ['AGENT_HOME', 'PLAYWRIGHT_BROWSERS_PATH']),
   ''
 ].join('\n');
-const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : '';
-parseToml(existingConfig, configPath);
 const otherConfig = withoutAgentTables(existingConfig)
   .replace(/\n{3,}/g, '\n\n')
   .trim();
@@ -184,7 +199,8 @@ const writeIfChanged = (path: string, text: string): { path: string; changed: bo
 if (!args.includes('--write')) {
   process.stdout.write(hooksText);
 } else {
-  const hooks = writeIfChanged(hooksPath, hooksText);
+  // The server first: hooks that outlive a failed config write would point at nothing.
   const mcp = writeIfChanged(configPath, configText);
+  const hooks = writeIfChanged(hooksPath, hooksText);
   process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 4 })}\n`);
 }

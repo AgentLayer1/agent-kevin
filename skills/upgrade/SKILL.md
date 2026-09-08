@@ -26,8 +26,8 @@ ask before anything optional.
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
 [ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"   # Claude Code fills this in; under Codex set it to the checkout two levels above this skill's base directory (the <skill> block's <path>)
-[ -n "$PLUGIN_ROOT" ] || echo "SET PLUGIN_ROOT: no harness variable here — derive it from the skill's base directory"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
+[ -d "$PLUGIN_ROOT/.claude-plugin" ] || echo "SET PLUGIN_ROOT: $PLUGIN_ROOT is not the plugin checkout"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 VERSION_FILE="$HOME_DIR/.kevin/version.json"
 # NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
@@ -86,7 +86,9 @@ bun "$PLUGIN_ROOT/skills/upgrade/scripts/registration-check.ts" --home "$HOME_DI
 ```
 
 It reads the host registries and the home's settings, writes nothing, and prints
-`{ ok, findings, settings }`. `ok: true` → continue to Step 1. Otherwise:
+`{ ok, findings, settings, warnings }`. A `warnings` entry names a registry file that did not
+parse; carry it into the Step 6 report as a `manual:` note. `ok: true` → continue to Step 1.
+Otherwise:
 
 1. Print every finding's `detail` and its `commands` **verbatim**, in a fenced block, in the
    order given. They are `/plugin` slash commands (Claude Code) or `codex plugin` shell
@@ -123,7 +125,8 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
 - **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)." One check
   still runs before stopping: the **codex wiring** paragraph in Step 4. It is not a migration
   and has no version (an existing, current home run from Codex for the first time has no
-  `.codex/` yet), so it must not hide behind the release range. Then stop.
+  `.codex/` yet), so it must not hide behind the release range. Print its re-trust line and
+  any owed install lines exactly as Step 6 words them (this path never reaches Step 6), then stop.
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
   tell the user to run `/plugin marketplace update <marketplace>` then
   `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.

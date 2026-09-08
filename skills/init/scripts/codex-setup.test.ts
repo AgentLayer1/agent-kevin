@@ -225,6 +225,25 @@ describe('codex-setup mcp registration', () => {
     expect(Bun.TOML.parse(written)).toMatchObject({ mcp_servers: { kevin: { env: { AGENT_HOME: home } } } });
   });
 
+  test("keeps the operator's own keys inside the kevin tables, and refuses one it cannot rewrite", () => {
+    const home = scratch();
+    seed(
+      home,
+      'config.toml',
+      '[mcp_servers.kevin]\ncommand = "bun"\nstartup_timeout_sec = 60\n\n[mcp_servers.kevin.env]\nAGENT_HOME = "/x"\nSERPAPI_KEY = "k"\n'
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const parsed = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as {
+      mcp_servers: { kevin: { startup_timeout_sec: number; env: Record<string, string> } };
+    };
+    expect(parsed.mcp_servers.kevin.startup_timeout_sec).toBe(60);
+    expect(parsed.mcp_servers.kevin.env).toEqual({ AGENT_HOME: home, PLAYWRIGHT_BROWSERS_PATH: '0', SERPAPI_KEY: 'k' });
+    seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n[mcp_servers.kevin.extra]\nnested = 1\n');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(code).not.toBe(0);
+    expect(stderr).toContain('cannot rewrite');
+  });
+
   test('keeps an indented unrelated table that follows the kevin table', () => {
     const home = scratch();
     seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n  [mcp_servers.other]\ncommand = "keep-me"\n');

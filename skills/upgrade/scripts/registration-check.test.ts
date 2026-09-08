@@ -117,10 +117,52 @@ describe('registration-check', () => {
     expect(result.findings).toEqual([
       expect.objectContaining({
         kind: 'retired-marketplace',
-        commands: ['/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace']
+        commands: [
+          '/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace',
+          '/plugin install agent-scout@agentlayer'
+        ]
       })
     ]);
     expect(result.settings).toEqual({});
+  });
+
+  test('a retired repo registered under another name moves the home key to the published name', () => {
+    const { write, run } = machine();
+    write('claude/plugins/known_marketplaces.json', {
+      'old-al': { source: { source: 'github', repo: 'AgentLayer1/agentlayer-claude-marketplace' } }
+    });
+    write('claude/plugins/installed_plugins.json', { plugins: { 'agent-scout@old-al': [{ scope: 'project' }] } });
+    write('home/.claude/settings.json', { enabledPlugins: { 'agent-scout@old-al': true } });
+    const result = run();
+    expect(result.findings[0].commands).toEqual([
+      '/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace',
+      '/plugin install agent-scout@agentlayer'
+    ]);
+    expect(result.settings.enabledPlugins).toEqual({ from: 'agent-scout@old-al', to: 'agent-scout@agentlayer' });
+  });
+
+  test('a dangling key flips to the marketplace the plugin is installed from, not the first registered', () => {
+    const { root, write, run } = machine();
+    write('claude/plugins/known_marketplaces.json', {
+      agentlayer: { source: { source: 'github', repo: 'AgentLayer1/agentlayer-agent-marketplace' } },
+      'agentdev-scout': { source: { source: 'directory', path: join(root, 'plugin') } }
+    });
+    write('claude/plugins/installed_plugins.json', {
+      plugins: { 'agent-scout@agentdev-scout': [{ scope: 'project' }] }
+    });
+    write('home/.claude/settings.json', { enabledPlugins: { 'agent-scout@gone': true } });
+    expect(run().settings.enabledPlugins).toEqual({ from: 'agent-scout@gone', to: 'agent-scout@agentdev-scout' });
+  });
+
+  test('a registry that does not parse is a warning, and a null entry is skipped', () => {
+    const { write, run } = machine();
+    write('claude/plugins/known_marketplaces.json', '{ nope');
+    write('codex/config.toml', 'model = [\n');
+    const result = run();
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toHaveLength(2);
+    write('claude/plugins/known_marketplaces.json', { agentlayer: null });
+    expect(run().ok).toBe(true);
   });
 
   test('a Codex local marketplace registered under a stale name', () => {

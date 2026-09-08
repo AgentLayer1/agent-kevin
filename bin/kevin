@@ -62,7 +62,10 @@ process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 async function loadProjectEnv(): Promise<void> {
   const home = process.argv.find((arg) => arg.startsWith('--home='))?.slice('--home='.length);
   if (home) {
+    // Both spellings, or a KEVIN_HOME from a settings env block would outrank the flag.
+    const { agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     process.env.AGENT_HOME = home;
+    process.env[agentKeyName('HOME')] = home;
   }
   const { agentHomePath, loadSettingsEnv } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
   loadSettingsEnv(process.cwd());
@@ -533,7 +536,7 @@ async function run(): Promise<void> {
       process.stdin.on('data', (chunk) => (data += chunk));
       process.stdin.on('end', () => resolveFn(data));
     });
-    const input: { cwd?: string; tool_input?: { command?: unknown } } = raw.trim() ? parseHookInput(raw) : {};
+    const input: HookInput = raw.trim() ? parseHookInput(raw) : {};
     const commandText = input.tool_input?.command;
     if (typeof commandText !== 'string' || !input.cwd) return;
     const { homeRelativeLeak, leakMessage } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/bash-guard'));
@@ -607,7 +610,7 @@ async function run(): Promise<void> {
     const mode = localFlag('mode');
     if (mode !== 'session-end' && mode !== 'pre-compact') {
       throw new Error(
-        'Usage: kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude]'
+        'Usage: kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude|codex] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude|codex]'
       );
     }
 

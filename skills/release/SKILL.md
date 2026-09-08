@@ -222,13 +222,17 @@ Remind the maintainer of the consumer upgrade path so it can go in release notes
 /agent-kevin:upgrade
 ```
 
-And for a home run from Codex (`<marketplace>` is `agentdev-kevin` for a checkout; the plugin
-installs into a version-pinned cache, so `upgrade` regenerates the home's wiring and asks for
-a hook re-trust):
+And for a home run from Codex. The plugin installs into a version-pinned cache, so `upgrade`
+regenerates the home's wiring and asks for a hook re-trust. `codex plugin marketplace upgrade`
+refreshes Git marketplaces only, so a local checkout is re-added instead:
 
 ```
-codex plugin marketplace upgrade <marketplace>
-codex plugin add agent-kevin@<marketplace>
+# from the agentlayer marketplace:
+codex plugin marketplace upgrade agentlayer
+codex plugin add agent-kevin@agentlayer
+# from a local checkout (agentdev-kevin), after git pull:
+codex plugin remove agent-kevin@agentdev-kevin
+codex plugin add agent-kevin@agentdev-kevin
 # start a new Codex session from the home, then:
 $upgrade
 ```

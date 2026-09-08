@@ -93,10 +93,15 @@ export async function sessionStartCodex(): Promise<string> {
   }
   const files = staticContextFiles()
     .filter((path) => existsSync(path))
-    .map(
-      (path) =>
-        `<!-- file: ${relative(FOLDERS.HOME, path).split(sep).join('/')} -->\n${readFileSync(path, 'utf-8').trimEnd()}`
-    );
+    .map((path) => {
+      const name = relative(FOLDERS.HOME, path).split(sep).join('/');
+      try {
+        return `<!-- file: ${name} -->\n${readFileSync(path, 'utf-8').trimEnd()}`;
+      } catch (err) {
+        log.error(`hook failed (codex): ${name} unreadable`, err);
+        return `<!-- kevin: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;
+      }
+    });
   // The static files never depend on git or reports, so a dynamic-lane failure costs
   // only the lane, the same containment Claude's path has.
   const lane = await assembleContext()

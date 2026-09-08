@@ -28,6 +28,7 @@ interface KeyFlip {
   from: string;
   to: string;
 }
+const warnings: string[] = [];
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -46,10 +47,17 @@ const pluginRoot = resolve(flag('plugin-root') ?? resolve(import.meta.dir, '..',
 const claudeDir = resolve(flag('claude-dir') ?? resolve(homedir(), '.claude'));
 const codexDir = resolve(flag('codex-dir') ?? resolve(homedir(), '.codex'));
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+/** A host registry or home file; one that does not parse is reported, not fatal. */
 const readJson = (path: string): Record<string, unknown> | undefined => {
   if (!existsSync(path)) return undefined;
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
-  return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+    return isRecord(parsed) ? parsed : undefined;
+  } catch (err) {
+    warnings.push(`${path} did not parse: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  }
 };
 const catalogName = (dir: string): string | undefined => {
   const claude = readJson(resolve(dir, '.claude-plugin', 'marketplace.json'))?.name;
@@ -78,7 +86,8 @@ const installed = (readJson(resolve(claudeDir, 'plugins', 'installed_plugins.jso
   unknown
 >;
 const relevant = Object.entries(known).filter(
-  ([name]) => name === PUBLISHED.name || name === devName || `${plugin}@${name}` in installed
+  ([name, registration]) =>
+    isRecord(registration) && (name === PUBLISHED.name || name === devName || `${plugin}@${name}` in installed)
 );
 const validIds: string[] = [];
 const renamed = new Map<string, string>();
@@ -103,12 +112,18 @@ for (const [name, registration] of relevant) {
     }
   }
   if (source.source === 'github' && source.repo && PUBLISHED.retired.includes(source.repo)) {
+    const renamedToo = name !== PUBLISHED.name;
     findings.push({
       host: 'claude',
       kind: 'retired-marketplace',
-      detail: `Marketplace "${name}" still points at ${source.repo}; the catalog moved to ${PUBLISHED.repo} under the same name, so adding it replaces the registration and ${plugin}@${name} is unchanged.`,
-      commands: [`/plugin marketplace add github:${PUBLISHED.repo}`]
+      detail: renamedToo
+        ? `Marketplace "${name}" still points at ${source.repo}; the catalog moved to ${PUBLISHED.repo}, which registers as "${PUBLISHED.name}", so the plugin id becomes ${plugin}@${PUBLISHED.name}.`
+        : `Marketplace "${name}" still points at ${source.repo}; the catalog moved to ${PUBLISHED.repo} under the same name, so adding it replaces the registration and ${plugin}@${name} is unchanged.`,
+      commands: [`/plugin marketplace add github:${PUBLISHED.repo}`, `/plugin install ${plugin}@${PUBLISHED.name}`]
     });
+    if (renamedToo) renamed.set(name, PUBLISHED.name);
+    validIds.push(`${plugin}@${PUBLISHED.name}`);
+    continue;
   }
   validIds.push(`${plugin}@${name}`);
 }
@@ -117,7 +132,8 @@ const enabledKey = Object.keys(homeSettings.enabledPlugins ?? {}).find((key) => 
 if (enabledKey && validIds.length > 0 && !validIds.includes(enabledKey)) {
   const marketplace = enabledKey.slice(plugin.length + 1);
   const target = renamed.get(marketplace);
-  settings.enabledPlugins = { from: enabledKey, to: target ? `${plugin}@${target}` : validIds[0] };
+  const installedId = validIds.find((id) => id in installed);
+  settings.enabledPlugins = { from: enabledKey, to: target ? `${plugin}@${target}` : (installedId ?? validIds[0]) };
 }
 const staleMarketplace = Object.keys(homeSettings.extraKnownMarketplaces ?? {}).find((key) => renamed.has(key));
 if (staleMarketplace) {
@@ -131,9 +147,15 @@ interface CodexConfig {
 }
 const codexConfigPath = resolve(codexDir, 'config.toml');
 if (existsSync(codexConfigPath)) {
-  const config = Bun.TOML.parse(readFileSync(codexConfigPath, 'utf-8')) as CodexConfig;
+  let config: CodexConfig = {};
+  try {
+    config = Bun.TOML.parse(readFileSync(codexConfigPath, 'utf-8')) as CodexConfig;
+  } catch (err) {
+    warnings.push(`${codexConfigPath} did not parse: ${err instanceof Error ? err.message : String(err)}`);
+  }
   for (const [name, marketplace] of Object.entries(config.marketplaces ?? {})) {
-    if (marketplace.source_type !== 'local' || !marketplace.source) continue;
+    if (!isRecord(marketplace) || marketplace.source_type !== 'local' || typeof marketplace.source !== 'string')
+      continue;
     const catalog = catalogName(marketplace.source);
     if (!catalog || catalog === name || !(`${plugin}@${name}` in (config.plugins ?? {}))) continue;
     findings.push({
@@ -150,4 +172,6 @@ if (existsSync(codexConfigPath)) {
   }
 }
 
-process.stdout.write(`${JSON.stringify({ plugin, ok: findings.length === 0, findings, settings }, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify({ plugin, ok: findings.length === 0, findings, settings, warnings }, null, 2)}\n`
+);

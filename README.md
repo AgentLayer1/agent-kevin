@@ -674,7 +674,7 @@ Install: `/agent-kevin:configure-skills` → tick "Third-party libraries".
 
 - **SessionStart**: pre-init shows the setup banner. Post-init injects today's date, last session tail, today's reports (any briefings or plans written earlier today), and recent git activity (≤10KB total).
 - **SessionEnd + PreCompact**: capture transcript turns to `knowledge/raw/sessions/YYYY-MM-DD.md` with API key redaction. **This is what makes the flywheel work.** Without these hooks, Kevin would have no source material to compile into long-term memory.
-- **PreToolUse (Bash)**: the cwd-drift guard. A `cd` in one shell command moves the session's cwd for every later one, and a home-relative `projects/…` or `knowledge/…` path then lands in that repo; the guard blocks such a command while the effective cwd is outside the home (a `cd` inside the command counts) and tells the model the absolute path to use.
+- **PreToolUse (Bash)**: the cwd-drift guard. A `cd` in one shell command moves the session's cwd for every later one, and a home-relative `projects/…`, `knowledge/…`, or `reports/…` path then lands in that repo; the guard blocks such a write while the effective cwd is outside the home (a `cd` inside the command counts) and tells the model the absolute path to use; reads and mentions pass.
 
 All four ship with the plugin, so Claude Code runs them only for sessions started where the plugin is enabled — its own home. A session can therefore only ever be captured by the agent whose home it launched in, which is what keeps two agents on one machine from writing into each other's memory. Don't add capture hooks to `~/.claude/settings.json`; see [the launch convention](#-the-one-convention-launch-from-the-agent-home).
 
@@ -699,7 +699,7 @@ agent-kevin/
 ├── bin/
 │   └── kevin                # standalone CLI for shell-driven task ops
 ├── hooks/
-│   └── claude.json          # Claude Code hooks: SessionStart + SessionEnd + PreCompact (Codex hooks are per-home)
+│   └── claude.json          # Claude Code hooks: SessionStart + SessionEnd + PreCompact + PreToolUse guard (Codex hooks are per-home)
 ├── mcp-server/              # the kevin MCP server (Bun)
 │   ├── src/
 │   └── package.json
