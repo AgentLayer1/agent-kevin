@@ -632,7 +632,9 @@ async function run(): Promise<void> {
       });
       const parsed = parseHookInput(raw);
       transcriptPath = parsed.transcript_path ?? '';
-      cwd = parsed.cwd ?? '';
+      // Claude reports the shell's cwd, which a Bash `cd` moves; the session lives where
+      // it was launched, which the host exports separately. Codex's cwd is stable.
+      cwd = (hookProtocol === 'claude' ? process.env.CLAUDE_PROJECT_DIR : undefined) ?? parsed.cwd ?? '';
       sessionId = parsed.session_id ?? 'unknown';
     } else if (hookProtocol) {
       throw new Error(`Unknown --hook-protocol: ${hookProtocol}`);
