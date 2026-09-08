@@ -56,7 +56,7 @@ and prompts per optional one. The new template files are the source of truth for
   captures at) and a `[mcp_servers.kevin]` table in
   `.codex/config.toml` with `AGENT_HOME` set. The generator merges into existing files,
   replaces only Kevin's own entries, and validates the TOML before writing. `init`
-  (Step 7c) and `upgrade` run it; the operator trusts the folder and the three hook entries
+  (Step 7c) and `upgrade` run it; the operator trusts the folder and the four hook entries
   via `/hooks`. The hook commands carry the home as a double-quoted `--home=` argument
   (`bun "<plugin>/bin/kevin" session-start --hook-protocol=codex --home="<home>"`), no env
   prefix, shaped to parse under sh and under the PowerShell Codex uses on Windows alike.
@@ -73,6 +73,23 @@ and prompts per optional one. The new template files are the source of truth for
 - `session-capture --hook-protocol=codex` (`--format=codex`) reads Codex's rollout JSONL:
   user and assistant turns only, with the injected `AGENTS.md`, environment block, and
   `$skill` expansions dropped.
+- **`upgrade` starts with a registration preflight** (`skills/upgrade/scripts/registration-check.ts`):
+  it reads Claude Code's marketplace registry and installed plugins, the home's settings, and
+  Codex's `config.toml`, and reports a checkout registered under a name its catalog no longer
+  carries, a retired marketplace repo, or a stale Codex registration, each with the exact
+  commands that fix it. The skill quotes them, flips the home's `enabledPlugins` and
+  `extraKnownMarketplaces` keys itself, and repeats the commands in its report until a later
+  run finds nothing to do.
+- **A `PreToolUse` guard on shell commands** (`bin/kevin guard`, wired in `hooks/claude.json` for
+  `Bash` and as the fourth Codex hook entry). A `cd` in one shell command moves the session's
+  cwd for every later one; a home-relative path such as `projects/blog-dev/posts/…` then lands
+  in whatever repo the cwd drifted to. The guard blocks a command that names `knowledge/`,
+  `projects/`, or `reports/` relatively while the cwd is outside the home (and the cwd has
+  no such tree of its own), telling the model the absolute path to use. A `cd` inside
+  the same command is followed too, so `cd <repo> && cat > projects/x` is caught from the home.
+  Verified on both hosts: Codex presents every shell command to hooks as tool name `Bash` with
+  `tool_input.command`, and starts each one in the workspace, so the drift there is only the
+  single-command form (its sandbox also denies writes outside the workspace).
 - Session block headers record the harness and model that produced the block
   (`· claude: claude-fable-5-1`, `· codex: gpt-6-astra`), scoped to the block's new turns.
 
@@ -89,6 +106,12 @@ and prompts per optional one. The new template files are the source of truth for
   (Codex does not inject it); the CLI shares the loader. Anything already in the
   environment always wins.
 - `release` bumps both manifests; `manifests.test.ts` fails when they drift.
+- The Claude developer catalog (`.claude-plugin/marketplace.json`, `agentdev-kevin`) is
+  committed, as the Codex one already was, so a plain clone registers on both hosts.
+- **The public marketplace is `AgentLayer1/agentlayer-agent-marketplace`**, serving Claude Code
+  (`.claude-plugin/marketplace.json`) and Codex (`.agents/plugins/marketplace.json`) from one
+  repo. Its name is still `agentlayer` and the plugin id is still `agent-kevin@agentlayer`; the
+  old `agentlayer-claude-marketplace` repo keeps working until it is retired.
 - Every `disable-model-invocation` skill opens with a one-line operator-only guard: Codex
   lists every plugin skill to the model and ignores that field, so without it the model
   could run `init`, `release`, or `rename-agent` on its own there. Inert under Claude Code,
@@ -106,8 +129,9 @@ and prompts per optional one. The new template files are the source of truth for
   to assemble (a marker line takes the lane's place), matching Claude Code's containment.
 
 ### Upgrade
+- `manual: optional` — the marketplace moved to `AgentLayer1/agentlayer-agent-marketplace` (Claude Code and Codex from one repo). Registered from the old `agentlayer-claude-marketplace`? Run `/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace` once: both carry the name `agentlayer`, so the new one replaces the old, and `agent-kevin@agentlayer` is unchanged. Nothing in your home changes. Local clones registered as `agentdev-kevin` have nothing to do.
 - `template/AGENTS.md: optional` — the tree-diagram comment on `.mcp.json` now says the bundled `kevin` server is registered in the plugin manifest (one comment line; declining loses nothing).
-- `manual: optional` — Codex: this upgrade asks once whether the home also runs Codex and, on yes, writes `.codex/hooks.json` and the `[mcp_servers.kevin]` table in `.codex/config.toml`. Then install the plugin in Codex if you have not (`codex plugin marketplace add <checkout or marketplace>`, `codex plugin add agent-kevin@<marketplace>`), launch `codex` from the home, trust the folder when asked, and trust the three Kevin entries via `/hooks`. A Codex-only home gets the same wiring from `$upgrade` run inside Codex. Claude Code-only homes answer no and have nothing to do.
+- `manual: optional` — Codex: this upgrade asks once whether the home also runs Codex and, on yes, writes `.codex/hooks.json` and the `[mcp_servers.kevin]` table in `.codex/config.toml`. Then install the plugin in Codex if you have not (`codex plugin marketplace add <checkout or marketplace>`, `codex plugin add agent-kevin@<marketplace>`), launch `codex` from the home, trust the folder when asked, and trust the four Kevin entries via `/hooks`. A Codex-only home gets the same wiring from `$upgrade` run inside Codex. Claude Code-only homes answer no and have nothing to do.
 
 ## [0.4.0] - 2026-09-06
 

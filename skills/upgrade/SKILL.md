@@ -72,6 +72,38 @@ ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 Confirm `$HOME_DIR` is a real Kevin home (it has `SOUL.md`). If not, stop and tell
 the user to run this from their agent home (or set `KEVIN_HOME`).
 
+## Step 0b — Registration preflight
+
+The plugin only loads next session if the host's registration matches what this release
+ships: the checkout's catalogs are named `agentdev-kevin`, consumers install
+`agent-kevin@agentlayer` from `AgentLayer1/agentlayer-agent-marketplace`. A registration
+made under an older name (a checkout registered as `agentlayer`, a retired marketplace repo,
+a Codex marketplace whose catalog was renamed) keeps this session alive but breaks the next.
+Check before anything else:
+
+```bash
+bun "$PLUGIN_ROOT/skills/upgrade/scripts/registration-check.ts" --home "$HOME_DIR"
+```
+
+It reads the host registries and the home's settings, writes nothing, and prints
+`{ ok, findings, settings }`. `ok: true` → continue to Step 1. Otherwise:
+
+1. Print every finding's `detail` and its `commands` **verbatim**, in a fenced block, in the
+   order given. They are `/plugin` slash commands (Claude Code) or `codex plugin` shell
+   commands; a skill cannot run either, and `/plugin marketplace remove` uninstalls the plugin
+   it brought, which is why the install line follows it.
+2. Apply `settings` now, not in Step 4: Step 1 may end this run early (already up to date,
+   stale code), and a home whose key names a marketplace that no longer exists loads no plugin
+   next session. Copy `$HOME_DIR/.claude/settings.json` to
+   `$HOME_DIR/.kevin/updates/registration-$(date +%Y%m%d-%H%M%S)/settings.json`, then `Read`
+   it, rename the `enabledPlugins` key and the `extraKnownMarketplaces` key from `from` to
+   `to` (values untouched, nothing else changes), and `Write` the full JSON back. Name the
+   backup path in the Step 6 report.
+3. Ask once (`AskUserQuestion` under Claude Code; plain text under Codex): "Run the
+   registration commands above now, then continue?" Either answer continues this upgrade;
+   the commands need a relaunch to take effect, and the Step 6 report repeats them as a
+   `manual:` note until a later run finds `ok: true`.
+
 ## Step 1 — Determine what to apply (guards + window)
 
 Read `$PLUGIN_ROOT/CHANGELOG.md`. Each release is a `## [x.y.z] - DATE` heading
@@ -445,7 +477,7 @@ One concise summary:
   by copy-paste is a note that gets skipped
 - the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
 - **Codex hooks re-trust, whenever the regeneration reported `changed: true`:** "Run
-  `/hooks` in your next Codex session from this home and trust the 3 Kevin entries;
+  `/hooks` in your next Codex session from this home and trust the 4 Kevin entries;
   until then Codex starts without Kevin's context and captures nothing." Verbatim, every time.
 
 **Mention the first-session lag when the harness version moved.** Claude Code's built-in

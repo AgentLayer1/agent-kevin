@@ -27,6 +27,7 @@ describe('plugin manifests', () => {
 
   test('the repo doubles as a Codex marketplace listing this checkout as the plugin', () => {
     const marketplace = read('.agents/plugins/marketplace.json');
+    expect(marketplace.name).toBe(read('.claude-plugin/marketplace.json').name);
     expect(marketplace.plugins).toEqual([
       expect.objectContaining({ name: claude.name, source: { source: 'local', path: './' } })
     ]);

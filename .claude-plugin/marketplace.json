@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentdev-kevin",
+  "description": "AgentDev's Claude Code marketplace (for agent-kevin development).",
+  "owner": {
+    "name": "AgentLayer",
+    "url": "https://agentlayer.one"
+  },
+  "plugins": [
+    {
+      "name": "agent-kevin",
+      "description": "Portable, file-based personal AI assistant (for development).",
+      "source": "./"
+    }
+  ]
+}

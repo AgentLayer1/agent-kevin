@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 /**
  * The per-home Codex wiring: hooks in `<home>/.codex/hooks.json` (the SessionStart
- * context with Codex's per-hook output cap lifted, the SessionEnd capture, and the
- * PreCompact capture that saves a long session before Codex compacts it) and the `kevin` MCP
+ * context with Codex's per-hook output cap lifted, the SessionEnd capture, the
+ * PreCompact capture that saves a long session before Codex compacts it, and the
+ * PreToolUse guard against home trees written relative to a drifted cwd) and the `kevin` MCP
  * server in `<home>/.codex/config.toml`, every command pointing at this plugin checkout
  * and this home. Codex has no `@-import`, and a plugin cannot bundle hooks or an MCP
  * server that knows which home it serves (the server is launched inside the plugin
@@ -21,7 +22,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 /** A hook command of ours, whichever checkout (quoted or not) it points at. */
-const AGENT_COMMAND = /bin[\\/]kevin["']? session-(start|capture) .*--hook-protocol=codex/;
+const AGENT_COMMAND = /bin[\\/]kevin["']? (session-(start|capture)|guard) .*--hook-protocol=codex/;
 interface HookItem {
   type: string;
   command?: string;
@@ -62,8 +63,8 @@ const quote = (value: string): string => {
 };
 const command = (rest: string): string =>
   `bun ${quote(resolve(pluginRoot, 'bin', 'kevin'))} ${rest} --home=${quote(homeDir)}`;
-const entry = (commandLine: string, timeout: number, extra: Partial<HookItem> = {}): HookGroup => ({
-  matcher: '',
+const entry = (commandLine: string, timeout: number, extra: Partial<HookItem> = {}, matcher = ''): HookGroup => ({
+  matcher,
   hooks: [{ type: 'command', command: commandLine, timeout, ...extra }]
 });
 const isAgentEntry = (item: HookItem): boolean => typeof item.command === 'string' && AGENT_COMMAND.test(item.command);
@@ -102,6 +103,11 @@ const hooksDocument: HooksDocument = {
     PreCompact: [
       ...withoutAgentEntries(existingHooks.hooks?.PreCompact),
       entry(command('session-capture --mode=pre-compact --hook-protocol=codex'), 30)
+    ],
+    // Codex presents shell commands, unified exec included, to hooks as tool name Bash, the Claude Code shape.
+    PreToolUse: [
+      ...withoutAgentEntries(existingHooks.hooks?.PreToolUse),
+      entry(command('guard --hook-protocol=codex'), 5, {}, 'Bash')
     ]
   }
 };
@@ -180,5 +186,5 @@ if (!args.includes('--write')) {
 } else {
   const hooks = writeIfChanged(hooksPath, hooksText);
   const mcp = writeIfChanged(configPath, configText);
-  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 3 })}\n`);
+  process.stdout.write(`${JSON.stringify({ hooks, mcp, entries: 4 })}\n`);
 }

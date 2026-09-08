@@ -7,6 +7,7 @@
  *   kevin capture [text] [--file=PATH] [--url=URL] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
  *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude|codex] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude|codex] [--home=PATH]
  *   kevin session-start [--hook-protocol=claude|codex] [--home=PATH]
+ *   kevin guard [--home=PATH]        (PreToolUse hook: blocks a home-relative shell path from a drifted cwd)
  *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
  *   kevin task get <id>
  *   kevin task create --project=NAME --title=... --description=... [--priority=P2]
@@ -94,6 +95,7 @@ interface HookInput {
   session_id?: string;
   transcript_path?: string;
   cwd?: string;
+  tool_input?: { command?: unknown };
 }
 
 /**
@@ -159,6 +161,8 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
                                     Emit dynamic SessionStart context. Without the flag, prints the structured result for testing.
   session-start|session-capture ... --home=PATH
                                     Pin the agent home from the command line (how the per-home Codex hooks name it)
+  guard                             PreToolUse hook: read the tool call from stdin and exit 2 when a shell command
+                                    would write a home tree (knowledge/, projects/, reports/) relative to a cwd outside the home
 
 Knowledge commands:
   knowledge lint [--fix]            Structural health check; --fix rewrites stale wikilinks + inserts backlinks
@@ -237,7 +241,10 @@ async function run(): Promise<void> {
   // MCP-invoked traffic. Lazy-imported because @/shared/log resolves AGENT_HOME
   // and we want loadProjectEnv() to have run first.
   const { log } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/log'));
-  log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
+  if (group !== 'guard') {
+    // guard runs before every shell command; logging each run would drown the file.
+    log.with('cli').info(`${group}${command ? ` ${command}` : ''}${args.length ? ` ${args.join(' ')}` : ''}`);
+  }
 
   const { FOLDERS, TIMEZONE, isInitialized } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/config'));
 
@@ -278,7 +285,7 @@ async function run(): Promise<void> {
   // there would surface as a hook error on every session started outside a home.
   // `worktree` is exempt because it acts on the repo path it's given, not on
   // home state.
-  const HOMELESS_OK = new Set(['session-start', 'session-capture', 'worktree']);
+  const HOMELESS_OK = new Set(['session-start', 'session-capture', 'guard', 'worktree']);
   if (!isInitialized() && !HOMELESS_OK.has(group)) {
     const { agentKeyName, runtimeDirName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     const homeKey = agentKeyName('HOME');
@@ -513,6 +520,29 @@ async function run(): Promise<void> {
       default:
         throw new Error(`Unknown database subcommand: ${command}`);
     }
+  }
+
+  if (group === 'guard') {
+    // A hook process runs in the session's cwd, which a Bash `cd` moves; the home still
+    // resolves through the host's project dir (Claude) or --home (Codex). Outside a home
+    // there is nothing to protect.
+    if (!isInitialized()) return;
+    const raw = await new Promise<string>((resolveFn) => {
+      let data = '';
+      process.stdin.setEncoding('utf-8');
+      process.stdin.on('data', (chunk) => (data += chunk));
+      process.stdin.on('end', () => resolveFn(data));
+    });
+    const input: { cwd?: string; tool_input?: { command?: unknown } } = raw.trim() ? parseHookInput(raw) : {};
+    const commandText = input.tool_input?.command;
+    if (typeof commandText !== 'string' || !input.cwd) return;
+    const { homeRelativeLeak, leakMessage } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/bash-guard'));
+    const leak = homeRelativeLeak(commandText, input.cwd, FOLDERS.HOME);
+    if (leak) {
+      console.error(leakMessage(leak, input.cwd, FOLDERS.HOME));
+      process.exit(2);
+    }
+    return;
   }
 
   if (group === 'session-start') {

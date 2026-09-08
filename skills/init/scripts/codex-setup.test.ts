@@ -49,6 +49,12 @@ describe('codex-setup hooks', () => {
     expect(json.hooks.PreCompact[0].hooks[0].command).toBe(
       command('session-capture --mode=pre-compact --hook-protocol=codex')
     );
+    expect(json.hooks.PreToolUse[0].matcher).toBe('Bash');
+    expect(json.hooks.PreToolUse[0].hooks[0]).toEqual({
+      type: 'command',
+      command: command('guard --hook-protocol=codex'),
+      timeout: 5
+    });
   });
 
   test('defaults the plugin root to the checkout this script lives in', () => {
@@ -166,7 +172,7 @@ describe('codex-setup mcp registration', () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(json.mcp).toEqual({ path: join(home, '.codex', 'config.toml'), changed: true });
-    expect(json.entries).toBe(3);
+    expect(json.entries).toBe(4);
     expect(readFileSync(json.mcp.path, 'utf-8')).toBe(
       [
         '[mcp_servers.kevin]',
