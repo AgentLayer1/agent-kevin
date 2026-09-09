@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.4.2] - 2026-09-09
 
 ### Added
 - **The Codex wiring carries the home's posture, read from its Claude settings.** The generator
@@ -85,6 +85,7 @@ and prompts per optional one. The new template files are the source of truth for
   `sandbox_workspace_write` keys, naming them: Codex does not combine them with a profile.
 
 ### Upgrade
+- `settings: mandatory` — add to `permissions.allow`: `mcp__plugin_agent-kevin_kevin__codex_setup` (the new always-on core tool init and upgrade call to write a home's Codex wiring from outside the shell sandbox).
 - `manual: optional` — Codex homes: run `$upgrade` (or `/agent-kevin:upgrade`) once; the wiring gains the permission profile, the rules file, and the shell env. The hook commands are unchanged, so no re-trust unless the report says `hooks.changed: true`. If the generator refuses because of legacy `sandbox_mode` keys, delete them from the home's `.codex/config.toml` and rerun. The profile replaces the sandbox the home ran under and an escalation prompt no longer lifts it: a directory the agent writes that is neither the home nor the code path goes into the Claude settings' `permissions.additionalDirectories`, then rerun. Then paste the user-level block the report points at (`.kevin/updates/codex-user-config.md`) into `~/.codex/config.toml`; every line in it is optional. Claude Code-only homes have nothing to do.
 
 ## [0.4.1] - 2026-09-07

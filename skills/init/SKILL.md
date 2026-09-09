@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
@@ -1069,6 +1069,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Bash(readlink *)",
       "Bash(test *)",
       "mcp__plugin_agent-kevin_kevin__capture",
+      "mcp__plugin_agent-kevin_kevin__codex_setup",
       "mcp__plugin_agent-kevin_kevin__compile_next",
       "mcp__plugin_agent-kevin_kevin__compile_status",
       "mcp__plugin_agent-kevin_kevin__compile_write",
@@ -1112,7 +1113,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **`remove_worktree` is deliberately not granted.** It deletes a worktree (a destructive filesystem action), so it's left off the allow list on purpose — every call surfaces a confirm prompt the operator has to approve. Don't "fix" the asymmetry with `setup_worktree` by adding it here; the prompt is the safeguard.
 
@@ -1120,7 +1121,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `seed_scan`, `seed_export` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
