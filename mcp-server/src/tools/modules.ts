@@ -9,6 +9,7 @@ export const TOOL_MODULES = [
   'browser',
   'browser-flows',
   'capture',
+  'codex-setup',
   'compile',
   'curl',
   'database',

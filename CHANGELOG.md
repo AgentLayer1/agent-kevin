@@ -43,6 +43,50 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Added
+- **The Codex wiring carries the home's posture, read from its Claude settings.** The generator
+  now writes a `[permissions.kevin]` profile into `.codex/config.toml` (extends `:workspace`,
+  denies every read of `.kevin/secrets/` and of any `.env` under a workspace root while the MCP
+  server still reads them, keeps `.git` writable so commits stay routine, and lists the code path
+  and `permissions.additionalDirectories` as workspace roots, and enables the network inside the
+  sandbox, since an approved escalation does not lift a profile, verified on 0.153), `.codex/rules/kevin.rules` (one
+  `prefix_rule` that prompts per `Bash(…)` entry in `permissions.ask`, the same gate Claude Code
+  applies), a `[shell_environment_policy]` that hands the model's shell the home variables and the
+  home's `AGENT_*` settings (never a key, token, or secret), and the policy keys
+  `default_permissions`, `approval_policy = "on-request"`, `approvals_reviewer = "user"` when the
+  operator has not set them. Verified live in a fixture home: secrets refused by policy, commits
+  inside the sandbox, a push stopped by the rule until the operator approves. The reviewer model
+  (`auto_review`) stays opt-in: it denied a named push and a local commit on the same fixture.
+- **`codex_setup` MCP tool.** Init and upgrade generate the wiring through it, since a Codex
+  session's sandbox keeps the workspace's `.codex/` read-only to the model's shell; the server
+  runs outside that sandbox. The shell path stays as the fallback.
+- **A paste-ready note for the user level** (`skills/init/scripts/codex-user-config.ts`), the
+  Codex counterpart of the Claude auto-mode block: the keys Codex accepts only in
+  `~/.codex/config.toml` (analytics, feedback, telemetry exporters, terminal animation and
+  alternate screen, update checks, the approval policy and reviewer, a reasoning effort mapped from
+  the Claude `effortLevel`), plus, while the user config lacks them, a user-level permission
+  profile built from the Claude user settings' `Read(…)` denies and a `~/.codex/rules/default.rules`
+  built from its ask list. Nothing in the note names an agent: it governs every Codex session that is
+  not an agent home. The plugin never writes a user-level file; init and upgrade save the note to
+  `.kevin/updates/codex-user-config.md` and quote it.
+- **The home's profile fills whatever the user level does not.** Claude's user-level `Read(…)`
+  denies that the operator's user-level Codex profile does not already carry land in the home's
+  profile, so a home is covered before the operator pastes anything and the user-level file stays
+  theirs, the rule Claude homes follow for settings that exist in the user file.
+- The generator is agent-neutral: names, the env prefix, and the rules file come from the plugin
+  manifest, so a sibling plugin ships it unchanged.
+
+### Changed
+- Init asks under Claude Code, every time, whether the home also runs Codex, instead of skipping
+  the step when Codex went unmentioned.
+- The generator refuses a `.codex/config.toml` that still carries the legacy `sandbox_mode` or
+  `sandbox_workspace_write` keys, naming them: Codex does not combine them with a profile.
+
+### Upgrade
+- `manual: optional` — Codex homes: run `$upgrade` (or `/agent-kevin:upgrade`) once; the wiring gains the permission profile, the rules file, and the shell env. The hook commands are unchanged, so no re-trust unless the report says `hooks.changed: true`. If the generator refuses because of legacy `sandbox_mode` keys, delete them from the home's `.codex/config.toml` and rerun. The profile replaces the sandbox the home ran under and an escalation prompt no longer lifts it: a directory the agent writes that is neither the home nor the code path goes into the Claude settings' `permissions.additionalDirectories`, then rerun. Then paste the user-level block the report points at (`.kevin/updates/codex-user-config.md`) into `~/.codex/config.toml`; every line in it is optional. Claude Code-only homes have nothing to do.
+
 ## [0.4.1] - 2026-09-07
 
 ### Added

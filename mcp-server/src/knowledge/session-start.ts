@@ -119,7 +119,7 @@ export async function sessionStartCodex(): Promise<string> {
     });
   return (
     [
-      `<!-- ${PLUGIN_NAME.replace(/^agent-/, '')} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
+      `<!-- ${PLUGIN_NAME.replace(/^agent-/, '')} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · a write refused outside the home and its listed roots is policy, not a prompt: the operator lists the directory in .claude/settings.json permissions.additionalDirectories and runs $upgrade · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
       ...files,
       ...lane
     ].join('\n\n') + '\n'

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const SCRIPT = resolve(import.meta.dir, 'codex-setup.ts');
@@ -16,8 +16,12 @@ const scratch = (): string => {
   dirs.push(dir);
   return dir;
 };
+const NO_USER = resolve(tmpdir(), 'codex-setup-no-user-file');
 const run = (...extra: string[]) => {
-  const proc = spawnSync(process.execPath, [SCRIPT, ...extra], { encoding: 'utf-8' });
+  const userFlags = extra.includes('--claude-user-settings')
+    ? []
+    : ['--claude-user-settings', NO_USER, '--codex-user-config', NO_USER];
+  const proc = spawnSync(process.execPath, [SCRIPT, ...extra, ...userFlags], { encoding: 'utf-8' });
   return { code: proc.status, json: proc.stdout.trim() ? JSON.parse(proc.stdout) : null, stderr: proc.stderr };
 };
 const seed = (home: string, file: string, content: unknown): string => {
@@ -168,24 +172,150 @@ describe('codex-setup hooks', () => {
 });
 
 describe('codex-setup mcp registration', () => {
-  test('writes the kevin server with the home pinned in its env', () => {
+  test('writes the kevin server, the permission profile, the shell env, and the policy keys for a bare home', () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(json.mcp).toEqual({ path: join(home, '.codex', 'config.toml'), changed: true });
     expect(json.entries).toBe(4);
-    expect(readFileSync(json.mcp.path, 'utf-8')).toBe(
-      [
-        '[mcp_servers.kevin]',
-        'command = "bun"',
-        `args = [${JSON.stringify(resolve(PLUGIN, 'mcp-server', 'src', 'server.ts'))}]`,
-        '',
-        '[mcp_servers.kevin.env]',
-        `AGENT_HOME = ${JSON.stringify(home)}`,
-        `KEVIN_HOME = ${JSON.stringify(home)}`,
-        'PLAYWRIGHT_BROWSERS_PATH = "0"',
-        ''
-      ].join('\n')
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.default_permissions).toBe('kevin');
+    expect(config.approval_policy).toBe('on-request');
+    expect(config.approvals_reviewer).toBe('user');
+    expect(config.mcp_servers.kevin).toEqual({
+      command: 'bun',
+      args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')],
+      env: { AGENT_HOME: home, KEVIN_HOME: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
+    });
+    expect(config.permissions.kevin.extends).toBe(':workspace');
+    expect(config.permissions.kevin.filesystem[join(home, '.kevin', 'secrets')]).toBe('deny');
+    expect(config.permissions.kevin.filesystem[':workspace_roots']).toEqual({
+      '.git': 'write',
+      '**/.kevin/secrets/**': 'deny',
+      '**/*.env': 'deny',
+      '**/.env.*': 'deny'
+    });
+    expect(config.permissions.kevin.workspace_roots).toBeUndefined();
+    expect(config.permissions.kevin.network).toEqual({ enabled: true });
+    expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, KEVIN_HOME: home });
+    expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [] });
+    expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
+  });
+
+  test("derives workspace roots, rules, and shell env from the home's Claude settings, never a credential", () => {
+    const home = scratch();
+    const code = join(scratch(), 'acme');
+    const extra = join(scratch(), 'shared');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(
+      join(home, '.claude', 'settings.json'),
+      JSON.stringify({
+        permissions: {
+          deny: ['Read(//**/.kevin/secrets/**)', 'Read(~/.ssh/**)', 'Read(vault/**)', 'WebFetch(domain:example.com)'],
+          ask: [
+            'Bash(git push)',
+            'Bash(git push *)',
+            'Bash(gh pr create:*)',
+            'mcp__plugin_agent-kevin_kevin__curl_run',
+            'Bash(rm -rf *)'
+          ],
+          additionalDirectories: [extra, join(home, 'projects')]
+        }
+      })
     );
+    writeFileSync(
+      join(home, '.claude', 'settings.local.json'),
+      JSON.stringify({
+        env: {
+          AGENT_CODE_PATH: code,
+          AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
+          CLAUDE_CODE_OAUTH_TOKEN: 'sk-nope',
+          KEVIN_DB_KEY: 'nope'
+        }
+      })
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.permissions.kevin.workspace_roots).toEqual({ [code]: true, [extra]: true });
+    expect(config.permissions.kevin.filesystem['/**/.kevin/secrets/**']).toBe('deny');
+    expect(config.permissions.kevin.filesystem[join(homedir(), '.ssh', '**')]).toBe('deny');
+    expect(config.permissions.kevin.filesystem[':workspace_roots']['vault/**']).toBe('deny');
+    expect(JSON.stringify(config)).not.toContain('example.com');
+    expect(config.shell_environment_policy.set).toEqual({
+      AGENT_CODE_PATH: code,
+      AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
+      AGENT_HOME: home,
+      KEVIN_HOME: home
+    });
+    expect(json.profile.rules).toEqual(['git push', 'gh pr create', 'rm -rf']);
+    const rules = readFileSync(json.rules.path, 'utf-8');
+    expect(rules).toContain('pattern = ["git", "push"],');
+    expect(rules).toContain('pattern = ["gh", "pr", "create"],');
+    expect(rules).toContain('decision = "prompt"');
+    expect(rules).not.toContain('curl_run');
+  });
+
+  test("carries Claude's user-level Read denies into the home's profile, except those the user-level Codex profile already denies", () => {
+    const home = scratch();
+    const dir = scratch();
+    const claudeUser = join(dir, 'settings.json');
+    writeFileSync(
+      claudeUser,
+      JSON.stringify({
+        permissions: {
+          deny: ['Read(~/.ssh/id_*)', 'Read(~/.aws/**)', 'Read(**/*.pem)', 'Bash(sudo *)', 'Edit(~/.zshrc)']
+        }
+      })
+    );
+    const codexUser = join(dir, 'config.toml');
+    writeFileSync(codexUser, 'default_permissions = "mine"\n\n[permissions.mine.filesystem]\n"~/.aws/**" = "deny"\n');
+    const { json } = run(
+      '--home',
+      home,
+      '--plugin-root',
+      PLUGIN,
+      '--write',
+      '--claude-user-settings',
+      claudeUser,
+      '--codex-user-config',
+      codexUser
+    );
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.permissions.kevin.filesystem[join(homedir(), '.ssh', 'id_*')]).toBe('deny');
+    expect(config.permissions.kevin.filesystem[join(homedir(), '.aws', '**')]).toBeUndefined();
+    expect(config.permissions.kevin.filesystem[':workspace_roots']['**/*.pem']).toBe('deny');
+    expect(JSON.stringify(config)).not.toContain('sudo');
+    expect(json.notes).toEqual([expect.stringContaining('default_permissions')]);
+  });
+
+  test("keeps the operator's own policy keys and reports them, keeps their env entries, and refuses legacy sandbox keys", () => {
+    const home = scratch();
+    seed(
+      home,
+      'config.toml',
+      'approvals_reviewer = "auto_review"\n\n[shell_environment_policy]\ninherit = "core"\nexclude = ["AWS_*", "AZURE_*"]\nset = { EDITOR = "vim" }\n'
+    );
+    const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const config = Bun.TOML.parse(readFileSync(first.json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.approvals_reviewer).toBe('auto_review');
+    expect(config.default_permissions).toBe('kevin');
+    expect(config.shell_environment_policy.inherit).toBe('core');
+    expect(config.shell_environment_policy.exclude).toEqual(['AWS_*', 'AZURE_*']);
+    expect(config.shell_environment_policy.set.EDITOR).toBe('vim');
+    seed(
+      home,
+      'config.toml',
+      '[shell_environment_policy]\nset = { EDITOR = "vim", AGENT_CODE_PATH = "/gone", KEVIN_GIT_REPOS = "/gone" }\n'
+    );
+    const regen = Bun.TOML.parse(
+      readFileSync(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.path, 'utf-8')
+    ) as Record<string, any>;
+    expect(regen.shell_environment_policy.set).toEqual({ EDITOR: 'vim', AGENT_HOME: home, KEVIN_HOME: home });
+    expect(first.json.notes).toEqual([expect.stringContaining('approvals_reviewer is "auto_review"')]);
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+    seed(home, 'config.toml', 'sandbox_mode = "workspace-write"\n');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(code).not.toBe(0);
+    expect(stderr).toContain('sandbox_mode');
   });
 
   test("keeps the operator's other settings and servers, replaces an older kevin registration", () => {
@@ -210,9 +340,8 @@ describe('codex-setup mcp registration', () => {
     );
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
-    expect(
-      written.startsWith('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[mcp_servers.kevin]\n')
-    ).toBe(true);
+    expect(written).toContain('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[mcp_servers.kevin]\n');
+    expect(written.startsWith('default_permissions = "kevin"\n')).toBe(true);
     expect(written).not.toContain('/old/kevin');
     expect(written).toContain(`AGENT_HOME = "${home}"`);
     expect(written.match(/\[mcp_servers\.kevin\]/g)).toHaveLength(1);
@@ -279,7 +408,7 @@ describe('codex-setup mcp registration', () => {
     seed(home, 'config.toml', instructions);
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
-    expect(written.startsWith(instructions)).toBe(true);
+    expect(written).toContain(instructions);
     const value = (text: string) => (Bun.TOML.parse(text) as { model_instructions: string }).model_instructions;
     expect(value(written)).toBe(value(instructions));
   });

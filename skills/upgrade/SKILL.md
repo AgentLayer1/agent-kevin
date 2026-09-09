@@ -243,10 +243,31 @@ from a Codex session wires it then. When it holds, generate or regenerate the ho
 `[mcp_servers.kevin]` registration in `$HOME_DIR/.codex/config.toml` so both point at the
 checkout that just loaded (a version-pinned plugin cache moves on every release; under
 Claude Code that is Claude's copy of the plugin, which Codex runs the hooks and the server
-from, its own plugin cache carrying only the skills):
+from, its own plugin cache carrying only the skills). Call the `codex_setup` MCP tool; it runs
+the generator outside the shell sandbox, which under Codex is the only way to write the
+workspace's read-only `.codex/` directory. When the tool is unavailable, the generator runs
+from the shell:
 
 ```bash
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
+```
+
+Since 0.4.2 the generator also writes the home's permission posture from its Claude settings
+(a `[permissions.kevin]` profile that denies the secrets store and `.env` reads, makes
+`.git` writable, and lists the code path and `additionalDirectories` as workspace roots) and
+`.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`). A home
+that carries the legacy `sandbox_mode` keys makes the generator refuse, naming them: remove
+them, the profile carries the sandbox. A refusal (`ok: false`, its message in `stderr`) never
+fails the upgrade: quote the message as a `manual:` note in Step 6 and continue; nothing was
+written. The profile replaces the sandbox the home ran under, and an escalation prompt no
+longer lifts it, so a directory the agent writes that is neither the home nor the code path
+belongs in the Claude settings' `permissions.additionalDirectories` before the next run. Then generate the user-level note and carry its path and every block it holds (the keys, and
+when the user config lacks them a profile and a rules file) into the Step 6 report as a
+`manual:` note; the plugin never writes a user-level file, and the home's profile carries the
+user-level denies until the operator pastes:
+
+```bash
+bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$HOME_DIR/.kevin/updates/codex-user-config.md"
 ```
 
 On native Windows (Git Bash, where `uname -s` starts with `MINGW` or `MSYS`) the step runs
