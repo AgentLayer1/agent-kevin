@@ -126,6 +126,7 @@ const CORE_GRANTS = new Set([
   ...mcp([
     'ping',
     'capture',
+    'codex_setup',
     'compile_next',
     'compile_status',
     'compile_write',

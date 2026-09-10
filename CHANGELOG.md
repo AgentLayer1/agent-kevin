@@ -43,6 +43,11 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Fixed
+- **Seed import refreshes the Codex rules.** The Codex rules file is generated from the `permissions.ask` entries a seed import merges into, so the seed-import skill now calls `codex_setup` when a bundle added ask entries to a Codex-wired home (`.codex/hooks.json` present); before, those commands ran unprompted under Codex until the next upgrade. `codex_setup` is also classified as a core grant by `seed_scan`, so the export interview no longer offers it as a custom entry.
+
 ## [0.4.2] - 2026-09-09
 
 ### Added

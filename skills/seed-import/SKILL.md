@@ -1,7 +1,7 @@
 ---
 name: seed-import
 description: Import a seed bundle exported from a teammate's agent (via /agent-kevin:seed-export or the AgentLayer website wizard) into THIS home — inheriting the agent's name, SOUL, curated operating-manual overlay, knowledge concepts, project docs, custom skills, MCP registrations, and pack activations, with fork semantics (imported files become this home's own). Use when the operator says "import this seed", "apply the bundle from <teammate>", hands over a *-seed.zip, or /agent-kevin:seed-import <path>. Runs a dry-run plan first and confirms conflicts before writing; ends with the credential checklist the operator fills in their editor.
-allowed-tools: mcp__plugin_agent-kevin_kevin__seed_import, AskUserQuestion, Read, Bash(ls *), Bash(test *)
+allowed-tools: mcp__plugin_agent-kevin_kevin__seed_import, mcp__plugin_agent-kevin_kevin__codex_setup, AskUserQuestion, Read, Bash(ls *), Bash(test *)
 ---
 
 # seed-import — inherit a teammate's agent setup
@@ -39,7 +39,10 @@ Then `AskUserQuestion`:
 
 ## Step 3 — Apply
 
-Re-run `seed_import` with the chosen `overwrite`. Report what landed, then close with the
+Re-run `seed_import` with the chosen `overwrite`. If the result lists `ask` entries under
+`permissionsAdded` and this home is wired for Codex (`test -f <HOME>/.codex/hooks.json`),
+call `codex_setup` next: the Codex rules file is generated from that ask list, so without
+the rerun those commands run unprompted under Codex. Report what landed, then close with the
 operator's checklist:
 
 ```
@@ -48,7 +51,8 @@ operator's checklist:
 Left for you (values never go through chat):
 1. Fill these in <HOME>/.kevin/secrets/.env via your editor: <secretKeysToFill>
 2. Fill these in <HOME>/.claude/settings.local.json env: <settingsEnvPlanted>
-3. Restart Claude Code so the new MCP servers, permissions, and identity load.
+3. Restart Claude Code (and any Codex session from this home) so the new MCP servers,
+   permissions, and identity load.
 ```
 
 If the bundle seeded a roadmap draft (`knowledge/concepts/roadmap-draft.md`), offer to
