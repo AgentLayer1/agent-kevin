@@ -1,6 +1,6 @@
 {
   "name": "agent-kevin",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Portable, file-based personal AI assistant. Compiles raw sessions into a queryable wiki, manages tasks across project lifecycles, drives SEO/web tools (GSC, PageSpeed, SerpAPI, headless browser, web search), and ships 20+ skills covering onboarding, daily/weekly/monthly cadences, audits, and content workflows. All data stays as local markdown + YAML.",
   "author": {
     "name": "AgentLayer",

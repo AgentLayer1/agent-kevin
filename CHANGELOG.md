@@ -43,10 +43,16 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.4.3] - 2026-09-10
+
+### Changed
+- **The README is a landing page; the manual lives at [dev.agentlayer.one/docs](https://dev.agentlayer.one/docs).** Pitch, the loop, a quick start for both hosts, a section map into the docs site, and highlights, with the stale tool and skill counts corrected (56 tools, 38 skills). The docs site is host-neutral, serves `llms.txt` / `llms-full.txt`, and renders this changelog.
 
 ### Fixed
 - **Seed import refreshes the Codex rules.** The Codex rules file is generated from the `permissions.ask` entries a seed import merges into, so the seed-import skill now calls `codex_setup` when a bundle added ask entries to a Codex-wired home (`.codex/hooks.json` present); before, those commands ran unprompted under Codex until the next upgrade. `codex_setup` is also classified as a core grant by `seed_scan`, so the export interview no longer offers it as a custom entry.
+
+### Upgrade
+- None — code-only, no bun install or HOME changes.
 
 ## [0.4.2] - 2026-09-09
 
