@@ -43,6 +43,31 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.4] - 2026-09-12
+
+### Added
+- **`pr-review`: adversarial pull-request review with no GitHub write access.** Two modes,
+  picked by who wrote the PR. Review mode (a teammate's PR) builds the "How it works"
+  section first (diagram + walkthrough), fans out across seven lanes (correctness, domain
+  invariants and authorization, security, regressions and blast radius, conventions, tests,
+  PR hygiene), sends every candidate through an independent verifier that scores it, builds
+  and tests the head in a throwaway operator-namespaced worktree, and hands back a report of
+  paste-ready inline comments with committable `suggestion` blocks. Reply mode (your own PR)
+  judges every review thread against the head code, applies the accurate fixes uncommitted,
+  pushes back on the wrong ones with receipts, and drafts replies in PR scroll order. Flags:
+  `review` / `reply`, `--quick`, `--no-local`, `--repo`. Rides the GitHub pack; never posts.
+- **`reviews` report category.** `report_write` accepts it, the dashboard orders and colors
+  it, and the report scan picks it up, so review reports surface in SessionStart context.
+
+### Changed
+- The dashboard cheatsheet gets a "Reviewing a PR" row, the GitHub pack walk in
+  `configure-skills` names the skill that rides it, and init's `AGENT_REPORTS` note lists
+  `reviews` among the categories.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — "Where Your Code Lives" names the `pr-review` skill among the tasks that target the code path (one clause).
+- `template/USER.md: optional` — a `GitHub login:` line under "Where Things Live". The skill reads it to tell your PRs from teammates' and offers to fill it in on first use, so skipping this only means one extra question later.
+
 ## [0.4.3] - 2026-09-10
 
 ### Changed
