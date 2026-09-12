@@ -478,7 +478,7 @@ Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/O
 
 If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
 
-`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
+`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans, reviews) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
 
 **If either path is OUTSIDE the agent home directory**, Step 7's `.claude/settings.json` write must also append `permissions.allow` entries (and `sandbox.filesystem.allowWrite` if the user's sandbox is enabled, see below) so Claude Code can read/write there without prompting on every operation. Specifically add to `permissions.allow`:
 

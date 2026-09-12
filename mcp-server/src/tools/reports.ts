@@ -10,7 +10,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'report_write',
     description:
-      "Write a report file to reports/<category>/ AND insert a one-line entry into reports/index.md under today's date heading. Atomic — file and index are updated in the same call. Use this from every reporting skill (briefings, goals, self-review, flywheel) so today's outputs surface in SessionStart context for the next session.",
+      "Write a report file to reports/<category>/ AND insert a one-line entry into reports/index.md under today's date heading. Atomic — file and index are updated in the same call. Use this from every reporting skill (briefings, goals, self-review, flywheel, pr-review) so today's outputs surface in SessionStart context for the next session.",
     inputSchema: {
       category: z.enum(CATEGORIES).describe('Report category — maps to reports/<category>/ subdirectory.'),
       slug: z

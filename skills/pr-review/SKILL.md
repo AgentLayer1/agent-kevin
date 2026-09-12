@@ -75,7 +75,7 @@ Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (
 
 Call `github_pr_view`. Record: `author.login`, `headRefName`, `baseRefName`, `isDraft`, `state`, `additions`/`deletions`/`changedFiles`, `files`, `body`, `latestReviews`, `reviewDecision`, `mergeStateStatus`.
 
-**Infer the mode.** The PR is yours when its author is the operator. The operator's login is the `GitHub:` line in `<HOME>/USER.md`; when there is none, ask once with `AskUserQuestion` and offer to add the line so it never asks again.
+**Infer the mode.** The PR is yours when its author is the operator. The operator's login is the `GitHub login:` line in `<HOME>/USER.md` under "Where Things Live"; when the line is missing or still the template placeholder, ask once with `AskUserQuestion` and offer to fill it in so it never asks again.
 
 **Stacked PR.** If `baseRefName` is not the repo's default branch, this is one layer of a stack. `github_pr_diff` is already layer-only. Note the base PR in the Overview, review only this layer's hunks, and check the base branch is the intended parent (a layer accidentally based on the default branch shows the whole stack as its diff).
 

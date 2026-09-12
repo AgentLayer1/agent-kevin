@@ -78,7 +78,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ SEO — 6 SEO skills + the `google-search-audit` composite (already loaded; this walks API key + permission setup)
 > - ☐ Browser **(recommended)** — Perplexity research + Playwright tool permissions
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
-> - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs and diagnose failing CI builds
+> - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs (the `pr-review` skill) and diagnose failing CI builds
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno visual client or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
@@ -267,7 +267,7 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review threads, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). Eleven MCP tools. Ten are `gh` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The eleventh, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
+Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review threads, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). The `pr-review` skill runs on these tools. Eleven MCP tools. Ten are `gh` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The eleventh, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
 
 **Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.kevin/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
 

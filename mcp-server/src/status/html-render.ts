@@ -1058,6 +1058,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Web research with sources, persisted as a report you can reread.'
   },
   {
+    when: 'Reviewing a PR',
+    say: `/${plugin}:pr-review <number>`,
+    what: 'Verified findings with paste-ready comments for a teammate’s PR; reply drafts and uncommitted fixes for your own. Reports land in reports/reviews/.'
+  },
+  {
     when: 'Refresh this page',
     say: `/${plugin}:dashboard`,
     what: 'Regenerates this dashboard (and TASKS.md) from current state.'

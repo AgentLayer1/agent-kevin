@@ -23,6 +23,7 @@ _(Anything Kevin should respect about your personal values, ethics, taboos, or h
 ## Where Things Live
 
 - **Primary codebase:** `{{CODE_PATH}}` (also exposed as `$KEVIN_CODE_PATH` for shell/MCP use)
+- **GitHub login:** _(empty — the pr-review skill asks once and fills this in, so it can tell your PRs from teammates')_
 
 ## Deeper
 
