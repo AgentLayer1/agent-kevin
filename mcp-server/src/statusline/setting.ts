@@ -5,7 +5,7 @@
  * plugin cache moves on every release, and a stale path leaves the footer blank with nothing
  * on screen saying why.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
 export interface StatusLineSetting {
@@ -29,8 +29,18 @@ export const statusLineSetting = (binPath: string): StatusLineSetting => ({
 
 /** The path a command of ours points at, when it is ours (`bun "<root>/bin/<agent>" statusline`). */
 export const commandBinPath = (command: string, agent: string): string | undefined => {
-  const match = new RegExp(`^bun "?(.+?[\\\\/]bin[\\\\/]${agent})"? statusline(?:\\s|$)`).exec(command.trim());
+  const name = agent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = new RegExp(`^bun "?(.+?[\\\\/]bin[\\\\/]${name})"? statusline(?:\\s|$)`).exec(command.trim());
   return match?.[1];
+};
+
+/** Symlink-free, so a checkout reached through a link never reads as a different plugin. */
+const canonical = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 };
 
 /**
@@ -48,6 +58,6 @@ export const statusLineDrift = (settingsPath: string, binPath: string): string |
   }
   if (typeof command !== 'string') return undefined;
   const pinned = commandBinPath(command, basename(binPath));
-  if (pinned === undefined || resolve(pinned) === resolve(binPath)) return undefined;
+  if (pinned === undefined || canonical(pinned) === canonical(binPath)) return undefined;
   return `\`.claude/settings.json\` runs the status line from \`${pinned}\`, not this plugin (\`${resolve(binPath)}\`), so the footer stays blank — run \`/agent-kevin:upgrade\` to re-point it`;
 };

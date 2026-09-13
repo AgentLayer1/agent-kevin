@@ -10,6 +10,7 @@
  * (https://github.com/trailofbits/claude-code-config), credit to Trail of Bits.
  */
 import { basename } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export interface StatusLinePayload {
   model?: { display_name?: string };
@@ -43,7 +44,7 @@ const BAR_WIDTH = 12;
 const paint = (color: string, text: string): string => `${color}${text}${RESET}`;
 
 /** Green under half, yellow to 79%, red from 80%: the same scale for context and rate limits. */
-export const usageColor = (percent: number): string => (percent < 50 ? GREEN : percent < 80 ? YELLOW : RED);
+const usageColor = (percent: number): string => (percent < 50 ? GREEN : percent < 80 ? YELLOW : RED);
 
 export const contextBar = (percent: number, width = BAR_WIDTH): string => {
   const filled = Math.floor((percent * width) / 100);
@@ -66,7 +67,8 @@ export const formatDuration = (durationMs: number): string => {
 const percentOrNull = (value: number | null | undefined): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : null;
 
-const folderLink = (dir: string): string => `\x1b]8;;file://${dir}\x1b\\${basename(dir) || dir}\x1b]8;;\x1b\\`;
+const folderLink = (dir: string): string =>
+  `\x1b]8;;${pathToFileURL(dir).href}\x1b\\${basename(dir) || dir}\x1b]8;;\x1b\\`;
 
 export const renderStatusLine = (payload: StatusLinePayload, options: StatusLineOptions = {}): string => {
   const dir = payload.workspace?.current_dir ?? payload.cwd ?? 'unknown';

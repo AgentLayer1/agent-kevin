@@ -79,7 +79,8 @@ async function loadProjectEnv(): Promise<void> {
 // skips the settings walk and the home gate every other verb needs.
 if (process.argv[2] === 'statusline') {
   const { runStatusLine } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/statusline/run'));
-  process.exit(await runStatusLine(process.argv.slice(3), import.meta.path));
+  await runStatusLine(process.argv.slice(3), import.meta.path);
+  process.exit(0);
 }
 
 await loadProjectEnv();

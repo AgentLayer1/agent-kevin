@@ -14,6 +14,7 @@ describe('renderStatusLine', () => {
     const [first, blank, second] = renderStatusLine(payload, { branch: 'main' }).split('\n');
     expect(plain(first)).toBe('🤖 Opus │ 📁 Scout │ 🌿 main');
     expect(first).toContain('\x1b]8;;file:///Users/ada/Agents/Scout\x1b\\Scout\x1b]8;;\x1b\\');
+    expect(renderStatusLine({ cwd: '/Users/ada/My Agents/Scout' })).toContain('file:///Users/ada/My%20Agents/Scout');
     expect(blank).toBe('');
     expect(plain(second)).toBe('███⣿⣿⣿⣿⣿⣿⣿⣿⣿ 25% │ $1.00 ($2.00/hr) │ ⏱ 30m 0s');
   });

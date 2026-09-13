@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 const GIT_TIMEOUT_MS = 1000;
 
 /** The current branch, or empty when the directory is not a repository or git does not answer in time. */
-export const currentBranch = (dir: string): string => {
+const currentBranch = (dir: string): string => {
   try {
     const proc = spawnSync('git', ['-c', 'core.useBuiltinFSMonitor=false', 'branch', '--show-current'], {
       cwd: dir,
@@ -30,7 +30,7 @@ export const currentBranch = (dir: string): string => {
 };
 
 /** The `**Emoji:**` field of the launch directory's IDENTITY.md, when the session runs from an agent home. */
-export const identityEmoji = (dir: string | undefined): string | undefined => {
+const identityEmoji = (dir: string | undefined): string | undefined => {
   if (!dir) return undefined;
   try {
     const emoji = readFileSync(resolve(dir, 'IDENTITY.md'), 'utf-8').match(/\*\*Emoji:\*\*[ \t]*(\S+)/)?.[1];
@@ -48,29 +48,31 @@ const parse = <T>(raw: string): T | undefined => {
   }
 };
 
+/** Awaited so the caller can exit right after: a pipe write is not guaranteed to have flushed when it returns. */
+const print = (text: string): Promise<number> => Bun.write(Bun.stdout, text);
+
 /**
  * `--setting` prints the settings entry that runs this very script, for init and upgrade to
  * merge; `--subagent` renders the subagent panel rows; otherwise the two-line footer.
  */
-export const runStatusLine = async (args: string[], binPath: string): Promise<number> => {
+export const runStatusLine = async (args: string[], binPath: string): Promise<void> => {
   if (args.includes('--setting')) {
-    process.stdout.write(`${JSON.stringify({ statusLine: statusLineSetting(binPath) }, null, 2)}\n`);
-    return 0;
+    await print(`${JSON.stringify({ statusLine: statusLineSetting(binPath) }, null, 2)}\n`);
+    return;
   }
   const raw = await Bun.stdin.text();
   if (args.includes('--subagent')) {
-    const payload = parse<SubagentPayload>(raw);
-    if (payload) process.stdout.write(`${renderSubagentRows(payload)}\n`);
-    return 0;
+    const rows = renderSubagentRows(parse<SubagentPayload>(raw) ?? {});
+    if (rows) await print(`${rows}\n`);
+    return;
   }
   const payload = parse<StatusLinePayload>(raw);
-  if (!payload) return 0;
+  if (!payload) return;
   const dir = payload.workspace?.current_dir ?? payload.cwd;
-  process.stdout.write(
+  await print(
     renderStatusLine(payload, {
       branch: dir ? currentBranch(dir) : '',
       emoji: identityEmoji(payload.workspace?.project_dir ?? dir)
     })
   );
-  return 0;
 };

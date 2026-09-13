@@ -42,7 +42,8 @@ export const renderSubagentRow = (task: SubagentTask, columns?: number): string 
   const name = task.name ?? task.id;
   const room = columns === undefined ? Infinity : columns - visibleLength(`${name} · ${tail}`);
   const description = (task.description ?? '').trim();
-  const shown = description.length > room ? `${description.slice(0, Math.max(0, room - 1)).trimEnd()}…` : description;
+  const shown =
+    description.length <= room ? description : room < 2 ? '' : `${description.slice(0, room - 1).trimEnd()}…`;
   return shown ? `${name} · ${shown}${tail}` : `${name}${tail}`;
 };
 
