@@ -397,9 +397,7 @@ const otherLines = otherConfig.split('\n');
 const tuiHeaderAt = otherLines.findIndex((line) => headerPath(line)?.join('.') === 'tui');
 const tuiUntouched = missingTui.length > 0 && 'tui' in existingTables && tuiHeaderAt === -1;
 const operatorConfig =
-  tuiHeaderAt === -1
-    ? otherConfig
-    : [...otherLines.slice(0, tuiHeaderAt + 1), ...missingTui, ...otherLines.slice(tuiHeaderAt + 1)].join('\n');
+  tuiHeaderAt === -1 ? otherConfig : otherLines.toSpliced(tuiHeaderAt + 1, 0, ...missingTui).join('\n');
 const tuiTable = missingTui.length > 0 && !('tui' in existingTables) ? ['[tui]', ...missingTui].join('\n') : '';
 const configText = [topKeys, operatorConfig, tuiTable, agentTables].filter(Boolean).join('\n\n');
 const generatedTables = parseToml(configText, 'the generated config');
