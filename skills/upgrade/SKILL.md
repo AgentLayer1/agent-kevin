@@ -263,10 +263,11 @@ them, the profile carries the sandbox. A refusal (`ok: false`, its message in `s
 fails the upgrade: quote the message as a `manual:` note in Step 6 and continue; nothing was
 written. The profile replaces the sandbox the home ran under, and an escalation prompt no
 longer lifts it, so a directory the agent writes that is neither the home nor the code path
-belongs in the Claude settings' `permissions.additionalDirectories` before the next run. Then generate the user-level note and carry its path and every block it holds (the keys, and
-when the user config lacks them a profile and a rules file) into the Step 6 report as a
-`manual:` note; the plugin never writes a user-level file, and the home's profile carries the
-user-level denies until the operator pastes:
+belongs in the Claude settings' `permissions.additionalDirectories` before the next run. Then generate the user-level note and carry its path and every block it holds (the keys,
+among them the context window read from Codex's model catalog cache, and when the user config
+lacks them a profile and a rules file) into the Step 6 report as a `manual:` note; the plugin
+never writes a user-level file, and the home's profile carries the user-level denies until the
+operator pastes:
 
 ```bash
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$HOME_DIR/.kevin/updates/codex-user-config.md"

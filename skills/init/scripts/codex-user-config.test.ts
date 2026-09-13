@@ -12,11 +12,17 @@ const scratch = (): string => {
   return dir;
 };
 const NO_RULES = join(tmpdir(), 'codex-user-no-rules-file');
+const NO_CACHE = join(tmpdir(), 'codex-user-no-models-cache');
 const run = (...extra: string[]) => {
   const rules = extra.includes('--rules') ? [] : ['--rules', NO_RULES];
-  const proc = spawnSync(process.execPath, [SCRIPT, '--home', '/Users/ada/Agents/Scout', ...extra, ...rules], {
-    encoding: 'utf-8'
-  });
+  const cache = extra.includes('--models-cache') ? [] : ['--models-cache', NO_CACHE];
+  const proc = spawnSync(
+    process.execPath,
+    [SCRIPT, '--home', '/Users/ada/Agents/Scout', ...extra, ...rules, ...cache],
+    {
+      encoding: 'utf-8'
+    }
+  );
   return { code: proc.status, json: proc.stdout.trim() ? JSON.parse(proc.stdout) : null, stderr: proc.stderr };
 };
 afterAll(() => {
@@ -36,6 +42,7 @@ describe('codex-user-config', () => {
     ).toBe(true);
     expect(json.block).toContain('[tui]\nanimations = false\nalternate_screen = "never"');
     expect(json.missing.map((m: { key: string }) => m.key)).not.toContain('model_reasoning_effort');
+    expect(json.missing.map((m: { key: string }) => m.key)).not.toContain('model_context_window');
     expect(Bun.TOML.parse(json.block)).toMatchObject({ otel: { exporter: 'none', log_user_prompt: false } });
     expect(json.profileBlock).toContain('default_permissions = "everyday"');
     expect(json.profileBlock).toContain('"**/.env.*" = "deny"');
@@ -87,6 +94,35 @@ describe('codex-user-config', () => {
     const second = run('--config', config, '--claude-settings', claude, '--rules', rules);
     expect(second.json.profileBlock).toBe('');
     expect(second.json.rulesBlock).toBe('');
+  });
+
+  test('the context window comes from the model catalog cache: the cap of the configured model, else of the listed model ranked first, only when it beats the default', () => {
+    const dir = scratch();
+    const cache = join(dir, 'models_cache.json');
+    writeFileSync(
+      cache,
+      JSON.stringify({
+        models: [
+          { slug: 'hidden', visibility: 'hide', priority: 0, context_window: 100, max_context_window: 900 },
+          { slug: 'wide', visibility: 'list', priority: 1, context_window: 272000, max_context_window: 872000 },
+          { slug: 'flat', visibility: 'list', priority: 2, context_window: 272000, max_context_window: 272000 }
+        ]
+      })
+    );
+    const config = join(dir, 'config.toml');
+    writeFileSync(config, '');
+    const first = run('--config', config, '--claude-settings', join(dir, 'none.json'), '--models-cache', cache);
+    expect(
+      first.json.block.startsWith('model_context_window = 872000\nmodel_auto_compact_token_limit = 784800\n')
+    ).toBe(true);
+    expect(first.json.missing.find((m: { key: string }) => m.key === 'model_context_window').why).toContain('wide');
+    writeFileSync(config, 'model = "flat"\n');
+    const flat = run('--config', config, '--claude-settings', join(dir, 'none.json'), '--models-cache', cache);
+    expect(flat.json.missing.map((m: { key: string }) => m.key)).not.toContain('model_context_window');
+    writeFileSync(config, 'model = "wide"\nmodel_context_window = 872000\nmodel_auto_compact_token_limit = 784800\n');
+    const set = run('--config', config, '--claude-settings', join(dir, 'none.json'), '--models-cache', cache);
+    expect(set.json.missing.map((m: { key: string }) => m.key)).not.toContain('model_context_window');
+    expect(set.json.missing.map((m: { key: string }) => m.key)).not.toContain('model_auto_compact_token_limit');
   });
 
   test('a user config that does not parse is reported, never a crash', () => {

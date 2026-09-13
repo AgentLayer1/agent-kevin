@@ -6,6 +6,9 @@
  * file on either host, so this prints what is missing and, with `--out`, saves a note the
  * operator can open after the session. Print-only: the operator's files are never edited.
  * The home's own footer status line is written by `codex-setup.ts`, not recommended here.
+ * The context window is recommended from Codex's own model catalog cache: the default window
+ * is well under the `max_context_window` the catalog serves, and a larger request is clamped to
+ * that cap, so the note asks for exactly the cap (a cost choice, hence user-level).
  *
  * Beyond the keys, two files are recommended while absent: a user-level permission profile
  * built from the Claude user settings' `Read(…)` denies (credential stores, `.env` variants),
@@ -13,7 +16,7 @@
  * Neither names an agent: they govern every Codex session that is not an agent home, which
  * carries its own generated profile.
  *
- * Usage: codex-user-config.ts --home <dir> [--config <file>] [--claude-settings <file>] [--rules <file>] [--out <file>]
+ * Usage: codex-user-config.ts --home <dir> [--config <file>] [--claude-settings <file>] [--rules <file>] [--models-cache <file>] [--out <file>]
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -27,13 +30,14 @@ const flag = (name: string): string | undefined => {
 const home = flag('home');
 if (!home) {
   process.stderr.write(
-    'usage: codex-user-config.ts --home <dir> [--config <file>] [--claude-settings <file>] [--rules <file>] [--out <file>]\n'
+    'usage: codex-user-config.ts --home <dir> [--config <file>] [--claude-settings <file>] [--rules <file>] [--models-cache <file>] [--out <file>]\n'
   );
   process.exit(2);
 }
 const configPath = flag('config') ?? resolve(homedir(), '.codex', 'config.toml');
 const claudeSettingsPath = flag('claude-settings') ?? resolve(homedir(), '.claude', 'settings.json');
 const rulesPath = flag('rules') ?? resolve(homedir(), '.codex', 'rules', 'default.rules');
+const modelsCachePath = flag('models-cache') ?? resolve(homedir(), '.codex', 'models_cache.json');
 
 type Toml = Record<string, unknown>;
 const isRecord = (value: unknown): value is Toml => typeof value === 'object' && value !== null;
@@ -55,6 +59,7 @@ const readJson = (path: string): Toml => {
 const lookup = (document: Toml, path: string[]): unknown =>
   path.reduce<unknown>((node, key) => (isRecord(node) ? node[key] : undefined), document);
 
+const config = readToml(configPath);
 const claudeUser = readJson(claudeSettingsPath) as {
   effortLevel?: unknown;
   permissions?: { deny?: unknown; ask?: unknown };
@@ -69,9 +74,31 @@ const EFFORT: Record<string, string> = { low: 'low', medium: 'medium', high: 'hi
 const claudeEffort = claudeUser.effortLevel;
 const reasoningEffort = typeof claudeEffort === 'string' ? EFFORT[claudeEffort] : undefined;
 
+interface CatalogModel {
+  slug: string;
+  visibility?: string;
+  priority?: number;
+  context_window?: number;
+  max_context_window?: number;
+}
+const catalog = (readJson(modelsCachePath).models as unknown[] | undefined) ?? [];
+const models = catalog.filter((item): item is CatalogModel => isRecord(item) && typeof item.slug === 'string');
+const configuredModel = models.find((item) => item.slug === config.model);
+/** The model Codex runs: the configured one, else the listed model the catalog ranks first. */
+const activeModel =
+  configuredModel ??
+  models
+    .filter((item) => item.visibility === 'list' && typeof item.priority === 'number')
+    .sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0))[0];
+const maxWindow = activeModel?.max_context_window;
+const largerWindow =
+  activeModel && typeof maxWindow === 'number' && maxWindow > (activeModel.context_window ?? maxWindow)
+    ? { slug: activeModel.slug, max: maxWindow, base: activeModel.context_window ?? maxWindow }
+    : undefined;
+
 interface Recommendation {
   path: string[];
-  value: string | boolean;
+  value: string | number | boolean;
   why: string;
 }
 const recommendations: Recommendation[] = [
@@ -81,6 +108,20 @@ const recommendations: Recommendation[] = [
           path: ['model_reasoning_effort'],
           value: reasoningEffort,
           why: `matches effortLevel "${String(claudeEffort)}" in your Claude settings`
+        }
+      ]
+    : []),
+  ...(largerWindow
+    ? [
+        {
+          path: ['model_context_window'],
+          value: largerWindow.max,
+          why: `the catalog cap for ${largerWindow.slug}; its default is ${largerWindow.base.toLocaleString('en-US')} and a larger request is clamped to this`
+        },
+        {
+          path: ['model_auto_compact_token_limit'],
+          value: Math.round(largerWindow.max * 0.9),
+          why: '90% of the window, the headroom Codex itself leaves before compacting'
         }
       ]
     : []),
@@ -105,9 +146,8 @@ const recommendations: Recommendation[] = [
   { path: ['tui', 'alternate_screen'], value: 'never', why: 'keep the scrollback so earlier output stays selectable' }
 ];
 
-const config = readToml(configPath);
 const missing = recommendations.filter((item) => lookup(config, item.path) !== item.value);
-const tomlValue = (value: string | boolean): string =>
+const tomlValue = (value: string | number | boolean): string =>
   typeof value === 'string' ? JSON.stringify(value) : String(value);
 const block = (): string => {
   const top = missing
@@ -202,7 +242,8 @@ const note = (): string => {
     '',
     `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC by the plugin. The plugin never edits`,
     `\`${configPath}\` or \`${rulesPath}\`; every line below is yours to paste. These keys are user-level only:`,
-    'Codex ignores telemetry, notification, and provider keys in a project config, so the home cannot carry them.',
+    'Codex ignores telemetry, notification, and provider keys in a project config, so the home cannot carry them,',
+    'and the context window is a cost choice for every session on this machine, not for one agent.',
     ''
   ];
   if (status === 'unreadable') {
