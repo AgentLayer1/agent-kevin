@@ -257,7 +257,8 @@ Since 0.4.2 the generator also writes the home's permission posture from its Cla
 `.git` writable, and lists the code path and `additionalDirectories` as workspace roots) and
 `.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`), and it
 adds a `[tui]` status line (model with reasoning, directory, branch, approval mode, context used)
-to a home that has none; an operator's own line is kept. A home
+and a `[skills]` budget of 10,000 tokens for the per-turn skills catalog (Codex's 2% default trims
+the plugin's descriptions) to a home that has neither; an operator's own values are kept. A home
 that carries the legacy `sandbox_mode` keys makes the generator refuse, naming them: remove
 them, the profile carries the sandbox. A refusal (`ok: false`, its message in `stderr`) never
 fails the upgrade: quote the message as a `manual:` note in Step 6 and continue; nothing was

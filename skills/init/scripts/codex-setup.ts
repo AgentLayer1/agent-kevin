@@ -234,11 +234,25 @@ const OWNED_KEYS: Record<string, string> = {
   approval_policy: 'on-request',
   approvals_reviewer: 'user'
 };
-/** The footer of a Codex session run from the home, set when absent; an operator's own line is kept. */
-const OWNED_TUI: Record<string, string[] | boolean> = {
-  status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
-  status_line_use_colors: true
+interface OwnedTableKeys {
+  label: string;
+  keys: Record<string, string[] | boolean | number>;
+}
+/** Keys set inside a named table when absent; an operator's own value is kept. */
+const OWNED_TABLE_KEYS: Record<string, OwnedTableKeys> = {
+  tui: {
+    label: 'the status line',
+    keys: {
+      status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
+      status_line_use_colors: true
+    }
+  },
+  // Codex renders every skill's description each turn under a budget of 2% of the model window
+  // (5,440 tokens on 272K) and trims them to fit; 10,000 is the most an explicit value may claim.
+  skills: { label: 'the skills context budget', keys: { max_context_tokens: 10_000 } }
 };
+const isTable = (value: unknown): boolean =>
+  Array.isArray(value) ? value.every(isTable) : typeof value === 'object' && value !== null;
 const isOwnedHeader = (path: string[]): boolean =>
   OWNED_TABLES.some((owned) => owned.every((segment, index) => path[index] === segment));
 /** Drop the owned tables with the blank lines that separated them, leaving every other line untouched. */
@@ -387,19 +401,29 @@ for (const owned of OWNED_TABLES) {
 const missingKeys = Object.entries(OWNED_KEYS).filter(([key]) => !(key in existingTables));
 // Top-level keys must precede the first table, or TOML files them under whatever table came last.
 const topKeys = missingKeys.map(([key, value]) => `${key} = ${tomlString(value)}`).join('\n');
-const existingTui = (existingTables.tui as Record<string, unknown> | undefined) ?? {};
-const missingTui = Object.entries(OWNED_TUI)
-  .filter(([key]) => !(key in existingTui))
-  .map(([key, value]) => tomlScalar(key, value));
-// The missing footer keys go inside an existing `[tui]` header, since TOML refuses a second one;
-// a `tui` written another way (inline table, dotted keys) is left as it is.
+// Missing keys go inside an existing `[table]` header, since TOML refuses a second one. A table
+// that only holds sub-tables (`[tui.keymap]`, `[[skills.config]]`) gets its own header appended,
+// which TOML allows after the sub-tables; one written another way (inline table, dotted keys) is
+// left as it is.
 const otherLines = otherConfig.split('\n');
-const tuiHeaderAt = otherLines.findIndex((line) => headerPath(line)?.join('.') === 'tui');
-const tuiUntouched = missingTui.length > 0 && 'tui' in existingTables && tuiHeaderAt === -1;
-const operatorConfig =
-  tuiHeaderAt === -1 ? otherConfig : otherLines.toSpliced(tuiHeaderAt + 1, 0, ...missingTui).join('\n');
-const tuiTable = missingTui.length > 0 && !('tui' in existingTables) ? ['[tui]', ...missingTui].join('\n') : '';
-const configText = [topKeys, operatorConfig, tuiTable, agentTables].filter(Boolean).join('\n\n');
+const tableFills = Object.entries(OWNED_TABLE_KEYS).map(([table, { label, keys }]) => {
+  const existing = (existingTables[table] as Record<string, unknown> | undefined) ?? {};
+  const missing = Object.entries(keys)
+    .filter(([key]) => !(key in existing))
+    .map(([key, value]) => tomlScalar(key, value));
+  const headerAt = otherLines.findIndex((line) => headerPath(line)?.join('.') === table);
+  const inline = headerAt === -1 && Object.values(existing).some((value) => !isTable(value));
+  return { table, label, hint: `${table}.${Object.keys(keys)[0]}`, missing, headerAt, inline };
+});
+const operatorConfig = tableFills
+  .filter(({ headerAt }) => headerAt !== -1)
+  .toSorted((a, b) => b.headerAt - a.headerAt)
+  .reduce((lines, { headerAt, missing }) => lines.toSpliced(headerAt + 1, 0, ...missing), otherLines)
+  .join('\n');
+const newTables = tableFills
+  .filter(({ missing, headerAt, inline }) => missing.length > 0 && headerAt === -1 && !inline)
+  .map(({ table, missing }) => [`[${table}]`, ...missing].join('\n'));
+const configText = [topKeys, operatorConfig, ...newTables, agentTables].filter(Boolean).join('\n\n');
 const generatedTables = parseToml(configText, 'the generated config');
 if (lookup(generatedTables, ['mcp_servers', agent, 'env', 'AGENT_HOME']) !== homeDir) {
   throw new Error(`the generated ${configPath} does not register this home; nothing written`);
@@ -408,10 +432,12 @@ if (lookup(generatedTables, ['mcp_servers', agent, 'env', 'AGENT_HOME']) !== hom
 const withoutOwn = (document: TomlDocument): TomlDocument => {
   const rest: TomlDocument = { ...document };
   for (const key of Object.keys(OWNED_KEYS)) delete rest[key];
-  const tui = { ...((rest.tui as TomlDocument | undefined) ?? {}) };
-  for (const key of Object.keys(OWNED_TUI)) delete tui[key];
-  if (Object.keys(tui).length > 0) rest.tui = tui;
-  else delete rest.tui;
+  for (const [table, { keys }] of Object.entries(OWNED_TABLE_KEYS)) {
+    const inner = { ...((rest[table] as TomlDocument | undefined) ?? {}) };
+    for (const key of Object.keys(keys)) delete inner[key];
+    if (Object.keys(inner).length > 0) rest[table] = inner;
+    else delete rest[table];
+  }
   for (const [table, name] of OWNED_TABLES) {
     if (name === undefined) {
       delete rest[table];
@@ -436,11 +462,12 @@ const notes = [
         `${userConfigPath} sets ${userSandboxKeys.join(' and ')}; this home's profile overrides it for sessions started here, and Codex does not combine sandbox_mode with a profile`
       ]
     : []),
-  ...(tuiUntouched
-    ? [
-        `${configPath} defines tui without a [tui] header, so the status line was not added; set tui.status_line there yourself`
-      ]
-    : []),
+  ...tableFills
+    .filter(({ missing, inline }) => missing.length > 0 && inline)
+    .map(
+      ({ table, label, hint }) =>
+        `${configPath} defines ${table} without a [${table}] header, so ${label} was not added; set ${hint} there yourself`
+    ),
   ...Object.entries(OWNED_KEYS)
     .filter(([key, value]) => key in existingTables && existingTables[key] !== value)
     .map(

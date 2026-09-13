@@ -201,6 +201,7 @@ describe('codex-setup mcp registration', () => {
       status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
       status_line_use_colors: true
     });
+    expect(config.skills).toEqual({ max_context_tokens: 10_000 });
     expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [] });
     expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
   });
@@ -345,7 +346,9 @@ describe('codex-setup mcp registration', () => {
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written).toContain('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[tui]\n');
-    expect(written).toContain('status_line_use_colors = true\n\n[mcp_servers.kevin]\n');
+    expect(written).toContain(
+      'status_line_use_colors = true\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.kevin]\n'
+    );
     expect(written.startsWith('default_permissions = "kevin"\n')).toBe(true);
     expect(written).not.toContain('/old/kevin');
     expect(written).toContain(`AGENT_HOME = "${home}"`);
@@ -373,6 +376,29 @@ describe('codex-setup mcp registration', () => {
     const config = Bun.TOML.parse(readFileSync(dotted.json.mcp.path, 'utf-8')) as Record<string, any>;
     expect(config.tui).toEqual({ theme: 'dark' });
     expect(dotted.json.notes).toEqual([expect.stringContaining('status line was not added')]);
+  });
+
+  test("keeps the operator's own skills budget, and adds the [skills] header after their [[skills.config]] entries", () => {
+    const home = scratch();
+    seed(
+      home,
+      'config.toml',
+      '[skills]\nmax_context_tokens = 6000\n\n[[skills.config]]\nname = "imagegen"\nenabled = false\n'
+    );
+    const kept = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const config = Bun.TOML.parse(readFileSync(kept.json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.skills).toEqual({ max_context_tokens: 6000, config: [{ name: 'imagegen', enabled: false }] });
+    expect(kept.json.notes).toEqual([]);
+
+    seed(home, 'config.toml', '[[skills.config]]\nname = "imagegen"\nenabled = false\n');
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const written = readFileSync(json.mcp.path, 'utf-8');
+    expect(written).toContain('enabled = false\n\n[tui]\n');
+    expect(written).toContain('\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.kevin]\n');
+    const added = Bun.TOML.parse(written) as Record<string, any>;
+    expect(added.skills).toEqual({ max_context_tokens: 10_000, config: [{ name: 'imagegen', enabled: false }] });
+    expect(json.notes).toEqual([]);
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
   });
 
   test('escapes backslashes in paths', () => {
