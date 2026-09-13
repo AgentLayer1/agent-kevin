@@ -201,6 +201,10 @@ are:
 3. **The board, ranked by the goals** — the active/P0-P1 tasks and Weekly Goals already gathered
    in Step 2.5. The goals say which of a long active list actually earns the slot.
 
+Standup also has the operator walk their open PRs. For each open PR of theirs with no
+`pr-<n>-walkthrough` report under `<HOME>/reports/reviews/`, add one prep line to the update's
+tail (not to `Next`; it is a standup input, not a plan): `🎤 prep: /pr-walkthrough <n>`.
+
 Rules for this section, because it's the easiest place to write something useless:
 
 - **Finishable-shaped, not a theme.** "Push the loop-claim fix and get it reviewed" is a next.

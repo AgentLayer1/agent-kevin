@@ -1063,6 +1063,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Verified findings with paste-ready comments for a teammate’s PR; reply drafts and uncommitted fixes for your own. Reports land in reports/reviews/.'
   },
   {
+    when: 'Presenting or recording your own PR',
+    say: `/${plugin}:pr-walkthrough <number>`,
+    what: 'Standup script, diff tour in scroll order, the questions reviewers will ask with receipts, and a scene-by-scene recording runbook for your PR. Lands in reports/reviews/.'
+  },
+  {
     when: 'Refresh this page',
     say: `/${plugin}:dashboard`,
     what: 'Regenerates this dashboard (and TASKS.md) from current state.'
