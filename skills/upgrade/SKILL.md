@@ -449,6 +449,23 @@ If the write fails with a permission error, the operator's sandbox protects
 Don't retry or work around it — surface the exact JSON block for them to paste and carry
 it into the Step 6 report as a `manual:` note.
 
+**Re-point the status line (built-in invariant, every run).** `$HOME_DIR/.claude/settings.json`
+carries a `statusLine` whose command runs `bin/kevin statusline` from the plugin checkout, and a
+version-pinned plugin cache moves on every release, so a stale path leaves the footer blank with
+nothing on screen saying why (the SessionStart context flags it until fixed). Generate the current
+entry, never type it:
+
+```bash
+bun "$PLUGIN_ROOT/bin/kevin" statusline --setting
+```
+
+If the file's `statusLine.command` runs `bin/kevin statusline` from another path, replace the
+object with the printed one; if `statusLine` is absent, add it; anything else is the operator's
+own line and is kept. Same write discipline as the `ask` backfill above (in-memory merge, the
+Write tool, no `jq`, and the permission-error fallback to a `manual:` note). A changed entry shows
+on relaunch; say so in the Step 6 report. The subagent panel needs nothing here: the plugin ships
+its own `subagentStatusLine`.
+
 **Check the user-global auto-mode block (built-in invariant, every run).** The recommended
 block lives in the init skill's auto-mode section, and it moves with the plugin (0.4.0 added
 `AGENTS.md`, the operating manual, to the Agent Knowledge Base allow and the Identity File

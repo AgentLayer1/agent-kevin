@@ -781,6 +781,14 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`model` is not gap-filled.** It carries the operator's explicit Step 6c answer (`"fable"` or `"opus"`) and is always written to the project scaffold — an explicit wizard choice outranks the global setting and, on re-init, the prior project value.
 
+**`statusLine` — the footer, the Claude side of the Codex `[tui]` table.** Kevin renders it (`kevin statusline`: model, folder, branch on line one; context bar, cost with the hourly rate, session time, and the Pro/Max rate-limit windows on line two). The command names this checkout, so never type it — generate it and merge the object it prints:
+
+```bash
+bun "$PLUGIN_ROOT/bin/kevin" statusline --setting
+```
+
+Set when absent: an operator's own `statusLine` in the project file is kept (the deep-merge below already does this, scalars in an existing object win), and the user-level one is never touched — project settings outrank it in sessions started here, which is the point: this home shows its agent's footer, every other directory keeps the operator's own. A version-pinned plugin cache moves on every release, so `$upgrade` re-points the command, and the SessionStart context flags a stale one until it does. The subagent panel needs no wiring: the plugin ships its `subagentStatusLine` itself. Both take effect on relaunch.
+
 **⚠ The traffic kill suppresses auto mode's built-in default.** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` disables feature-flag fetching, and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the traffic kill: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
 
 Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
@@ -1019,7 +1027,7 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 
 **Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
 
-**Do not** touch global keys outside this baseline (`hooks`, `statusLine`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. Hooks especially: plugin hooks come from `hooks/claude.json` (declared in the plugin manifest) once registered; mirroring global hooks here would double-fire.
+**Do not** touch global keys outside this baseline (`hooks`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. (`statusLine` is written to the *project* file by its own rule above and never mirrored from or into the global one.) Hooks especially: plugin hooks come from `hooks/claude.json` (declared in the plugin manifest) once registered; mirroring global hooks here would double-fire.
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
@@ -1037,6 +1045,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
   "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
+  "statusLine": "<the object printed by `bun \"$PLUGIN_ROOT/bin/kevin\" statusline --setting` when the project file has no statusLine, else omit and preserve>",
   "effortLevel": "<\"high\" if global doesn't set it, else omit>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
@@ -1498,6 +1507,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Identity      SOUL.md · IDENTITY.md · USER.md
 > ✅ Operating manual   `<MANUAL_PATH>` (+ `.claude/CLAUDE.md`, the Claude Code bridge that `@-imports` it and the above)
 > ✅ Plugin reg    .claude/settings.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
+> ✅ Status line   .claude/settings.json → `kevin statusline` (model · folder · branch / context · cost · time · rate limits; shows on relaunch)
 > `<CODEX_HOOKS_ROW>`
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
 > ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/TASKS.md
