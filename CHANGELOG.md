@@ -43,6 +43,48 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.5] - 2026-09-13
+
+### Added
+- **`pr-walkthrough`: understand, present, and record your own PR.** Author-side only, the
+  counterpart of `pr-review`. Rebuilds the change hunk by hunk from the diff, the task, and
+  the sessions that wrote it, classifies each hunk by how hard it is to defend, verifies
+  build/lint/tests locally, then writes one glanceable side-screen doc: a two-minute standup
+  script, the diff tour in scroll order, the questions reviewers will ask with receipts, and a
+  scene-per-path recording runbook. Undefended hunks become gaps with an action, never a
+  bluff. `--rehearse` runs an interview (the room's questions one screen at a time, its
+  misconceptions as the wrong options, every miss corrected against the code); `--check
+  <video>` verifies a finished recording covered every scene. Rides the GitHub pack; never
+  posts. Writes `reports/reviews/`.
+- **The Claude Code status line, rendered by the plugin.** `kevin statusline` draws the footer
+  from the status-line JSON: model, folder, and branch on line one; the context bar (shown from
+  the first render), cost with the hourly rate, session time, and the Pro/Max rate-limit windows
+  on line two. Init writes the `statusLine` entry into the home's project settings, upgrade
+  re-points it whenever the plugin cache moves, and the plugin ships its own
+  `subagentStatusLine` for the agent panel rows.
+- **Codex footer and skills budget.** `codex_setup` writes a `[tui]` status line (model with
+  reasoning, directory, branch, approval mode, context used) and a `[skills]` budget of 10,000
+  tokens (the most Codex allows; its 2% default shaves the plugin's descriptions) into each
+  home's `.codex/config.toml`, keeping an operator's own values.
+
+### Changed
+- The user-level Codex note now recommends the model context window, read from Codex's model
+  catalog cache (`~/.codex/models_cache.json`) so the paste-ready pair matches the cap the
+  operator's account actually has.
+- The operating manual template documents the `reports/` tree: a Memory Routing row for the
+  reporting skills and the directory layout under Knowledge Structure.
+- The dashboard cheatsheet gets a "Presenting or recording your own PR" row, `report_write`
+  lists the new skill, the GitHub pack walk and "Where Your Code Lives" name it, `pr-review`
+  treats a walkthrough report as the author's stated intent rather than a superseded review,
+  and `standup` adds a prep line for each open PR of yours with no walkthrough yet.
+- The README's skill count reads 40.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — Memory Routing gains the reporting-skills row and Knowledge Structure gains the `reports/` tree; "Where Your Code Lives" names `pr-walkthrough`.
+- `template/USER.md: optional` — the `GitHub login:` line names both PR skills (one clause).
+- `manual: optional` — the status line: upgrade writes `statusLine` into `<HOME>/.claude/settings.json` when absent and re-points it when it names a stale plugin path (an operator's own line is kept); nothing to do unless the report shows a permission-error fallback, then paste the printed entry. Shows on relaunch.
+- `manual: optional` — Codex homes: upgrade regenerates `.codex/config.toml` with the `[tui]` status line and `[skills]` budget (trust the hooks again via `/hooks`); the larger model context window is a user-level, machine-wide cost choice, so paste the pair from `.kevin/updates/codex-user-config.md` only if you want it.
+
 ## [0.4.4] - 2026-09-12
 
 ### Added
