@@ -197,6 +197,10 @@ describe('codex-setup mcp registration', () => {
     expect(config.permissions.kevin.workspace_roots).toBeUndefined();
     expect(config.permissions.kevin.network).toEqual({ enabled: true });
     expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, KEVIN_HOME: home });
+    expect(config.tui).toEqual({
+      status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
+      status_line_use_colors: true
+    });
     expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [] });
     expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
   });
@@ -340,11 +344,35 @@ describe('codex-setup mcp registration', () => {
     );
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
-    expect(written).toContain('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[mcp_servers.kevin]\n');
+    expect(written).toContain('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[tui]\n');
+    expect(written).toContain('status_line_use_colors = true\n\n[mcp_servers.kevin]\n');
     expect(written.startsWith('default_permissions = "kevin"\n')).toBe(true);
     expect(written).not.toContain('/old/kevin');
     expect(written).toContain(`AGENT_HOME = "${home}"`);
     expect(written.match(/\[mcp_servers\.kevin\]/g)).toHaveLength(1);
+  });
+
+  test("keeps the operator's own status line, fills the footer keys into their [tui] table, and leaves a dotted tui alone", () => {
+    const home = scratch();
+    seed(
+      home,
+      'config.toml',
+      '[tui]\ntheme = "dark"\nstatus_line = ["model"]\n\n[tui.keymap.chat]\nsubmit = "enter"\n'
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const written = readFileSync(json.mcp.path, 'utf-8');
+    expect(written).toContain(
+      '[tui]\nstatus_line_use_colors = true\ntheme = "dark"\nstatus_line = ["model"]\n\n[tui.keymap.chat]\n'
+    );
+    expect(written.match(/\[tui\]/g)).toHaveLength(1);
+    expect(json.notes).toEqual([]);
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+
+    seed(home, 'config.toml', 'tui.theme = "dark"\n');
+    const dotted = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const config = Bun.TOML.parse(readFileSync(dotted.json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.tui).toEqual({ theme: 'dark' });
+    expect(dotted.json.notes).toEqual([expect.stringContaining('status line was not added')]);
   });
 
   test('escapes backslashes in paths', () => {

@@ -12,7 +12,9 @@
  * files. The posture is read from the home's Claude settings so the two hosts never
  * drift: the runtime secrets store is denied, the code path and additional directories
  * become workspace roots with `.git` writable, and every `permissions.ask` shell pattern
- * becomes a rule that prompts. Only the agent's own entries and tables are replaced: the
+ * becomes a rule that prompts. The config also carries the footer status line a Codex
+ * session shows from the home (model, directory, branch, approval mode, context used),
+ * set when absent. Only the agent's own entries and tables are replaced: the
  * operator's other hooks, MCP servers, rules files, and settings survive; a file that does
  * not parse, or one whose other settings would not survive the rewrite in meaning, is left
  * alone. The hook commands carry the home as a `--home=` argument rather than an env
@@ -232,6 +234,11 @@ const OWNED_KEYS: Record<string, string> = {
   approval_policy: 'on-request',
   approvals_reviewer: 'user'
 };
+/** The footer of a Codex session run from the home, set when absent; an operator's own line is kept. */
+const OWNED_TUI: Record<string, string[] | boolean> = {
+  status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
+  status_line_use_colors: true
+};
 const isOwnedHeader = (path: string[]): boolean =>
   OWNED_TABLES.some((owned) => owned.every((segment, index) => path[index] === segment));
 /** Drop the owned tables with the blank lines that separated them, leaving every other line untouched. */
@@ -380,7 +387,21 @@ for (const owned of OWNED_TABLES) {
 const missingKeys = Object.entries(OWNED_KEYS).filter(([key]) => !(key in existingTables));
 // Top-level keys must precede the first table, or TOML files them under whatever table came last.
 const topKeys = missingKeys.map(([key, value]) => `${key} = ${tomlString(value)}`).join('\n');
-const configText = [topKeys, otherConfig, agentTables].filter(Boolean).join('\n\n');
+const existingTui = (existingTables.tui as Record<string, unknown> | undefined) ?? {};
+const missingTui = Object.entries(OWNED_TUI)
+  .filter(([key]) => !(key in existingTui))
+  .map(([key, value]) => tomlScalar(key, value));
+// The missing footer keys go inside an existing `[tui]` header, since TOML refuses a second one;
+// a `tui` written another way (inline table, dotted keys) is left as it is.
+const otherLines = otherConfig.split('\n');
+const tuiHeaderAt = otherLines.findIndex((line) => headerPath(line)?.join('.') === 'tui');
+const tuiUntouched = missingTui.length > 0 && 'tui' in existingTables && tuiHeaderAt === -1;
+const operatorConfig =
+  tuiHeaderAt === -1
+    ? otherConfig
+    : [...otherLines.slice(0, tuiHeaderAt + 1), ...missingTui, ...otherLines.slice(tuiHeaderAt + 1)].join('\n');
+const tuiTable = missingTui.length > 0 && !('tui' in existingTables) ? ['[tui]', ...missingTui].join('\n') : '';
+const configText = [topKeys, operatorConfig, tuiTable, agentTables].filter(Boolean).join('\n\n');
 const generatedTables = parseToml(configText, 'the generated config');
 if (lookup(generatedTables, ['mcp_servers', agent, 'env', 'AGENT_HOME']) !== homeDir) {
   throw new Error(`the generated ${configPath} does not register this home; nothing written`);
@@ -389,6 +410,10 @@ if (lookup(generatedTables, ['mcp_servers', agent, 'env', 'AGENT_HOME']) !== hom
 const withoutOwn = (document: TomlDocument): TomlDocument => {
   const rest: TomlDocument = { ...document };
   for (const key of Object.keys(OWNED_KEYS)) delete rest[key];
+  const tui = { ...((rest.tui as TomlDocument | undefined) ?? {}) };
+  for (const key of Object.keys(OWNED_TUI)) delete tui[key];
+  if (Object.keys(tui).length > 0) rest.tui = tui;
+  else delete rest.tui;
   for (const [table, name] of OWNED_TABLES) {
     if (name === undefined) {
       delete rest[table];
@@ -411,6 +436,11 @@ const notes = [
   ...(userSandboxKeys.length > 0
     ? [
         `${userConfigPath} sets ${userSandboxKeys.join(' and ')}; this home's profile overrides it for sessions started here, and Codex does not combine sandbox_mode with a profile`
+      ]
+    : []),
+  ...(tuiUntouched
+    ? [
+        `${configPath} defines tui without a [tui] header, so the status line was not added; set tui.status_line there yourself`
       ]
     : []),
   ...Object.entries(OWNED_KEYS)

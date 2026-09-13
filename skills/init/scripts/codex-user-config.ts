@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 /**
- * The recommended user-level Codex settings, as a paste-ready note. Codex keeps
- * telemetry, analytics, feedback, terminal, and update keys in `~/.codex/config.toml`
- * only (a project config cannot set them), and the plugin never writes a user-global file
- * on either host, so this prints what is missing and, with `--out`, saves a note the
+ * The recommended user-level Codex settings, as a paste-ready note. Codex ignores telemetry
+ * and provider keys in a project config, the analytics, feedback, animation, and update keys
+ * are the operator's own rather than any home's, and the plugin never writes a user-global
+ * file on either host, so this prints what is missing and, with `--out`, saves a note the
  * operator can open after the session. Print-only: the operator's files are never edited.
+ * The home's own footer status line is written by `codex-setup.ts`, not recommended here.
  *
  * Beyond the keys, two files are recommended while absent: a user-level permission profile
  * built from the Claude user settings' `Read(…)` denies (credential stores, `.env` variants),
