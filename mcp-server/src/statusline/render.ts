@@ -17,7 +17,15 @@ export interface StatusLinePayload {
   cwd?: string;
   workspace?: { current_dir?: string; project_dir?: string };
   cost?: { total_cost_usd?: number; total_duration_ms?: number };
-  context_window?: { used_percentage?: number | null };
+  context_window?: {
+    used_percentage?: number | null;
+    context_window_size?: number;
+    current_usage?: {
+      input_tokens?: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    } | null;
+  };
   rate_limits?: { five_hour?: { used_percentage?: number }; seven_day?: { used_percentage?: number } };
 }
 
@@ -67,6 +75,21 @@ export const formatDuration = (durationMs: number): string => {
 const percentOrNull = (value: number | null | undefined): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : null;
 
+/**
+ * The host's own percentage when it has one; before the first response and after a compact it
+ * is null, so the input tokens over the window size stand in (an empty bar at 0%, not no bar).
+ */
+const contextPercent = (window: StatusLinePayload['context_window']): number | null => {
+  const reported = percentOrNull(window?.used_percentage);
+  if (reported !== null) return reported;
+  const size = window?.context_window_size ?? 0;
+  if (size <= 0) return null;
+  const usage = window?.current_usage;
+  const input =
+    (usage?.input_tokens ?? 0) + (usage?.cache_creation_input_tokens ?? 0) + (usage?.cache_read_input_tokens ?? 0);
+  return Math.floor((input * 100) / size);
+};
+
 const folderLink = (dir: string): string =>
   `\x1b]8;;${pathToFileURL(dir).href}\x1b\\${basename(dir) || dir}\x1b]8;;\x1b\\`;
 
@@ -75,7 +98,7 @@ export const renderStatusLine = (payload: StatusLinePayload, options: StatusLine
   const model = shortModelName(payload.model?.display_name ?? 'Unknown');
   const cost = Math.floor((payload.cost?.total_cost_usd ?? 0) * 100) / 100;
   const durationMs = payload.cost?.total_duration_ms ?? 0;
-  const context = percentOrNull(payload.context_window?.used_percentage);
+  const context = contextPercent(payload.context_window);
   const fiveHour = percentOrNull(payload.rate_limits?.five_hour?.used_percentage);
   const sevenDay = percentOrNull(payload.rate_limits?.seven_day?.used_percentage);
 

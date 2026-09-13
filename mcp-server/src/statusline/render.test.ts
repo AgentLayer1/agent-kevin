@@ -24,7 +24,25 @@ describe('renderStatusLine', () => {
     expect(plain(first)).toBe('🍌 Opus │ 📁 Scout');
   });
 
-  test('a null context percentage drops the bar; zero duration drops the rate and the clock', () => {
+  test('a null percentage falls back to the input tokens over the window size, an empty bar at session start', () => {
+    const fresh = renderStatusLine({
+      ...payload,
+      cost: { total_cost_usd: 0, total_duration_ms: 0 },
+      context_window: { used_percentage: null, context_window_size: 200_000, current_usage: null }
+    }).split('\n')[2];
+    expect(plain(fresh)).toBe('⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿ 0% │ $0.00');
+    const afterCompact = renderStatusLine({
+      ...payload,
+      context_window: {
+        used_percentage: null,
+        context_window_size: 200_000,
+        current_usage: { input_tokens: 10_000, cache_creation_input_tokens: 20_000, cache_read_input_tokens: 30_000 }
+      }
+    }).split('\n')[2];
+    expect(plain(afterCompact)).toStartWith('███⣿⣿⣿⣿⣿⣿⣿⣿⣿ 30% │');
+  });
+
+  test('no percentage and no window size drops the bar; zero duration drops the rate and the clock', () => {
     const second = renderStatusLine({
       ...payload,
       cost: { total_cost_usd: 0, total_duration_ms: 0 },
