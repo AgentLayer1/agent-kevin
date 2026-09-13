@@ -25,6 +25,15 @@ describe('plugin manifests', () => {
     expect(codex.interface.defaultPrompt.length).toBeLessThanOrEqual(3);
   });
 
+  test('the plugin ships the subagent status line, run from whichever checkout loaded', () => {
+    expect(read('settings.json')).toEqual({
+      subagentStatusLine: {
+        type: 'command',
+        command: `bun "\${CLAUDE_PLUGIN_ROOT}/bin/${claude.name.replace(/^agent-/, '')}" statusline --subagent`
+      }
+    });
+  });
+
   test('the repo doubles as a Codex marketplace listing this checkout as the plugin', () => {
     const marketplace = read('.agents/plugins/marketplace.json');
     const claudeCatalog = read('.claude-plugin/marketplace.json');

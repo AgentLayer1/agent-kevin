@@ -18,10 +18,12 @@ import {
   FOLDERS,
   HOME_TIMEZONE,
   operatingManualPath,
+  PLUGIN_NAME,
   PLUGIN_VERSION,
   TIMEZONE
 } from '@/config';
 import { agentDisplayName } from '@/shared/agent-name';
+import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -319,6 +321,24 @@ async function gatherContext(): Promise<GatheredContext> {
         '',
         '**Report this to the operator.** Do not move or delete the files yourself; the upgrade',
         'backs up, verifies, and rolls back, and a by-hand move has none of that.'
+      ].join('\n')
+    );
+  }
+
+  const statusLine = statusLineDrift(
+    resolve(FOLDERS.HOME, '.claude', 'settings.json'),
+    resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, ''))
+  );
+  if (statusLine) {
+    entries.push({ label: 'status line', status: 'unavailable', bytes: 0, note: 'needs upgrade' });
+    parts.push(
+      [
+        '## ⚠️ Status line',
+        '',
+        `- ${statusLine}`,
+        '',
+        '**Report this to the operator.** The upgrade re-points the entry from the plugin that is',
+        'actually loaded; a by-hand edit of `settings.json` is what the sandbox exists to prevent.'
       ].join('\n')
     );
   }

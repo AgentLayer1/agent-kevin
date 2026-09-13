@@ -7,6 +7,7 @@
  *   kevin capture [text] [--file=PATH] [--url=URL] [--kind=inbox|feedback] [--title=...] [--label=...] [--stdin]
  *   kevin session-capture --mode=session-end|pre-compact [--hook-protocol=claude|codex] [--transcript=PATH --cwd=PATH --session-id=X] [--format=claude|codex] [--home=PATH]
  *   kevin session-start [--hook-protocol=claude|codex] [--home=PATH]
+ *   kevin statusline [--subagent|--setting]
  *   kevin guard [--home=PATH]        (PreToolUse hook: blocks a home-relative shell path from a drifted cwd)
  *   kevin task query [--project=NAME] [--status=...] [--priority=P0-P3]
  *   kevin task get <id>
@@ -74,6 +75,13 @@ async function loadProjectEnv(): Promise<void> {
   const { agentHomePath } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/env'));
   agentHomePath();
 }
+// The status line re-runs on every render tick and takes its folder from the payload, so it
+// skips the settings walk and the home gate every other verb needs.
+if (process.argv[2] === 'statusline') {
+  const { runStatusLine } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/statusline/run'));
+  process.exit(await runStatusLine(process.argv.slice(3), import.meta.path));
+}
+
 await loadProjectEnv();
 
 const [, , group, command, ...args] = process.argv;
@@ -129,6 +137,7 @@ Groups:
   capture                           Capture text / a file / stdin into raw/inbox/ (or feedback.md) for the next compile
   session-capture                   Ingest a session transcript into raw/sessions/<today>.md (called by Claude Code hooks)
   session-start                     Emit dynamic context (today / last session tail / git activity) for the host's SessionStart hook
+  statusline                        Render Claude Code's footer from the status-line JSON on stdin (--subagent: the agent panel rows; --setting: the settings entry)
   task                              Read + mutate task files under projects/*/tasks/
   compile                           Knowledge-compile state (synthesis runs in Claude Code, not here)
   knowledge                         Wiki maintenance (lint)
