@@ -35,7 +35,7 @@ describe('commandBinPath', () => {
   test('reads our own command back, quoted or not, and ignores anything else', () => {
     expect(commandBinPath('bun "/opt/kevin/bin/kevin" statusline', 'kevin')).toBe('/opt/kevin/bin/kevin');
     expect(commandBinPath('bun /opt/kevin/bin/kevin statusline --subagent', 'kevin')).toBe('/opt/kevin/bin/kevin');
-    expect(commandBinPath('bun "/opt/walle/bin/walle" statusline', 'kevin')).toBeUndefined();
+    expect(commandBinPath('bun "/opt/scout/bin/scout" statusline', 'kevin')).toBeUndefined();
     expect(commandBinPath('~/.claude/statusline.sh', 'kevin')).toBeUndefined();
   });
 });
