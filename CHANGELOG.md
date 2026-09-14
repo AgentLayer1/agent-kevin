@@ -43,6 +43,45 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.6] - 2026-09-15
+
+### Added
+- **Swift review addendum for `pr-review`.** `references/langs/swift.md` extends the
+  correctness, invariants, and security lanes for `.swift` files (ported from
+  alibaba/open-code-review, Apache-2.0, credited in the file): optionals and runtime
+  failures, ARC and memory ownership, error handling, Swift concurrency and isolation, SwiftUI
+  state and lifecycle, SwiftData / Core Data persistence, health, purchases, and privacy,
+  networking and external input, unsafe interop, and tests. Attached to a lane's prompt
+  whenever the changed files include Swift; language addendums extend the lane checklist,
+  never replace it.
+
+### Changed
+- **`pr-review` tracks coverage, anchors by code, and protects the subjects that must not
+  drop.** The diff's file list is now a coverage checklist: every file ends the review as
+  `reviewed` or `skipped (<reason>)`, per lane and in the report's Checks run table, and an
+  implementation file no longer covers its interface, schema, migration, or config
+  counterpart. Findings carry the anchored lines verbatim (`code:`) so the verifier re-finds
+  them when line numbers drift instead of failing the finding on a stale citation. Candidates
+  that fail verification are listed one line each under "Dropped after verification", never a
+  bare count, and a candidate about authorization, data loss, concurrency, or a behavior or
+  compatibility change survives as a question for the author unless the verifier names the
+  exact code or command that disproves it.
+- **`github_pr_comments` returns each inline comment's `diffHunk`**, so the reply mode
+  re-finds an outdated thread by the reviewer's quoted snippet rather than the stale line
+  number.
+
+### Fixed
+- **Additional directories load their instruction files.** Claude Code discovers skills from
+  `permissions.additionalDirectories` on its own, but loads a directory's `CLAUDE.md`,
+  `.claude/CLAUDE.md`, `.claude/rules/*.md`, and `CLAUDE.local.md` only when
+  `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` is set, so every repo's `CLAUDE.md` (and its
+  `@AGENTS.md` bridge) was silently skipped in sessions launched from the home. `init` now writes
+  the flag into the home's `env` alongside the code-root grants, and upgrade adds it to existing
+  homes. Claude Code only: Codex layers `AGENTS.md` by directory walk natively.
+
+### Upgrade
+- `settings: mandatory` — `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: "1"` in `<HOME>/.claude/settings.json` (an operator's existing value is kept). Inert in a home with no `permissions.additionalDirectories`; where the directories are listed, in either settings file, their `CLAUDE.md`, `.claude/CLAUDE.md`, and `.claude/rules/*.md` load from the next launch.
+
 ## [0.4.5] - 2026-09-13
 
 ### Added
