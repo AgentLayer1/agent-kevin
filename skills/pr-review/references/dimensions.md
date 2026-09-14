@@ -9,6 +9,9 @@ Common rules for every lane:
 - One finding per defect. A pattern repeated in six places is one finding listing six anchors.
 - Do not report what the linter, formatter, or type checker reports; those ran in Step 3. Do not report style outside the repo's written conventions.
 - The failure sentence is mandatory: inputs or state, then the wrong outcome. No failure sentence, no finding; turn it into a `question`.
+- Every file on the coverage checklist gets its own pass and its own `coverage:` line. Reading an implementation does not cover its interface, schema, migration, or config counterpart, and a small file is not a reason to skip it.
+- `code:` carries the anchored lines verbatim from the head commit. The verifier re-finds a finding by that snippet when the line number drifts; a paraphrased snippet cannot be found.
+- When a language addendum from `references/langs/` is attached, it extends this checklist for files of that language; it does not replace it.
 
 ---
 

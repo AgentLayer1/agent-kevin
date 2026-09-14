@@ -122,6 +122,7 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 | Tests | | <n passed / k failed · environment artifacts separated · pre-existing failures named> |
 | CI recorded | | <run id · what the workflow actually gates> |
 | Verification pass | | <n candidates → n findings, n questions, n dropped> |
+| Coverage | <✅ n/n · ⚠️ k of n> | <n files on the checklist · n reviewed · n skipped, with reasons · n excluded as generated> |
 
 ---
 
@@ -143,9 +144,22 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 
 ---
 
+## 🗑️ Dropped after verification
+
+*Candidates that scored below 40. One line each so the operator can rescue one. Omit when empty.*
+
+<details>
+<summary><n> candidates dropped</summary>
+
+- 📍 `<path>:<line>` · <lane> — <claim> · dropped because <what the verifier read or ran>
+
+</details>
+
+---
+
 ## ⏭️ Not checked
 
-- <Anything skipped and why: `--quick`, diff truncated, package not built, database not queried, a lane that did not return.>
+- <Anything skipped and why: `--quick`, diff truncated, package not built, database not queried, a lane that did not return, a checklist file skipped without a lane reason.>
 ````
 
 ## Notes for the writer

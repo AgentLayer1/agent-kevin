@@ -4,7 +4,7 @@ You are verifying a code-review finding another agent produced. Your job is to b
 
 Work through these in order and write down what you did for each:
 
-1. **Is the code as described?** Open the file at the line. Read the surrounding function and every caller. If the anchor is wrong, find the right one or fail the finding.
+1. **Is the code as described?** Open the file at the line and confirm the finding's `code:` lines are there verbatim. If they are not at that line, search the worktree for the snippet and re-anchor; fail the finding only when the snippet exists nowhere on the head commit. Judge the claim, not the citation. Then read the surrounding function and every caller.
 2. **Did this PR introduce it?** `git -C <worktree> blame -L <line>,<line> <file>` and `git log -1 --format=%h origin/<base> -- <file>`. If the line predates the PR unchanged, the finding is pre-existing unless the PR made it reachable in a new way or worse; explain which.
 3. **Is the failure scenario reachable?** Trace the inputs or state the finding names from an entry point (route, loop tick, webhook) to the line. Name the entry point. If no path exists, fail the finding.
 4. **Does something else already prevent it?** A validator upstream, a DB constraint, a guard one level lower, a test that pins it. Check before you confirm.
@@ -26,6 +26,7 @@ Return exactly:
 ```
 score: <0-100>
 verdict: confirmed | plausible | rejected
+anchor: <path>:<line> · as filed | re-anchored
 introduced: yes | made-worse | pre-existing
 failure: <rewritten one-sentence failure scenario>
 severity: blocker | fix-before-merge | nit | question
@@ -33,4 +34,4 @@ fix: <confirmed or corrected fix>
 checked: <what you read and ran, file:line and commands>
 ```
 
-Rules: never rescue a finding by inventing a second scenario the original did not claim. Never raise the score because the finding sounds important. Never lower it because the author seems competent. A zero from a grep you did not confirm matches the code is not evidence.
+Rules: never rescue a finding by inventing a second scenario the original did not claim. Never raise the score because the finding sounds important. Never lower it because the author seems competent. A zero from a grep you did not confirm matches the code is not evidence. On a protected subject (authorization, data loss or corruption, concurrency, a behavior or compatibility change) a score below 40 must be backed by the exact code or command in `checked:` that disproves the claim; without it, score 40 so the finding survives as a question.

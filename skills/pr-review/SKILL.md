@@ -103,6 +103,8 @@ Build the model before judging it:
 
 Write the **How it works** section now, in the template's shape: one diagram (ASCII by default; a ```mermaid block only when a sequence or state flow is genuinely clearer drawn), then the walkthrough table. Keep it to what the operator needs to hold a conversation with the author: two screens at most.
 
+The diff's file list is also the **coverage checklist**. Before the fan-out, split it: files to review line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends the review as `reviewed` or `skipped (<reason>)`, per lane and in the report's Checks run table. Reading an implementation file does not cover its interface, schema, migration, or config counterpart: each file gets its own pass.
+
 ## Step 3 — Local verification (skip only with `--quick` or `--no-local`)
 
 1. `github_fast_forward` on the repo so `origin/<headRefName>` is current.
@@ -126,11 +128,12 @@ Every check lands in the report's **Checks run** table with pass / fail / not ru
 
 ## Step 4 — Adversarial fan-out
 
-Launch the lanes in `references/dimensions.md` as parallel `Agent` calls (subagent type `general-purpose`), one lane per agent, all in a single message. Each prompt carries: the PR number and repo, the worktree path, the head SHA, the diff (or the file list when the diff is large), the relevant concept articles' paths, the repo conventions path, and the lane's checklist verbatim. Each agent returns findings in this exact shape, one per finding, nothing else:
+Launch the lanes in `references/dimensions.md` as parallel `Agent` calls (subagent type `general-purpose`), one lane per agent, all in a single message. Each prompt carries: the PR number and repo, the worktree path, the head SHA, the diff (or the file list when the diff is large), the relevant concept articles' paths, the repo conventions path, the coverage checklist, the lane's checklist verbatim, and any addendum in `references/langs/` whose language appears in the changed files (`swift.md` for `.swift`). Each agent returns findings in this exact shape, one per finding, then one coverage line per checklist file, nothing else:
 
 ```
 file: <repo-relative path>
 line: <line on the head commit>
+code: <the anchored line or lines, verbatim from the head commit>
 lane: <lane name>
 severity: blocker | fix-before-merge | nit | question
 claim: <one sentence, the defect>
@@ -139,6 +142,12 @@ evidence: <what you read or ran: file:line, command, output>
 fix: <the change, as a diff or one sentence>
 introduced: yes | made-worse | pre-existing
 ```
+
+```
+coverage: <path> reviewed | skipped (<reason>)
+```
+
+The `code:` lines are the anchor of record; `line:` is where they sat when the lane looked. A finding whose snippet is not in the file is unverifiable, so copy it exactly.
 
 `--quick` replaces the fan-out with a single inline pass over the correctness, invariants/authorization, and PR-hygiene lanes.
 
@@ -150,7 +159,8 @@ Then:
 
 - **≥ 75** → a finding. Severity stays as the lane set it unless the verifier's evidence moves it.
 - **40–74** → a **question for the author**, rephrased as a question with what would settle it.
-- **< 40** → dropped; the report carries only the count (`n candidates dropped after verification`).
+- **< 40** → dropped, and listed one line each (claim, why it failed) under the report's "Dropped after verification" so the operator can rescue one. Never a bare count.
+- **Protected subjects never drop silently.** A candidate about authorization, data loss or corruption, concurrency, or a behavior or compatibility change that scores below 40 becomes a question for the author unless the verifier's `checked:` line names the exact code or command that disproves it. A hunch is not a disproof; a wrongly dropped finding is lost for good, a wrongly kept one costs the operator a minute.
 - `introduced: pre-existing` with no made-worse argument → one line under "Noticed, not this PR's problem" at most, never a comment.
 - Merge duplicates across lanes into one finding that cites both lanes' evidence.
 - Rank: security/authz › data loss or corruption › a documented domain invariant › correctness › regression › tests › conventions. Within a rank, blast radius decides.
@@ -185,7 +195,7 @@ report_write({
 Runs after Steps 0–3, replacing the fan-out with a thread-driven pass (plus a bounded self-pass).
 
 1. **Pull the threads.** `github_pr_comments` → `reviewThreads` (inline), `reviews` (submission bodies), `comments` (conversation). If any `pageInfo.hasNextPage` is true, say the read was partial in the report.
-2. **Classify each inline thread.** `isResolved` → needs nothing but a Resolve click if the last comment is yours, otherwise skip. Unresolved and the last comment is not yours → needs a reply. Unresolved, `isOutdated` → still needs a reply; the anchor moved, so re-find the code by content. Bot authors (Cursor Bugbot, CodeRabbit, Copilot, `*[bot]`) get the same treatment and a `bot` tag; a bot's confidence is not evidence.
+2. **Classify each inline thread.** `isResolved` → needs nothing but a Resolve click if the last comment is yours, otherwise skip. Unresolved and the last comment is not yours → needs a reply. Unresolved, `isOutdated` → still needs a reply; the anchor moved, so re-find the code by the reviewer's quoted snippet (`diffHunk`), never by the stale line number. Bot authors (Cursor Bugbot, CodeRabbit, Copilot, `*[bot]`) get the same treatment and a `bot` tag; a bot's confidence is not evidence.
 3. **Judge every comment against the head code, not the snapshot it was written on.** Verdicts: `accurate` · `partially` · `inaccurate` · `question` (not a defect, an ask for explanation) · `preference` (valid either way; decide, do not litigate). Judging means reading the callers, running the spec, or querying the database when the claim is about data. One thing overrides a reviewer, and the reply says so plainly with receipts: a suggestion that contradicts an invariant documented in `knowledge/concepts/`.
 4. **Fix what is accurate, in the worktree, uncommitted.** A reviewer's fix inside files the PR already touches goes into this branch even when the defect predates it. A fix that needs files the PR does not touch, or its own measurement, becomes a follow-up line instead. Rebuild and rerun the affected specs after fixing. Never `git add`, never commit, never push: leave `git status` as the reviewable set, and write one suggested commit message per group of related fixes.
 5. **Self-pass.** Run the correctness, invariants/authorization, and regression lanes over your own diff (skipped under `--quick`). Anything verified lands under **Found on my own** with the same fix discipline. Finding your own defect before the reviewer does is the point.

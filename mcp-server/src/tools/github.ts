@@ -461,7 +461,7 @@ query($owner: String!, $name: String!, $number: Int!) {
           diffSide
           comments(first: 100) {
             pageInfo { hasNextPage }
-            nodes { author { login } body createdAt url }
+            nodes { author { login } body diffHunk createdAt url }
           }
         }
       }
