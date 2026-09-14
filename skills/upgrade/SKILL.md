@@ -229,7 +229,8 @@ of the server, so a deps/code change means restart **before** the script can run
 `$HOME_DIR/.claude/settings.json`. Read it, add only entries **not already present**
 (union + dedupe the named array — `permissions.allow`, `permissions.additionalDirectories`,
 `sandbox.filesystem.allowWrite`, whichever the action names; create the key when absent;
-never reorder or remove existing entries; never touch operator keys like
+never reorder or remove existing entries; an `env.<KEY>` the action names is a scalar, set
+only when absent, so an operator's own value stays; never touch operator keys like
 `hooks`/`theme`/`env` unless an action names them). Write back valid JSON. Idempotent:
 re-running adds nothing.
 
