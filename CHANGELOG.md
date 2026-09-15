@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.4.7] - 2026-09-15
 
 ### Added
 - **Host version floors, no shims.** `mcp-server/src/hosts.ts` names the Claude Code and Codex versions
@@ -67,6 +67,11 @@ and prompts per optional one. The new template files are the source of truth for
   more than double the size of its raw input.
 - **The upgrade skill's gitignore step drops its `!` workaround.** The Bash tool no longer mangles a
   leading `!` or the negation operator (verified on Claude Code 2.1.270), so the octal-escape dance is gone.
+- **The Codex SessionStart banner travels as `systemMessage` in the JSON envelope.** Codex accepts the
+  same hook envelope as Claude Code and renders it as a hook cell, so the Codex path returns the shared
+  result shape and the CLI emits JSON for both protocols; the context payload is unchanged. Pre-init and
+  stranded homes get the uncolored wordmark because Codex's TUI prints ANSI escapes as raw bytes. Codex
+  fires SessionStart on the first turn, so the banner lands under the first prompt rather than at launch.
 
 ### Removed
 - **The additional-directories env setting.** 0.4.6 had `init` and upgrade write
@@ -83,6 +88,8 @@ and prompts per optional one. The new template files are the source of truth for
 ### Upgrade
 - `manual: optional` — a home that ran the 0.4.6 upgrade holds `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` in `<HOME>/.claude/settings.json`; delete the key, and the `env` block if that leaves it empty. It is inert, so leaving it changes nothing.
 - `settings: mandatory` — `bashEditDiffEnabled: true` in `<HOME>/.claude/settings.json` (an operator's existing value is kept).
+- `template/AGENTS.md: mandatory` — Context Loading's read-on-demand list gains the code repo's `AGENTS.md` (read with the harness bridge beside it whenever a task lands in that repo; one bullet).
+- `template/CLAUDE.md: mandatory` — Claude Code Context Loading gains the two-file repo read: `AGENTS.md` then `.claude/CLAUDE.md`, since a manual `Read` does not resolve `@-imports` (one paragraph).
 
 ## [0.4.6] - 2026-09-15
 
@@ -118,11 +125,11 @@ and prompts per optional one. The new template files are the source of truth for
   `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` is set, so every repo's `CLAUDE.md` (and its
   `@AGENTS.md` bridge) was silently skipped in sessions launched from the home. `init` now writes
   the flag into the home's `env` alongside the code-root grants, and upgrade adds it to existing
-  homes. Claude Code only: Codex layers `AGENTS.md` by directory walk natively. *Withdrawn in the
-  next release: the setting proved inert.*
+  homes. Claude Code only: Codex layers `AGENTS.md` by directory walk natively. *Withdrawn in 0.4.7:
+  the setting proved inert.*
 
 ### Upgrade
-- Withdrawn: the settings action that added `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` was removed after the key proved inert (see the next release). Nothing to apply for this version.
+- Withdrawn: the settings action that added `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` was removed after the key proved inert (see 0.4.7). Nothing to apply for this version.
 
 ## [0.4.5] - 2026-09-13
 
