@@ -119,13 +119,24 @@ describe('sessionStart', () => {
         }),
       () => sessionStartCodex()
     );
-    expect(first).toContain('kevin static context · harness: codex');
-    expect(first).toContain('<!-- file: SOUL.md -->');
-    expect(first).toContain('Sharp, a little spicy.');
-    expect(first).toContain('<!-- file: IDENTITY.md -->');
-    expect(first).toContain('<!-- file: USER.md -->');
-    expect(first).toContain('<!-- session context (dynamic lane) -->');
-    expect(first).not.toContain('AGENTS.md —'); // the manual is Codex-native, never re-sent
+    expect(first.additionalContext).toContain('kevin static context · harness: codex');
+    expect(first.additionalContext).toContain('<!-- file: SOUL.md -->');
+    expect(first.additionalContext).toContain('Sharp, a little spicy.');
+    expect(first.additionalContext).toContain('<!-- file: IDENTITY.md -->');
+    expect(first.additionalContext).toContain('<!-- file: USER.md -->');
+    expect(first.additionalContext).toContain('<!-- session context (dynamic lane) -->');
+    expect(first.additionalContext).not.toContain('AGENTS.md —'); // the manual is Codex-native, never re-sent
+  });
+
+  test('codex protocol: the banner rides systemMessage, free of ANSI escapes', async () => {
+    const result = await withHome(
+      (home) => markedHome(home, { 'SOUL.md': '# Soul\n' }),
+      () => sessionStartCodex()
+    );
+    expect(result.systemMessage).toContain('Agent:');
+    expect(result.systemMessage).toContain('Context');
+    expect(result.systemMessage).not.toMatch(/\x1b\[/);
+    expect(result.additionalContext).not.toContain('Agent:');
   });
 
   test('the Codex stack is exactly what the Claude bridge template imports after the manual', () => {
@@ -149,7 +160,9 @@ describe('sessionStart', () => {
       () => {},
       () => sessionStartCodex()
     );
-    expect(hint).toContain('init');
+    expect(hint.systemMessage).toContain('init');
+    expect(hint.systemMessage).not.toMatch(/\x1b\[/);
+    expect(hint.additionalContext).toContain('init');
   });
 
   test('the home marker alone marks the home, with no SOUL.md needed', async () => {

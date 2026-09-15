@@ -573,17 +573,12 @@ async function run(): Promise<void> {
       throw new Error(`Unknown --hook-protocol: ${hookProtocol} (supported: claude, codex)`);
     }
 
-    if (hookProtocol === 'codex') {
-      // Codex takes stdout as developer context (plain text, no JSON envelope).
-      const { sessionStartCodex } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start'));
-      process.stdout.write(await sessionStartCodex());
-      return;
-    }
+    const { sessionStart, sessionStartCodex } = await import(
+      resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start')
+    );
+    const result = hookProtocol === 'codex' ? await sessionStartCodex() : await sessionStart();
 
-    const { sessionStart } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start'));
-    const result = await sessionStart();
-
-    if (hookProtocol === 'claude') {
+    if (hookProtocol === 'claude' || hookProtocol === 'codex') {
       process.stdout.write(
         JSON.stringify({
           systemMessage: result.systemMessage,
