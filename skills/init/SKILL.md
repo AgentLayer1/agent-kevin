@@ -767,7 +767,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
-**Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if every `env.*` key is covered globally (and the code-tree flag below does not apply), omit the entire `env` block rather than writing an empty `{}`.
+**Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if all three are covered globally, omit the entire `env` block rather than writing an empty `{}`.
 
 | Project-scaffold key | Baseline value to write when global is missing it | "Already covered" test against global |
 |---|---|---|
@@ -1009,7 +1009,7 @@ unsetting) on Claude Code v2.1.187+, and is ignored on older versions. Both the 
 and sandbox layers are needed. (Sandbox is unavailable on native Windows — there the
 Read-tool deny is the only layer; flag that secrets aren't OS-protected on Windows.)
 
-**Reaching the code tree when it lives outside the home.** Under the convention the home is a standalone vault and repos live in a separate tree, so a session launched in the home reaches code across a directory boundary. Three settings make that work, and all three are needed — they cover different things:
+**Reaching the code tree when it lives outside the home.** Under the convention the home is a standalone vault and repos live in a separate tree, so a session launched in the home reaches code across a directory boundary. Two grants make that work, and both are needed — they cover different tools:
 
 ```bash
 CODE_ROOT=""
@@ -1020,11 +1020,10 @@ case "$AGENT_CODE_PATH" in
 esac
 ```
 
-When `CODE_ROOT` is non-empty, add all three to the scaffold:
+When `CODE_ROOT` is non-empty, add both to the scaffold:
 
 - `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
 - `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
-- `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: "1"` — Claude Code discovers skills from an additional directory on its own, but loads its `CLAUDE.md`, `.claude/CLAUDE.md`, `.claude/rules/*.md`, and `CLAUDE.local.md` only under this flag; without it a repo's own instructions (and its `@AGENTS.md` bridge) never reach the session, and the agent knows the repo's rules only when it reads them by hand. Claude Code only: Codex layers `AGENTS.md` by directory walk natively.
 
 **Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
 
@@ -1051,8 +1050,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "<\"1\" if global doesn't set it, else omit this key>",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<\"claude-sonnet-4-6\" if global doesn't set it, else omit this key>",
-    "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "<\"1\" when the code tree is outside the home — see above; omit the key otherwise>"
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<\"claude-sonnet-4-6\" if global doesn't set it, else omit this key>"
   },
   "sandbox": "<full baseline sandbox block above if global.sandbox.enabled !== true, else omit>",
   "enabledPlugins": {

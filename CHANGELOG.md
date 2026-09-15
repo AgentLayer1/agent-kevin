@@ -43,6 +43,23 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Removed
+- **The additional-directories env setting.** 0.4.6 had `init` and upgrade write
+  `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: "1"` into the home's settings so repos listed in
+  `permissions.additionalDirectories` would load their `CLAUDE.md`. A probe matrix on Claude Code
+  2.1.270 showed the key inert in every case: the flag is honoured only from the shell environment
+  at launch, never from the settings `env` block, and `additionalDirectories` grants file access
+  only, loading no instruction files under any flag. `init` no longer writes it, and the 0.4.6
+  Upgrade line is withdrawn so a home upgrading past that version gets nothing. Eager loading of a
+  repo's manual is the shell form, `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir
+  <repo>`; the default is on demand, and the operating manual's read-on-demand list names a code
+  repo's `AGENTS.md`.
+
+### Upgrade
+- `manual: optional` — a home that ran the 0.4.6 upgrade holds `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` in `<HOME>/.claude/settings.json`; delete the key, and the `env` block if that leaves it empty. It is inert, so leaving it changes nothing.
+
 ## [0.4.6] - 2026-09-15
 
 ### Added
@@ -77,10 +94,11 @@ and prompts per optional one. The new template files are the source of truth for
   `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` is set, so every repo's `CLAUDE.md` (and its
   `@AGENTS.md` bridge) was silently skipped in sessions launched from the home. `init` now writes
   the flag into the home's `env` alongside the code-root grants, and upgrade adds it to existing
-  homes. Claude Code only: Codex layers `AGENTS.md` by directory walk natively.
+  homes. Claude Code only: Codex layers `AGENTS.md` by directory walk natively. *Withdrawn in the
+  next release: the setting proved inert.*
 
 ### Upgrade
-- `settings: mandatory` — `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: "1"` in `<HOME>/.claude/settings.json` (an operator's existing value is kept). Inert in a home with no `permissions.additionalDirectories`; where the directories are listed, in either settings file, their `CLAUDE.md`, `.claude/CLAUDE.md`, and `.claude/rules/*.md` load from the next launch.
+- Withdrawn: the settings action that added `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` was removed after the key proved inert (see the next release). Nothing to apply for this version.
 
 ## [0.4.5] - 2026-09-13
 
