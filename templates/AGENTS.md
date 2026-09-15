@@ -20,6 +20,7 @@ The identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memor
 - **{{KNOWLEDGE_REL}}/user/{profile,skills,preferences,career,interests}.md** — long-form facets linked from USER.md
 - **{{KNOWLEDGE_REL}}/concepts/`<slug>`.md** — cross-cutting patterns, linked from {{KNOWLEDGE_REL}}/index.md
 - **{{PROJECTS_REL}}/`<slug>`/README.md** + tasks — pulled in when a specific project is active
+- **A code repo's `AGENTS.md`** — read before touching that repo's code, every time a task lands there (the project README points at it). Harnesses grant file access to configured code directories but never load their manuals or skills; the manual is where the repo's build loop, conventions, and skill routing live.
 
 **Dynamic (injected per-session by the plugin's `SessionStart` hook, ≤10KB):**
 
