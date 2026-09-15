@@ -143,8 +143,17 @@ const recommendations: Recommendation[] = [
   { path: ['otel', 'trace_exporter'], value: 'none', why: 'no trace export' },
   { path: ['otel', 'log_user_prompt'], value: false, why: 'prompts never leave the machine as telemetry' },
   { path: ['tui', 'animations'], value: false, why: 'no shimmer or spinner redraws, the Claude home sets no-flicker' },
-  { path: ['tui', 'alternate_screen'], value: 'never', why: 'keep the scrollback so earlier output stays selectable' }
+  { path: ['tui', 'alternate_screen'], value: 'never', why: 'keep the scrollback so earlier output stays selectable' },
+  {
+    path: ['projects', home, 'trust_level'],
+    value: 'trusted',
+    why: "Codex reads the home's .codex/ (hooks, MCP registration, profile) only for a trusted folder; this skips the first-launch prompt"
+  }
 ];
+/** The quoted TOML table a three-deep path lives in: `projects."<home>"`. */
+const tableOf = (path: string[]): string => `${path[0]}.${JSON.stringify(path[1])}`;
+const keyLabel = (item: Recommendation): string =>
+  item.path.length === 3 ? `${tableOf(item.path)}.${item.path[2]}` : item.path.join('.');
 
 const missing = recommendations.filter((item) => lookup(config, item.path) !== item.value);
 const tomlValue = (value: string | number | boolean): string =>
@@ -163,7 +172,17 @@ const block = (): string => {
           .map((item) => `${item.path[1]} = ${tomlValue(item.value)}`)
       ].join('\n')
   );
-  return [...(top.length ? [top.join('\n')] : []), ...tables].join('\n\n');
+  const nested = [...new Set(missing.filter((item) => item.path.length === 3).map((item) => tableOf(item.path)))].map(
+    (table) => {
+      const rows = missing.filter((item) => item.path.length === 3 && tableOf(item.path) === table);
+      const present = rows.some((item) => isRecord(lookup(config, item.path.slice(0, 2))));
+      return [
+        present ? `# inside your existing [${table}] table:` : `[${table}]`,
+        ...rows.map((item) => `${item.path[2]} = ${tomlValue(item.value)}`)
+      ].join('\n');
+    }
+  );
+  return [...(top.length ? [top.join('\n')] : []), ...tables, ...nested].join('\n\n');
 };
 
 /** Claude `Read(…)` denies as Codex globs: `~/x` stays literal (Codex expands it), `//x` is absolute, the rest is workspace-relative. */
@@ -227,7 +246,7 @@ const report = {
   status,
   configPath,
   unreadable: unreadable ?? null,
-  missing: missing.map((item) => ({ key: item.path.join('.'), value: item.value, why: item.why })),
+  missing: missing.map((item) => ({ key: keyLabel(item), value: item.value, why: item.why })),
   block: block(),
   profileBlock,
   rulesPath,
@@ -262,7 +281,7 @@ const note = (): string => {
       '',
       '| Key | Why |',
       '|---|---|',
-      ...missing.map((item) => `| \`${item.path.join('.')}\` | ${item.why} |`)
+      ...missing.map((item) => `| \`${keyLabel(item)}\` | ${item.why} |`)
     );
   }
   if (profileBlock) {

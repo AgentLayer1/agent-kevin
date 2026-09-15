@@ -25,6 +25,8 @@ export const tools: ToolDef[] = [
     description:
       'Return the next compile work item: a rendered prompt + source content + metadata. Caller synthesises wiki articles per the prompt (using Read/Write/Edit), then confirms via compile_write. Returns { done: true } when nothing pending.',
     inputSchema: {},
+    // A chunk plus its task section passes Claude Code's 25K-token default, which parks the result in a file the caller must page through.
+    meta: { 'anthropic/maxResultSizeChars': 200_000 },
     handler: async () => {
       const item = await pickNext();
       if (item) log.info(`next → ${item.itemId} (${item.kind})`);

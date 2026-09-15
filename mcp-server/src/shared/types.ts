@@ -188,6 +188,8 @@ export interface ToolDef<Shape extends z.ZodRawShape = z.ZodRawShape> {
   name: string;
   description: string;
   inputSchema: Shape;
+  /** MCP `_meta` published with the tool; `anthropic/maxResultSizeChars` lifts Claude Code's per-result cap. */
+  meta?: Record<string, unknown>;
   handler: (args: z.infer<z.ZodObject<Shape>>) => Promise<unknown>;
 }
 

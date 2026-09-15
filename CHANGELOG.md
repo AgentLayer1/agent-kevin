@@ -45,6 +45,29 @@ and prompts per optional one. The new template files are the source of truth for
 
 ## [Unreleased]
 
+### Added
+- **Host version floors, no shims.** `mcp-server/src/hosts.ts` names the Claude Code and Codex versions
+  the plugin is built against (2.1.269 and 0.154.0); `kevin hosts` checks the installed CLIs, init and
+  upgrade stop below a floor with the update command, and the SessionStart banner warns until the host
+  is updated. Codex counts only for a home wired for it. A release that leans on a newer host feature
+  raises the floor in the same commit.
+- **`bashEditDiffEnabled` in the home's settings.** Auto mode routes file edits through the Bash tool, which
+  hides the diff the Edit tool would have shown; Claude Code 2.1.269 added a setting that attaches a diff
+  of the files a Bash command changed to that command's result. `init` writes it when the user-global
+  settings don't set it, and upgrade adds it to existing homes (an operator's own value is kept).
+- **Tools can publish MCP `_meta`.** `ToolDef.meta` is passed through `registerTool`; `compile_next`
+  declares `anthropic/maxResultSizeChars` so a compile item lands in the conversation instead of being
+  parked in a `tool-results` file the caller has to page through.
+- **The Codex user-level note recommends trusting the home.** `projects."<home>".trust_level = "trusted"`
+  skips the first-launch folder-trust prompt; Codex reads the home's `.codex/` only for a trusted folder.
+
+### Changed
+- **Compile prompts no longer embed the manual, `USER.md`, the wiki index, or the memory index.** Every
+  one of them is already in the caller's context, and carrying them made each `compile_next` result
+  more than double the size of its raw input.
+- **The upgrade skill's gitignore step drops its `!` workaround.** The Bash tool no longer mangles a
+  leading `!` or the negation operator (verified on Claude Code 2.1.270), so the octal-escape dance is gone.
+
 ### Removed
 - **The additional-directories env setting.** 0.4.6 had `init` and upgrade write
   `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: "1"` into the home's settings so repos listed in
@@ -59,6 +82,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `manual: optional` — a home that ran the 0.4.6 upgrade holds `env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` in `<HOME>/.claude/settings.json`; delete the key, and the `env` block if that leaves it empty. It is inert, so leaving it changes nothing.
+- `settings: mandatory` — `bashEditDiffEnabled: true` in `<HOME>/.claude/settings.json` (an operator's existing value is kept).
 
 ## [0.4.6] - 2026-09-15
 

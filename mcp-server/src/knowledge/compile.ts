@@ -5,11 +5,11 @@
  * (with a fully-rendered prompt and source content); the calling Claude
  * session synthesizes (Read/Write/Edit) and confirms via markComplete.
  */
-import { FILES, FOLDERS, KNOWLEDGE, operatingManualPath } from '@/config';
+import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { chunkSessionLog } from '@/knowledge/chunk';
 import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
-import { hashBuffer, listRawFiles, loadScriptTemplate, readWikiIndex, renderTemplate } from '@/knowledge/utils';
+import { hashBuffer, listRawFiles, loadScriptTemplate, renderTemplate } from '@/knowledge/utils';
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
 import { agentDisplayName } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
@@ -35,8 +35,7 @@ import { basename, resolve } from 'node:path';
 function compiledOffset(buf: Buffer, record: IngestedEntry | undefined): number {
   if (!record) return 0;
   if (record.bytes != null) {
-    const intact =
-      record.bytes <= buf.length && record.prefix_hash === hashBuffer(buf.subarray(0, record.bytes));
+    const intact = record.bytes <= buf.length && record.prefix_hash === hashBuffer(buf.subarray(0, record.bytes));
     return intact ? record.bytes : 0;
   }
   return record.hash === hashBuffer(buf) ? buf.length : 0;
@@ -118,28 +117,13 @@ async function listInboxArtifacts(): Promise<string[]> {
   }
 }
 
-// ── Prompt builders (parallel reads) ─────────────────────────────────
+// ── Prompt builders ──────────────────────────────────────────────────
+// The manual, USER.md, the wiki index, and the memory index are in the caller's
+// context already; embedding them pushed every result past the host's cap.
 
-/** The operating manual — AGENTS.md, or the pre-0.4.0 location on a home not yet upgraded. */
-async function readOperatingManual(): Promise<string> {
-  try {
-    return await readFile(operatingManualPath(), 'utf-8');
-  } catch {
-    return '(operating manual not found — run /agent-kevin:init)';
-  }
-}
-
-async function buildSessionPrompt(fileName: string, chunkContent: string): Promise<string> {
-  const [schema, user, wikiIndex] = await Promise.all([
-    readOperatingManual(),
-    readFile(FILES.USER, 'utf-8').catch(() => '(USER.md not found — run /agent-kevin:init)'),
-    readWikiIndex()
-  ]);
+function buildSessionPrompt(fileName: string, chunkContent: string): string {
   return renderTemplate(SESSION_TEMPLATE, {
     agentName: agentDisplayName(),
-    schema,
-    user,
-    wikiIndex,
     fileName,
     logContent: chunkContent,
     userKnowledgeDir: FOLDERS.USER_KNOWLEDGE,
@@ -150,16 +134,10 @@ async function buildSessionPrompt(fileName: string, chunkContent: string): Promi
 }
 
 async function buildFeedbackPrompt(): Promise<string> {
-  const [feedback, memoryIndex] = await Promise.all([
-    readFile(FILES.FEEDBACK, 'utf-8'),
-    readFile(FILES.MEMORY, 'utf-8').catch(
-      () => '(file does not exist yet — create it with the standard memory index structure)'
-    )
-  ]);
+  const feedback = await readFile(FILES.FEEDBACK, 'utf-8');
   return renderTemplate(FEEDBACK_TEMPLATE, {
     agentName: agentDisplayName(),
     memoryIndexPath: FILES.MEMORY,
-    memoryIndex,
     feedback,
     now: nowISO()
   });
@@ -167,10 +145,9 @@ async function buildFeedbackPrompt(): Promise<string> {
 
 async function buildInboxPrompt(inboxPath: string): Promise<string> {
   const fileName = basename(inboxPath);
-  const [inboxContent, wikiIndex] = await Promise.all([readFile(inboxPath, 'utf-8'), readWikiIndex()]);
+  const inboxContent = await readFile(inboxPath, 'utf-8');
   return renderTemplate(INBOX_TEMPLATE, {
     agentName: agentDisplayName(),
-    wikiIndex,
     fileName,
     inboxContent,
     archivedRelPath: `raw/archive/inbox/${fileName}`,

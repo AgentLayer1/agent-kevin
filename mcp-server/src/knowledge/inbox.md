@@ -5,11 +5,7 @@ wiki. The input has been dropped (manually into `raw/inbox/` or via the
 patterns, principles, and decisions that will still matter in six months —
 before the raw file is consumed.
 
-## Current wiki index (the manifest)
-
-This is the canonical list of every permanent article, including all existing concepts. **Use the `Read` tool to fetch the full content of any concept you plan to update or extend.** If the input reinforces an existing concept, read it first and append rather than create a new one.
-
-{{wikiIndex}}
+The wiki index (`{{knowledgeDir}}/index.md`, the canonical list of every permanent article, including all existing concepts) is already in your context. **Use the `Read` tool to fetch the full content of any concept you plan to update or extend.** If the input reinforces an existing concept, read it first and append rather than create a new one.
 
 ## Input to compile
 

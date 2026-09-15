@@ -22,6 +22,7 @@ import {
   PLUGIN_VERSION,
   TIMEZONE
 } from '@/config';
+import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
 import { agentDisplayName } from '@/shared/agent-name';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
@@ -339,6 +340,21 @@ async function gatherContext(): Promise<GatheredContext> {
         '',
         '**Report this to the operator.** The upgrade re-points the entry from the plugin that is',
         'actually loaded; a by-hand edit of `settings.json` is what the sandbox exists to prevent.'
+      ].join('\n')
+    );
+  }
+
+  const hosts = hostIssues(checkHosts(requiredHosts(FOLDERS.HOME)));
+  if (hosts.length > 0) {
+    entries.push({ label: 'host versions', status: 'unavailable', bytes: 0, note: 'update the host' });
+    parts.push(
+      [
+        '## ⚠️ Host versions',
+        '',
+        ...hosts.map((line) => `- ${line}`),
+        '',
+        '**Report this to the operator.** The plugin carries no compatibility shims for older hosts;',
+        'init and upgrade refuse to run until the host is updated.'
       ].join('\n')
     );
   }

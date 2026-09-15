@@ -106,6 +106,22 @@ no settings rename → continue to Step 1. Otherwise (a finding, a rename, or bo
    the commands need a relaunch to take effect, and the Step 6 report repeats them as a
    `manual:` note until a later run finds `ok: true`.
 
+## Step 0c — Host version gate
+
+The plugin is built against the Claude Code and Codex versions in `mcp-server/src/hosts.ts`,
+with no backwards compatibility: an older host is refused, never shimmed.
+
+```bash
+bun "$PLUGIN_ROOT/bin/kevin" hosts            # add --codex when this session runs under Codex
+```
+
+It prints `{ ok, hosts: [{ name, required, installed, floor, state, update }] }` and exits 1 when
+a required host is below its floor. Codex is required for a home wired for it (`.codex/hooks.json`)
+or a Codex session (`--codex`); an absent optional host is fine. `ok: true` → continue. Otherwise
+print each `outdated` or required-`absent` host on its own line with its `update` command, tell the
+operator to update and relaunch, then re-run this, and **stop**: nothing below this line runs on an
+outdated host.
+
 ## Step 1 — Determine what to apply (guards + window)
 
 Read `$PLUGIN_ROOT/CHANGELOG.md`. Each release is a `## [x.y.z] - DATE` heading
@@ -229,8 +245,10 @@ of the server, so a deps/code change means restart **before** the script can run
 `$HOME_DIR/.claude/settings.json`. Read it, add only entries **not already present**
 (union + dedupe the named array — `permissions.allow`, `permissions.additionalDirectories`,
 `sandbox.filesystem.allowWrite`, whichever the action names; create the key when absent;
-never reorder or remove existing entries; never touch operator keys like
-`hooks`/`theme`/`env` unless an action names them). Write back valid JSON. Idempotent:
+never reorder or remove existing entries; a scalar the action names, a top-level key like
+`bashEditDiffEnabled` or an `env.<KEY>`, is set only when absent so an operator's own value
+stays; never touch operator keys like `hooks`/`theme`/`env` unless an action names them).
+Write back valid JSON. Idempotent:
 re-running adds nothing.
 
 **codex wiring (always, when applicable)** — this home runs Codex when any of these holds:
@@ -415,18 +433,9 @@ parent dir is ignored):
 
 ```bash
 GI="$HOME_DIR/.gitignore"
-# Act only if .kevin/* is ignored and no version.json rule exists yet. NOTE: the
-# Claude Code Bash tool runs commands through an eval wrapper where '!' is unusable
-# — both a literal leading '!' (mangled to '\!') AND the '!' negation operator
-# ("command not found: !"). So: no '!' negation (use a nested if/else), grep on a
-# '!'-free substring, and emit the negation's '!' via its octal code \041.
+# Act only if .kevin/* is ignored and no version.json rule exists yet.
 if [ -f "$GI" ] && grep -qxF ".kevin/*" "$GI"; then
-  if grep -qF "kevin/version.json" "$GI"; then
-    : # already tracked — no-op
-  else
-    bang=$(printf '\041')
-    printf '%s.kevin/version.json\n' "$bang" >> "$GI"
-  fi
+  grep -qF "kevin/version.json" "$GI" || printf '%s\n' '!.kevin/version.json' >> "$GI"
 fi
 ```
 

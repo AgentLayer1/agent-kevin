@@ -160,6 +160,20 @@ Default: abort. The preservation guards below in Step 7 are what make these clai
 
 ---
 
+## Step 0b — Host version gate
+
+The plugin is built against the Claude Code and Codex versions in `mcp-server/src/hosts.ts`, with
+no backwards compatibility. Check before scaffolding anything:
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory
+bun "$PLUGIN_ROOT/bin/kevin" hosts            # add --codex when this session runs under Codex
+```
+
+`ok: true` → continue. Otherwise print each `outdated` or required-`absent` host with its `update`
+command, tell the operator to update and relaunch, and **stop**; a home scaffolded on an older host
+gets settings and hooks the host cannot honour.
+
 ## Step 1 — Banner + intro
 
 Print the welcome banner inside a fenced code block (the fence preserves the ASCII art literally):
@@ -765,6 +779,8 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<REPORTS_ROOT>/plans/`, so we point the harness at the same folder — one home for every plan. Compute it from the reports path resolved in Step 7: `./reports/plans` when `REPORTS_ROOT` is the default under `$HOME_DIR`, else the absolute `<REPORTS_ROOT>/plans`. **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
 
+**`bashEditDiffEnabled` — see what Bash edited.** Under auto mode Claude Code routes file edits through the Bash tool, which hides the diff the Edit tool would have shown. This setting (Claude Code 2.1.269+) attaches a diff of the files a Bash command changed to that command's result, so a scripted edit stays reviewable in the transcript. Written when the operator's user-global settings don't set it.
+
 **Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if all three are covered globally, omit the entire `env` block rather than writing an empty `{}`.
@@ -773,6 +789,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 |---|---|---|
 | `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
 | `effortLevel` | `"high"` | Any non-empty `effortLevel` set globally |
+| `bashEditDiffEnabled` | `true` | Global `bashEditDiffEnabled` set to any boolean |
 | `env.CLAUDE_CODE_NO_FLICKER` | `"1"` | Global `env.CLAUDE_CODE_NO_FLICKER` set to any truthy string |
 | `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
 | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` | `"claude-sonnet-4-6"` | Any non-empty `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` set globally |
@@ -1031,7 +1048,7 @@ When `CODE_ROOT` is non-empty, add both to the scaffold:
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
-- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exception: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run).
+- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `bashEditDiffEnabled`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exception: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run).
 - **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.ask`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
 - **`enabledPlugins`**: special case — set `"agent-kevin@<MARKETPLACE>": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). `<MARKETPLACE>` is the name the plugin was installed under: for a marketplace install `${CLAUDE_PLUGIN_ROOT}` is a version-pinned cache path `…/plugins/cache/<MARKETPLACE>/agent-kevin/<version>` (`agentlayer` from the public marketplace); for a clone (Option B/C) it is the `name` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/marketplace.json`, `agentdev-kevin`. A key naming a marketplace that is not registered enables nothing. Other plugin entries pass through untouched.
@@ -1044,6 +1061,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
+  "bashEditDiffEnabled": "<true if global doesn't set it, else omit>",
   "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
   "statusLine": "<the object printed by `bun \"$PLUGIN_ROOT/bin/kevin\" statusline --setting` when the project file has no statusLine, else omit and preserve>",
   "effortLevel": "<\"high\" if global doesn't set it, else omit>",

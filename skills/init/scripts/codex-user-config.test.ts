@@ -125,6 +125,13 @@ describe('codex-user-config', () => {
     expect(set.json.missing.map((m: { key: string }) => m.key)).not.toContain('model_auto_compact_token_limit');
   });
 
+  test('the home is recommended as a trusted project, rendered as a quoted table', () => {
+    const dir = scratch();
+    const { json } = run('--config', join(dir, 'none.toml'), '--claude-settings', join(dir, 'none.json'));
+    expect(json.missing.map((m: { key: string }) => m.key)).toContain('projects."/Users/ada/Agents/Scout".trust_level');
+    expect(json.block).toContain('[projects."/Users/ada/Agents/Scout"]\ntrust_level = "trusted"');
+  });
+
   test('a user config that does not parse is reported, never a crash', () => {
     const dir = scratch();
     const config = join(dir, 'config.toml');
@@ -140,7 +147,7 @@ describe('codex-user-config', () => {
     const config = join(dir, 'config.toml');
     writeFileSync(
       config,
-      'default_permissions = "mine"\napproval_policy = "on-request"\napprovals_reviewer = "user"\ncheck_for_update_on_startup = true\n\n[analytics]\nenabled = false\n\n[feedback]\nenabled = false\n\n[otel]\nexporter = "none"\nmetrics_exporter = "none"\ntrace_exporter = "none"\nlog_user_prompt = false\n\n[tui]\nanimations = false\nalternate_screen = "never"\n'
+      'default_permissions = "mine"\napproval_policy = "on-request"\napprovals_reviewer = "user"\ncheck_for_update_on_startup = true\n\n[analytics]\nenabled = false\n\n[feedback]\nenabled = false\n\n[otel]\nexporter = "none"\nmetrics_exporter = "none"\ntrace_exporter = "none"\nlog_user_prompt = false\n\n[tui]\nanimations = false\nalternate_screen = "never"\n\n[projects."/Users/ada/Agents/Scout"]\ntrust_level = "trusted"\n'
     );
     const rules = join(dir, 'default.rules');
     writeFileSync(rules, '# mine\n');

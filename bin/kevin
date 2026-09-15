@@ -135,6 +135,7 @@ Usage:
 
 Groups:
   ping                              Print resolved paths + timezone (sanity check)
+  hosts                             Check the installed Claude Code / Codex CLIs against the plugin's version floors (--codex: require Codex); exit 1 below a floor
   capture                           Capture text / a file / stdin into raw/inbox/ (or feedback.md) for the next compile
   session-capture                   Ingest a session transcript into raw/sessions/<today>.md (called by Claude Code hooks)
   session-start                     Emit dynamic context (today / last session tail / git activity) for the host's SessionStart hook
@@ -281,6 +282,14 @@ async function run(): Promise<void> {
       )
     );
     return;
+  }
+
+  // Runs before a home exists: init gates on it before scaffolding anything.
+  if (group === 'hosts') {
+    const { checkHosts, requiredHosts } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/hosts'));
+    const report = checkHosts(requiredHosts(FOLDERS.HOME, [command, ...args].includes('--codex')));
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.ok ? 0 : 1);
   }
 
   // Refuse to touch anything that isn't THIS agent's home. Resolution falls back

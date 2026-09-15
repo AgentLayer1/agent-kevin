@@ -45,45 +45,49 @@ const HOMELESS_OK = new Set(['ping', 'setup_worktree', 'list_worktrees', 'remove
 
 for (const tool of TOOLS) {
   const toolLog = log.with(() => `tool:${tool.name}`);
-  server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, async (args) => {
-    toolLog.debug('dispatch', args);
-    try {
-      if (!HOMELESS_OK.has(tool.name) && !isInitialized()) {
-        toolLog.warn(`refused — ${FOLDERS.HOME} is not this agent's home`);
+  server.registerTool(
+    tool.name,
+    { description: tool.description, inputSchema: tool.inputSchema, _meta: tool.meta },
+    async (args) => {
+      toolLog.debug('dispatch', args);
+      try {
+        if (!HOMELESS_OK.has(tool.name) && !isInitialized()) {
+          toolLog.warn(`refused — ${FOLDERS.HOME} is not this agent's home`);
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                // Never suggest init when a SOUL.md is sitting there: that's a
+                // scaffolded brain whose data dir is missing, or another agent's
+                // home, and init's re-run path offers to overwrite exactly those
+                // identity files. Same distinction SessionStart draws.
+                text: existsSync(FILES.SOUL)
+                  ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no home ` +
+                    `marker (${runtimeDirName()}/version.json or ${runtimeDirName()}/knowledge.json), so it ` +
+                    `is either another agent's home or this one's data-dir state is missing after a restore. ` +
+                    `Do NOT run init to repair it — that would offer to overwrite the identity files already ` +
+                    `there. Restore those files from the backup or the brain repo (both are git-tracked), ` +
+                    `or relaunch from the right home.`
+                  : `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
+                    `(no home marker in ${runtimeDirName()}/ there). The home is resolved from the directory ` +
+                    `this session was launched in, so start Claude Code from the agent home — or run ` +
+                    `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
+              }
+            ],
+            isError: true
+          };
+        }
+        const result = await tool.handler(args);
         return {
-          content: [
-            {
-              type: 'text' as const,
-              // Never suggest init when a SOUL.md is sitting there: that's a
-              // scaffolded brain whose data dir is missing, or another agent's
-              // home, and init's re-run path offers to overwrite exactly those
-              // identity files. Same distinction SessionStart draws.
-              text: existsSync(FILES.SOUL)
-                ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no home ` +
-                  `marker (${runtimeDirName()}/version.json or ${runtimeDirName()}/knowledge.json), so it ` +
-                  `is either another agent's home or this one's data-dir state is missing after a restore. ` +
-                  `Do NOT run init to repair it — that would offer to overwrite the identity files already ` +
-                  `there. Restore those files from the backup or the brain repo (both are git-tracked), ` +
-                  `or relaunch from the right home.`
-                : `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
-                  `(no home marker in ${runtimeDirName()}/ there). The home is resolved from the directory ` +
-                  `this session was launched in, so start Claude Code from the agent home — or run ` +
-                  `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
-            }
-          ],
-          isError: true
+          content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) }]
         };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        toolLog.error(`failed: ${message}`);
+        return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
       }
-      const result = await tool.handler(args);
-      return {
-        content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) }]
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      toolLog.error(`failed: ${message}`);
-      return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
     }
-  });
+  );
 }
 
 await server.connect(new StdioServerTransport());
