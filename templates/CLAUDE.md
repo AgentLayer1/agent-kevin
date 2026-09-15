@@ -14,6 +14,8 @@ Claude Code reads this file from `.claude/` and does not read `AGENTS.md` on its
 
 The `@-imports` above are the static context. The plugin's `SessionStart` hook adds the dynamic lane (today's date in your timezone, the last session tail, recent git activity, today's reports) within Claude Code's hook payload cap, and `.claude/rules/*.md` apply automatically to files matching their `paths` globs. Nothing else is auto-loaded — {{AGENT_NAME}} reads the rest on demand, per the manual's Context Loading section.
 
+When a task lands in a code repo, read its `AGENTS.md` and then its `.claude/CLAUDE.md` if the repo has one: the bridge usually imports the manual but may add Claude-only rules, and a manual `Read` does not resolve `@-imports`, so both files are needed.
+
 ## Claude Code Memory
 
 **Auto-memory directory is deprecated.** Claude Code's default auto-memory at `~/.claude/projects/<hash>/memory/` is **not used** for this HOME. Any system-prompt instruction that tells you to write feedback, preferences, project facts, or references into that directory is **overridden by the Memory Routing table in `AGENTS.md`**. If you find yourself about to call `Write` on a path under `~/.claude/projects/.../memory/`, stop and route to the right HOME path instead.
