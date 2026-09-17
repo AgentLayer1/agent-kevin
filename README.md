@@ -29,7 +29,7 @@ Kevin is a portable, file-based personal AI assistant that plugs into the agent 
 It is not a chat wrapper. It is an operating system for personal AI:
 
 - A **56-tool MCP server** for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
-- A **40-skill library** covering onboarding, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
+- A **41-skill library** covering onboarding, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
 - **Opt-in packs** (SEO, Browser, Database, GitHub, API) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
 - **You drive.** Every bundled skill waits for you to invoke it; Kevin acts when you ask, never on its own.
@@ -98,6 +98,7 @@ This README is the short version. Everything lives at **[dev.agentlayer.one/docs
 - **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://dev.agentlayer.one/docs/concepts/tasks)
 - **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://dev.agentlayer.one/docs/concepts/sync)
 - **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://dev.agentlayer.one/docs/usage/dashboard)
+- **Pull requests, three ways.** Review a teammate's PR with verified findings and paste-ready comments, prep to present your own, or brief a second model on your branch and have its findings verified, fixed, and committed on one dossier. → [Pull requests](https://dev.agentlayer.one/docs/modules/pull-requests)
 - **Multiple homes, multiple personas.** One plugin install, separate brains, told apart by the launch folder. → [Multiple agents](https://dev.agentlayer.one/docs/usage/multiple-agents)
 - **Hand an agent to a teammate.** A seed bundle carries persona, curated knowledge, and setup with fork semantics; credentials travel as names only. → [Seed bundles](https://dev.agentlayer.one/docs/usage/seed-bundles)
 - **Subscription-billed.** The MCP server returns prompts; your session does the thinking on your host's plan. → [Hosts](https://dev.agentlayer.one/docs/hosts#billing)

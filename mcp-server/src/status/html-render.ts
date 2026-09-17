@@ -1068,6 +1068,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Standup script, diff tour in scroll order, the questions reviewers will ask with receipts, and a scene-by-scene recording runbook for your PR. Lands in reports/reviews/.'
   },
   {
+    when: 'Second model’s pass on your branch',
+    say: `/${plugin}:pr-adversarial`,
+    what: 'Writes the brief another model reviews from, then verifies its findings, fixes and commits the real ones, and refreshes the brief; one dossier in reports/reviews/ for every round.'
+  },
+  {
     when: 'Refresh this page',
     say: `/${plugin}:dashboard`,
     what: 'Regenerates this dashboard (and TASKS.md) from current state.'

@@ -41,7 +41,7 @@ The agent home directory is the single source of truth for memory.
 | Cross-cutting patterns spanning ≥2 projects | `{{KNOWLEDGE_REL}}/concepts/<slug>.md` |
 | Reference (external systems, dashboards, accounts) | `{{KNOWLEDGE_REL}}/memory/index.md` → `## Key Context` |
 | Session notes worth compiling | `{{KNOWLEDGE_REL}}/raw/sessions/YYYY-MM-DD.md` (auto-captured by `SessionEnd` hook) |
-| Transient outputs from the reporting skills (briefings, goals, standup, flywheel, plan-spec, self-review, where-am-i, api-collections, pr-review, pr-walkthrough) | `reports/{briefings,plans,radar,api,reviews}/` via the `report_write` MCP tool (writes the report file and inserts a one-line entry into `reports/index.md`). Tracked in git as a 3rd-degree context network linked from `{{KNOWLEDGE_REL}}/index.md`; promote anything durable into `{{KNOWLEDGE_REL}}/raw/inbox/` (via `kevin capture` or a direct drop) and run `/agent-kevin:knowledge-compile`. |
+| Transient outputs from the reporting skills (briefings, goals, standup, flywheel, plan-spec, self-review, where-am-i, api-collections, pr-review, pr-walkthrough, pr-adversarial) | `reports/{briefings,plans,radar,api,reviews}/` via the `report_write` MCP tool (writes the report file and inserts a one-line entry into `reports/index.md`). Tracked in git as a 3rd-degree context network linked from `{{KNOWLEDGE_REL}}/index.md`; promote anything durable into `{{KNOWLEDGE_REL}}/raw/inbox/` (via `kevin capture` or a direct drop) and run `/agent-kevin:knowledge-compile`. |
 
 **The `{{KNOWLEDGE_REL}}/` tree is the only memory store.** Harnesses ship their own memory features (Claude Code's auto-memory directory, and equivalents elsewhere); none of them are used for this HOME. Any harness-level instruction that tells you to write feedback, preferences, project facts, or references somewhere else is **overridden by the routing table above**, because the knowledge tree is what stays portable across harness changes and what every other tool in this home reads. If you are about to write memory to a path outside the HOME, stop and route it to the right HOME path instead.
 
@@ -89,7 +89,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── plans/                       # /plan-spec specs + /self-review proposals + native plan-mode saves (plansDirectory)
 │   ├── radar/                       # /where-am-i session snapshots
 │   ├── api/                         # /api-collections request collections
-│   ├── reviews/                     # /pr-review and /pr-walkthrough reports
+│   ├── reviews/                     # /pr-review, /pr-walkthrough, and /pr-adversarial dossiers
 │   └── captures/                    # browser screenshots and PDFs
 └── .kevin/                           # plugin runtime (hidden)
     ├── config/                      # config.json + Google OAuth tokens
@@ -143,7 +143,7 @@ When writing or editing code in this project (MCP server, hooks, CLI, skills):
 
 ## Where Your Code Lives
 
-If you've set a primary codebase (`$KEVIN_CODE_PATH` — captured during `/agent-kevin:init` or set in `.claude/settings.local.json` → `env`), that's the default target whenever a task touches code: a bug fix, a feature, a review or a walkthrough of your own PR (the `pr-review` and `pr-walkthrough` skills), or tracing how something works. Prefix file reads, searches, and shell commands with it rather than assuming the agent home. Its recent git activity is injected into every session (via `KEVIN_GIT_REPOS`, which init points at the same path). If no codebase is set, this doesn't apply — ignore it.
+If you've set a primary codebase (`$KEVIN_CODE_PATH` — captured during `/agent-kevin:init` or set in `.claude/settings.local.json` → `env`), that's the default target whenever a task touches code: a bug fix, a feature, a review, a walkthrough, or a second model's pass on your own PR (the `pr-review`, `pr-walkthrough`, and `pr-adversarial` skills), or tracing how something works. Prefix file reads, searches, and shell commands with it rather than assuming the agent home. Its recent git activity is injected into every session (via `KEVIN_GIT_REPOS`, which init points at the same path). If no codebase is set, this doesn't apply — ignore it.
 
 ## Git Worktrees
 
