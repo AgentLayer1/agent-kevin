@@ -43,6 +43,33 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.8] - 2026-09-17
+
+### Added
+- **`pr-adversarial`: a cross-model review loop on one dossier.** For the operator's own work
+  (a branch, a PR, or several repos moving together), split by trust: the reviewing model
+  documents, the implementing one codes. `brief` writes a self-contained prompt into
+  `reports/reviews/` (stakes, repos and ranges, the bug classes already seen, every commit
+  message turned into a numbered claim to falsify, an output contract) and hands back the one
+  line a second model needs to append its findings to that same file. `verify` checks each
+  finding against the code with `pr-review`'s rubric, fixes and commits the real ones on the
+  branch, records the disposition and a ledger so a settled finding is never raised twice,
+  re-cuts the brief at the new heads, and hands back the next round's prompt. Slash-only
+  (`/agent-kevin:pr-adversarial`), with `--reviewers <n>` for parallel slots, `--no-commit`,
+  `--refresh`, `--repo`, and `--doc`. Nothing is posted anywhere; the operator carries the
+  file between sessions.
+
+### Changed
+- `pr-review` carries an `adversarial-*` dossier as prior context the way it already carries a
+  walkthrough: the Ledger says what a second model raised and how each finding was dispositioned.
+- The dashboard cheatsheet, the GitHub pack walk, the `report_write` tool description, the
+  README, and the operating manual name the third PR skill alongside `pr-review` and
+  `pr-walkthrough`.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — three lines name `pr-adversarial`: the reporting-skills row
+  in Memory Routing, the `reports/reviews/` line in the tree, and "Where Your Code Lives".
+
 ## [0.4.7] - 2026-09-15
 
 ### Added
