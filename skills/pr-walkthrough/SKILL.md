@@ -13,7 +13,6 @@ description: >
   recording covered every scene. Writes `<HOME>/reports/reviews/`. Triggers on /pr-walkthrough,
   "help me present #531", "walk me through my PR", "prep my PR for standup", "quiz me on my
   PR".
-disable-model-invocation: true
 allowed-tools:
   - Read
   - Glob
@@ -37,8 +36,6 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__video_frames
   - mcp__plugin_agent-kevin_kevin__report_write
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # PR Walkthrough
 

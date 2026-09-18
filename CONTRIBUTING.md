@@ -58,10 +58,10 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
    ---
    name: your-skill
    description: One-line description of what it does and when to invoke it
-   disable-model-invocation: true
    allowed-tools: <comma-separated list of tools the skill needs>
    ---
    ```
+   Model-invocable is the default: a skill the operator has to remember the slash name for is a skill they won't use. Add `disable-model-invocation: true` (plus the one-line operator-only guard the latent skills carry) when firing it unasked would be expensive or embarrassing — a first-run wizard, a credential walk, a release cut, a whole-brain rewrite, a long interactive interview the operator schedules on a cadence, or **any pack-gated skill**. Being read-only doesn't exempt a skill: every pack skill ships registered to every install, so its description is in the catalog even for operators who never configured the pack, and auto-firing there burns a turn on a missing key, spends metered credit (SerpAPI bills per call), or assumes a stack the operator doesn't run (`wordpress-rest` assumes WordPress). Core skills that need no credential are the ones that should fire on their own.
 2. Write the skill body as a markdown protocol the orchestrating Claude follows.
 3. If the skill uses an MCP tool that needs a permission grant, add the tool name to `skills/init/SKILL.md`'s `permissions.allow` list so new installs get it pre-granted.
 4. **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` resolves to `/tmp/claude-<uid>` — it's per-**user**, not per-session, so every Claude Code session running concurrently on the machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter, will be silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox. No session-id env var is exposed, so there is nothing native to key off instead.

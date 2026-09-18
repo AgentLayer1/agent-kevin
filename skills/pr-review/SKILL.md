@@ -12,7 +12,6 @@ description: >
   paste-ready replies for all of them in PR scroll order. Writes `<HOME>/reports/reviews/`.
   Triggers on /pr-review, "review PR 123", "review the billing PR", "what did reviewers say on
   my PR", "reply to the comments on #531", "address the review on my branch".
-disable-model-invocation: true
 allowed-tools:
   - Read
   - Glob
@@ -35,8 +34,6 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__database_query
   - mcp__plugin_agent-kevin_kevin__report_write
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # PR Review
 
