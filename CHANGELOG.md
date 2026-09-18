@@ -43,6 +43,63 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.9] - 2026-09-18
+
+### Added
+- **Xcode pack.** An integration pack, not a skill pack: it makes Apple's toolchain reachable
+  from an agent session and ships no skills of its own. `configure-skills` §A.2f preflights the
+  host (macOS, full Xcode 27 or later, the headless `mcp-server` binary), registers Apple's
+  Xcode MCP server as `xcode` in `<HOME>/.mcp.json` (`xcrun mcpbridge`), grants
+  `mcp__xcode__*` with `RunCodeSnippet` and `InvokeDebuggerCommand` held in `ask` (the two
+  tools that execute model-composed code outside the seatbelt), allows `xcodebuild` and
+  `xcrun simctl` in Bash with simulator destruction and the whole upload path
+  (`-exportArchive`, `altool`, `notarytool`) gated, seeds two coding rules
+  (`.claude/rules/xcode.md`, always on, and the path-scoped `xcode-project.md`), offers an
+  `AGENTS.md` scaffold for an app repo or a Swift package plus the `.claude/CLAUDE.md` bridge
+  and an `.xcode-version` pin, and adds `[mcp_servers.xcode]` to Codex homes. Two steps stay
+  the operator's, generated paste-ready into `.kevin/updates/xcode-sandbox.md`: the
+  `sandbox.excludedCommands` entry (an agent widening its own sandbox is refused, correctly)
+  and the sudo-gated headless enablement. Offered by init and configure-skills on macOS only;
+  deconfigure keeps every `ask` rule in place. Deep Apple guidance (concurrency, Swift Testing,
+  SwiftUI, WidgetKit, App Intents) stays in separately-authored MIT skills installed per repo.
+- `templates/repo/AGENTS-apple-app.md` and `AGENTS-apple-package.md`: fill-in agent manuals for
+  an Apple repo (targets, schemes, versioning, dependency policy, the build loop through the
+  `xcode` server, the verification ladder, pitfalls). Never copied into a HOME.
+
+### Changed
+- **`pr-review`, `pr-walkthrough`, and `pr-adversarial` fire on how the operator asks**
+  ("review 610", "walk me through my PR", "get a second model on this branch"), not only on
+  their slash names. The three carried `disable-model-invocation`, so a `Skill(...)` call
+  hard-refused despite descriptions that advertise trigger phrases. GitHub-pack skills earn
+  this exception because failing unconfigured is free and self-correcting: one `github_pr_*`
+  call returns `GITHUB_TOKEN not set` and stops. The SEO six and `browser-flows` keep the flag.
+  Init's allow list gains the three skill grants (fifteen to eighteen).
+- **Paste blocks read like the operator wrote them.** The `pr-review` replies report is flat:
+  frontmatter, one intro sentence, then threads, each headed by a permalink to the exact
+  comment. Reply voice is first person with the answer in the first three words; length follows
+  the question (the 40-word cap is gone). No `Blocking:` / `Nit:` / `Question:` prefixes in any
+  paste block; severity stays in the report. The reviewer's words sit on a plain `<name> wrote:`
+  line so the only blockquote on screen is the thing being pasted.
+- **Diagrams in a report are Mermaid, never ASCII.** Report files are read in Obsidian and on
+  GitHub, which render it; the ASCII rule is scoped to terminal and chat. `pr-review`,
+  `pr-walkthrough`, `plan-spec`, and `standup` had it backwards, and `pr-review`'s Tier 1 parse
+  check is now unconditional.
+- `templates/rules/swift.md` gains Concurrency (no `@unchecked Sendable` to silence a
+  diagnostic, main-actor closure inheritance, non-main system delegates), Swift Testing (struct
+  suites, `try #require` before comparing an optional, `withKnownIssue` for tracked bugs),
+  time-as-an-input, the toolchain rule, and a further-reading list of separately-authored
+  skills in place of the single Dimillian link.
+- Init seeds `.claude/rules/` by name (`typescript`, `swift`) rather than by glob, so the
+  pack-gated Xcode rules never land in a home that did not activate the pack.
+- `CONTRIBUTING.md`'s new-skill frontmatter template no longer ships
+  `disable-model-invocation: true` by default; it names what earns the flag, pack-gating
+  included. `release` documents that a pack-gated rule is never `additive`.
+
+### Upgrade
+- `settings: mandatory` — add to `permissions.allow`: `Skill(agent-kevin:pr-review)`, `Skill(agent-kevin:pr-walkthrough)`, `Skill(agent-kevin:pr-adversarial)` (the three are model-invocable now; without the grants each auto-fire raises a confirm prompt).
+- `template/rules/swift.md: optional` — five new sections (Concurrency, Testing, Time is an input, Toolchain, Further reading) replace the old References block; an operator's edited copy is diffed first.
+- `manual: optional` — the Xcode pack is opt-in and macOS-only: on a Mac with Xcode 27 or later, run `/agent-kevin:configure-skills` → Xcode. That walk seeds `.claude/rules/xcode.md` and `xcode-project.md` and prints the two operator steps (sandbox exclusion, sudo enablement); upgrade never copies those rules. Every other home has nothing to do.
+
 ## [0.4.8] - 2026-09-17
 
 ### Added
