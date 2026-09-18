@@ -31,7 +31,7 @@ It is not a chat wrapper. It is an operating system for personal AI:
 - A **56-tool MCP server** for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
 - A **41-skill library** covering onboarding, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
-- **Opt-in packs** (SEO, Browser, Database, GitHub, API) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
+- **Opt-in packs** (SEO, Browser, Database, GitHub, API, Xcode) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
 - **You drive.** Every bundled skill waits for you to invoke it; Kevin acts when you ask, never on its own.
 
 ```mermaid

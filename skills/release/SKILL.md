@@ -80,6 +80,13 @@ severity, let the maintainer confirm/override:
   it `optional` would silently ship it nowhere.
 - new `templates/rules/<x>.md`, new `templates/knowledge/concepts/<x>.md` → **additive**
   (emit as `` `file: additive` `` with the HOME destination path).
+  **Exception: a pack-gated rule is never additive.** `templates/rules/xcode.md` and
+  `xcode-project.md` belong to the Xcode pack and are seeded by `configure-skills` §A.2f
+  when the operator activates it, not by init and not by upgrade. Classifying one of them
+  additive would push it into every home, including homes with no Xcode and no macOS — and
+  `xcode.md` has no `paths:` frontmatter, so it would load unconditionally in every session
+  there. Emit pack-gated rules as `` `manual: optional` `` naming the pack instead.
+  `templates/repo/*.md` are repo scaffolds, never copied into a HOME: `none`.
 
 **Settings** — do new MCP tools or skills need `permissions.allow` entries?
 

@@ -203,7 +203,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
 > ❓ Communication style and values
 > ❓ Signal topics to track in your briefings (<AGENT_NAME> proposes a starter set)
-> ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, third-party libraries)
+> ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, Xcode, third-party libraries)
 > ❓ Confirm + scaffold
 >
 > A few of the steps will prompt Claude Code for permission to run Bash commands, write files, or fetch URLs.
@@ -1450,15 +1450,18 @@ Idempotent by file: any existing concept file is preserved (the `[ -f ]` check p
 
 ```bash
 mkdir -p "$HOME_DIR/.claude/rules"
-for src in "${CLAUDE_PLUGIN_ROOT}"/templates/rules/*.md; do
+for name in typescript swift; do
+  src="${CLAUDE_PLUGIN_ROOT}/templates/rules/$name.md"
   [ -f "$src" ] || continue
-  dest="$HOME_DIR/.claude/rules/$(basename "$src")"
+  dest="$HOME_DIR/.claude/rules/$name.md"
   [ -f "$dest" ] && continue   # operator already has it — never overwrite
   cp "$src" "$dest"
 done
 ```
 
 Idempotent by file, same as the concept seeding above: an existing rule file is never overwritten.
+
+**Seed by name, not by glob.** `templates/rules/` also holds `xcode.md` and `xcode-project.md`, and those belong to the Xcode pack (configure-skills §A.2f), which seeds them only when the operator activates it. `xcode.md` in particular carries no `paths:` frontmatter, so it loads into **every** session unconditionally — dropping it into a home that never opens Xcode would spend context on Apple toolchain rules forever. A `*.md` glob here would do exactly that.
 
 ---
 
@@ -1493,14 +1496,17 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub pack **(recommended when you gave a code path)** (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward`, which is what keeps your checkouts current on every `/agent-kevin:sync`; needs `GITHUB_TOKEN` **and** the `gh` CLI)
+> - ☐ Xcode pack (build, test, run and debug Apple apps + Swift packages through Apple's headless Xcode MCP server, with the sandbox and permission posture the toolchain needs; Xcode 27+, no API key)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
 
+**Never show the Xcode row on Windows, WSL2 or Linux** — render it only when `$KEVIN_OS` = `macos`. Apple's toolchain doesn't exist on those hosts, so drop the row entirely rather than offering a pack that can only fail; a Windows operator should never see it as a choice. Leave it unticked even on macOS: plenty of Mac operators never open Xcode, and the pack asks for two manual steps (a sandbox exclusion and a sudo enablement) that are wasted on them.
+
 **Also default-tick GitHub when Step 4b captured a real code path.** `github_fast_forward` is what keeps those checkouts current during `/agent-kevin:sync`, and it needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's code silently never refreshes — the one failure mode that degrades *answers* rather than surfacing an error, since Kevin keeps grounding confidently against a frozen checkout. An operator who just told init where their code lives has effectively asked for this. Leave it unticked when Step 4b returned `skip` (no checkout, nothing to fast-forward — the common case for a Kevin home). Either way it stays a tick the operator can clear.
 
 Behavior on the response:
-- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
+- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Xcode (A.2f) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
 - **Nothing ticked**: skip — note "skill packs not activated — run `/agent-kevin:configure-skills` after relaunch" for Step 9's status block. Don't touch settings files.
 
 For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow the matching section. Honor every per-skill skip option inside that flow; don't force the user through items they don't want.
@@ -1543,7 +1549,7 @@ For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .kevin/updates/xcode-sandbox.md and the sudo enablement)">`
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 

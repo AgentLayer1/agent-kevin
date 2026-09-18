@@ -1,8 +1,8 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(cp *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *), Bash(command -v *), Bash(bun -e *), Bash(sw_vers *), Bash(xcode-select -p), Bash(xcodebuild -version), Bash(xcrun -f *), Bash(xcrun mcp-server status)
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 # Configure Skills
 
 This skill manages Kevin's optional capabilities. Use it to:
-1. **Configure a pack** (SEO, Browser, Database, GitHub, or API) — writes API keys, registers MCP servers, sets up database connections, grants tool permissions
+1. **Configure a pack** (SEO, Browser, Database, GitHub, API, or Xcode) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
@@ -57,7 +57,7 @@ The data dir is the marker; it is the same one the resolver and every runtime gu
 `AskUserQuestion`:
 
 > **What would you like to do?**
-> - Configure a skill pack (SEO / Browser / Database / GitHub / API)
+> - Configure a skill pack (SEO / Browser / Database / GitHub / API / Xcode — Xcode on macOS only)
 > - Register an external remote MCP server (hardened wrapper → `<HOME>/.mcp.json`)
 > - Install third-party skill libraries (via skills.sh)
 > - Deconfigure a skill pack
@@ -80,13 +80,16 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them (the `pr-review`, `pr-walkthrough`, and `pr-adversarial` skills) and diagnose failing CI builds
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno visual client or plain curl scripts). No keys or permissions; this walks the adapter setup.
+> - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Third-party (Section F).
+**Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$KEVIN_OS` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
+
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
-**Tool-name prefix convention** — important: the plugin bundles a single MCP server (`kevin`), so all its tools use the **plugin-namespaced** prefix `mcp__plugin_agent-kevin_kevin__<tool>` (e.g., `mcp__plugin_agent-kevin_kevin__serpapi_search`, `mcp__plugin_agent-kevin_kevin__web_search`). The shorter `mcp__kevin__<tool>` form looks correct but won't match anything at runtime — Claude Code prefixes plugin-provided servers with `plugin_<plugin-name>_<server-name>`. Tools from servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs) would use the plain `mcp__<server>__<tool>` form. The "Permissions to grant" column below uses the correct form for each.
+**Tool-name prefix convention** — important: the plugin bundles a single MCP server (`kevin`), so all its tools use the **plugin-namespaced** prefix `mcp__plugin_agent-kevin_kevin__<tool>` (e.g., `mcp__plugin_agent-kevin_kevin__serpapi_search`, `mcp__plugin_agent-kevin_kevin__web_search`). The shorter `mcp__kevin__<tool>` form looks correct but won't match anything at runtime — Claude Code prefixes plugin-provided servers with `plugin_<plugin-name>_<server-name>`. Tools from servers registered in `<HOME>/.mcp.json` use the plain `mcp__<server>__<tool>` form — the Xcode pack (A.2f) is the one first-party pack that registers there, so its grants read `mcp__xcode__<tool>`. The "Permissions to grant" column below uses the correct form for each.
 
 | Skill | Backed by | Required key(s) | Extra permission to grant |
 |---|---|---|---|
@@ -368,6 +371,199 @@ Default collections: <HOME>/reports/api/bruno/  (open once in Bruno: Open Collec
 Permissions granted: none needed — authoring writes files only; Kevin never sends requests
 ```
 
+### A.2f — Xcode pack walk
+
+**macOS with Xcode 27 or later.** Gives Kevin the ability to build, test, run, screenshot and debug Apple apps and Swift packages through **Apple's own Xcode MCP server**, running headless so no Xcode window is needed. Earlier Xcode versions ship only a bridge into a live Xcode process; the pack does not support them. Unlike the other packs this one is not about an API key: it is about reaching a toolchain the shell sandbox blocks. No credential is involved, so nothing here touches `.kevin/secrets/.env`.
+
+**Why an MCP server and not the shell.** The Claude Code seatbelt blocks `xcrun`'s cache in `/var/folders`, CoreSimulator's XPC connection, and SwiftPM's nested sandbox, so `xcodebuild`, `swift build`, `swift test` and `simctl` all fail inside it. MCP servers run outside that sandbox. Codex's Seatbelt fails identically ([openai/codex#4987](https://github.com/openai/codex/issues/4987)), which makes "Apple tooling goes through MCP, never the shell" an architectural rule rather than a Claude Code workaround. Same principle as `setup_worktree` and the `github_*` family.
+
+**(1) Preflight.** Probe before writing anything — an unusable pack that configures cleanly and then throws is the failure mode this avoids:
+
+```bash
+[ "$(uname -s)" = "Darwin" ] || echo "NOT_MACOS"
+XCODE_LINE=$(xcodebuild -version 2>/dev/null | head -1)      # e.g. "Xcode 27.0"
+[ -n "$XCODE_LINE" ] || echo "NO_XCODEBUILD"
+XCODE_VERSION="${XCODE_LINE#Xcode }"                          # e.g. "27.0" — what .xcode-version holds
+echo "XCODE_VERSION=$XCODE_VERSION"                             # printed on purpose: step 8 reads it from this output
+xcrun -f mcp-server >/dev/null 2>&1 || echo "NEEDS_XCODE_27"    # the headless server only ships in 27+
+```
+
+(Test the captured string, not the pipeline: `xcodebuild … | head -1 || echo` would test `head`, which exits 0 on empty input, so the probe could never fire. A Command Line Tools-only Mac fails `xcodebuild -version` too, so no separate `xcode-select` probe is needed.)
+
+- `NOT_MACOS` → stop. Say the pack is macOS-only (there is no Apple toolchain on Linux, WSL2 or Windows) and return to Step 1.
+- `NO_XCODEBUILD` → stop. Full Xcode is required (the Command Line Tools alone do not ship the MCP binaries). Point at the Mac App Store or [developer.apple.com/xcode](https://developer.apple.com/xcode/).
+- `NEEDS_XCODE_27` → stop. Report the version found and say the pack needs Xcode 27 or later; there is no degraded mode.
+
+**(2) Register the server** in `$MCP_FILE` (`<HOME>/.mcp.json`, not `.claude/mcp.json`). Merge into any existing `mcpServers` object without clobbering; create `{"mcpServers": {}}` if the file is absent:
+
+```json
+"xcode": {
+  "command": "xcrun",
+  "args": ["mcpbridge"]
+}
+```
+
+`mcpbridge` is the stdio transport; it routes to the headless `mcp-server` once that is enabled in step 6. There is no separate registration for headless.
+
+Then parse-check the result — a silent parser fakes green:
+
+```bash
+bun -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); console.log("OK")' "$MCP_FILE"
+```
+
+**(3) Grant the MCP tool permissions** via §E, using the plain `mcp__xcode__<tool>` form (a server registered in `<HOME>/.mcp.json` gets no plugin namespace prefix).
+
+Two entries, not a tool-by-tool list:
+
+```jsonc
+// permissions.allow
+"mcp__xcode__*"
+
+// permissions.ask
+"mcp__xcode__RunCodeSnippet"
+"mcp__xcode__InvokeDebuggerCommand"
+```
+
+**Why a glob is correct here**, against this plugin's usual read-only-by-default instinct:
+
+- **The syntax supports it.** Allow rules accept a tool-name glob after a literal `mcp__<server>__` prefix, with the server segment glob-free. `mcp__xcode__*` matches every tool from the `xcode` server. (An unanchored glob like `"*"` or `"mcp__*"` is skipped with a warning in an allow list, and a `mcp__` rule containing parentheses is skipped entirely, so no parameter-scoped form is available.)
+- **Gating the project-surgery tools would buy nothing and cost something real.** `XcodeWrite`, `XcodeRM`, `XcodeNewTarget`, `UpdateTargetBuildSetting`, `AddEntitlement` and the rest only reach files the agent can already read and write with `Edit`/`Write`, because the code root is in `additionalDirectories` and the sandbox write grant. Prompting on them removes no capability. It does something worse: it makes the *safe* path (a structured tool call that keeps the pbxproj consistent) prompt while the *dangerous* path (hand-editing a several-hundred-KB pbxproj with `Edit`) stays silent, which is the exact inversion `xcode-project.md` tells the agent to avoid. A permission rule that pushes an agent toward the worse tool is worse than no rule.
+- **It does not drift.** Apple ships tools with each Xcode release. An enumerated list silently goes stale: new routine tools start prompting, and the operator has no signal why.
+
+**The two exceptions are the ones that add capability the agent does not otherwise have.** Both execute code the model composed, outside the Bash seatbelt:
+
+- `RunCodeSnippet` runs arbitrary Swift through the toolchain.
+- `InvokeDebuggerCommand` drives LLDB, which can attach to a running process, read and write its memory, and shell out.
+
+Neither appears in the normal build-test-run loop, so the friction is close to zero. An `ask` rule prompts even when a broader allow rule also matches (precedence is deny → ask → allow, and specificity does not reorder it), so the pair holds against the glob.
+
+The bare server form `mcp__xcode` grants exactly the same set and behaves identically against the two `ask` rules. Prefer the glob purely for legibility: it shares a namespace shape with the `ask` entries beside it, so a reader scanning `permissions.allow` sees at a glance that the pack's rules are all about one server.
+
+**(4) Grant the Bash patterns** via §E. Add to `permissions.allow`:
+
+- `Bash(xcodebuild *)`
+- `Bash(xcrun simctl *)`
+- `Bash(xcrun mcp-server status)`
+
+And to `permissions.ask`, so each one waits for the operator:
+
+- `Bash(xcrun simctl delete *)` · `Bash(xcrun simctl erase *)` — destroy simulator state and its installed apps.
+- `Bash(xcodebuild *-exportArchive*)` · `Bash(xcrun altool *)` · `Bash(xcrun notarytool *)` — these are the upload path. **An App Store or TestFlight submission can never happen without the operator's tap**, which is the whole point of the pair: `xcodebuild archive` is routine, everything that leaves the machine is gated.
+
+`ask` rules are evaluated before `allow` rules (specificity does not reorder them), which is what makes the `xcodebuild *` allow safe to pair with the `-exportArchive` ask.
+
+**(5) The sandbox exclusion — an operator step, by necessity.**
+
+`permissions.allow` only silences the confirm prompt; it does not take a command out of the OS sandbox. Without an exclusion, an allowed `xcodebuild` still dies on the seatbelt. The entry that fixes it:
+
+```json
+"sandbox": {
+  "excludedCommands": ["xcrun simctl *", "xcodebuild *"]
+}
+```
+
+`simctl` needs it to reach CoreSimulatorService over XPC and write its log under `~/Library/Logs/CoreSimulator`; `xcodebuild` needs it for the keychain (distribution certificate) and DerivedData. Nothing else leaves the sandbox — this is a per-command exclusion, not a sandbox disable.
+
+**Kevin does not write this line.** An agent widening its own sandbox reads as self-modification, and the auto-mode classifier refuses it (observed 2026-09-18, and correctly). So generate the paste-ready block and hand it over, following the `automode-block.ts` precedent — an operator instruction is a generated artifact, never a description:
+
+1. Read `$PROJECT_SETTINGS` and the user-global `~/.claude/settings.json` (the same two layers init reads). If neither enables the sandbox, say so and stop here: the exclusion is unnecessary, and no file is written.
+2. `excludedCommands` merges across layers, so union both files' arrays and compute only the *missing* entries. If both patterns are already present, skip the rest of this step and say so.
+3. Write `<HOME>/.kevin/updates/xcode-sandbox.md` containing the exact JSON to merge, the file path to merge it into, and one line on what each pattern buys.
+4. Quote that file verbatim in the summary (step 10). Do not paraphrase it.
+
+**(6) Surface the one-time headless setup.** Sudo-gated, so it is the operator's to run. Print verbatim:
+
+```sh
+sudo xcrun mcp-server enable
+sudo xcrun mcp-server allow-folder <CODE_ROOT> --always
+xcrun mcp-server status            # prints the pending agent id on first connect
+sudo xcrun mcp-server approve <id>
+```
+
+Use the resolved `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` root for `<CODE_ROOT>`, and say that `allow-folder` can be repeated for each tree that holds Apple projects. Two notes worth stating once:
+
+- **Apple approves each agent individually.** A home that also runs Codex queues a second id on that harness's first connect, cleared the same way. `xcrun mcp-server status` lists both.
+- Until the chain completes, `/mcp` shows `xcode` failing and calls return "not approved" or a `-32001` timeout. That is the missing step, not a broken pack.
+
+**(7) Seed the coding rules.** Copy the pack's two rules into the home if absent, preservation-aware (the same shape as init's rule seeding):
+
+```bash
+mkdir -p "$HOME_DIR/.claude/rules"
+for name in xcode xcode-project; do
+  src="${CLAUDE_PLUGIN_ROOT}/templates/rules/$name.md"
+  dest="$HOME_DIR/.claude/rules/$name.md"
+  if [ -f "$dest" ]; then echo "KEPT: $dest"; else cp "$src" "$dest" && echo "SEEDED: $dest"; fi
+done
+```
+
+Never overwrite an existing rule — the operator may have edited it. Report kept vs seeded.
+
+`xcode.md` deliberately carries **no `paths:` frontmatter**, so it loads unconditionally every session. That is not an oversight: Claude Code's path-scoped rules "trigger when Claude reads files matching the pattern, not on every tool use", so a rule globbed on `**/*.swift` would never fire on "build the iOS scheme" — the exact moment the toolchain routing has to be in context. `xcode-project.md` is path-scoped, because its content only matters when a pbxproj, xcconfig or `Package.swift` is actually open.
+
+**(8) Offer the repo scaffold.** `AskUserQuestion`:
+
+> **Scaffold an agent manual for an Apple repo?**
+> Drops a fill-in `AGENTS.md` (targets, schemes, versioning, dependency policy, the agent build loop, verification ladder, pitfalls) plus the one-line `.claude/CLAUDE.md` bridge and a `.xcode-version` pin. You fill the placeholders.
+>
+> - Yes — an app repo (`.xcodeproj` / `.xcworkspace`)
+> - Yes — a Swift package (`Package.swift`)
+> - Skip — I'll write the manual myself
+
+On yes, ask for the repo path. If it sits outside the code root init granted, say so before writing anything: the agent can only edit there once the tree is in `permissions.additionalDirectories` and `sandbox.filesystem.allowWrite` (the same pair init writes for the code root), and the headless server needs its own `allow-folder` for it (step 6). Then:
+
+- Copy `${CLAUDE_PLUGIN_ROOT}/templates/repo/AGENTS-apple-app.md` (or `AGENTS-apple-package.md`) to `<repo>/AGENTS.md`. **If `<repo>/AGENTS.md` already exists, never overwrite it** — write the scaffold to `<repo>/AGENTS.apple-scaffold.md` instead and tell the operator to merge the sections they want.
+- Write `<repo>/.claude/CLAUDE.md` containing exactly `@../AGENTS.md`, unless it exists. If the repo already has a root `CLAUDE.md`, skip the bridge and say so: Claude Code would load both, and which file carries the repo's instructions is the operator's call.
+- Write `<repo>/.xcode-version` containing the `XCODE_VERSION` value the preflight printed (the bare number, `27.0`, not the `Xcode 27.0` line), unless it exists. Shell state does not survive between Bash calls, so take it from that output rather than re-expanding `$XCODE_VERSION`.
+- Say plainly that the scaffold is placeholders: an unfilled manual is worse than no manual, and the agent will read it as fact.
+
+**(9) Codex, when the home runs it.** Skip entirely if `<HOME>/.codex/config.toml` is absent.
+
+- Append an `[mcp_servers.xcode]` table to `<HOME>/.codex/config.toml`. Safe to hand-merge here: the generator at `skills/init/scripts/codex-setup.ts` owns only `mcp_servers.<agent>`, `permissions.<agent>` and `shell_environment_policy`, and preserves every other table.
+
+  ```toml
+  [mcp_servers.xcode]
+  command = "xcrun"
+  args = ["mcpbridge"]
+  ```
+
+  Parse-check it: `bun -e 'Bun.TOML.parse(require("fs").readFileSync(process.argv[1],"utf8")); console.log("OK")' "$HOME_DIR/.codex/config.toml"`.
+- Do not hand-add the repo to the Codex config: `codex_setup` generates `[permissions.<agent>.workspace_roots]` from Claude's `permissions.additionalDirectories`, and a hand edit there is overwritten on the next run.
+- Then run the `codex_setup` MCP tool. It re-reads this home's Claude posture, so the ask patterns become `prefix_rule` entries in `.codex/rules/kevin.rules` automatically. Do not hand-write those rules.
+
+  **Four of the five carry over, not all five.** The generator turns `Bash(<words> *)` into a prefix rule by stripping the trailing ` *` and then dropping anything that still contains a glob character (`askPrefixes` in `skills/init/scripts/codex-setup.ts`). So `xcrun simctl delete`, `xcrun simctl erase`, `xcrun altool` and `xcrun notarytool` all become rules, but **`Bash(xcodebuild *-exportArchive*)` does not**: its wildcard is mid-pattern, and a Codex prefix rule matches leading argv words, which a flag in an arbitrary position is not. State this plainly in the summary rather than implying parity. In practice the gap is moot today: Codex's Seatbelt blocks `xcodebuild` outright ([openai/codex#4987](https://github.com/openai/codex/issues/4987)) and no per-command exclusion is wired on that host, so an export cannot run from Codex at all, and `altool`/`notarytool` are gated regardless. If Codex ever gains an exclusion, the export rule belongs in a *separate* `.rules` file in that directory (Codex loads every one), since the generated file is overwritten on each run.
+- Note that Codex's non-interactive `codex exec` auto-cancels MCP calls, so headless Codex builds are not there yet; interactive `codex` sessions are fine.
+
+**(10) Summary:**
+
+```
+✅ Xcode pack activated (macOS, Xcode <version>, headless).
+
+MCP server registered:     xcode → xcrun mcpbridge  (in <HOME>/.mcp.json)
+Tool permissions granted:  mcp__xcode__*  (the whole server)
+Gated (ask):               RunCodeSnippet, InvokeDebuggerCommand  ← arbitrary code, outside the sandbox
+Bash allowed:              xcodebuild *, xcrun simctl *, xcrun mcp-server status
+Bash gated (ask):          simctl delete/erase, -exportArchive, altool, notarytool  ← uploads need your tap
+Rules seeded:              .claude/rules/xcode.md (always on), xcode-project.md (path-scoped)
+Repo scaffold:             <path written, or "skipped">
+Codex:                     <[mcp_servers.xcode] added + codex_setup re-run (4 of 5 ask rules carry
+                           over; -exportArchive has no prefix-rule form), or "not configured">
+
+⚠️ Two steps are yours — I can't do either:
+
+1. Sandbox exclusion (I'm not allowed to widen my own sandbox). Merge into
+   <HOME>/.claude/settings.json — the exact block is in <HOME>/.kevin/updates/xcode-sandbox.md:
+
+   "sandbox": { "excludedCommands": ["xcrun simctl *", "xcodebuild *"] }
+
+2. Headless enablement (sudo):
+   sudo xcrun mcp-server enable
+   sudo xcrun mcp-server allow-folder <CODE_ROOT> --always
+   xcrun mcp-server status          # note the pending agent id
+   sudo xcrun mcp-server approve <id>
+
+Then relaunch Claude Code and check /mcp — `xcode` should be connected.
+```
+
 ---
 
 ## Section B — Register an external remote MCP server
@@ -508,6 +704,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
 > - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
+> - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
 
 ### C.2 Deconfigure actions
 
@@ -531,6 +728,13 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
+
+**Xcode deconfigure:**
+- Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. Do the same for `[mcp_servers.xcode]` in `<HOME>/.codex/config.toml` if present.
+- Revoke `mcp__xcode__*` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)` and `Bash(xcrun mcp-server status)`.
+- **Leave every `permissions.ask` entry in place** — the two `mcp__xcode__` ones and the five Bash ones. They gate arbitrary code execution, simulator destruction and the upload path; keeping them costs nothing once the server is gone, and removing them is the one change here that *widens* what can happen silently. Say so rather than asking.
+- `AskUserQuestion`: "Also delete the seeded rules `.claude/rules/xcode.md` and `xcode-project.md`?" (Yes/No). Default to keeping them — they're instruction-only and harmless without the server, and the operator may have edited them.
+- Tell the operator the two steps they own are also theirs to undo, and that neither is done for them: remove `"xcrun simctl *"` and `"xcodebuild *"` from `sandbox.excludedCommands` in `.claude/settings.json`, and, to revoke this harness's access to the headless server, `sudo xcrun mcp-server deny <id>` with the agent id that `xcrun mcp-server status` lists (Claude Code and Codex are separate ids). `sudo xcrun mcp-server disable` is the wider switch: it turns headless mode off for every agent on the box, not just this home.
 
 Print summary of what was removed.
 
@@ -666,7 +870,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 
 **Prefix rule** (use this whenever you need to know how a tool surfaces to permissions.allow):
 - Plugin-bundled MCP tools (from the plugin manifest's `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the read-only `github_*` PR/Actions tools).
-- Standalone MCP servers registered in `<HOME>/.mcp.json` (none required by Kevin's first-party packs, but users can add their own): `mcp__<server>__<tool>`
+- Standalone MCP servers registered in `<HOME>/.mcp.json` (the Xcode pack's `xcode` server, plus any the user adds): `mcp__<server>__<tool>`
 
 **Revoke** (remove entries — deconfigure path):
 
@@ -682,6 +886,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ## Notes
 
 - **Pack skills are plugin-bundled.** They live in `<plugin>/skills/` and load whenever the plugin is enabled. This skill never copies them — copying would mean stale forks that don't get plugin updates. Section C ("Deconfigure") removes the configuration (keys, MCP, permissions) but cannot remove the skill markdown files themselves — those go with the plugin.
+- **The Xcode pack ships no skills at all.** It is an integration pack: an MCP registration, a permission posture, a sandbox note the operator applies, two coding rules, and two repo scaffolds. Deep Apple guidance (concurrency, Swift Testing, WidgetKit, App Intents, SwiftData, SwiftUI performance) lives in separately-authored MIT skills that install per repo via Section F, not in this plugin — bundling them would bloat skill routing for every home, and a third-party skill is prompt content that deserves a read-before-install decision each time.
 - **Idempotent.** Re-running configure for the same pack: ask whether to update keys/permissions or skip. Re-running with new env values overwrites previous.
 - **No secrets in stdout/stderr.** When asking for an API key, don't echo it back in confirmation messages — just say "Key saved." Logs that pass through stderr should never carry the key value.
 - **Project-scoped keys.** `settings.local.json` is gitignored by Claude Code's defaults. If the user has their `$HOME_DIR` in a git repo, double-check `.gitignore` includes `.claude/settings.local.json`.
