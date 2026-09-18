@@ -16,7 +16,7 @@ One claim per comment. If two things are wrong on one line, two comments.
 
 Open with the outcome, not the code: "A crash between the provider 201 and the local update orphans the record and the retry duplicates it" beats "This should use an idempotency key". The reader gets the stakes first and can stop there.
 
-State whether it blocks. Start with `Blocking:` when it must change before merge. Anything else is non-blocking by default; say `Non-blocking:` only when the reader might otherwise wonder.
+No severity prefix. `Blocking:`, `Non-blocking:`, `Nit:`, `Question:`, `Suggestion:` all read like a form field, not a person. Open with the issue and let the consequence carry the weight: a comment that says a crash orphans a record is obviously a blocker without the word. Severity belongs in the report, where the operator reads it, not in the box the author reads. If something genuinely must not merge and the stakes are not self-evident, say it in plain words at the end ("this one should land before merge"), and only when it would otherwise be missed.
 
 ## Length
 
@@ -29,7 +29,7 @@ State whether it blocks. Start with `Blocking:` when it must change before merge
 A ```suggestion block replaces exactly the lines the comment is anchored to. The operator pastes it as an inline comment on those lines and the author gets a **Commit suggestion** button. This is the closest thing to a one-click fix without write access, so use it whenever the fix is a drop-in of ten lines or fewer:
 
 ````
-Blocking: `in` walks the prototype chain, so `'toString'` passes and `held.includes` throws a 500.
+`in` walks the prototype chain, so `'toString'` passes and `held.includes` throws a 500.
 
 ```suggestion
 const isUserRole = (value: string): value is UserRole => Object.hasOwn(ROLE_PERMISSIONS, value);
@@ -64,6 +64,14 @@ If the operator wants one top-level comment as well as inline ones, it is: the v
 ## Replies on your own PR
 
 The reader is the reviewer who took time to write the comment. Respect that with speed and specifics.
+
+Write in the operator's voice, not an assistant's: first person, plain, the way they would type it into the box themselves. If the reviewer reads it and hears a bot, it is wrong.
+
+**Answer in the first three words.** "Done, `roles.service.ts`." / "No, just delayed." / "Right." / "Good catch." / "Removed." Then the substance, and nothing before it: no restating the comment, no "Thank you for catching this", no verdict label.
+
+**Length follows the question, not a cap.** A confirmed fix is one line ("Done, same fix."). A design question gets a short paragraph that says what the code does now and why. A question with two parts gets two paragraphs. Padding a one-line answer is as wrong as compressing a real explanation.
+
+**Plain words.** "This drops the record", not "this results in an orphaned entity". Name the file or symbol that changed and stop; the reviewer can open it. No walking them through the diff.
 
 - **Accurate:** agree in the first four words, then say what changed and where. "You're right. Fixed in `roles.service.ts:107`, and the spec now pins it." Not "will fix": fix first, then reply.
 - **Partially accurate:** the true half first, then the correction with a receipt. "Right that the claim is never released. It is not a leak though: the reaper at `loop.service.ts:903` runs every tick. Added a test so that stays true."

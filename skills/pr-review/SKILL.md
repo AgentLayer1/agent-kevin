@@ -98,7 +98,7 @@ Build the model before judging it:
 - **How**: entry points, the data flow, state transitions, which process runs it, what is now reachable that was not.
 - **Blast radius**: `Grep` the head worktree for every changed exported symbol, every changed schema field, every changed DTO/response shape, every deleted write (a deleted write needs a sweep of the reads that still expect the column).
 
-Write the **How it works** section now, in the template's shape: one diagram (ASCII by default; a ```mermaid block only when a sequence or state flow is genuinely clearer drawn), then the walkthrough table. Keep it to what the operator needs to hold a conversation with the author: two screens at most.
+Write the **How it works** section now, in the template's shape: one diagram as a ```mermaid block (the report is read in surfaces that render it, so never ASCII in the file), then the walkthrough table. Keep it to what the operator needs to hold a conversation with the author: two screens at most.
 
 The diff's file list is also the **coverage checklist**. Before the fan-out, split it: files to review line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends the review as `reviewed` or `skipped (<reason>)`, per lane and in the report's Checks run table. Reading an implementation file does not cover its interface, schema, migration, or config counterpart: each file gets its own pass.
 
@@ -166,7 +166,7 @@ Nits that a linter would catch are not findings when the lint ran clean. When th
 
 ## Step 6 — Write the report
 
-**Review mode** uses `templates/review.md`. **Reply mode** uses `templates/replies.md` and adds the steps below. Every paste block follows `references/comment-style.md`; read it before writing the first comment. Fixed section order, fixed emoji legend, summary blockquote first, `---` between sections. The report is what the operator reads beside the PR; it is not a transcript of the analysis.
+**Review mode** uses `templates/review.md`: fixed section order, fixed emoji legend, summary blockquote first, `---` between sections. **Reply mode** uses `templates/replies.md`, which is deliberately flatter (no legend, no state table, no verdict labels) and adds the steps below. Every paste block follows `references/comment-style.md`; read it before writing the first comment. The report is what the operator reads beside the PR; it is not a transcript of the analysis.
 
 Save with `report_write`:
 
@@ -185,7 +185,7 @@ report_write({
 });
 ```
 
-`critical` when a blocker touches security, authorization, or data integrity; `findings` when anything must change; `clean` when the verdict is approve with nothing above nit; `draft` when `--quick` was used or local checks did not run. Then run the Mermaid Tier 1 check on the returned path if the body has a ```mermaid block, and fix it in place until it parses.
+`critical` when a blocker touches security, authorization, or data integrity; `findings` when anything must change; `clean` when the verdict is approve with nothing above nit; `draft` when `--quick` was used or local checks did not run. Then run the Mermaid Tier 1 check on the returned path and fix any block in place until it parses.
 
 ## Reply mode — the extra steps
 
@@ -196,7 +196,7 @@ Runs after Steps 0–3, replacing the fan-out with a thread-driven pass (plus a 
 3. **Judge every comment against the head code, not the snapshot it was written on.** Verdicts: `accurate` · `partially` · `inaccurate` · `question` (not a defect, an ask for explanation) · `preference` (valid either way; decide, do not litigate). Judging means reading the callers, running the spec, or querying the database when the claim is about data. One thing overrides a reviewer, and the reply says so plainly with receipts: a suggestion that contradicts an invariant documented in `knowledge/concepts/`.
 4. **Fix what is accurate, in the worktree, uncommitted.** A reviewer's fix inside files the PR already touches goes into this branch even when the defect predates it. A fix that needs files the PR does not touch, or its own measurement, becomes a follow-up line instead. Rebuild and rerun the affected specs after fixing. Never `git add`, never commit, never push: leave `git status` as the reviewable set, and write one suggested commit message per group of related fixes.
 5. **Self-pass.** Run the correctness, invariants/authorization, and regression lanes over your own diff (skipped under `--quick`). Anything verified lands under **Found on my own** with the same fix discipline. Finding your own defect before the reviewer does is the point.
-6. **Write replies for every thread that needs one, in PR scroll order** (file order as GitHub shows them, then line), so the report scrolls beside the Conversation tab. Each entry: `📍` anchor with a thread URL, the reviewer's words quoted, your verdict in one line, what changed and where, then the paste block. Threads that only need Resolve go in one table at the end.
+6. **Write replies for every thread that needs one, in PR scroll order** (file order as GitHub shows them, then line), so the report scrolls beside the Conversation tab. Each entry: a heading that states the reviewer's point in about five words and ends with a permalink to that comment (its own `url`, link text being the comment id), one plain line quoting the reviewer, then the reply as a blockquote, in the operator's voice. The verdict shows in how the reply opens, so it is not written out separately. Threads that only need Resolve go in one table at the end.
 7. **Re-runs supersede.** If a prior replies report exists for this PR, this one lists which threads are new, which are answered since, and replaces it. Do not leave four overlapping drafts.
 
 ## Step 7 — Hand back

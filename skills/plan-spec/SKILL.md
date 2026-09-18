@@ -179,7 +179,7 @@ The spec must be structured so Claude can consume it as an implementation plan. 
 - Be precise and specific — avoid weasel words like "should probably" or "might want to"
 - State decisions definitively: "The system uses optimistic locking" not "We could consider optimistic locking"
 - Where the user's answer was vague and you inferred a default, mark it: `[Assumed: ...]`
-- Use diagrams in code blocks (Mermaid, ASCII) when they clarify relationships or flows
+- Use ```mermaid diagrams when they clarify relationships or flows, never ASCII: the spec is a file, read in surfaces that render it. Run the mermaid skill's Tier 1 check on the saved path
 - Keep it dense — every sentence should carry information
 
 ### Output

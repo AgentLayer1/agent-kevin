@@ -94,7 +94,7 @@ Surface a short **Prior context** block in the first response, then continue.
 
 ## Step 2 — Understand to the hunk
 
-Run `pr-review` Step 2 as written: pull the diff, group by concern, build the what / why / how / blast-radius model, draw the ASCII diagram. Then the pass that makes this a walkthrough:
+Run `pr-review` Step 2 as written: pull the diff, group by concern, build the what / why / how / blast-radius model, draw the diagram as a ```mermaid block. Then the pass that makes this a walkthrough:
 
 **Every hunk gets one line and a class.** Walk the diff file by file in the order GitHub's Files tab shows them (alphabetical by path, which is the order the author will scroll on the shared screen). For each hunk write a cue (what it does, eight words) and an "if pressed" line (why it is here, fifteen words, with the receipt), then classify:
 
@@ -171,7 +171,7 @@ report_write({
 });
 ```
 
-`findings` when any 🔴 gap exists; `clean` when none; `draft` under `--quick`. A re-run on the same PR supersedes the prior walkthrough and says what changed (new hunks, closed gaps). If a ```mermaid block was used instead of ASCII, run the mermaid skill's Tier 1 check on the saved path and fix it in place.
+`findings` when any 🔴 gap exists; `clean` when none; `draft` under `--quick`. A re-run on the same PR supersedes the prior walkthrough and says what changed (new hunks, closed gaps). Run the mermaid skill's Tier 1 check on the saved path and fix any block in place until it parses.
 
 ## Step 6 — Rehearse (optional interview)
 

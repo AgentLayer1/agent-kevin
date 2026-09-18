@@ -33,11 +33,14 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 
 <Three to six sentences: what the PR changes, why, and the shape of the solution. Group by concern, not by file.>
 
-```text
-<ASCII diagram of the flow, state machine, or before/after. Boxes and arrows. Label the process (api / worker / frontend) and the boundary crossings.>
+```mermaid
+%% Diagram of the flow, state machine, or before/after. Pick the type that fits:
+%% sequenceDiagram for a call across processes, stateDiagram-v2 for a lifecycle,
+%% flowchart for a data path. Label the process (api / worker / frontend) and the
+%% boundary crossings.
 ```
 
-*Use a ```mermaid block instead only when a sequence or state diagram is genuinely clearer, then run the mermaid skill's Tier 1 check on the saved report.*
+*Always Mermaid: the report is read in Obsidian and on GitHub, which render it. Run the mermaid skill's Tier 1 check on the saved report so a block that fails to parse never reaches review. ASCII belongs in the chat hand-back, not in the file.*
 
 ### Walkthrough
 
@@ -64,7 +67,7 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 <Failure scenario in one sentence. Evidence in one or two: what you read, what you ran, file:line.>
 
 ```
-<Paste-ready inline comment. Starts with "Blocking:". Uses a ```suggestion block when the fix is a drop-in.>
+<Paste-ready inline comment. Opens with the issue, no severity prefix. Uses a ```suggestion block when the fix is a drop-in.>
 ```
 
 ### 🟠 Fix before merge

@@ -283,7 +283,7 @@ SHIPPED ███ 3   IN FLIGHT ██████ 6   FOUND ██ 2   FILED �
 ## 📎 Backup — if someone asks
 
 **#474** — <the evidence: what was checked in prod, the number, the query>
-**<the 🔴 finding>** — <mechanism, ASCII block if it earns one, provenance of every number>
+**<the 🔴 finding>** — <mechanism, a ```mermaid block if it earns one, provenance of every number>
 **<blocker>** — <the context you'd give if pressed>
 ```
 
@@ -299,7 +299,7 @@ Rules:
   numbers' provenance), not *identity*.
 - **~12 items of card total.** Beyond that, group ("plus 4 smaller acme follow-ups — backup
   has the list") and push the rest below the line.
-- **The 🔴 finding gets one line up top, impact-first.** The mechanism, the table, the ASCII —
+- **The 🔴 finding gets one line up top, impact-first.** The mechanism, the table, the diagram —
   all backup. The room needs "duplicate sends, four affected, fix built"; the *how* is for the
   follow-up.
 - **Through-line first.** One `>` sentence. It's what they say if they say nothing else.
