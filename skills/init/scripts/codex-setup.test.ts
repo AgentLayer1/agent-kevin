@@ -202,7 +202,7 @@ describe('codex-setup mcp registration', () => {
       status_line_use_colors: true
     });
     expect(config.skills).toEqual({ max_context_tokens: 10_000 });
-    expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [] });
+    expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [], servers: [] });
     expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
   });
 
@@ -485,5 +485,88 @@ describe('codex-setup mcp registration', () => {
     expect(stderr).toContain('remove it by hand');
     expect(readFileSync(path, 'utf-8')).toBe('mcp_servers = { kevin = { command = "bun" } }\n');
     expect(existsSync(join(home, '.codex', 'hooks.json'))).toBe(false);
+  });
+});
+
+describe('codex-setup pack servers', () => {
+  const registerMcp = (home: string, servers: Record<string, unknown>): void =>
+    writeFileSync(join(home, '.mcp.json'), `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`);
+  const xcode = { command: 'xcrun', args: ['mcpbridge'] };
+
+  test("mirrors the xcode server from the home's .mcp.json, never a server the packs do not own, and is idempotent", () => {
+    const home = scratch();
+    registerMcp(home, { xcode, betterstack: { command: 'sh', args: ['-c', 'exec npx mcp-remote'] } });
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(json.profile.servers).toEqual(['xcode']);
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers.xcode).toEqual(xcode);
+    expect(config.mcp_servers.betterstack).toBeUndefined();
+    expect(config.mcp_servers.kevin.env.AGENT_HOME).toBe(home);
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+  });
+
+  test("replaces a hand-written xcode table ahead of kevin's, keeps the operator's own keys in it, carries the pack's env, and is idempotent", () => {
+    const home = scratch();
+    registerMcp(home, { xcode: { ...xcode, env: { XCODE_MCP_LOG: '1' } } });
+    seed(
+      home,
+      'config.toml',
+      [
+        'default_permissions = "kevin"',
+        '',
+        '[mcp_servers.xcode]',
+        'command = "xcrun"',
+        'args = ["mcpbridge", "--stale"]',
+        'startup_timeout_sec = 90',
+        '',
+        '[mcp_servers.xcode.env]',
+        'MINE = "kept"',
+        '',
+        '[mcp_servers.kevin]',
+        'command = "bun"',
+        'args = ["/old/kevin/mcp-server/src/server.ts"]',
+        ''
+      ].join('\n')
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(json.notes).toEqual([]);
+    const written = readFileSync(json.mcp.path, 'utf-8');
+    expect(written.match(/\[mcp_servers\.xcode\]/g)).toHaveLength(1);
+    expect(written).not.toContain('/old/kevin');
+    const config = Bun.TOML.parse(written) as Record<string, any>;
+    expect(config.mcp_servers.xcode).toEqual({
+      command: 'xcrun',
+      args: ['mcpbridge'],
+      startup_timeout_sec: 90,
+      env: { XCODE_MCP_LOG: '1', MINE: 'kept' }
+    });
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+  });
+
+  test('drops the xcode table once the pack is deconfigured from .mcp.json, and ignores a malformed registration', () => {
+    const home = scratch();
+    registerMcp(home, { xcode });
+    const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(readFileSync(first.json.mcp.path, 'utf-8')).toContain('[mcp_servers.xcode]');
+    registerMcp(home, {});
+    const gone = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(gone.json.mcp.changed).toBe(true);
+    expect(gone.json.profile.servers).toEqual([]);
+    expect(gone.json.notes).toEqual([expect.stringContaining('[mcp_servers.xcode] was removed')]);
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.notes).toEqual([]);
+    const config = Bun.TOML.parse(readFileSync(gone.json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers.xcode).toBeUndefined();
+    expect(config.mcp_servers.kevin.command).toBe('bun');
+    registerMcp(home, { xcode: { args: ['mcpbridge'] } });
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.profile.servers).toEqual([]);
+  });
+
+  test('refuses a .mcp.json it cannot parse, naming the file, and writes nothing', () => {
+    const home = scratch();
+    writeFileSync(join(home, '.mcp.json'), '{ not json');
+    const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(code).not.toBe(0);
+    expect(stderr).toContain(`${join(home, '.mcp.json')} is not valid JSON`);
+    expect(existsSync(join(home, '.codex'))).toBe(false);
   });
 });

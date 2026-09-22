@@ -516,19 +516,9 @@ On yes, ask for the repo path. If it sits outside the code root init granted, sa
 - Write `<repo>/.xcode-version` containing the `XCODE_VERSION` value the preflight printed (the bare number, `27.0`, not the `Xcode 27.0` line), unless it exists. Shell state does not survive between Bash calls, so take it from that output rather than re-expanding `$XCODE_VERSION`.
 - Say plainly that the scaffold is placeholders: an unfilled manual is worse than no manual, and the agent will read it as fact.
 
-**(9) Codex, when the home runs it.** Skip entirely if `<HOME>/.codex/config.toml` is absent.
+**(9) Codex, when the home runs it.** Skip entirely if `<HOME>/.codex/hooks.json` is absent: a home that never opted into Codex is not wired here. It loses nothing by the skip, because the generator reads the pack's registration from `$MCP_FILE` on every run, so a later Codex wiring (init Step 7c, or `$upgrade` from a Codex session) carries `xcode` across on its own.
 
-- Append an `[mcp_servers.xcode]` table to `<HOME>/.codex/config.toml`. Safe to hand-merge here: the generator at `skills/init/scripts/codex-setup.ts` owns only `mcp_servers.<agent>`, `permissions.<agent>` and `shell_environment_policy`, and preserves every other table.
-
-  ```toml
-  [mcp_servers.xcode]
-  command = "xcrun"
-  args = ["mcpbridge"]
-  ```
-
-  Parse-check it: `bun -e 'Bun.TOML.parse(require("fs").readFileSync(process.argv[1],"utf8")); console.log("OK")' "$HOME_DIR/.codex/config.toml"`.
-- Do not hand-add the repo to the Codex config: `codex_setup` generates `[permissions.<agent>.workspace_roots]` from Claude's `permissions.additionalDirectories`, and a hand edit there is overwritten on the next run.
-- Then run the `codex_setup` MCP tool. It re-reads this home's Claude posture, so the ask patterns become `prefix_rule` entries in `.codex/rules/kevin.rules` automatically. Do not hand-write those rules.
+- Run the `codex_setup` MCP tool. Nothing is hand-merged: the generator at `skills/init/scripts/codex-setup.ts` mirrors the `xcode` entry of `$MCP_FILE` into an `[mcp_servers.xcode]` table it owns (regenerated each run, the operator's own keys inside it kept), turns the ask patterns into `prefix_rule` entries in `.codex/rules/kevin.rules`, and derives `[permissions.<agent>.workspace_roots]` from Claude's `permissions.additionalDirectories`. A hand edit to any of those is overwritten on the next run, so do not write them. The report's `profile.servers` lists the pack servers mirrored; expect `["xcode"]`.
 
   **Four of the five carry over, not all five.** The generator turns `Bash(<words> *)` into a prefix rule by stripping the trailing ` *` and then dropping anything that still contains a glob character (`askPrefixes` in `skills/init/scripts/codex-setup.ts`). So `xcrun simctl delete`, `xcrun simctl erase`, `xcrun altool` and `xcrun notarytool` all become rules, but **`Bash(xcodebuild *-exportArchive*)` does not**: its wildcard is mid-pattern, and a Codex prefix rule matches leading argv words, which a flag in an arbitrary position is not. State this plainly in the summary rather than implying parity. In practice the gap is moot today: Codex's Seatbelt blocks `xcodebuild` outright ([openai/codex#4987](https://github.com/openai/codex/issues/4987)) and no per-command exclusion is wired on that host, so an export cannot run from Codex at all, and `altool`/`notarytool` are gated regardless. If Codex ever gains an exclusion, the export rule belongs in a *separate* `.rules` file in that directory (Codex loads every one), since the generated file is overwritten on each run.
 - Note that Codex's non-interactive `codex exec` auto-cancels MCP calls, so headless Codex builds are not there yet; interactive `codex` sessions are fine.
@@ -545,8 +535,9 @@ Bash allowed:              xcodebuild *, xcrun simctl *, xcrun mcp-server status
 Bash gated (ask):          simctl delete/erase, -exportArchive, altool, notarytool  ← uploads need your tap
 Rules seeded:              .claude/rules/xcode.md (always on), xcode-project.md (path-scoped)
 Repo scaffold:             <path written, or "skipped">
-Codex:                     <[mcp_servers.xcode] added + codex_setup re-run (4 of 5 ask rules carry
-                           over; -exportArchive has no prefix-rule form), or "not configured">
+Codex:                     <codex_setup re-run: [mcp_servers.xcode] mirrored from .mcp.json, 4 of 5 ask
+                           rules carry over (-exportArchive has no prefix-rule form), or "not wired here;
+                           picked up when Codex is">
 
 ⚠️ Two steps are yours — I can't do either:
 
@@ -730,7 +721,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.kevin/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
 
 **Xcode deconfigure:**
-- Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. Do the same for `[mcp_servers.xcode]` in `<HOME>/.codex/config.toml` if present.
+- Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.
 - Revoke `mcp__xcode__*` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)` and `Bash(xcrun mcp-server status)`.
 - **Leave every `permissions.ask` entry in place** — the two `mcp__xcode__` ones and the five Bash ones. They gate arbitrary code execution, simulator destruction and the upload path; keeping them costs nothing once the server is gone, and removing them is the one change here that *widens* what can happen silently. Say so rather than asking.
 - `AskUserQuestion`: "Also delete the seeded rules `.claude/rules/xcode.md` and `xcode-project.md`?" (Yes/No). Default to keeping them — they're instruction-only and harmless without the server, and the operator may have edited them.

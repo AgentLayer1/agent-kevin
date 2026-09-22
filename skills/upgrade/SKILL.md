@@ -273,8 +273,10 @@ bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 Since 0.4.2 the generator also writes the home's permission posture from its Claude settings
 (a `[permissions.kevin]` profile that denies the secrets store and `.env` reads, makes
 `.git` writable, and lists the code path and `additionalDirectories` as workspace roots) and
-`.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`), and it
-adds a `[tui]` status line (model with reasoning, directory, branch, approval mode, context used)
+`.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`), it
+mirrors any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`)
+into its own `[mcp_servers.<name>]` table, which is how a pack activated before this home ran
+Codex reaches it on this run, and it adds a `[tui]` status line (model with reasoning, directory, branch, approval mode, context used)
 and a `[skills]` budget of 10,000 tokens for the per-turn skills catalog (Codex's 2% default trims
 the plugin's descriptions) to a home that has neither; an operator's own values are kept. A home
 that carries the legacy `sandbox_mode` keys makes the generator refuse, naming them: remove

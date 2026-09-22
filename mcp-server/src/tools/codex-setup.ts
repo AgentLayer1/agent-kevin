@@ -26,7 +26,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'codex_setup',
     description:
-      "Generate or regenerate this home's Codex wiring (.codex/hooks.json, the MCP registration and permission profile in .codex/config.toml, and .codex/rules/<agent>.rules) from the plugin checkout and the home's Claude settings. Runs outside the Bash sandbox, which is what lets it write .codex/ from a Codex session. Called by init and upgrade; returns the generator's report, whose hooks.changed means the operator must re-trust the hook entries in /hooks.",
+      "Generate or regenerate this home's Codex wiring (.codex/hooks.json, the MCP registration and permission profile in .codex/config.toml, and .codex/rules/<agent>.rules) from the plugin checkout, the home's Claude settings, and the pack servers in its .mcp.json (the Xcode pack's xcode). Runs outside the Bash sandbox, which is what lets it write .codex/ from a Codex session. Called by init, upgrade, and the pack walks; returns the generator's report, whose hooks.changed means the operator must re-trust the hook entries in /hooks.",
     inputSchema: {},
     handler: async (): Promise<SetupResult> => {
       const script = resolve(FOLDERS.ROOT, 'skills', 'init', 'scripts', 'codex-setup.ts');

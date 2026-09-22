@@ -12,7 +12,10 @@
  * files. The posture is read from the home's Claude settings so the two hosts never
  * drift: the runtime secrets store is denied, the code path and additional directories
  * become workspace roots with `.git` writable, and every `permissions.ask` shell pattern
- * becomes a rule that prompts. The config also carries the footer status line a Codex
+ * becomes a rule that prompts. An MCP server a pack registered in the home's `.mcp.json`
+ * (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table, owned
+ * the same way, so a pack activated before Codex was wired still reaches it and a
+ * deconfigured one leaves. The config also carries the footer status line a Codex
  * session shows from the home (model, directory, branch, approval mode, context used),
  * set when absent. Only the agent's own entries and tables are replaced: the
  * operator's other hooks, MCP servers, rules files, and settings survive; a file that does
@@ -67,8 +70,12 @@ const configPath = resolve(homeDir, '.codex', 'config.toml');
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 const readJson = (path: string): Record<string, unknown> => {
   if (!existsSync(path)) return {};
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
-  return isRecord(parsed) ? parsed : {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+    return isRecord(parsed) ? parsed : {};
+  } catch (err) {
+    throw new Error(`${path} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+  }
 };
 const expandTilde = (path: string): string => path.replace(/^~(?=$|\/)/, homedir());
 
@@ -146,6 +153,32 @@ const askPrefixes = [
       .filter((body) => body && !/[*?[\]{}]/.test(body))
   )
 ];
+
+// ── Pack servers: what configure-skills registered in the home's .mcp.json ───
+/** The MCP servers the plugin's packs register in `<home>/.mcp.json`; Codex gets a copy of each, owned like the agent's own. */
+const PACK_SERVERS = ['xcode'];
+interface McpRegistration {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+const registered = readJson(resolve(homeDir, '.mcp.json')).mcpServers;
+const mcpRegistrations = isRecord(registered) ? registered : {};
+const packServers = Object.fromEntries(
+  PACK_SERVERS.flatMap((name): [string, McpRegistration][] => {
+    const server = mcpRegistrations[name];
+    if (!isRecord(server) || typeof server.command !== 'string') return [];
+    const args = Array.isArray(server.args)
+      ? server.args.filter((item): item is string => typeof item === 'string')
+      : [];
+    const env = Object.fromEntries(
+      Object.entries(isRecord(server.env) ? server.env : {}).filter(
+        (pair): pair is [string, string] => typeof pair[1] === 'string'
+      )
+    );
+    return [[name, { command: server.command, args, env }]];
+  })
+);
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
 /** A hook command of ours, whichever checkout (quoted or not) it points at. */
@@ -227,7 +260,12 @@ const headerPath = (line: string): string[] | undefined => {
   return match ? [...match[1].matchAll(/"([^"]*)"|'([^']*)'|([^.\s]+)/g)].map((m) => m[1] ?? m[2] ?? m[3]) : undefined;
 };
 /** The tables this script owns outright; everything under them is regenerated. */
-const OWNED_TABLES: string[][] = [['mcp_servers', agent], ['permissions', agent], ['shell_environment_policy']];
+const OWNED_TABLES: string[][] = [
+  ['mcp_servers', agent],
+  ...PACK_SERVERS.map((name) => ['mcp_servers', name]),
+  ['permissions', agent],
+  ['shell_environment_policy']
+];
 /** The top-level keys it sets when absent; an operator's own value is kept. */
 const OWNED_KEYS: Record<string, string> = {
   default_permissions: agent,
@@ -350,6 +388,22 @@ const inlineTable = (entries: Record<string, string>): string =>
     .map(([key, value]) => `${/^[A-Za-z0-9_-]+$/.test(key) ? key : tomlString(key)} = ${tomlString(value)}`)
     .join(', ')} }`;
 
+/** A pack's server as Codex registers it; the operator's own keys in its table (a startup timeout, an env var) survive. */
+const packTables = Object.entries(packServers).flatMap(([name, { command: packCommand, args: packArgs, env }]) => {
+  const envLines = [
+    ...Object.entries(env).map(([key, value]) => tomlScalar(key, value)),
+    ...keptEntries(['mcp_servers', name, 'env'], Object.keys(env))
+  ];
+  return [
+    `[mcp_servers.${name}]`,
+    `command = ${tomlString(packCommand)}`,
+    `args = [${packArgs.map(tomlString).join(', ')}]`,
+    ...keptEntries(['mcp_servers', name], ['command', 'args', 'env']),
+    ...(envLines.length > 0 ? ['', `[mcp_servers.${name}.env]`, ...envLines] : []),
+    ''
+  ];
+});
+
 const agentTables = [
   `[mcp_servers.${agent}]`,
   'command = "bun"',
@@ -362,6 +416,7 @@ const agentTables = [
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
   ...keptEntries(['mcp_servers', agent, 'env'], ['AGENT_HOME', `${envPrefix}HOME`, 'PLAYWRIGHT_BROWSERS_PATH']),
   '',
+  ...packTables,
   // The posture: write the home and its repos, commit in them, reach the network, never read the
   // secrets store. An approved escalation does not lift a profile (verified on 0.153), so every
   // writable root and the network have to be granted here or they are unreachable.
@@ -473,7 +528,13 @@ const notes = [
     .map(
       ([key, value]) =>
         `${key} is ${JSON.stringify(existingTables[key])} in ${configPath}; the recommended value is "${value}" and yours was kept`
-    )
+    ),
+  ...PACK_SERVERS.filter(
+    (name) => !(name in packServers) && lookup(existingTables, ['mcp_servers', name]) !== undefined
+  ).map(
+    (name) =>
+      `[mcp_servers.${name}] was removed from ${configPath}: the pack that owns it no longer registers ${name} in the home's .mcp.json`
+  )
 ];
 
 // ── rules ────────────────────────────────────────────────────────────────────
@@ -509,6 +570,6 @@ if (!args.includes('--write')) {
   const mcp = writeIfChanged(configPath, configText);
   const rules = writeIfChanged(rulesPath, rulesText);
   const hooks = writeIfChanged(hooksPath, hooksText);
-  const profile = { name: agent, workspaceRoots, rules: askPrefixes };
+  const profile = { name: agent, workspaceRoots, rules: askPrefixes, servers: Object.keys(packServers) };
   process.stdout.write(`${JSON.stringify({ hooks, mcp, rules, entries: 4, profile, notes })}\n`);
 }
