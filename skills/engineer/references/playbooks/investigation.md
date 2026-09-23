@@ -2,6 +2,8 @@
 
 **You own the answer.** The work is read-only. The deliverable is a cited explanation or a recommendation, not a code change.
 
+Mechanics questions follow [how](how.md) and motivation questions follow [why](why.md); both hold the full method. The short form:
+
 1. Anchor in code: the files, symbols, and line ranges in scope. When the question spans a subsystem, fan out read-only subagents, one per slice, and keep only their conclusions ([guard the context window](../principles/guard-the-context-window.md)).
 2. For "why is it like this", read the history: `git log --follow -p -- <file>`, `git blame -L <start>,<end> <file>`, the PR bodies behind the commits, and any task or session notes in the home that touched the area.
 3. Label every claim by how you know it:

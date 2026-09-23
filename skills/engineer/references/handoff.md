@@ -20,7 +20,7 @@ The description is a briefing a reviewer reads in under a minute. It often becom
 
 Attach screenshots or video when they prove a claim. Leave out SHA lists, file-by-file essays, raw logs, "Summary" and "Test plan" boilerplate, and self-graded verdicts. Link to an artifact instead.
 
-Write it the way a person writes to a colleague (the humanizer skill's patterns apply). The operator pastes it, so it should need no edits.
+Write it the way a person writes to a colleague: [technical writing](technical-writing.md) for the sentences, and the humanizer skill's patterns for the tells. The operator pastes it, so it should need no edits.
 
 ---
 

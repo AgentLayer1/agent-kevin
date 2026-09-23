@@ -1,4 +1,4 @@
-# Separate before serializing
+# Separate before serializing shared state
 
 **Apply when:** concurrent actors (processes, sessions, subagents, CI jobs, parallel worktrees) might write the same file, branch, key, or object.
 

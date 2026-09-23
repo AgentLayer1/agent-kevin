@@ -6,8 +6,23 @@ Break the work into small units that each end in a checkable state, and don't st
 
 - **Execution.** Start each unit from a known-good state, make one change, run the check, then proceed. Work from a clean, current base so every check measures against the real baseline. When a lever makes the check nearly free, run it anyway.
 - **Delivery.** Order commits so the sequence proves itself: the failing test before the fix, the subtraction before the reshape, the baseline before the treatment, the scaffold before the feature. Each commit stands on its own. Commit per phase, never a megacommit.
-- **Failing test first** when the bug has a cheap local test path. Write the smallest test that encodes the intended behavior, run it, and confirm it fails for the right reason. Then fix it and rerun. When a test would need brittle mocks, heavy harness setup, or production-only state, say why and use the closest executable check instead: a script, a repro command, or browser automation. No test beats a bad test. The repo's manual sets its test policy. Without one, the default is lean: unit tests on shared, low-level utilities where a bug would corrupt everything downstream, plus a regression test for a fixed bug when a cheap local test path exists. No integration or end-to-end suites unless the repo asks for them.
 - **History stays forward-only.** Stage the sequence as you go. A mistake gets a new commit on top, not a rewrite.
+
+## TDD cadence
+
+When a bug has a cheap local test path, make the broken behavior executable before touching production code.
+
+1. **Understand the bug:** intended behavior, current behavior, the affected path, and the smallest observable reproduction.
+2. **Choose the narrowest executable check,** preferring the test style already used for that code path. Don't build a harness from scratch just to satisfy the cadence.
+3. **Write the failing test first,** encoding intended behavior rather than mirroring the current implementation.
+4. **Run it and confirm it fails for the intended reason.** If it passes, or fails for an unrelated reason, fix the test before touching the code.
+5. **Make the smallest fix,** then rerun it and see it pass.
+
+When a failing test is impractical (broad harness setup, brittle mocks, slow end-to-end infrastructure, production-only state), say why before fixing and use the closest executable check instead: a script, a repro command, browser automation, a log assertion. No test beats a bad test, meaning one that mostly tests mocks, pins implementation details, depends on timing, or would be deleted right after proving the fix.
+
+**Guardrails:** don't change a test to match a wrong implementation; don't weaken an assertion unless the intended behavior changed; make a flaky bug's test deterministic; land the focused regression first and consider sibling coverage after. Report the failing-before output and the passing-after run, or why failing-before couldn't be shown.
+
+**Which tests to write at all.** The repo's manual sets its test policy. Without one, the default is lean: unit tests on shared, low-level utilities where a bug would corrupt everything downstream, plus a regression test for a fixed bug when a cheap local test path exists. No integration or end-to-end suites unless the repo asks for them.
 
 ---
 

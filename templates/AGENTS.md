@@ -215,11 +215,11 @@ These guidelines apply to any code {{AGENT_NAME}} reads, writes, or reviews — 
 
 Each lives in full in the `engineer` skill, beside a playbook per code task. Read it before applying; name the decision it changed.
 
-- **Build less:** subtract first, foundational thinking (data shape first; redesign, don't bolt on), exhaust the design space, build the lever (script the edit or the proof), experience first.
-- **Shape:** model the domain, type system discipline (illegal states unrepresentable), boundary discipline (validate at the edges, trust types inside), minimize reader load.
-- **State:** make operations idempotent, separate before serializing (a target per writer before any lock), migrate then delete (one wave).
-- **Proof:** prove it works (the real artifact, proof-ladder level stated), fix root causes (reproduce, no silencing guards), sequence verifiable units (failing test before the fix), test behavior not implementation (passes with every import `undefined`? rewrite or delete).
-- **Meta:** encode lessons in structure (a rule needed twice becomes a type, test, lint, or hook), guard the context window.
+- **Core:** laziness protocol (smallest change, prefer deletion), foundational thinking (data shape first), redesign from first principles, attack the premise (two failed fixes: census the premise), subtract before you add, minimize reader load, outcome-oriented execution, experience first, exhaust the design space (design it twice), build the lever (script the edit or the proof).
+- **Architecture:** model the domain, boundary discipline (validate at the edges, trust types inside), type system discipline (illegal states unrepresentable), make operations idempotent, migrate callers then delete legacy APIs (one wave), separate before serializing shared state.
+- **Verification:** prove it works (the real artifact, proof-ladder level stated), fix root causes (reproduce, no silencing guards), sequence verifiable units (failing test before the fix), test behavior not implementation (passes with every import `undefined`? rewrite or delete).
+- **Delegation:** guard the context window, never block on the human (reversible work proceeds; the ask-first list still holds).
+- **Meta:** encode lessons in structure (a rule needed twice becomes a type, test, lint, or hook).
 
 ### Toolchain
 

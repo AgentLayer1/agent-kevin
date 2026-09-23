@@ -13,11 +13,7 @@
    - **Lazy evaluation:** cost lands on results nobody needs yet. Defer it.
    - **Scheduling:** the work has to happen, but not while someone waits. Move it to idle time or the background.
 3. One change, one measurement, keep or revert. Never stack untested changes. Accept a change only when it moves the number past the noise with the regression tests green, and revert everything else in full.
-4. For a sustained push toward a target:
-   - Freeze the measurement harness first, and prove it separates the slow case from the easy ones.
-   - Set a stop rule that pairs the target with a minimum number of attempts.
-   - Log every attempt in a scratch file: hypothesis, change, before, after, kept or reverted.
-   - Push past the first plateau before concluding, and never relax the target to declare victory.
+4. For a sustained push toward a target rather than a one-off fix, switch to [hillclimb](hillclimb.md).
 5. Run the [comment pass](../comment-pass.md), then follow [handoff](../handoff.md) with the primary number in the PR description.
 
 **Reply:** the baseline, the result, the delta with its unit, the artifact paths, and the next idea you'd try.

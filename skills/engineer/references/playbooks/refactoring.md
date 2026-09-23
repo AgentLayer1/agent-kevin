@@ -10,9 +10,9 @@
    - **Types and boundaries:** `any`, `!`, `as`, optional-field bags, and validation deep inside instead of at the edge ([type system discipline](../principles/type-system-discipline.md), [boundary discipline](../principles/boundary-discipline.md)).
    - **Noise:** error handling for impossible cases, a try/catch that swallows or rethrows unchanged, mutation where a pure transform would do, comments that narrate.
    - **The code-judo move:** a reframing that makes whole branches, modes, or helpers disappear, not just a local tidy-up.
-3. **Name the target shape:** the module layout, types, and call graph you'd build today. If it crosses a function boundary, sketch it ([design](../design.md)).
-4. **Subtract before you add.** Removals land first, in their own commit ([subtract first](../principles/subtract-first.md)).
-5. **Move in small behavior-preserving steps,** each keeping the pin green. For an API reshape, migrate every caller and delete the old path in the same wave ([migrate, then delete](../principles/migrate-then-delete.md)). Check every rename in strings, docs, and back-references, because symbol search misses them.
+3. **Name the target shape:** the module layout, types, and call graph you'd build today. If it crosses a function boundary, sketch it ([architect](../architect.md)).
+4. **Subtract before you add.** Removals land first, in their own commit ([subtract before you add](../principles/subtract-before-you-add.md)). The smallest change that reaches the target ships ([laziness protocol](../principles/laziness-protocol.md)).
+5. **Move in small behavior-preserving steps,** each keeping the pin green. For an API reshape, migrate every caller and delete the old path in the same wave ([migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md)). Check every rename in strings, docs, and back-references, because symbol search misses them.
 6. **Prove behavior is unchanged** on the real artifact. Rerun the pin, and for a larger reshape, run the equivalence check.
 7. **Keep it only if reader load dropped.** If the diff doesn't make some question faster to answer, revert it.
 8. Commit the subtraction, then the reshape, then any follow-on cleanup. Run the [comment pass](../comment-pass.md), then follow [handoff](../handoff.md).
