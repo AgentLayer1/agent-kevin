@@ -36,16 +36,16 @@ describe('template-drift', () => {
   test('reports the lines and sections a home has that its templates lack, matching placeholders to their values', () => {
     const home = tree({
       'SOUL.md':
-        '# Soul\n\n## Writing Style\n\n- Avoid em-dashes.\n- Visual over wordy.\n\n## Boundaries\n\n- Private things stay private.\n\n## Faith\n\n- Halal only.\n',
+        '# Soul\n\n## Writing Style\n\n- Avoid em-dashes.\n- Visual over wordy.\n\n## Boundaries\n\n- Private things stay private.\n\n## Hobbies\n\n- Sailing on weekends.\n',
       'AGENTS.md': '# Manual\n\n## Workflow\n\n- Ace ships before starting.\n- Run git remote -v first.\n',
       '.claude/rules/swift.md': '# Swift\n\n- Prefer structs.\n'
     });
     const out = run(home, plugin);
     const byFile = Object.fromEntries(out.files.map((file: { file: string }) => [file.file, file]));
-    expect(byFile['SOUL.md'].homeOnlySections).toEqual(['Faith']);
+    expect(byFile['SOUL.md'].homeOnlySections).toEqual(['Hobbies']);
     expect(byFile['SOUL.md'].homeOnlyLines).toEqual([
       { section: 'Writing Style', line: '- Visual over wordy.' },
-      { section: 'Faith', line: '- Halal only.' }
+      { section: 'Hobbies', line: '- Sailing on weekends.' }
     ]);
     expect(byFile['AGENTS.md'].homeOnlyLines).toEqual([{ section: 'Workflow', line: '- Run git remote -v first.' }]);
     expect(byFile['.claude/rules/swift.md'].homeOnlyLines).toEqual([]);
