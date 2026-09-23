@@ -369,7 +369,12 @@ elif [ -n "$BASELINE" ] && git -C "$PLUGIN_ROOT" rev-parse -q --verify "refs/tag
   git -C "$PLUGIN_ROOT" archive "v$BASELINE" templates | tar -x -C "$BASE_DIR" && BASE_TPL="$BASE_DIR/templates"
 fi
 echo "base=${BASE_TPL:-<none>}"
-bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "$PLUGIN_ROOT" ${BASE_TPL:+--base "$BASE_TPL"}
+DRIFT="$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts"
+if [ -n "$BASE_TPL" ]; then
+  bun "$DRIFT" --home "$HOME_DIR" --plugin "$PLUGIN_ROOT" --base "$BASE_TPL"
+else
+  bun "$DRIFT" --home "$HOME_DIR" --plugin "$PLUGIN_ROOT"
+fi
 ```
 
 Each `homeOnlyLines` entry names its section. `inBase: true` is the old template's wording;
