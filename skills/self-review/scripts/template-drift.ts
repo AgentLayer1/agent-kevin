@@ -99,7 +99,11 @@ const driftOf = (file: string, homePath: string, templatePath: string): FileDrif
 
 const rulesDir = join(templates, 'rules');
 const pairs = [
-  ...['SOUL.md', 'IDENTITY.md', 'AGENTS.md'].map((name) => ({ file: name, homePath: join(home, name), templatePath: join(templates, name) })),
+  ...['SOUL.md', 'IDENTITY.md', 'AGENTS.md'].map((name) => ({
+    file: name,
+    homePath: join(home, name),
+    templatePath: join(templates, name)
+  })),
   ...(existsSync(rulesDir) ? readdirSync(rulesDir) : [])
     .filter((name) => name.endsWith('.md'))
     .map((name) => ({

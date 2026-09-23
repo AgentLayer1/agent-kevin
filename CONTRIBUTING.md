@@ -76,6 +76,17 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
 
 **Tests never touch a real agent home.** `mcp-server/bunfig.toml` preloads `src/test.ts`, which pins `AGENT_HOME` to a fresh throwaway tree for the whole run (and deletes any inherited per-agent override, which would beat it), so a suite that resolves a config path can't write into anyone's brain. A suite needing its own fixture home just sets `AGENT_HOME` (paths and secrets both resolve live, so import order doesn't matter) — save the preload's value and restore it afterwards rather than deleting the variable, or later suites fall back to resolving from cwd.
 
+## Refreshing the demo dashboard
+
+The public demo at agentlayer.one/demo/dashboard is rendered from a fictional home (Acme's agent Ace, operator Alex Chen) that `skills/dashboard/scripts/demo-home.ts` seeds from the real templates, dated relative to now. Rerun it whenever the dashboard or the templates change:
+
+```bash
+bun skills/dashboard/scripts/demo-home.ts --out <agentlayer-mono>/apps/agentlayer/public/demo/dashboard.html \
+  --avatar <agentlayer-mono>/apps/agentlayer/public/demo/assets/ace-avatar.jpg
+```
+
+It renders in isolation (its own `HOME`, environment, and working directory), rewrites every temp and machine path to `/home/alex`, and refuses to write if any real path survives. Run it outside the Claude Code sandbox, which hides the demo's secrets file from the renderer. The docs screenshots are taken from that file with `browser_screenshot` on `file://…/dashboard.html#<page>/<subtab>`.
+
 ## PR conventions
 
 - Keep changes focused. One concept per PR.

@@ -27,7 +27,8 @@ const run = (home: string, plugin: string) => {
 
 describe('template-drift', () => {
   const plugin = tree({
-    'templates/SOUL.md': '# Soul\n\n## Writing Style\n\n- Avoid em-dashes.\n\n## Boundaries\n\n- Private things stay private.\n',
+    'templates/SOUL.md':
+      '# Soul\n\n## Writing Style\n\n- Avoid em-dashes.\n\n## Boundaries\n\n- Private things stay private.\n',
     'templates/AGENTS.md': '# Manual\n\n## Workflow\n\n- {{AGENT_NAME}} ships before starting.\n',
     'templates/rules/swift.md': '# Swift\n\n- Prefer structs.\n'
   });
