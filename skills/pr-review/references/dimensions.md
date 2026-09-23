@@ -24,6 +24,7 @@ The code does what the PR says it does, for every input it will actually see.
 - Error handling: a `catch` that swallows and continues, a `finally` that marks success after a swallowed failure, an error thrown at an API boundary in a shape the global handler turns into a generic 500.
 - Async: an un-awaited promise, `Promise.all` over a list where one rejection should not cancel the rest, a retry that reuses the failed connection or client.
 - Concurrency and idempotency: a read-then-write with no claim or lease, a claim that is never released, an idempotency key generated per attempt instead of per intent, two processes that can both act on the same row.
+- Partial runs: an operation that leaves different state when rerun after a crash halfway, a done-marker (version, cursor, status) written before the work it marks, two actors writing one shared file or key where each could own its own.
 - Control flow: a guard that can never fire under the condition it names, a `switch` missing a case the enum now has, a feature flag defaulting to the enforced side.
 - Data shape: a JSON blob where a column was needed, a field written but never read, a field read but never written on any path.
 
@@ -54,6 +55,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 
 What this PR breaks in code it did not touch.
 
+- The safety fact first: most risky-looking changes are safe because of one fact ("this only drops entries that are already dead"). Name it, then check it as far as is cheap: point at the line, walk the failure, or run a script against the real code. Report which level it reached; an unproven safety fact is a question, not a pass.
 - Callers: `Grep` the worktree for every changed exported symbol and every changed signature. A default parameter added, an argument reordered, a return shape narrowed: check each call site.
 - Deleted or moved writes: for every removed assignment or `data:` field, find the `select`/`include`/reader that still expects it. A UI element that silently renders nothing is the classic symptom.
 - Schema: new required column with no default, enum value added without every `switch` and validation schema learning it, an index removed, mapped column names, migration order versus code order (schema must deploy before the code that reads it).
@@ -66,7 +68,7 @@ What this PR breaks in code it did not touch.
 
 ## Lane 5 — Conventions and quality
 
-Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and any directory-level file). Cite the rule you apply.
+Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and any directory-level file) and the `engineer` skill's principles. Cite the rule or principle you apply.
 
 - Errors: the repo's error type only at API boundaries, a real error code, thrown close to the check, not in controllers or pipes.
 - Logging: the repo's logger idiom; static message plus structured fields; no interpolated identifiers.
@@ -77,11 +79,18 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 - Functional style: `map`/`filter`/`reduce` over loops with `continue`; no single-letter params except a numeric `i`; immutability.
 - Structure: the repo's folder convention, its file-size cap, no barrel re-exports.
 - Diff hygiene within files: unrelated reformatting (semicolon churn, import reordering) that belongs in its own commit or an earlier layer of the stack.
+- Structure the style guide doesn't name. Prefer a few high-conviction structural findings over a list of cosmetic ones:
+  - A missed simplification: the change keeps incidental complexity that a reframing would delete (whole branches, modes, or helpers), not just rearrange.
+  - Spaghetti growth: a new ad hoc conditional or feature check threaded into an unrelated shared flow; a second boolean that must stay in sync with a first.
+  - Design red flags: a shallow module (callers coordinate several methods for one operation), information leakage (wire or storage types on a public surface), temporal decomposition (load, validate, save modules repeating one representation), a pass-through method.
+  - A legacy dual path: a new internal API added while the old one stays alive with no external consumer.
+  - An instruction where structure belongs: a comment or convention saying "don't do X" where a type, test, or lint could make X impossible.
+  - File growth: a file pushed from under 1,000 lines to over it without a structural reason.
 
 ## Lane 6 — Tests
 
 - Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted. Name the missing test by the behavior it pins.
-- Tests that assert nothing (`expect(result).toBeDefined()`), tests that mock the unit under test, snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
+- Hollow tests, the ones that would still pass if every imported function returned `undefined`: no assertion or a weak one (`toBeDefined`, `toBeTruthy`, `not.toThrow`), only mock-call or absence checks (`toHaveBeenCalled`, `toEqual([])`), an expected value computed by the code under test, a restated constant or prompt string, or a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test, snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
 - Deleted or weakened tests: a removed assertion, a `.skip`, a loosened matcher, an invariant that used to be pinned and now is not.
 - Test placement: specs where the repo keeps them; end-to-end scenarios in the repo's harness, not ad hoc scripts.
 - Round-trip-for-coverage tests are a finding too: they cost attention and protect nothing.

@@ -40,3 +40,6 @@ skills/engineer/ adapts principles, playbooks, and review guidance from pstack
     SOFTWARE.
 
 Portions of templates/rules/typescript.md adapt the same work.
+
+Portions of skills/pr-review/, skills/adversarial-review/templates/dossier.md, skills/plan-spec/SKILL.md, and
+skills/humanizer/SKILL.md (patterns 25-29) adapt the same work.

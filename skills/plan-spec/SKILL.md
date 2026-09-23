@@ -149,8 +149,9 @@ The structure is **adaptive** — generate sections that fit what was discussed,
 1. **A clear title and one-paragraph summary** at the top
 2. **Sections corresponding to the coverage areas** that were explored
 3. **Open Questions** section — always present, even if empty. These are things that came up during the interview but couldn't be fully resolved, plus any coverage areas that were skipped. Each open question should note why it's unresolved and what would be needed to resolve it.
-4. **Task Breakdown** section — a practical, ordered list of implementation tasks derived from the spec. Group by workstream if appropriate. Include dependency notes (e.g., "requires Data Model to be finalized first"). Structure these as actionable items that Claude can pick up and execute directly from the plan.
-5. **Interview Log** appendix — a complete record of every question asked and the user's answer during the interview. This serves as provenance for the spec — anyone reading it can trace *why* a decision was made back to the specific question that surfaced it. Format each entry as:
+4. **Design** section, required when the spec describes code. Write the caller's usage first (a quickstart plus two or three real call sites), then the data shapes derived from it. Name at least one structurally different alternative and why it lost, or which constraints left only one viable shape. List tradeoffs accepted as "we accept X in exchange for Y". Screen the chosen shape against the red flags in the engineer skill's design reference (shallow module, information leakage, temporal decomposition, pass-through method) and say how it passes.
+5. **Task Breakdown** section — a practical, ordered list of implementation tasks derived from the spec. Group by workstream if appropriate. Include dependency notes (e.g., "requires Data Model to be finalized first"). Structure these as actionable items that Claude can pick up and execute directly from the plan.
+6. **Interview Log** appendix — a complete record of every question asked and the user's answer during the interview. This serves as provenance for the spec — anyone reading it can trace *why* a decision was made back to the specific question that surfaced it. Format each entry as:
 
 ```markdown
 ## Interview Log
@@ -173,6 +174,7 @@ The spec must be structured so Claude can consume it as an implementation plan. 
 - Include file paths where relevant ("Add the auth middleware in `src/middleware/auth.ts`")
 - Order tasks by dependency so they can be executed sequentially
 - Each task should be completable in a single step — break large tasks into subtasks
+- Each task names the check that proves it done: a test, a command and its expected output, or an observable result on the real surface
 
 ### Writing Style
 

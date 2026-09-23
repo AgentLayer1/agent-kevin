@@ -383,6 +383,65 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ---
 
+## PLAIN SPEECH PATTERNS
+
+### 25. Abstract Metaphor Nouns
+
+**Problem:** Words that sound technical but have a plainer concrete word: substrate, wedge, vector, locus, nexus, primitive (as a noun), harness (as a metaphor), surface (as in "API surface"), bedrock, scaffolding (as a metaphor), paradigm, gold-plating, ratchet, evacuate (for moving code), endgame.
+
+**Before → After:**
+- "Wedge the check into the pipeline" → "Add the check to the pipeline"
+- "Evacuate the helpers from utils" → "Move the helpers out of utils"
+- "A ratchet on the import count" → "A limit on the import count that only goes down"
+
+---
+
+### 26. Saying How It Feels Instead of What It Does
+
+**Problem:** A sentence names a feeling ("the database stays close at hand", "types that follow your schema") instead of the mechanism or a number. If the sentence could appear unchanged in another project's docs, it says nothing about this one.
+
+**Before:**
+> The new client keeps your queries close at hand and feels fast.
+
+**After:**
+> `.toSQL()` returns the exact string sent to the database, and a column rename fails the build.
+
+---
+
+### 27. Passive Voice Hiding the Actor
+
+**Problem:** "is/are/was/were" plus a past participle, where naming the actor would be clearer. Passive is fine only when the actor is unknown or doesn't matter.
+
+**Before → After:**
+- "Queries are validated before they run" → "The compiler validates queries before they run"
+- "The file is parsed by the loader" → "The loader parses the file"
+
+---
+
+### 28. Mannered Prose
+
+**Problem:** A metaphor or flourish where a literal phrase exists: aphorisms ("wire it or delete it"), rhetorical fragments for effect, personified code ("the plan holds it"), figurative verbs ("rides along", "stands on").
+
+**Before:**
+> The flag rides along with the request, and the cache stands on it.
+
+**After:**
+> The request carries the flag, and the cache reads it to pick a key.
+
+---
+
+### 29. Over-Compression
+
+**Problem:** Dropped articles, verbless fragments, arrows, and abbreviations that make the reader decode instead of read. Terse is not the same as clear.
+
+**Before:**
+> Parser rejects bad date → exit 2, no write.
+
+**After:**
+> The parser rejects a bad date, exits with code 2, and writes nothing.
+
+---
+
 ## Process
 
 1. Read the input text carefully
@@ -477,5 +536,7 @@ Provide:
 ## Reference
 
 This skill is based on [Wikipedia:Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing), maintained by WikiProject AI Cleanup. The patterns documented there come from observations of thousands of instances of AI-generated text on Wikipedia.
+
+Patterns 25–29 are adapted from the `unslop` skill in [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT, Copyright (c) 2026 Lauren Tan).
 
 Key insight from Wikipedia: "LLMs use statistical algorithms to guess what should come next. The result tends toward the most statistically likely result that applies to the widest variety of cases."
