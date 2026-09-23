@@ -4,6 +4,7 @@
 
 import { FOLDERS, KNOWLEDGE, TIMEZONE } from '@/config';
 import { log as baseLog } from '@/shared/log';
+import { existsSync } from 'fs';
 import { readFile, readdir, unlink, writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
@@ -26,6 +27,11 @@ export async function pruneMemory(): Promise<void> {
     const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
     return dateMatch && dateMatch[1] < cutoffStr;
   });
+
+  const relinked = await relinkArchive();
+  if (relinked > 0) {
+    log.info(`Memory prune: pointed ${relinked} archived [[memory/…]] link(s) at their session logs`);
+  }
 
   if (toDelete.length === 0) {
     log.info('Memory prune: nothing to prune');
@@ -70,4 +76,35 @@ async function scrubManifestEntries(dates: string[]): Promise<number> {
 
   await writeFile(indexPath, content.replace(re, ''), 'utf-8');
   return matches.length;
+}
+
+const DAILY_LINK = /\[\[memory\/(\d{4}-\d{2}-\d{2})(?:\|[^\]]*)?\]\]/g;
+
+/**
+ * Archived decisions outlive the daily memory they cite, so a `[[memory/<date>]]` link whose file
+ * is gone becomes plain text naming that day's session log, which is never pruned.
+ */
+async function relinkArchive(): Promise<number> {
+  const archiveDir = resolve(FOLDERS.MEMORY, 'archive');
+  const names = await readdir(archiveDir).catch((): string[] => []);
+  const isGone = (date: string): boolean => !existsSync(resolve(FOLDERS.MEMORY, `${date}.md`));
+  const counts = await Promise.all(
+    names
+      .filter((name) => name.endsWith('.md'))
+      .map(async (name) => {
+        const path = resolve(archiveDir, name);
+        const content = await readFile(path, 'utf-8');
+        const dead = [...content.matchAll(DAILY_LINK)].filter(([, date]) => isGone(date)).length;
+        if (dead === 0) {
+          return 0;
+        }
+        await writeFile(
+          path,
+          content.replace(DAILY_LINK, (link, date: string) => (isGone(date) ? `the ${date} session log` : link)),
+          'utf-8'
+        );
+        return dead;
+      })
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
 }

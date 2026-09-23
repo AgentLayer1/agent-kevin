@@ -31,7 +31,9 @@ trailing content) if it doesn't exist yet.
    self-review skill moved that rule onto a surface loaded in every session (the manual,
    SOUL, a code guard). Leave the theme out of Learnings. Bring it back only when a
    correction dated after that entry clearly concerns the same rule (same behaviour, not
-   just a similar topic), and say in its line that it recurred after graduating.
+   just a similar topic), and say in its line that it recurred after graduating. An entry
+   headed `— graduated-rule: <theme>` moves only the rule it quotes: drop that rule's
+   wording from the theme's line and keep the rest of the theme.
 7. **Update frontmatter** `updated: {{now}}`.
 
 **Example of what a good Learnings section looks like:**

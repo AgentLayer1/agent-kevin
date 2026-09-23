@@ -45,7 +45,7 @@ bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DI
 Read every surface where corrections and decay actually show up.
 
 1. `<HOME>/knowledge/memory/index.md`, the whole file. `## Learnings` is the feedback synth; the other sections are the main prune target.
-2. `<HOME>/knowledge/raw/user/feedback.md`, the full file, not the tail. The synth flattens nuance you'll need (escalation language, repeated phrasing). Note entries headed `— graduated: <theme>`: those are prior cycles' graduation markers.
+2. `<HOME>/knowledge/raw/user/feedback.md`, the full file, not the tail. The synth flattens nuance you'll need (escalation language, repeated phrasing). Note entries headed `— graduated: <theme>` or `— graduated-rule: <theme>`: those are prior cycles' graduation markers.
 3. `<HOME>/knowledge/raw/sessions/`, the last 7 days (or since the watermark, whichever is longer). Grep for correction phrases: `no `, `don't`, `stop`, `wrong`, `actually`, `you didn't`, `that's not`, `i told you`, `again`, `still`, `please`, `before you`, `approval`. Also confirmation phrases: `yes exactly`, `perfect`, `that's right`, `keep doing`, `exactly what`. Successes validate non-obvious choices. Then, for every `graduated:` marker and every `retired` watermark entry, grep the same window for the rule's own key words (from the marker's quoted rule or the retired text in its report): a politely worded correction can slip past a phrase list, and a graduated rule breaking again is exactly the recurrence the markers cannot see on their own.
 4. Task threads updated in the last 7 days: `[!quote]` blocks with the same phrases.
 5. The prompt surface, read in full: `<HOME>/AGENTS.md` (the manual), `<HOME>/.claude/CLAUDE.md` (the Claude bridge), `<HOME>/SOUL.md`, `<HOME>/USER.md`, `<HOME>/.claude/rules/*.md`, and `<HOME>/.claude/skills/*/SKILL.md` if the home has custom skills. `IDENTITY.md` is read for context only.
@@ -85,7 +85,11 @@ capture({ kind: 'feedback', label: 'graduated: <theme name as it reads in Learni
           text: 'Rule: <the rule, quoted verbatim from its new home>. Now lives in <path>#<section>. <one line on why the Learnings copy can go>.' })
 ```
 
-The next compile drops the theme from Learnings and brings it back only if a later correction shows it broke. Quoting the rule is what lets the compiler match a later correction to it; a later correction that names neither the rule nor the action stays undecidable, which is why Step 1 also greps sessions for each graduated rule's own words. Retirements need no marker: they touch prompt surfaces only, and the watermark carries them.
+When only one rule inside a broader theme moved (the rest of the theme still earns its place), label it `graduated-rule: <theme name as it reads in Learnings>` with the same `text`: the next compile drops only that rule's wording and keeps the rest of the theme.
+
+**The home must already hold the rule when the marker is written.** Put it on the home's own surface (`<HOME>/AGENTS.md`, `SOUL.md`, `USER.md`) in this run. A Track D edit to `templates/` does not count on its own: it reaches an existing home only after a release and an upgrade, and until then the next compile would drop the Learnings copy with nothing loaded in its place.
+
+The next compile drops the theme (or the one rule) from Learnings and brings it back only if a later correction shows it broke. Quoting the rule is what lets the compiler match a later correction to it; a later correction that names neither the rule nor the action stays undecidable, which is why Step 1 also greps sessions for each graduated rule's own words. Retirements need no marker: they touch prompt surfaces only, and the watermark carries them.
 
 Present the manifest grouped by class, with bytes saved per item. For each item: the exact text or path, the evidence, the action. Get approval per group (`AskUserQuestion` with multi-select under Claude Code, a numbered list under Codex), then apply. Quote every deleted line verbatim in the cycle report so a restore never depends on git.
 
@@ -171,7 +175,7 @@ Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior fil
 ## Hard rules
 
 - **Never edit `IDENTITY.md`.** Flag a theme that suggests one; don't propose it.
-- **`raw/user/feedback.md` is append-only.** The only write is a `graduated:` marker through `capture`. Never edit past entries.
+- **`raw/user/feedback.md` is append-only.** The only write is a `graduated:` or `graduated-rule:` marker through `capture`. Never edit past entries.
 - **In `memory/index.md`, never touch `## Learnings` or `## Open Questions`.** Compile regenerates both; use markers for Learnings. Other sections take approved Stale-memory deletions only.
 - **Nothing is deleted without approval**, every deleted line is quoted in the cycle report, and no whole-home mutation tool (`knowledge_lint` with `fix`, `memory_prune`, `links_rewrite`) runs from this skill.
 - **Never edit the host's plugin cache** (`~/.claude/plugins/cache/…` or Codex's equivalent). In consumer mode plugin fixes are an override plus a proposal.
