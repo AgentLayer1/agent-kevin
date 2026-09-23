@@ -38,6 +38,8 @@ const isUserRole = (value: string): value is UserRole => Object.hasOwn(ROLE_PERM
 
 Indentation inside the block must match the file. For a fix that spans functions or files, describe it or give a unified diff in a ```diff block; do not use ```suggestion for anything that is not a literal replacement of the anchored range.
 
+A paste block that contains a ```suggestion block gets a four-backtick outer fence, as above, so the inner fence survives the copy.
+
 ## Words
 
 - Plain language. Say "the order stays stuck" not "the state machine fails to converge".
@@ -46,6 +48,10 @@ Indentation inside the block must match the file. For a fix that spans functions
 - No hedges when you verified it. "This throws" not "this might throw". When you did not verify, it is a question, and it is phrased as one.
 - Name prior art by number: "same class as #412", "#500 removed this write". Never link to anything in the operator's HOME.
 - Never paste customer PII from a database. Counts and IDs only.
+
+## Teaching comments
+
+When the point is to teach a pattern, not only to fix a line, state the failing call as a fact, give a reproducer the author can run with its real output pasted under it, and end on a one-line suggestion. The run does the persuading.
 
 ## Questions for the author
 

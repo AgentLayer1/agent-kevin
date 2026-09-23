@@ -9,6 +9,7 @@ Verify against the real artifact, not a proxy, a self-report, or "it compiles".
 - **Verify at the sink.** When content is injected, loaded, or sent, inspect the destination, not the log line upstream that says it went.
 - **Parse-check what a tool reads silently.** A JSON, YAML, or TOML file a tool loads without complaint can still be wrong; parse it yourself. A test must tell the broken case from the working one (the secret resolved, not just a 200).
 - **Look before a destructive write.** Run a bulk UPDATE or DELETE as a SELECT first, check the rows, then convert it.
+- **A yes/no question gets a ten-line experiment,** not a deploy and a watch ("will this process exit?"). Remove a known confound before running it.
 - **When verification fails, suspect the observation before the system.**
 - **Delegated work** is checked from its diff, its files, and its running behavior. Never pass a subagent's summary through as proof.
 - **Verify on the surface the operator uses:** the simulator or device through the Xcode loop, the page through the browser tools, the CLI in a real terminal. A wrong-surface or inconclusive result is not a pass. Say so.

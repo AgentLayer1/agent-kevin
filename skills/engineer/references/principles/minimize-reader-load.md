@@ -4,10 +4,12 @@
 
 Maintainability is the work a reader does to understand the code. Track two independent axes: the layers between a question and its answer, and the hidden or mutable state the reader has to hold in their head. Line counts and "clean architecture" are proxies for these.
 
-- **Collapse layers that cost more than they save:** one-caller wrappers, adapters with no second implementation, indirection that was never needed. Inline them.
+- **Collapse layers that cost more than they save:** one-caller wrappers, adapters with no second implementation, indirection that was never needed. Inline them. Native language features beat a hand-rolled wrapper, however correct.
 - **Adjacent layers must change the abstraction.** A layer that repeats the same methods and arguments adds load without compressing anything.
 - **Prefer deep modules.** A small interface that hides real decisions beats a broad one that makes the reader learn both the surface and the implementation.
 - **Shrink state scope:** returns over mutation, locals over fields, fields over module state, module state over globals. Derive values instead of syncing them.
+- **Order a file for its reader:** the important functions first, helpers last.
+- **A name doesn't repeat its folder,** and a prefix on a name means it crosses a module boundary.
 - **Name an invariant once,** at the boundary, not in every consumer.
 - **One name, one meaning.** Namespace an overloaded term (`knowledge:compile`, not a bare `compile`) so a reader never guesses which one.
 - **Keep the dependency graph acyclic.** Config modules import only the standard library; constants live with the function that uses them.

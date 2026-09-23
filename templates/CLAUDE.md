@@ -24,3 +24,4 @@ When a task lands in a code repo, read its `AGENTS.md` and then its `.claude/CLA
 
 - The manual's "plan first" rule means **plan mode** here: enter it for architecture changes and any non-trivial task (3+ steps or architectural decisions).
 - Session transcripts are captured by the plugin's `SessionEnd` and `PreCompact` hooks; nothing to do by hand.
+- Settings changes go in this home's `.claude/settings.json` or `settings.local.json`, never the user-level `~/.claude/settings.json`, which every other project on the machine shares.

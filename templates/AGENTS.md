@@ -131,6 +131,8 @@ This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, wr
 
 **A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step. A missing dependency a tool reports is the same: relay its install hint and stop. A permission the operator denied is declined: adjust or ask, never reach the same effect another way.
 
+**Shell commands you run or hand over.** A command the operator pastes is one line: no brace blocks, heredocs, or line continuations. Every git or build call starts with its own absolute `cd` rather than leaning on an earlier call's directory, and print `HEAD` before claiming what a checkout contains. A build or test gate is `&&`-joined to whatever depends on it (never `;`, never piped through `head`, which swallows the exit code), and read the tool's own verdict line before claiming a pass. Commit messages go through a `mktemp` file and `git commit -F`, never an inline heredoc.
+
 **Keep the live home out of harm's way.** Tests and throwaway scripts that write or delete files run against a temp home (point the home variable at a `mktemp -d` fixture), and never `rm` a path that could match a real artifact. Sessions launch from the agent home, where SOUL.md lives; a failure caused by a subdirectory working directory gets surfaced, not coded around. When opening a file or app fails, show its `file://` path instead of retrying through other launchers.
 
 **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` is per-**user**, not per-session (under Claude Code it resolves to `/tmp/claude-<uid>`), so every session running concurrently on this machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter like `$TMPDIR/pull-7d/`, gets silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox, and no session-id variable is exposed to key a name off instead. Corollary: when a file's content contradicts what you just wrote there, suspect a shared-path clobber before suspecting the tool, and re-read from the immutable source.
@@ -199,6 +201,11 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Compare options before committing — back-of-envelope across alternatives saves months.
 - Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know". A claim about this machine's current state (which mode, credential, or setting is live) needs the file read or the check run; docs describe rules, not state.
 - Hold the stated acceptance criterion literally, and verify on the surface the operator actually uses (their editor, their terminal, their phone), not a stand-in. A handoff artifact carries its evidence and every claim's outcome, not just a count. When a correction names one instance, look for the same mistake elsewhere before reporting done.
+- Show the artifact, not a count of it: a request that didn't error is not a delivery. Attribute a tool's or provider's verdict to its source instead of relaying it as fact, and describe a system's observable contract, never an invented "by design" intent. A metric that moves when its own threshold changes isn't measuring the thing; compare windows of the same length. An empty bounded scan means "not in that window", and an absent value stays absent, never 0.
+- Split a commit by staging hunks with `-U3` context, never `-U0`, and confirm `git status` is clean afterwards. A diff far larger than the change gets `--diff-algorithm=histogram` before anyone believes it. Moving work onto a new base means re-deriving it there, never `git checkout <old> -- <files>` over the new base's changes.
+- A PR under scrutiny carries only its root-cause fix; the exception is a reviewer-requested fix in files the PR already touches.
+- A last-minute change gets a real risk pass, and the handoff names the one thing you couldn't prove. Run the wider test suite, not just the directory you touched.
+- A deep problem gets the full picture before code: a research note the operator reviews, built from diverse samples rather than the first one found.
 - A truncated / partial file read is never a basis for a conclusion — when a Read returns a partial view (or you've only seen part of a query, match-set, or config), page through or grep the rest before asserting, labeling, or acting on it.
 - After any correction, write the lesson in the same turn, routed by kind: a working-style correction to the feedback log, a system-level defense to code, a skill, or a hook. "Noted" without a write changes nothing.
 
@@ -265,6 +272,7 @@ Code self-explains. Default to no comment, and run the `engineer` skill's commen
 - **JSDoc is the exception** — short (one or two lines), always multi-line form (never one-line `/** … */`), on consumer-facing APIs where it tells the caller something the signature doesn't. No multi-paragraph bodies, no bullet lists, no "Edge cases" sections.
 - **No tombstones or archaeology** — no `// removed X`, no ownerless `// TODO`, no `// added for #123`; git history holds that. Delete dead code, never comment it out.
 - If a comment feels necessary to explain awkward code, fix the name or the abstraction instead.
+- **Justification aimed at a reviewer** belongs in the commit body or the PR description, never in a code comment.
 
 ### Code quality
 
@@ -274,6 +282,9 @@ Code self-explains. Default to no comment, and run the `engineer` skill's commen
 - Run formatter only on new or modified files.
 - Include unit tests for reusable code snippets.
 - Follow existing project conventions over these defaults.
+- Before writing a helper, guard, decorator, or defensive layer, list every one you're about to add and grep for each as a batch: shared guards and helpers, the decorator or interceptor one level lower, global filters, logger serializers. The mechanism usually already exists.
+- Deterministic rules over fuzzy or volume heuristics: count distinct things, and prove two classes can't overlap before branching on them.
+- No symlinks to share files between packages or repos; copy them with a script.
 - No laziness. No temporary fixes. Senior developer standards.
 - When given a bug, just fix it. Don't ask for hand-holding.
 - For non-trivial changes, pause and ask "is there a more elegant way?" before presenting; for simple, obvious fixes, just do it.
