@@ -199,7 +199,7 @@ Compile commands:
 Worktree commands:
   worktree <repoPath> --branch=BRANCH [--base=REF] [--slug=SLUG] [--extra=sub1,sub2]
                                     Create <repoPath>-<slug> as a sibling of the main checkout, copy gitignored locals,
-                                    install, build. A bare --branch is namespaced under the operator (basem/<name>).
+                                    install, build. A bare --branch is namespaced under the operator (<operator>/<name>).
                                     --base picks the start-point (default: dev → develop → main → master → current HEAD).
                                     --extra lists relative subdirs with their own lockfile.
                                     NOTE: blocked by the Bash sandbox when run from inside Claude Code (git can't write

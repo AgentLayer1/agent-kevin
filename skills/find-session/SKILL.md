@@ -16,7 +16,7 @@ briefings, syncs, and standups that merely *mentioned* it.
 
 Pull the most distinctive tokens from the ask. In rough order of power:
 
-- **Branch / worktree slugs** (`basem/radar-recency`, `dark-mode`) — near-unique.
+- **Branch / worktree slugs** (`alex/radar-recency`, `dark-mode`) — near-unique.
 - **PR numbers** — search both spellings in one run: `#490` and `pull/490`.
 - **Stable identifiers** — task ids (`ac-012`), error strings, ticket numbers.
 - **Feature phrases** — a short distinctive phrase (`badge overflow`), not single

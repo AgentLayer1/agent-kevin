@@ -55,7 +55,7 @@ Call `mcp__plugin_agent-kevin_kevin__setup_worktree` with:
 - `branch` — a short, descriptive branch name from what the user is doing; ask only if genuinely
   ambiguous. **Do not add a type prefix** (`feat/`, `chore/`, `test/`); the operator's name is the
   branch folder. The name is always namespaced under the operator (e.g. `my-thing` →
-  `basem/my-thing`, derived from git identity); a name already under that namespace is kept as-is.
+  `alex/my-thing`, derived from git identity); a name already under that namespace is kept as-is.
   An existing branch is checked out as-is.
 - `baseBranch` (optional) — explicit branch/ref to start the new branch from. Defaults to the first
   of `dev` → `develop` → `main` → `master` that exists locally, falling back to the main checkout's
@@ -238,7 +238,7 @@ didn't apply rather than printing "n/a"). Terminal-native: ASCII + a light 🍌,
    clean      pnpm run clean ✓
    workspace  unwired from acme.code-workspace
    db fork    shared DB — nothing to drop
-   branch     basem/darkmode — deleted · PR #123 merged
+   branch     alex/darkmode — deleted · PR #123 merged
 ```
 
 Always show the `branch` line as `kept` or `deleted` so its fate is explicit, appending the PR state

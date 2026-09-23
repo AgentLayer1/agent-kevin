@@ -25,7 +25,7 @@ export const tools: ToolDef[] = [
       branch: z
         .string()
         .describe(
-          'Branch name — pass a short, descriptive name WITHOUT a type prefix (no "feat/", "chore/", "test/"). It is always namespaced under the operator (e.g. "my-thing" → "basem/my-thing"); a name already under that namespace is kept as-is. Created with -b; if it already exists, it is checked out instead.'
+          'Branch name — pass a short, descriptive name WITHOUT a type prefix (no "feat/", "chore/", "test/"). It is always namespaced under the operator (e.g. "my-thing" → "alex/my-thing"); a name already under that namespace is kept as-is. Created with -b; if it already exists, it is checked out instead.'
         ),
       baseBranch: z
         .string()

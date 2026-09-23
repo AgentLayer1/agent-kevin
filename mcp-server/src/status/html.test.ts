@@ -47,12 +47,12 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     soulSections: [{ title: 'Vibe', lines: ['Concise by default. Walls of text are a crime.'] }]
   },
   operator: {
-    name: 'Basem',
+    name: 'Alex',
     timezone: 'Asia/Kuala_Lumpur',
     currentTimezone: '',
     avatar: 'knowledge/user/assets/avatar.jpg',
     headline: 'Software engineer and founder with 20+ years of experience.',
-    profileSections: [{ title: 'Identity', lines: ['Full name: Basem Emara', 'Location: Cyberjaya, Malaysia'] }],
+    profileSections: [{ title: 'Identity', lines: ['Full name: Alex Chen', 'Location: New York, USA'] }],
     facets: [{ name: 'profile', description: 'bio, identity, family', bytes: 1024, href: 'knowledge/user/profile.md' }]
   },
   skills: {
@@ -287,7 +287,7 @@ describe('renderDashboardHtml', () => {
     // Healthy snapshots show the green badge; it routes to the Status page.
     expect(html).toContain('class="badge ok" data-nav="status"');
     expect(html).toContain('all nominal');
-    expect(html).toContain('Good morning, Basem');
+    expect(html).toContain('Good morning, Alex');
   });
 
   test('today page surfaces goals, due-today work, blockers, and the activity trail', () => {
@@ -358,7 +358,7 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('data-page="profile"');
     expect(html).toContain('src="knowledge/user/assets/avatar.jpg"');
     expect(html).toContain('Software engineer and founder with 20+ years of experience.');
-    expect(html).toContain('Full name: Basem Emara');
+    expect(html).toContain('Full name: Alex Chen');
     expect(html).toContain('bio, identity, family');
     expect(html).toContain(`obsidian://open?path=${encodeURIComponent('/tmp/home/knowledge/user/profile.md')}`);
   });
@@ -536,7 +536,7 @@ describe('renderDashboardHtml', () => {
     const base = makeSnapshot();
     const html = renderDashboardHtml(
       makeSnapshot({
-        operator: { ...base.operator, name: '<b>Basem</b>' },
+        operator: { ...base.operator, name: '<b>Alex</b>' },
         tasks: {
           ...base.tasks,
           activeList: [taskRef({ title: hostile, blockedBy: '<img src=x onerror=alert(1)>' })],
@@ -546,7 +546,7 @@ describe('renderDashboardHtml', () => {
     );
     expect(html).not.toContain(hostile);
     expect(html).not.toContain('<img src=x');
-    expect(html).not.toContain('<b>Basem</b>');
+    expect(html).not.toContain('<b>Alex</b>');
     expect(html).toContain('Fix &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; co');
   });
 

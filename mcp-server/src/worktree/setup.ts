@@ -65,7 +65,7 @@ export interface SetupWorktreeOptions {
   /** Absolute path to the MAIN checkout of the repo the worktree is for. */
   repoPath: string;
   /** Branch name; created with -b, or checked out if it already exists. Always namespaced under the
-   *  operator (e.g. `basem/<name>`) unless it's already under that namespace. */
+   *  operator (e.g. `alex/<name>`) unless it's already under that namespace. */
   branch: string;
   /** Explicit branch/ref to start the new branch from. Overrides the dev→develop→main→master→HEAD
    *  auto-detection. Must resolve in the repo. Ignored when the target branch already exists. */
@@ -241,9 +241,9 @@ export const setupWorktree = ({
   }
   const mainCheckout = resolve(firstLine.slice('worktree '.length).trim());
 
-  // Branch-folder convention: the operator's name is ALWAYS the top folder (e.g. basem/<name>),
+  // Branch-folder convention: the operator's name is ALWAYS the top folder (e.g. alex/<name>),
   // derived from git identity. Kept verbatim only if it's already under that namespace (avoids
-  // basem/basem/...) — so a type-prefixed name like `feat/x` still nests to `basem/feat/x` rather
+  // alex/alex/...) — so a type-prefixed name like `feat/x` still nests to `alex/feat/x` rather
   // than escaping the operator folder. With no identity configured, fall back to the bare name.
   const namespace = branchNamespace(mainCheckout);
   const finalBranch =

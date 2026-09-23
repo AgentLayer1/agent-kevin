@@ -23,7 +23,7 @@ Three phases: **interview → research → render**. Don't skip the interview (g
 
 Gather what's already known so the interview asks only what's genuinely open:
 
-1. Find a trips project: look for `<HOME>/projects/*/itineraries/` (a project whose README is about travel, e.g. `family-trips`). If one exists, read its README, especially any **constraints** section. Constraints vary per user and drive the whole plan: dietary rules (halal, kosher, vegetarian, allergies), prayer- or accessibility-aware scheduling, kid or elder pacing, school calendar, budget norms.
+1. Find a trips project: look for `<HOME>/projects/*/itineraries/` (a project whose README is about travel, e.g. `trips`). If one exists, read its README, especially any **constraints** section. Constraints vary per user and drive the whole plan: dietary rules (halal, kosher, vegetarian, allergies), prayer- or accessibility-aware scheduling, kid or elder pacing, school calendar, budget norms.
 2. If no trips project exists, don't assume one. Pull travel-relevant constraints from the user's own knowledge instead (`<HOME>/knowledge/user/preferences.md`, `USER.md`, or whatever the harness exposes), and plan to **offer creating a project** to house the itinerary (see Phase 3) rather than inventing a folder.
 3. Check for an existing task for this trip (`task_query` on the project, if there is one) and any prior itinerary versions for the same destination in `itineraries/`. A v2 request inherits the v1's decisions; ask only about what changes.
 4. Note today's date and any school-holiday or seasonal windows the README, task, or user preferences mention.
@@ -37,7 +37,7 @@ Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from conte
 **Round 1: shape of the trip**
 - Destination(s), if not already given.
 - Dates: offer concrete windows (upcoming school holidays, long weekends) plus "you find the best window", which makes date research part of Phase 2.
-- Duration and flavor: confirm what you infer (day trip / multi-day / road trip / fly-in). Don't ask what's obvious; Langkawi from KL is a flight or a long drive+ferry, so ask which, not whether.
+- Duration and flavor: confirm what you infer (day trip / multi-day / road trip / fly-in). Don't ask what's obvious; an island from the mainland is a flight or a long drive plus a ferry, so ask which, not whether.
 - Who's going: always establish whether it's just the user or a group, exactly who joins (kids, grandparents, friends), and the age range of the group. Ages drive pacing, activity selection, and pricing tiers, so even when the project README names a default family, confirm who's actually coming on THIS trip.
 
 **Round 2: texture (build from Round 1 answers)**
@@ -82,7 +82,7 @@ A structural rethink (different dates, different route, different trip shape) ge
 
 ## Failure modes to avoid
 
-- **Skipping the wizard** because the request seems complete. "Plan Langkawi in July" still leaves pace, budget, and anchors open; one round minimum.
+- **Skipping the wizard** because the request seems complete. "Plan Lisbon in July" still leaves pace, budget, and anchors open; one round minimum.
 - **Inventing specifics.** A made-up restaurant name or ticket price destroys trust in the whole document. Unverified slots get honest placeholders ("dinner near the jetty, pick on arrival").
 - **Overstuffed days.** Two anchor activities per day with kids is the ceiling, one is better. Buffer all drive times. Surplus ideas go in the Options block, not crammed into the periods.
 - **Dropping content to fit.** Comprehensiveness is the point — if a worthwhile stop doesn't fit the day, demote it to Options rather than cutting it. A thin itinerary that "fits" is worse than a rich one with clear options.

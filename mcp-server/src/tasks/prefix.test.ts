@@ -12,8 +12,8 @@ describe('derivePrefix', () => {
 
   test('compound → first letter of the first two parts', () => {
     expect(derivePrefix('agent-layer')).toBe('al');
-    expect(derivePrefix('pray-watch')).toBe('pw');
-    expect(derivePrefix('prophetic-day-routine')).toBe('pd');
+    expect(derivePrefix('field-notes')).toBe('fn');
+    expect(derivePrefix('weekly-planning-routine')).toBe('wp');
   });
 });
 

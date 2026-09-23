@@ -13,8 +13,8 @@ Stand up a new project so it shows up in the knowledge index, the task CLI, and 
 - **Don't use for:** one-off tasks (those go in an existing project's `tasks/`) or quick research notes (drop them under `<HOME>/knowledge/raw/inbox/` — or use `kevin capture` — for compilation)
 
 ## Inputs (ask if missing, don't guess)
-- `<name>` — human title (e.g., "Halal Finance Tracker")
-- `<slug>` — folder name, lowercase-with-hyphens (e.g., `halal-finance`); derive from name and confirm
+- `<name>` — human title (e.g., "Garden Planner")
+- `<slug>` — folder name, lowercase-with-hyphens (e.g., `garden-planner`); derive from name and confirm
 - `<one-line>` — vision/purpose in one sentence; used for the banner under the title
 
 The 2-letter task prefix is **not an input** — it's derived from the slug (see step 2). You don't choose or register it; you just tell the user what it'll be.
@@ -45,7 +45,7 @@ Steps 1–2 are reversible. After step 3 (folder creation), stay deliberate.
 
 ### 2. Compute the derived prefix (so you can tell the user)
 The prefix is whatever `getProjectPrefix()` will return for an empty project — derived from the slug:
-- **2+ hyphen-separated parts:** first letter of the first two parts (`halal-finance` → `hf`, `pray-watch` → `pw`, `agent-layer` → `al`).
+- **2+ hyphen-separated parts:** first letter of the first two parts (`garden-planner` → `gp`, `field-notes` → `fn`, `acme-site` → `as`).
 - **Single word:** first two letters (`acme` → `ac`, `homestead` → `ho`).
 
 You don't write this anywhere — it's computed at runtime. Just surface it in the confirmation and summary. Status line: `Created <YYYY-MM-DD> — <one-line vision>.`

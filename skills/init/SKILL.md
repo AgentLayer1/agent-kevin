@@ -531,7 +531,7 @@ Stage for the `## How to Talk to Me` section of USER.md.
 Optionally `AskUserQuestion`:
 
 > **Any hard preferences / values I should always respect?** (Optional — answer N/A to skip)
-> Examples: "no recommending alcohol", "always halal options", "I work in healthcare — never specific medical actions"
+> Examples: "no recommending alcohol", "only vegetarian food suggestions", "I work in healthcare — never specific medical actions"
 
 Stage for the `## Hard Rules` section.
 
@@ -1405,7 +1405,7 @@ _No weekly goals set yet — run the weekly-goals skill to set them._
 
 ## Monthly Goals
 
-_No monthly goals set yet — run the monthly-goals skill (Kevin proposes on the 1st of each Hijri month)._
+_No monthly goals set yet — run the monthly-goals skill (proposed on the 1st of each month)._
 
 ## Yearly Goals
 

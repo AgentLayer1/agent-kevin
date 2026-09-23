@@ -1082,7 +1082,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
 // Per-event explanations for the Reflexes tab — these hooks are how the agent
 // persists across sessions, so each one is worth spelling out.
 const reflexTips = (agent: string): Record<string, string> => ({
-  SessionStart: `Fires when a session starts. Injects today’s date (with the Hijri date), the tail of your last session, today’s reports, and recent git activity — so ${agent} wakes up with continuity instead of a blank slate.`,
+  SessionStart: `Fires when a session starts. Injects today’s date, the tail of your last session, today’s reports, and recent git activity — so ${agent} wakes up with continuity instead of a blank slate.`,
   SessionEnd:
     'Fires when a session ends. Captures the full transcript to `knowledge/raw/sessions/YYYY-MM-DD.md`. This is how every session is saved — later compiled into long-term memory.',
   PreCompact:

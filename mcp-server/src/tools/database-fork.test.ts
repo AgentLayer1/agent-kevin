@@ -23,11 +23,11 @@ describe('quoteIdent', () => {
 
 describe('deriveForkName', () => {
   test('slugifies the branch and prefixes the source DB', () => {
-    expect(deriveForkName('acme', 'basem/ac-002-shared-db')).toBe('acme_basem_ac_002_shared_db');
+    expect(deriveForkName('acme', 'alex/ac-002-shared-db')).toBe('acme_alex_ac_002_shared_db');
   });
 
   test('keeps a hyphenated source name verbatim in the prefix', () => {
-    expect(deriveForkName('acme-db', 'basem/feature-redemption')).toBe('acme-db_basem_feature_redemption');
+    expect(deriveForkName('acme-db', 'alex/feature-redemption')).toBe('acme-db_alex_feature_redemption');
   });
 
   test('collapses runs of non-alphanumerics and trims edges', () => {

@@ -95,7 +95,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
 📰 News
   • <emoji> [<headline>](<source-url>) — <one-line why it touches your world>
   • <emoji> ...
-  (1–3 items. Geopolitical / macro / Muslim world. Headline links to the source. Skip section if nothing material.)
+  (1–3 items. Geopolitical / macro, plus any region or community the operator's signal topics name. Headline links to the source. Skip section if nothing material.)
 
 👉 Today: <one concrete first action — the mechanical, blocked-on-nothing, prevents-the-next-outage move>
 
