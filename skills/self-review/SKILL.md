@@ -1,6 +1,6 @@
 ---
 name: self-review
-description: Interactive maintenance pass over the agent's own instructions and memory, run with the operator. Prunes first (stale memory, rules the model or a guard now covers, dead references, duplicated learnings), then turns accumulated feedback into prompt, skill, or code-plan changes, and promotes generic fixes to the plugin (edited in place for a local checkout, written up as an upstream proposal for a marketplace install).
+description: Interactive maintenance pass over the agent's own instructions and memory, run with the operator. Prunes first (stale memory, rules the model or a guard now covers, dead references, duplicated learnings), then turns accumulated feedback into prompt, skill, or code-plan changes, and promotes generic fixes and every generic rule the home has that the templates lack to the plugin (edited in place for a local checkout, written up as an upstream proposal for a marketplace install). Pass --full to reconsider all feedback regardless of the watermark.
 disable-model-invocation: true
 ---
 
@@ -28,6 +28,7 @@ HOME_DIR="${KEVIN_HOME:-$PWD}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # under Codex replace <SKILL_BASE_DIR> with this skill's base directory
 bun "$PLUGIN_ROOT/skills/self-review/scripts/plugin-source.ts" --home "$HOME_DIR"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DIR"
+bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "<source, or $PLUGIN_ROOT in consumer mode>"
 ```
 
 `NOT_AN_AGENT_HOME` → stop and ask the operator to relaunch from the agent home.
@@ -40,6 +41,8 @@ bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DI
 
 `context-weight.ts` prints the **always-loaded stack per host**, with bytes per file and a total. The two stacks differ: Claude Code loads the bridge, everything it `@`-imports (recursively, prose only: an `@path` inside a fenced block or a code span is not an import, and a bare `@word` that names no file is a mention), and every `.md` under `.claude/rules/` without a `paths:` scope; Codex loads `AGENTS.md` natively and gets the identity stack (SOUL, IDENTITY, USER, the knowledge index, the memory index, the task dashboard) from the SessionStart hook, never the bridge or the rules. A non-zero exit means an import did not resolve: fix or report that before using the totals. Record both totals as this cycle's baseline; the wrap-up reports the deltas. A rules-file deletion is a Claude-only saving; say so.
 
+`template-drift.ts` prints, for SOUL, IDENTITY, AGENTS, and each rule file the templates ship, the `##` sections and lines this home has that the templates lack (placeholders such as `{{AGENT_NAME}}` match whatever the home resolved them to), plus rule-shaped bullets living in `USER.md` and `knowledge/user/preferences.md`. In contributor mode point `--plugin` at the checkout, so drift is measured against the templates about to ship. Its output feeds Track E every cycle.
+
 ## Step 1 — Cast a wide signal net
 
 Read every surface where corrections and decay actually show up.
@@ -48,13 +51,13 @@ Read every surface where corrections and decay actually show up.
 2. `<HOME>/knowledge/raw/user/feedback.md`, the full file, not the tail. The synth flattens nuance you'll need (escalation language, repeated phrasing). Note entries headed `— graduated: <theme>` or `— graduated-rule: <theme>`: those are prior cycles' graduation markers.
 3. `<HOME>/knowledge/raw/sessions/`, the last 7 days (or since the watermark, whichever is longer). Grep for correction phrases: `no `, `don't`, `stop`, `wrong`, `actually`, `you didn't`, `that's not`, `i told you`, `again`, `still`, `please`, `before you`, `approval`. Also confirmation phrases: `yes exactly`, `perfect`, `that's right`, `keep doing`, `exactly what`. Successes validate non-obvious choices. Then, for every `graduated:` marker and every `retired` watermark entry, grep the same window for the rule's own key words (from the marker's quoted rule or the retired text in its report): a politely worded correction can slip past a phrase list, and a graduated rule breaking again is exactly the recurrence the markers cannot see on their own.
 4. Task threads updated in the last 7 days: `[!quote]` blocks with the same phrases.
-5. The prompt surface, read in full: `<HOME>/AGENTS.md` (the manual), `<HOME>/.claude/CLAUDE.md` (the Claude bridge), `<HOME>/SOUL.md`, `<HOME>/USER.md`, `<HOME>/.claude/rules/*.md`, and `<HOME>/.claude/skills/*/SKILL.md` if the home has custom skills. `IDENTITY.md` is read for context only.
-6. `<HOME>/knowledge/concepts/` and `<HOME>/knowledge/user/`: list every article. A theme that maps to a concept means the *thinking* landed but maybe not the *behavior* (enforcement gap, not knowledge gap). An article contradicted by current state is a prune candidate.
+5. The prompt surface, read in full: `<HOME>/AGENTS.md` (the manual), `<HOME>/.claude/CLAUDE.md` (the Claude bridge), `<HOME>/SOUL.md`, `<HOME>/USER.md`, `<HOME>/.claude/rules/*.md`, and `<HOME>/.claude/skills/*/SKILL.md` if the home has custom skills, and `IDENTITY.md` (its `## Operational Pattern` is proposable; the preamble and `## Who` are not).
+6. `<HOME>/knowledge/concepts/` and `<HOME>/knowledge/user/`: list every article, and read `knowledge/user/preferences.md` in full: a working rule filed there is a rule the manual is missing, not a taste. A theme that maps to a concept means the *thinking* landed but maybe not the *behavior* (enforcement gap, not knowledge gap). An article contradicted by current state is a prune candidate.
 7. Git history. Plugin side: `git -C <source> log --format='%h %ai %s' -50 -- skills templates mcp-server/src` in contributor mode, or the `CHANGELOG.md` beside `$PLUGIN_ROOT` in consumer mode. Commits and releases after a cycle's date are addressed work, so you can compute "violations after fix". Home side: try `git -C "$HOME_DIR" log --oneline -30`; homes with a separated git dir outside the sandbox refuse it, and then the prior cycle reports (item 9) are the home-side history.
 8. `<HOME>/reports/plans/`: self-review-authored plans only (frontmatter `skill: self-review`). The folder also holds raw plan-mode saves with no frontmatter; ignore those.
 9. Prior cycle reports: `<HOME>/reports/briefings/*self-review*.md`. These are the cycle count: a theme named in two prior reports is in its third cycle.
 10. `$PLUGIN_ROOT/skills/`: what's installed, so Track C never proposes something already covered.
-11. `<HOME>/.kevin/review.json`, the watermark. Feedback and session entries dated on or before `lastProcessed` are already triaged; re-open one only if it recurred after that date. Rules in `confirmedWorking` are validated; don't re-propose them unless violated since. Entries in `retired` were removed on trial; any violation after their date means restore them (Step 2). Absent file = first run: process everything.
+11. `<HOME>/.kevin/review.json`, the watermark. Feedback and session entries dated on or before `lastProcessed` are already triaged; re-open one only if it recurred after that date. Rules in `confirmedWorking` are validated; don't re-propose them unless violated since. Entries in `retired` were removed on trial; any violation after their date means restore them (Step 2). Absent file = first run: process everything. `--full` ignores `lastProcessed` for the feedback log and re-triages every entry: run it when the watermark may have closed rules that were never promoted.
 
 ## Step 2 — Prune pass
 
@@ -103,7 +106,7 @@ For each candidate theme:
 - **Coverage audit**: grep the prompt surface (Step 1.5), `$PLUGIN_ROOT/skills/*/SKILL.md`, `<HOME>/knowledge/concepts/*.md`, and the plugin's TS source for runtime guards. Classify: **missing** / **buried** / **present-but-violated** / **present-and-working**.
 - **Violations after fix**: count violations after the fix's commit or cycle date. Zero = working (add to `confirmedWorking`). One or more = it didn't stick.
 
-Rank by `severity × instances × cycles`. Drop anything with fewer than two independent signals, or that's present and working. If nothing clears the bar, say so and skip to Step 5 with just the prune results.
+Rank by `severity × instances × cycles`. Drop anything with fewer than two independent signals, or that's present and working, with one exception: a single entry the operator phrased as a standing rule ("remember", "from now on", "always", "never", "going forward") is eligible on its own. "Present and working" is judged on this home only; whether the plugin has the rule is Track E's question, not a reason to drop it here. If nothing clears the bar, say so and skip to Step 5 with just the prune results.
 
 ## Step 4 — Propose 1–5 changes
 
@@ -113,6 +116,7 @@ Rank by `severity × instances × cycles`. Drop anything with fewer than two ind
 | Buried | **Move** it to a higher-salience surface (Track A) and delete the old copy in the same change. Never duplicate. |
 | Present-but-violated | **Escalate** to enforcement (Track B plan): prose already failed, so the plan must name a verification artifact (a hook, validator, or test that fails when the rule breaks). No artifact, no escalation. Or move it to SOUL's `## Core Truths` if it's identity-level. |
 | Generic, useful to every user of the plugin | **Promote upstream** (Track D), after a framing audit. |
+| Present in this home, missing from the templates (from `template-drift.ts`) | **Promote upstream** (Track E), after the same framing audit. |
 | A recurring multi-step procedure (3+ instances) | **Skill** (Track C). |
 
 **Track A: home prompt edits.** For each: the target path, the current text (read it, quote it), the proposed text, the coverage state, and one sentence on why this surface.
@@ -143,9 +147,18 @@ Then, by install mode:
 
 For each Track D proposal: the source rule, the target path (checkout path or upstream path), the generic text, and a one-line audit note on what was scrubbed (or "nothing personal to scrub").
 
+**Track E: upstream drift. Runs every cycle, outside the 1–5 cap and the Step 3 filter.** A rule already in this home looks present and working, so the theme pipeline never promotes it; this track exists for exactly that. Walk the `template-drift.ts` output and sort every home-only line into:
+
+- **Generic**: a rule any operator's home should carry. Propose it upstream with the Track D mechanics (framing audit, then by install mode) into the template section it belongs in; a code-only rule goes to the engineer skill instead of the always-loaded manual.
+- **Personal**: this operator's faith, family, business, sibling agents, accounts, or tastes. Record it in the watermark's `personal` list so later cycles skip it.
+- **Pending upgrade**: the template already has a newer version and the home simply hasn't upgraded. Say so and move on.
+- **Rule-shaped bullets** in `USER.md` or `preferences.md` are a working rule filed in the wrong place: move it to the manual or SOUL (Track A), then decide generic or personal as above.
+
+A graduation (Step 2) in contributor mode checks the same thing: when the rule it graduates into the home is generic, the template edit is proposed in the same run, so a rule never ends up graduated in one home and missing from every other.
+
 ## Step 5 — Discuss, then apply
 
-Walk through the proposals one at a time. The operator's call on each: **Apply** (Track A, now) · **Plan** (Track B) · **Install/Create** (Track C) · **Promote** (Track D, only after a go on that specific diff) · **Skip** · **Revise** (take the redirect, re-propose) · **Watch** (park it). Confirm each edit landed before moving on.
+Walk through the proposals one at a time (Track E promotions can be approved as a batch per target file). The operator's call on each: **Apply** (Track A, now) · **Plan** (Track B) · **Install/Create** (Track C) · **Promote** (Track D or E, only after a go on that specific diff) · **Skip** · **Revise** (take the redirect, re-propose) · **Watch** (park it). Confirm each edit landed before moving on.
 
 ## Step 6 — Wrap up
 
@@ -153,7 +166,7 @@ Re-run `context-weight.ts` and summarise:
 
 - Always-loaded context per host: Claude `<before>` → `<after>` bytes, Codex `<before>` → `<after>` bytes
 - Pruned: N items (by class), graduation markers appended, retirements restored or made permanent
-- Track A edits, Track B plans (paths), Track C skills, Track D promotions (edited in the checkout, or upstream proposals written)
+- Track A edits, Track B plans (paths), Track C skills, Track D promotions (edited in the checkout, or upstream proposals written), Track E drift (promoted, marked personal, pending upgrade)
 - Skipped, watched, stuck plans surfaced
 
 Persist it with `report_write({ category: 'briefings', slug: 'self-review', title: 'Self-review: <date> (<counts>)', skill: 'self-review', status: 'draft', body })`. The body names every edit, plan path, and watched theme, and quotes every deleted line verbatim under `## Removed`. Surface `📄 Saved to <path>` using the absolute `path` the tool returns. Skip the report only when nothing was pruned or changed.
@@ -166,6 +179,7 @@ Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior fil
   "lastRun": "<today>",
   "confirmedWorking": ["<rule slug>"],
   "watching": ["<theme slug>"],
+  "personal": ["<file>#<section>: <first words of the line>"],
   "retired": [{ "slug": "<rule slug>", "date": "<today>", "from": "<path>#<section>", "checks": 0, "report": "<relPath of the cycle report holding the removed text>" }]
 }
 ```
@@ -174,7 +188,7 @@ Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior fil
 
 ## Hard rules
 
-- **Never edit `IDENTITY.md`.** Flag a theme that suggests one; don't propose it.
+- **Never edit `IDENTITY.md`'s preamble or `## Who`.** Its `## Operational Pattern` changes only as a Track A proposal the operator approves.
 - **`raw/user/feedback.md` is append-only.** The only write is a `graduated:` or `graduated-rule:` marker through `capture`. Never edit past entries.
 - **In `memory/index.md`, never touch `## Learnings` or `## Open Questions`.** Compile regenerates both; use markers for Learnings. Other sections take approved Stale-memory deletions only.
 - **Nothing is deleted without approval**, every deleted line is quoted in the cycle report, and no whole-home mutation tool (`knowledge_lint` with `fix`, `memory_prune`, `links_rewrite`) runs from this skill.
@@ -190,5 +204,13 @@ For each proposal and each prune item, all four must be yes:
 - Is the evidence specific (timestamps, quotes, `file:line`, a command's output)?
 - For additions: did you run the coverage audit? For deletions: did you verify the reason on the machine (the reference is really gone, the guard really exists, the decision really superseded it)?
 - If the rule exists already: do you know whether it has been violated since it was introduced?
+
+Then the durability test for anything that adds text (applied to Track A, D, and E alike):
+
+- **Durable:** still true in six months, once paths, SHAs, versions, and code shapes have changed.
+- **Specific:** a future agent recognizes when it applies; neither a platitude ("write good code") nor a one-off fact.
+- **Decision-changing:** a future agent does something different because of it, not just reads more text.
+- **Not already covered:** you read the target first; a buried rule gets a placement fix, not a duplicate.
+- **Not better as a mechanism:** if a test, lint, hook, or script could enforce it cheaply, that is the proposal (Track B), and the prose is the fallback.
 
 If any answer is soft, sharpen or drop.
