@@ -27,7 +27,12 @@ trailing content) if it doesn't exist yet.
    across distinct days. Weak or one-off signals get dropped.
 5. **Facts only, no proposals.** Don't say "should change X to Y" — just name
    the pattern. The interactive self-review skill is where proposals happen.
-6. **Update frontmatter** `updated: {{now}}`.
+6. **Graduated themes drop out.** An entry headed `— graduated: <theme>` means the
+   self-review skill moved that rule onto a surface loaded in every session (the manual,
+   SOUL, a code guard). Leave the theme out of Learnings. Bring it back only when a
+   correction dated after that entry clearly concerns the same rule (same behaviour, not
+   just a similar topic), and say in its line that it recurred after graduating.
+7. **Update frontmatter** `updated: {{now}}`.
 
 **Example of what a good Learnings section looks like:**
 

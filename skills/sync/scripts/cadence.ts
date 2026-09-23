@@ -77,9 +77,11 @@ const feedbackMtime = ((): Date | null => {
   }
 })();
 const lastReview = parseDate(selfReview.lastRun);
-const reviewStale = lastReview === null || (now.getTime() - lastReview.getTime()) / 86_400_000 >= 14;
+const reviewAgeDays = lastReview === null ? Infinity : (now.getTime() - lastReview.getTime()) / 86_400_000;
 const hasNewFeedback = feedbackMtime !== null && (lastReview === null || feedbackMtime > lastReview);
-if (reviewStale && hasNewFeedback) {
+// Context decays without new feedback, so a home that has run the pass before is nudged on the
+// calendar too; a home that never ran it still waits for feedback, so a fresh init stays quiet.
+if ((reviewAgeDays >= 14 && hasNewFeedback) || (lastReview !== null && reviewAgeDays >= 30)) {
   due.push({ skill: "self-review", label: "Self-review", lastRun: selfReview.lastRun ?? null });
 }
 

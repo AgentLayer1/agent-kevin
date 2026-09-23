@@ -166,7 +166,7 @@ Returns a JSON array of `{ skill, label, lastRun }` for each due item — empty 
 - **weekly-goals** — a new ISO week has begun since `lastRun` (or never run).
 - **monthly-goals** — a new calendar month has begun since `lastRun`.
 - **yearly-goals** — a new calendar quarter has begun since `lastRun`.
-- **self-review** — `raw/user/feedback.md` has new entries since self-review's `lastRun` **and** that run is >14 days old. Count-driven, not pure calendar: stays silent when there's nothing accumulated to process.
+- **self-review** — `raw/user/feedback.md` has new entries since self-review's `lastRun` **and** that run is >14 days old, or a previous run is 30 or more days old regardless of feedback. The second clause is for the prune pass: loaded context goes stale with no new corrections. A home that never ran it waits for feedback, so a fresh init isn't nudged.
 
 Watermarks live in `.kevin/cadence.json` (the goals trio, keyed `skill → last-run date`, stamped by each goals skill on completion) and `.kevin/review.json` (`lastRun`, owned by self-review). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
 
