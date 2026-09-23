@@ -85,7 +85,7 @@ bun skills/dashboard/scripts/demo-home.ts --out <agentlayer-mono>/apps/agentlaye
   --avatar <agentlayer-mono>/apps/agentlayer/public/demo/assets/ace-avatar.jpg
 ```
 
-It renders in isolation (its own `HOME`, environment, and working directory), rewrites every temp and machine path to `/home/alex`, and refuses to write if any real path survives. Run it outside the Claude Code sandbox, which hides the demo's secrets file from the renderer. The docs screenshots are taken from that file with `browser_screenshot` on `file://…/dashboard.html#<page>/<subtab>`.
+It renders in isolation (its own `HOME`, environment, and working directory), rewrites every temp and machine path to `/home/alex`, and refuses to write if any real path survives. The docs screenshots are taken from that file with `browser_screenshot` on `file://…/dashboard.html#<page>/<subtab>`.
 
 ## PR conventions
 
