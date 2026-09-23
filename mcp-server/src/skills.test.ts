@@ -65,3 +65,13 @@ describe('skills', () => {
     expect(markdownFiles(SKILLS).flatMap(brokenLinks)).toEqual([]);
   });
 });
+
+describe('engineer help', () => {
+  test('lists every playbook the router names', () => {
+    const router = readFileSync(join(SKILLS, 'engineer', 'SKILL.md'), 'utf-8');
+    const help = readFileSync(join(SKILLS, 'engineer', 'references', 'help.md'), 'utf-8').toLowerCase();
+    const playbooks = [...new Set([...router.matchAll(/\[([^\]]+)\]\(references\/playbooks\/[^)]+\)/g)].map((match) => match[1]))];
+    expect(playbooks.length).toBeGreaterThan(0);
+    expect(playbooks.filter((name) => !help.includes(`**${name.toLowerCase()}**`))).toEqual([]);
+  });
+});

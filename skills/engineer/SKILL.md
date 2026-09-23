@@ -8,12 +8,16 @@ description: >
   engineering principles (laziness protocol, prove it works, fix root causes, model the domain…),
   and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor",
   "simplify", "why is this slow", "how does X work", "why is X like this", "architect this",
-  "blast radius", "interrogate".
+  "blast radius", "interrogate", "engineer help".
 ---
 
 # Engineer
 
 The working method for code: a playbook per kind of task, principles the playbooks lean on, and three checks that run every time. Prove it on the real artifact, label every claim, and run the comment pass before anyone sees the diff.
+
+## Help
+
+`/engineer help` (or "what can engineer do?") asks for the menu, not a task: reply with [help](references/help.md) exactly as written and stop. Read no repo and start no playbook.
 
 ## Start
 
