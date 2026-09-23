@@ -3,9 +3,11 @@
  * Lines an agent home carries that the plugin's templates lack, per `##` section of SOUL, IDENTITY,
  * AGENTS, and each rule file the templates ship, plus rule-shaped lines living in USER.md and the
  * preferences facet. Self-review reads it every cycle so a generic rule a home accumulated gets
- * proposed upstream instead of passing as "present and working". Read-only.
+ * proposed upstream instead of passing as "present and working". With `--base` (the templates as
+ * they were at the home's baseline), each home-only line also says whether it is the old template's
+ * own wording, which is what lets upgrade tell a stale line from the operator's. Read-only.
  *
- * Usage: template-drift.ts --home <dir> [--plugin <root>]
+ * Usage: template-drift.ts --home <dir> [--plugin <root>] [--base <templates-dir>]
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -15,10 +17,16 @@ interface Section {
   lines: string[];
 }
 
+interface HomeOnlyLine {
+  section: string;
+  line: string;
+  inBase?: boolean;
+}
+
 interface FileDrift {
   file: string;
   homeOnlySections: string[];
-  homeOnlyLines: { section: string; line: string }[];
+  homeOnlyLines: HomeOnlyLine[];
 }
 
 const args = process.argv.slice(2);
@@ -27,12 +35,14 @@ const flag = (name: string): string | undefined =>
 
 const homeArg = flag('--home');
 if (!homeArg) {
-  console.error('usage: template-drift.ts --home <dir> [--plugin <root>]');
+  console.error('usage: template-drift.ts --home <dir> [--plugin <root>] [--base <templates-dir>]');
   process.exit(2);
 }
 const home = resolve(homeArg);
 const plugin = resolve(flag('--plugin') ?? join(import.meta.dir, '..', '..', '..'));
 const templates = join(plugin, 'templates');
+const baseArg = flag('--base');
+const base = baseArg === undefined ? undefined : resolve(baseArg);
 
 const PREAMBLE = '(preamble)';
 const RULE_WORDS = /\b(always|never|must|don't|do not|avoid|only|prefer|instead of|before you)\b/i;
@@ -78,12 +88,16 @@ const isContent = (line: string): boolean => {
   return trimmed.length > 0 && !/^(-{3,}|#{1,6} .*|`{3,}.*|~{3,}.*)$/.test(trimmed);
 };
 
-const driftOf = (file: string, homePath: string, templatePath: string): FileDrift => {
+const linePatternsOf = (path: string): RegExp[] =>
+  sectionsOf(readFileSync(path, 'utf-8')).flatMap((section) => section.lines.filter(isContent).map(toPattern));
+
+const known = (line: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(normalize(line)));
+
+const driftOf = (file: string, homePath: string, templatePath: string, basePath?: string): FileDrift => {
   const homeSections = sectionsOf(readFileSync(homePath, 'utf-8'));
-  const templateSections = sectionsOf(readFileSync(templatePath, 'utf-8'));
-  const headingPatterns = templateSections.map((section) => toPattern(section.heading));
-  const linePatterns = templateSections.flatMap((section) => section.lines.filter(isContent).map(toPattern));
-  const known = (line: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(normalize(line)));
+  const headingPatterns = sectionsOf(readFileSync(templatePath, 'utf-8')).map((section) => toPattern(section.heading));
+  const linePatterns = linePatternsOf(templatePath);
+  const basePatterns = basePath !== undefined && existsSync(basePath) ? linePatternsOf(basePath) : undefined;
   return {
     file,
     homeOnlySections: homeSections
@@ -92,7 +106,11 @@ const driftOf = (file: string, homePath: string, templatePath: string): FileDrif
     homeOnlyLines: homeSections.flatMap((section) =>
       section.lines
         .filter((line) => isContent(line) && !known(line, linePatterns))
-        .map((line) => ({ section: section.heading, line: normalize(line) }))
+        .map((line) => ({
+          section: section.heading,
+          line: normalize(line),
+          ...(basePatterns === undefined ? {} : { inBase: known(line, basePatterns) })
+        }))
     )
   };
 };
@@ -102,14 +120,22 @@ const pairs = [
   ...['SOUL.md', 'IDENTITY.md', 'AGENTS.md'].map((name) => ({
     file: name,
     homePath: join(home, name),
-    templatePath: join(templates, name)
+    templatePath: join(templates, name),
+    basePath: base && join(base, name)
   })),
+  {
+    file: '.claude/CLAUDE.md',
+    homePath: join(home, '.claude', 'CLAUDE.md'),
+    templatePath: join(templates, 'CLAUDE.md'),
+    basePath: base && join(base, 'CLAUDE.md')
+  },
   ...(existsSync(rulesDir) ? readdirSync(rulesDir) : [])
     .filter((name) => name.endsWith('.md'))
     .map((name) => ({
       file: `.claude/rules/${name}`,
       homePath: join(home, '.claude', 'rules', name),
-      templatePath: join(rulesDir, name)
+      templatePath: join(rulesDir, name),
+      basePath: base && join(base, 'rules', name)
     }))
 ].filter(({ homePath, templatePath }) => existsSync(homePath) && existsSync(templatePath));
 
@@ -127,7 +153,8 @@ console.log(
     {
       home,
       plugin,
-      files: pairs.map(({ file, homePath, templatePath }) => driftOf(file, homePath, templatePath)),
+      base: base ?? null,
+      files: pairs.map(({ file, homePath, templatePath, basePath }) => driftOf(file, homePath, templatePath, basePath)),
       ruleLike
     },
     null,

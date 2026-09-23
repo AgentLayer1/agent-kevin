@@ -20,8 +20,8 @@ const tree = (files: Record<string, string>): string => {
   return root;
 };
 
-const run = (home: string, plugin: string) => {
-  const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, '--plugin', plugin]);
+const run = (home: string, plugin: string, extra: string[] = []) => {
+  const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, '--plugin', plugin, ...extra]);
   return JSON.parse(proc.stdout.toString());
 };
 
@@ -49,6 +49,21 @@ describe('template-drift', () => {
     ]);
     expect(byFile['AGENTS.md'].homeOnlyLines).toEqual([{ section: 'Workflow', line: '- Run git remote -v first.' }]);
     expect(byFile['.claude/rules/swift.md'].homeOnlyLines).toEqual([]);
+  });
+
+  test('with a base, tells the old template wording from the operator lines', () => {
+    const base = tree({
+      'AGENTS.md': '# Manual\n\n## Workflow\n\n- {{AGENT_NAME}} ships.\n- Code lives under `~/Developer/<Org>/`.\n'
+    });
+    const home = tree({
+      'AGENTS.md': '# Manual\n\n## Workflow\n\n- Ace ships.\n- Code lives under `~/Developer/Acme/`.\n- Run git remote -v first.\n'
+    });
+    const agents = run(home, plugin, ['--base', base]).files.find((file: { file: string }) => file.file === 'AGENTS.md');
+    expect(agents.homeOnlyLines).toEqual([
+      { section: 'Workflow', line: '- Ace ships.', inBase: true },
+      { section: 'Workflow', line: '- Code lives under `~/Developer/Acme/`.', inBase: false },
+      { section: 'Workflow', line: '- Run git remote -v first.', inBase: false }
+    ]);
   });
 
   test('flags rule-shaped bullets in USER.md and the preferences facet', () => {

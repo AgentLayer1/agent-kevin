@@ -355,6 +355,28 @@ trade-off is deliberate and matches `USER.md`: a future release that adds a fiel
 `## Who` reaches new homes only, and existing ones are told in the release's `manual`
 note rather than edited under them.
 
+**Know which lines are the operator's before merging.** A home line the current template
+lacks is either the old template's own wording (safe to replace) or something the operator
+wrote (never to be lost). Only the templates as they stood at the home's baseline can tell
+the two apart, so materialize them, then run the drift lever against both:
+
+```bash
+BASE_TPL=""
+if [ -d "$HOME_DIR/.kevin/template-base" ]; then
+  BASE_TPL="$HOME_DIR/.kevin/template-base"
+elif [ -n "$BASELINE" ] && git -C "$PLUGIN_ROOT" rev-parse -q --verify "refs/tags/v$BASELINE" >/dev/null 2>&1; then
+  BASE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/template-base-XXXXXX")
+  git -C "$PLUGIN_ROOT" archive "v$BASELINE" templates | tar -x -C "$BASE_DIR" && BASE_TPL="$BASE_DIR/templates"
+fi
+echo "base=${BASE_TPL:-<none>}"
+bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "$PLUGIN_ROOT" ${BASE_TPL:+--base "$BASE_TPL"}
+```
+
+Each `homeOnlyLines` entry names its section. `inBase: true` is the old template's wording;
+`inBase: false` is the operator's. With no base (`base: null`, a home older than this
+snapshot on an install without the plugin's git tags), treat every home-only line as the
+operator's.
+
 Merge algorithm (per file):
 
 1. Read the current template (T) and the home file (H).
@@ -383,8 +405,14 @@ Merge algorithm (per file):
 4. For each section in T:
    - **Not in H** → NEW. Mandatory: add it (placed after its template-neighbor, else
      appended). Optional: show it and ask.
-   - **In H, content differs** → CHANGED. Mandatory: replace H's section with T's,
-     show the diff in the summary. Optional: show the diff and ask y/n.
+   - **In H, content differs** → CHANGED. Build the merged section: T's section, plus every
+     operator line of H's section (the drift output's `inBase: false` lines, or all of
+     them with no base) carried in at the same place relative to its neighbors. Lines with
+     `inBase: true` are dropped. Mandatory: write the merge and show the diff in the
+     summary, **except** when a carried line reads like an edited copy of a line T
+     rewrote (same opening words) or there was no base: then show that section's merge
+     and ask, because the operator's edit and the release's rewrite need a person to pick.
+     Optional: show the merge and ask y/n. Never replace a section wholesale.
    - **Identical** → skip.
 5. **Sections in H but not in T are operator additions** (e.g. a personal
    "Sibling Agent" block, extra "Operational Rules"). **Preserve them verbatim,
@@ -425,6 +453,12 @@ date +%Y-%m-%dT%H:%M:%S%z   # use for lastUpgrade / history.at
 
 (Write the JSON with the Write tool, preserving any existing `initializedAt` and
 prior `history` entries.)
+
+Then snapshot the templates this home now tracks, so the next upgrade has its base:
+
+```bash
+rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME_DIR/.kevin/template-base"
+```
 
 **Ensure the baseline is git-trackable (built-in invariant, every run).** Homes
 scaffolded before this feature ignore all of `.kevin/` except `knowledge.json`, so a

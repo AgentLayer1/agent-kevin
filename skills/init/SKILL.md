@@ -596,8 +596,11 @@ if [ ! -f "$VERSION_FILE" ]; then
   PLUGIN_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
   TODAY=$(date +%Y-%m-%d)
   printf '{\n  "templateVersion": "%s",\n  "initializedAt": "%s",\n  "history": []\n}\n' "$PLUGIN_VERSION" "$TODAY" > "$VERSION_FILE"
+  cp -R "${CLAUDE_PLUGIN_ROOT}/templates" "$HOME_DIR/.kevin/template-base"
 fi
 ```
+
+The `template-base` copy is what the next upgrade merges against: it tells a line the operator wrote from the template's own wording.
 
 Note: do **not** create `.claude/skills/` here. Third-party skill libraries are installed via `/agent-kevin:configure-skills` after the user relaunches.
 
