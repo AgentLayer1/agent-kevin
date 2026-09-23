@@ -8,15 +8,15 @@
 One markdown folder, one plugin, a brain that learns who you are session after session.
 
 <p>
-  <a href="https://dev.agentlayer.one/docs"><img src="https://img.shields.io/badge/Docs-dev.agentlayer.one-5EFFA1.svg" alt="Documentation"/></a>&nbsp;
+  <a href="https://agentlayer.one/docs"><img src="https://img.shields.io/badge/Docs-agentlayer.one-5EFFA1.svg" alt="Documentation"/></a>&nbsp;
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"/></a>&nbsp;
   <a href="https://docs.claude.com/en/docs/claude-code"><img src="https://img.shields.io/badge/Claude_Code-plugin-orange.svg" alt="Claude Code plugin"/></a>&nbsp;
   <a href="https://developers.openai.com/codex"><img src="https://img.shields.io/badge/Codex-plugin-black.svg" alt="Codex plugin"/></a>&nbsp;
-  <a href="https://dev.agentlayer.one/docs/about/platforms"><img src="https://img.shields.io/badge/macOS-tested-success.svg" alt="macOS tested"/></a>&nbsp;
+  <a href="https://agentlayer.one/docs/about/platforms"><img src="https://img.shields.io/badge/macOS-tested-success.svg" alt="macOS tested"/></a>&nbsp;
   <a href="https://agentlayer.one"><img src="https://img.shields.io/badge/Made_by-AgentLayer-blueviolet.svg" alt="Made by AgentLayer"/></a>
 </p>
 
-**[Read the docs →](https://dev.agentlayer.one/docs)**
+**[Read the docs →](https://agentlayer.one/docs)**
 
 </div>
 
@@ -50,7 +50,7 @@ Every session is captured on exit. Captured sessions compile into a wiki. The wi
 
 ## Quick start
 
-You need **Bun ≥ 1.1**, **Git**, and a host: **Claude Code** or **Codex**. Full prerequisites, the local clone install, and Windows notes are in [Install](https://dev.agentlayer.one/docs/getting-started/install).
+You need **Bun ≥ 1.1**, **Git**, and a host: **Claude Code** or **Codex**. Full prerequisites, the local clone install, and Windows notes are in [Install](https://agentlayer.one/docs/getting-started/install).
 
 Pick a home for the brain, then install the plugin from it:
 
@@ -64,9 +64,9 @@ mkdir -p ~/Documents/Agents/Kevin && cd ~/Documents/Agents/Kevin
 | Relaunch and run `/agent-kevin:init` | Create the home from Claude Code, then open it with `codex` and run `$upgrade` once |
 | Skills: `/agent-kevin:<skill>` | Skills: `$<skill>` |
 
-Five minutes of questions later you have a home. See [Onboarding](https://dev.agentlayer.one/docs/getting-started/onboarding) and [Hosts](https://dev.agentlayer.one/docs/hosts).
+Five minutes of questions later you have a home. See [Onboarding](https://agentlayer.one/docs/getting-started/onboarding) and [Hosts](https://agentlayer.one/docs/agent/hosts).
 
-**Want a head start?** The [wizard](https://dev.agentlayer.one/#wizard) turns eleven prompts about your company into a seed bundle; hand the zip to `init` and the agent wakes up named, characterised, and briefed. A teammate's `seed-export` does the same from an existing agent. → [Seed bundles](https://dev.agentlayer.one/docs/usage/seed-bundles)
+**Want a head start?** The [wizard](https://agentlayer.one/dev#wizard) turns eleven prompts about your company into a seed bundle; hand the zip to `init` and the agent wakes up named, characterised, and briefed. A teammate's `seed-export` does the same from an existing agent. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
 
 **Always launch from the agent home.** The plugin loads only for sessions started there, and that is also what keeps several agents on one machine apart. Reach your code through `permissions.additionalDirectories`, not by launching from a repo.
 
@@ -74,17 +74,19 @@ Five minutes of questions later you have a home. See [Onboarding](https://dev.ag
 
 ## Documentation
 
-This README is the short version. Everything lives at **[dev.agentlayer.one/docs](https://dev.agentlayer.one/docs)**, also served as [llms-full.txt](https://dev.agentlayer.one/llms-full.txt) for models.
+This README is the short version. Everything lives at **[agentlayer.one/docs](https://agentlayer.one/docs)**, also served as [llms-full.txt](https://agentlayer.one/llms-full.txt) for models.
 
 | Section | Start with |
 |---|---|
-| [Getting started](https://dev.agentlayer.one/docs/getting-started/install) | Install · Onboarding · Your first session · Updating |
-| [Concepts](https://dev.agentlayer.one/docs/concepts/agent-home) | The agent home · The brain · Tasks · Sync · Self-evolution · Architecture |
-| [Hosts](https://dev.agentlayer.one/docs/hosts) | What a host provides · Claude Code · Codex |
-| [Usage](https://dev.agentlayer.one/docs/usage/daily-rhythm) | Daily rhythm · Capture · Dashboard · Multiple agents · Seed bundles · Worktrees · Browser · SEO |
-| [Reference](https://dev.agentlayer.one/docs/reference/skills) | Skills · MCP tools · Hooks · CLI · Configuration · Accounts · Upgrades · Naming |
-| [Workstation](https://dev.agentlayer.one/docs/workstation) | The rig: Ghostty · cmux · editor and tools |
-| [About](https://dev.agentlayer.one/docs/about/privacy) | Privacy · Platforms · FAQ · History · Contributing |
+| [Getting started](https://agentlayer.one/docs/getting-started/install) | Install · Onboarding · Your first session · Updating |
+| [Dashboard](https://agentlayer.one/docs/dashboard) | Today · Tasks and projects · Sessions · Brain · Reports and scheduler · Capabilities · Persona and system |
+| [Platform](https://agentlayer.one/docs/platform) | The agent home · The brain · Capture · Sync · Self-evolution · Seed bundles · Multiple agents |
+| [Agent](https://agentlayer.one/docs/agent) | Hosts · Claude Code · Codex · Hooks · Configuration · Tasks · Daily rhythm · Architecture |
+| [Modules](https://agentlayer.one/docs/modules) | Plan and run · Build and ship · Reach and see · Brain and memory · Skills · MCP tools · Browser · SEO · Accounts |
+| [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Worktrees · Specs and plans · Coding rules · Verification · API collections · Releases |
+| [Reference](https://agentlayer.one/docs/reference/cli) | CLI · Upgrades · Naming · Changelog |
+| [Workstation](https://agentlayer.one/docs/workstation) | The rig: Ghostty · cmux · editor and tools |
+| [About](https://agentlayer.one/docs/about/privacy) | Privacy · Platforms · FAQ · History · Contributing |
 
 ---
 
@@ -94,21 +96,22 @@ This README is the short version. Everything lives at **[dev.agentlayer.one/docs
 <img src="assets/dashboard.png" alt="Kevin Agent OS dashboard" width="720" />
 </div>
 
-- **Memory that compounds.** Hooks capture every session; the `knowledge-compile` skill distils them into user facets, concept articles, and active memory that load next launch. → [The brain](https://dev.agentlayer.one/docs/concepts/the-brain)
-- **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://dev.agentlayer.one/docs/concepts/tasks)
-- **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://dev.agentlayer.one/docs/concepts/sync)
-- **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://dev.agentlayer.one/docs/usage/dashboard)
-- **Pull requests, three ways.** Review a teammate's PR with verified findings and paste-ready comments, prep to present your own, or brief a second model on your branch and have its findings verified, fixed, and committed on one dossier. → [Pull requests](https://dev.agentlayer.one/docs/modules/pull-requests)
-- **Multiple homes, multiple personas.** One plugin install, separate brains, told apart by the launch folder. → [Multiple agents](https://dev.agentlayer.one/docs/usage/multiple-agents)
-- **Hand an agent to a teammate.** A seed bundle carries persona, curated knowledge, and setup with fork semantics; credentials travel as names only. → [Seed bundles](https://dev.agentlayer.one/docs/usage/seed-bundles)
-- **Subscription-billed.** The MCP server returns prompts; your session does the thinking on your host's plan. → [Hosts](https://dev.agentlayer.one/docs/hosts#billing)
-- **Private by construction.** Secrets in a deny-gated store Kevin cannot read, transcripts redacted before they persist. → [Privacy](https://dev.agentlayer.one/docs/about/privacy)
+- **Memory that compounds.** Hooks capture every session; the `knowledge-compile` skill distils them into user facets, concept articles, and active memory that load next launch. → [The brain](https://agentlayer.one/docs/platform/the-brain)
+- **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://agentlayer.one/docs/agent/tasks)
+- **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://agentlayer.one/docs/platform/sync)
+- **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://agentlayer.one/docs/dashboard)
+- **Engineering by playbook.** The `engineer` skill routes code work to a playbook (bug fix, feature, refactor, performance, forensics, prototype, and more) backed by 23 named principles, proves the result on the running artifact, and strips comments before you see the diff. → [Engineering](https://agentlayer.one/docs/engineering)
+- **Pull requests, three ways.** Review a teammate's PR with verified findings and paste-ready comments, prep to present your own, or brief a second model on your branch and have its findings verified, fixed, and committed on one dossier. → [Pull requests](https://agentlayer.one/docs/engineering/pull-requests)
+- **Multiple homes, multiple personas.** One plugin install, separate brains, told apart by the launch folder. → [Multiple agents](https://agentlayer.one/docs/platform/multiple-agents)
+- **Hand an agent to a teammate.** A seed bundle carries persona, curated knowledge, and setup with fork semantics; credentials travel as names only. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
+- **Subscription-billed.** The MCP server returns prompts; your session does the thinking on your host's plan. → [Hosts](https://agentlayer.one/docs/agent/hosts#billing)
+- **Private by construction.** Secrets in a deny-gated store Kevin cannot read, transcripts redacted before they persist. → [Privacy](https://agentlayer.one/docs/about/privacy)
 
 ---
 
 ## Updating
 
-Pull the new plugin version on your host (`/plugin update agent-kevin@agentlayer` in Claude Code; remove and re-add in Codex), then run the `upgrade` skill. The plugin update refreshes code; `upgrade` reconciles your home from the CHANGELOG's Upgrade blocks, backing up first. → [Updating](https://dev.agentlayer.one/docs/getting-started/updating) · [Upgrades and releases](https://dev.agentlayer.one/docs/reference/upgrades)
+Pull the new plugin version on your host (`/plugin update agent-kevin@agentlayer` in Claude Code; remove and re-add in Codex), then run the `upgrade` skill. The plugin update refreshes code; `upgrade` reconciles your home from the CHANGELOG's Upgrade blocks, backing up first. → [Updating](https://agentlayer.one/docs/getting-started/updating) · [Upgrades and releases](https://agentlayer.one/docs/reference/upgrades)
 
 ---
 

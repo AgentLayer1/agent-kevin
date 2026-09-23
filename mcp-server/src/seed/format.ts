@@ -1,6 +1,6 @@
 /**
  * Seed bundle format (formatVersion 1) — the contract behind `seed_scan` /
- * `seed_export` / `seed_import` and the dev.agentlayer.one wizard.
+ * `seed_export` / `seed_import` and the agentlayer.one/dev wizard.
  *
  * A seed bundle is a one-shot handoff: an operator exports their agent's
  * persona + diverged setup as a plain zip, and a teammate's fresh home imports
