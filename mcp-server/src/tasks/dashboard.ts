@@ -103,6 +103,19 @@ const groupByProject = (tasks: TaskFile[]): [string, TaskFile[]][] => {
 
 const sectionBody = (lines: string[]): string => (lines.length === 0 ? '_(none)_' : lines.join('\n'));
 
+// Every stale task already has its full line under Active or Blocked, so this section is only
+// an index of ids with their last-update date, oldest first.
+const renderStale = (tasks: TaskFile[]): string =>
+  sectionBody(
+    groupByProject(tasks).map(
+      ([project, list]) =>
+        `- **${project}**: ${list
+          .toSorted((left, right) => left.frontmatter.updated.localeCompare(right.frontmatter.updated))
+          .map((task) => `${task.frontmatter.id} (${task.frontmatter.updated.slice(5)})`)
+          .join(' · ')}`
+    )
+  );
+
 const renderActive = (tasks: TaskFile[]): string => {
   if (tasks.length === 0) return '_(none)_';
   return groupByProject(tasks)
@@ -131,7 +144,6 @@ export const formatDashboard = (
     sections.blocked.map((t) => taskLine(t, ['project', 'priority', 'blocked_by', 'depends_on']))
   );
   const overdueBody = sectionBody(sections.overdue.map((t) => taskLine(t, ['project', 'priority', 'due', 'status'])));
-  const staleBody = sectionBody(sections.stale.map((t) => taskLine(t, ['project', 'priority', 'updated', 'status'])));
   const closedBody = sectionBody(sections.closedRecent.map((t) => taskLine(t, ['project', 'status', 'closed'])));
 
   return [
@@ -141,7 +153,7 @@ export const formatDashboard = (
     `## Active (${sections.active.length})\n\n${renderActive(sections.active)}\n`,
     `## Blocked (${sections.blocked.length})\n\n${blockedBody}\n`,
     `## Overdue (${sections.overdue.length})\n\n${overdueBody}\n`,
-    `## Stale (${sections.stale.length})\n\n${staleBody}\n`,
+    `## Stale (${sections.stale.length})\n\n${renderStale(sections.stale)}\n`,
     `## Recently Closed (${sections.closedRecent.length})\n\n${closedBody}\n`
   ].join('\n');
 };
