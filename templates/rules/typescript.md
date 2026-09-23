@@ -31,6 +31,20 @@ The TypeScript form of the `engineer` skill's type system and boundary principle
 - Object arguments over positional ones when two parameters share a type or there are more than two. Skip it on hot paths (render loops, parsers).
 - Diagnostics go through the repo's structured logger with enough context to debug from an id. `console.log` is for CLI output, not diagnostics.
 - Don't mock what you can run. Prefer the framework's real test primitives.
+- Log levels mean something: WARN for a user's input mistake, ERROR for a runtime failure.
+
+## House idioms
+
+- Entry points wrap their work in a `main()` so module scope stays clean.
+- `Boolean(value)` over `!!value`. `parseInt(input, 10)` or `parseFloat(input)` over `Number(input)`, so the intent is explicit.
+- A `const` that needs several steps to build comes from an IIFE, not a `let` assigned later.
+- Async lookups over a key list: `Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await load(key)])))`.
+- Function overloads when the return type depends on an argument.
+- Expensive initialization sits behind a lazily created singleton.
+- Native first. No lodash: write the small pure utility instead.
+- `crypto.getRandomValues` (or `crypto.randomUUID`) for anything security-sensitive, never `Math.random`.
+- `@/*` maps to `src/*` through tsconfig `paths`. Prettier is a devDependency, never a global.
+- React files order imports, types, the component, hooks, services, then exports. Components are named `const` exports with inferred props, not `React.FC` and not default exports.
 
 ## References
 
