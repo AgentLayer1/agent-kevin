@@ -17,7 +17,7 @@ The working method for code: a playbook per kind of task, principles the playboo
 
 ## Start
 
-1. Read the repo's `AGENTS.md` and, when it has one, its `.claude/CLAUDE.md`. The repo's build loop and conventions beat anything here, and the home manual's Engineering Standards beat the playbooks.
+1. Read the repo's `AGENTS.md` and, when it has one, its `.claude/CLAUDE.md`. The repo's build loop and conventions beat anything here, and the home manual's Engineering Standards beat the playbooks. A repo's agent docs follow one layout: a full `AGENTS.md` at the root and a `.claude/CLAUDE.md` holding `@../AGENTS.md`, no symlinks, each harness file in its own dot-folder.
 2. Match the task to a playbook, open it, and copy its steps into your todo list verbatim. A step you choose to skip stays in the list as `skip: <reason>`. A new task in a long conversation gets re-matched, not folded into the last playbook.
 3. Read a principle's file before applying it. Name a principle in your reply only when it changed a decision, and name the decision it changed.
 
@@ -72,6 +72,8 @@ Most changes need none of the heavy tools. A rough ladder:
 - Before asking the operator a "which approach" question, classify it. If the answer is a fact you could observe by running something (behavior, timing, layout, output), run it or prototype it. Ask only for product or preference calls that no experiment settles.
 - Every claim carries its evidence or its label in the same sentence: measured, inferred, or guess. Never hand the operator a check you could run.
 - "Done" means proven on the real artifact, with the level you reached on the [proof ladder](references/principles/prove-it-works.md) stated.
+- Ground in the source before building: a framework's or tool's own agent guidance and current default formats come before hand-rolling. A limit that looks like a default is a configuration question first (settings, docs, schemas, `--help`; say which you checked). A capability that looks missing gets the docs, then a temporary probe, and only then a caveat.
+- Before repurposing a file or convention, search its consumers. Before writing to a house convention, read a sibling module that already follows it.
 - A broken skill or check you hit mid-task gets fixed as its own change. Don't block on it and don't silently work around it.
 
 ## Delegation

@@ -82,6 +82,10 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
 - Update README if you change skill counts, tool counts, or external-facing flows.
 - No new dependencies without justification.
 - Run `bun run typecheck` and verify the MCP server still boots before opening.
+- **No real names in shipped files.** Skills, templates, hooks, docs, tests, and the CHANGELOG use fictitious placeholders (`acme`, `Ada`), never a real client, employer, operator, or sibling project, and never at write time on the promise of a later sweep.
+- **Product docs are host-neutral.** Anything describing agent-kevin (docs, README, wizard copy) names skills bare, says "your host" for the CLI, and puts host-specific commands in per-host tabs, so a new host is a tab and a page, not a rewrite.
+- **Frontmatter keys come from the host's docs.** Don't invent keys; `mcp-server/src/skills.test.ts` parses every `SKILL.md`, holds the description to 1,024 characters, and resolves relative links.
+- **Invocability is decided per pack,** not per skill in isolation: see *Adding a new skill* above.
 
 ## License
 

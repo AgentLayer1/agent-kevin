@@ -8,6 +8,7 @@ Remove complexity first, then build. Adding to a complex system compounds the co
 - **Cut before you polish.** Get to the minimum before investing in quality.
 - **Design for observed usage,** not speculative edge cases. No validators, parsers, or guards beyond what the spec demands.
 - **Simplify prompts too.** Remove redundant instructions and oversized templates from skills and manuals.
+- **No storage until something reads it.** Log the data first; persist it when a consumer exists.
 - **No stubs.** When a reference has no novel content, delete it rather than leaving a stub.
 - **Make it continual.** Leave the design slightly simpler and more capable, behind the same or a smaller surface than you found it.
 

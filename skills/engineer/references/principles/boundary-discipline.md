@@ -10,6 +10,8 @@ Validate, narrow, and handle errors at system boundaries. Trust internal code. B
 - **Configuration is a boundary.** Read environment variables in one config module; nothing else touches `process.env` or its equivalent.
 - **Time is a boundary.** Store and compute in UTC; convert to a time zone only at display.
 - **Errors change shape at the edge.** Business errors are thrown by services; the transport layer (an HTTP controller, a CLI) maps them to status codes and messages.
+- **A webhook's response code is its retry contract.** Acknowledge (2xx) only what was consumed. Return a retryable status for a transient failure; log and acknowledge a permanent one so it isn't retried forever.
+- **Hand child processes a cleaned environment.** Strip known secrets with a blocklist, so dependencies you don't know about keep working.
 - **Keep logic out of framework wiring** so it tests without the framework. Parsing takes raw input and returns typed state. Prompt construction takes state and returns a string. Scoring takes state and returns a result.
 
 **The tests:**
