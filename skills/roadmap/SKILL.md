@@ -1,6 +1,12 @@
 ---
 name: roadmap
-description: Build or update a strategic roadmap as a polished, self-contained HTML surface — timeline lanes over a directional rail, milestone cards, outcome bands, dark/light themes. Use whenever the user wants a roadmap, a plan-on-a-page, a north star, a quarterly/half/yearly plan they can look at, or wants an existing roadmap.html updated, even if they never say "roadmap". Wizard-style: interviews for the frame, mines the task board / project READMEs / git history for milestones, then renders from the house template.
+description: >
+  Build or update a strategic roadmap as a polished, self-contained HTML surface — timeline lanes
+  over a directional rail, milestone cards, outcome bands, dark/light themes. Use whenever the user
+  wants a roadmap, a plan-on-a-page, a north star, a quarterly/half/yearly plan they can look at, or
+  wants an existing roadmap.html updated, even if they never say "roadmap". Wizard-style: interviews
+  for the frame, mines the task board / project READMEs / git history for milestones, then renders
+  from the house template.
 allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__browser_screenshot
 ---
 

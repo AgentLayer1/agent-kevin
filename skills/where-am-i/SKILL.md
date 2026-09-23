@@ -1,6 +1,17 @@
 ---
 name: where-am-i
-description: Show the Claude Code sessions from the last 24 hours scoped to the folder Kevin runs from (the HOME and everything beneath it), with a substantive summary of what each was about, where it left off, and the resume command. Use whenever the operator asks "where am I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost / overwhelmed", "what did I leave off on", or wants to find/resume a recent session (when they name WHAT a session worked on — a branch, a PR, a bug — rather than when it ran, use find-session instead). Also useful at the start of a day or after a break to re-orient. Accepts an optional hours window (e.g. "/agent-kevin:where-am-i 48") and "all" to include every project on the machine. Also runs in triage mode — `/agent-kevin:where-am-i triage [scope]` or when the operator asks "what should I tend to / work on next / which session needs me" — ranking the sessions by urgency and importance, interviewing via AskUserQuestion, and handing back the resume command for the chosen one. And in checkpoint mode — `/agent-kevin:where-am-i checkpoint` or when the operator asks to "checkpoint this session / save where we are / write a handoff" — writing a short pickup note for THIS session (incremental since the last checkpoint) as a chat reply, so the SessionEnd capture files it into knowledge.
+description: >
+  Show the Claude Code sessions from the last 24 hours under the folder Kevin runs from, with what
+  each was about, where it left off, and the resume command. Use when the operator asks "where am
+  I", "what sessions are running", "what was I working on", "which sessions are open", "I'm lost /
+  overwhelmed", "what did I leave off on", or wants to resume a recent session (if they name WHAT it
+  worked on, like a branch, PR, or bug, use find-session). Accepts an hours window (e.g.
+  "/agent-kevin:where-am-i 48") and "all" for every project on the machine. Triage mode
+  (`/agent-kevin:where-am-i triage [scope]`, or "what should I tend to / work on next / which
+  session needs me") ranks sessions by urgency and importance, interviews via AskUserQuestion, and
+  hands back the chosen resume command. Checkpoint mode (`/agent-kevin:where-am-i checkpoint`, or
+  "checkpoint this session / save where we are / write a handoff") writes a short pickup note for
+  THIS session as a chat reply, so the SessionEnd capture files it into knowledge.
 allowed-tools: Bash, Read, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_thread
 ---
 

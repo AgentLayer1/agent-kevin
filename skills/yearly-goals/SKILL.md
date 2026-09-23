@@ -1,6 +1,9 @@
 ---
 name: yearly-goals
-description: Plan the year quarter by quarter — reads the full task board, projects, and goal history, then interviews you before drafting per-quarter outcomes. Run quarterly: mid-year it shapes the remaining quarters; in Q4 it drafts next year starting from Q1.
+description: >
+  Plan the year quarter by quarter — reads the full task board, projects, and goal history, then
+  interviews you before drafting per-quarter outcomes. Run quarterly: mid-year it shapes the
+  remaining quarters; in Q4 it drafts next year starting from Q1.
 disable-model-invocation: true
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Edit, Bash
 ---
