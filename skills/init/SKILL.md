@@ -566,10 +566,10 @@ Parse the next message: if `looks good` → keep the proposal; if edits/addition
 Kevin's project settings pin which Claude model powers this home. `AskUserQuestion`:
 
 > **Which model should Kevin run on?**
-> - **Fable (Recommended)** — Anthropic's most capable tier; best judgment for an agent trusted with your knowledge base.
-> - **Opus** — one tier down; stretches a usage-limited plan further.
+> - **Opus (Recommended)** — strong judgment for an agent trusted with your knowledge base, and stretches a usage-limited plan further.
+> - **Fable** — Anthropic's most capable tier, one step up; spends plan usage faster.
 
-Stage the answer as `KEVIN_MODEL` — the literal string `fable` or `opus` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
+Stage the answer as `KEVIN_MODEL` — the literal string `opus` or `fable` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
 
 ---
 
@@ -781,14 +781,13 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`bashEditDiffEnabled` — see what Bash edited.** Under auto mode Claude Code routes file edits through the Bash tool, which hides the diff the Edit tool would have shown. This setting (Claude Code 2.1.269+) attaches a diff of the files a Bash command changed to that command's result, so a scripted edit stays reviewable in the transcript. Written when the operator's user-global settings don't set it.
 
-**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, effort, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
+**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, traffic kill, retention, render, Haiku-tier remap). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently; if all three are covered globally, omit the entire `env` block rather than writing an empty `{}`.
 
 | Project-scaffold key | Baseline value to write when global is missing it | "Already covered" test against global |
 |---|---|---|
 | `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
-| `effortLevel` | `"high"` | Any non-empty `effortLevel` set globally |
 | `bashEditDiffEnabled` | `true` | Global `bashEditDiffEnabled` set to any boolean |
 | `env.CLAUDE_CODE_NO_FLICKER` | `"1"` | Global `env.CLAUDE_CODE_NO_FLICKER` set to any truthy string |
 | `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
@@ -796,7 +795,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
 
-**`model` is not gap-filled.** It carries the operator's explicit Step 6c answer (`"fable"` or `"opus"`) and is always written to the project scaffold — an explicit wizard choice outranks the global setting and, on re-init, the prior project value.
+**`model` and `effortLevel` are not gap-filled.** `model` carries the operator's explicit Step 6c answer (`"opus"` or `"fable"`) and `effortLevel` is `"high"`; both are always written to the project scaffold so the home runs the same pair whatever the machine's global settings say. The Step 6c answer outranks the global setting and, on re-init, the prior project value; an existing project `effortLevel` is kept.
 
 **`statusLine` — the footer, the Claude side of the Codex `[tui]` table.** Kevin renders it (`kevin statusline`: model, folder, branch on line one; context bar, cost with the hourly rate, session time, and the Pro/Max rate-limit windows on line two). The command names this checkout, so never type it — generate it and merge the object it prints:
 
@@ -1062,9 +1061,9 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
   "bashEditDiffEnabled": "<true if global doesn't set it, else omit>",
-  "model": "<the Step 6c answer: \"fable\" or \"opus\" — always written>",
+  "model": "<the Step 6c answer: \"opus\" or \"fable\" — always written>",
   "statusLine": "<the object printed by `bun \"$PLUGIN_ROOT/bin/kevin\" statusline --setting` when the project file has no statusLine, else omit and preserve>",
-  "effortLevel": "<\"high\" if global doesn't set it, else omit>",
+  "effortLevel": "<\"high\" — always written; an existing project value is kept>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "<\"1\" if global doesn't set it, else omit this key>",
