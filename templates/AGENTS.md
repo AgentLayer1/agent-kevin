@@ -129,7 +129,7 @@ Drive tasks via the `task_*` MCP tools (the plugin's `kevin` server) inside a se
 
 This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
 
-**A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step.
+**A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step. A missing dependency a tool reports is the same: relay its install hint and stop.
 
 **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` is per-**user**, not per-session (under Claude Code it resolves to `/tmp/claude-<uid>`), so every session running concurrently on this machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter like `$TMPDIR/pull-7d/`, gets silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox, and no session-id variable is exposed to key a name off instead. Corollary: when a file's content contradicts what you just wrote there, suspect a shared-path clobber before suspecting the tool, and re-read from the immutable source.
 
@@ -184,6 +184,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
 - "Phase 1 must be perfect before Phase 2" — willing to spend a session getting foundation right.
 - Commit per phase for tractable review; rejects megacommits.
+- Before a release or risky change, a second model reviews (adversarial-review): it documents, the implementer codes, and every finding is verified against the code.
 - Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed.
 - Compare options before committing — back-of-envelope across alternatives saves months.
 - Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know".
@@ -225,6 +226,7 @@ Each lives in full in the `engineer` skill, beside a playbook per code task. Rea
 - **Node.js:** managed via `fnm`. Corepack enabled.
 - **Package manager:** `pnpm` always. Never suggest npm or yarn.
 - **Bun** is acceptable for small, local projects that are new.
+- **One runtime per app and per monorepo:** Bun for scripts, Node for Next.js; never mix runtimes in one app for a feature.
 - **Shell:** {{SHELL}}.
 - **Swift:** Xcode + Swift Package Manager.
 
@@ -240,7 +242,7 @@ Each lives in full in the `engineer` skill, beside a playbook per code task. Rea
 - **Always brace `if` statements**, even single-line.
 - **JSDoc for utilities only**; concise comments; no docstring novellas.
 - **Trust SDK signals over text scanning** — when a library exposes structured error info, use it.
-- **Useless tests waste attention.** Tests must protect against real regressions; round-trip-for-coverage's-sake gets deleted.
+- **Lean tests; the repo's manual decides.** Default: unit tests on shared low-level utilities, plus a regression test for a fixed bug when cheap. No integration or e2e suites unless asked.
 - Modern language features. No legacy patterns.
 
 ### Comments
