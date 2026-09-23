@@ -30,7 +30,7 @@ Read the raw input and compile into the wiki following the schema exactly.
 **1. User knowledge** ({{userKnowledgeDir}}/) — durable facts about the user, organised by facet:
 - `profile.md` — identity, bio, life context, location, relationships
 - `skills.md` — technical abilities, tools, expertise
-- `preferences.md` — communication style, workflow, values, taboos
+- `preferences.md` — the user's own tastes: how they like to read output, values, tools and environment, lifestyle, taboos. Not rules for how the agent should work (a stated working rule or correction goes to feedback, compiles into `## Learnings`, and graduates into the manual through self-review), and not technical stack choices (those go to `skills.md`)
 - `career.md` — work history, employers, roles, equity
 - `interests.md` — vision, hobbies, side projects, signal topics
 

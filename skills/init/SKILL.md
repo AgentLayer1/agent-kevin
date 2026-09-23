@@ -1218,9 +1218,9 @@ If Step 4b returned `skip`, omit the `## Where Things Live` section entirely —
 
 1. **File missing OR currently the empty-with-frontmatter stub** (frontmatter block only, no body content beyond whitespace): write the staged content.
    - If Step 5 ran with URLs and synthesised content for this facet → write the synthesised version.
-   - For `preferences.md` specifically, even without Step 5 URLs, write the **shipped defaults** below (not an empty stub).
+   - For `preferences.md` specifically, even without Step 5 URLs, write the **shipped skeleton** below (not an empty stub).
    - Otherwise → write the empty-with-frontmatter stub.
-2. **File exists with body content AND Step 5 did NOT synthesise content for this facet**: skip the write entirely. Operator-curated content is preserved — this includes any edits the operator made to the shipped `preferences.md` defaults.
+2. **File exists with body content AND Step 5 did NOT synthesise content for this facet**: skip the write entirely. Operator-curated content is preserved — this includes any edits the operator made to the shipped `preferences.md` skeleton.
 3. **File exists with body content AND Step 5 DID synthesise content for this facet**: `AskUserQuestion`:
 
    > `knowledge/user/<facet>.md` already has content. The URLs you pasted in Step 5 synthesised a fresh version. How should Kevin handle this?
@@ -1247,9 +1247,9 @@ News/research topics to track for briefings and signals. Used by morning-briefin
 
 This section is what powers the news clusters in every morning brief, so it must exist from day one even when Step 5 was skipped. **Bounded preservation exception:** if `profile.md` already has body content (case 2/3 above) but has **no** `## Signal Topics` heading, append this section to the end — additive only, never replacing existing content. If it already has one, leave it untouched (the operator or a prior compile owns it).
 
-**Why `preferences.md` ships with defaults**: OSS users may not have a `~/.claude/CLAUDE.md` of their own with universal communication / workflow / engineering opinions. The CLAUDE.md template already `@-imports` this file every session, so the defaults flow into context automatically. Users can edit them, delete sections that don't fit, or **promote anything they love to their own `~/.claude/CLAUDE.md`** so it applies across every Claude Code project on their machine. On re-run, edits are preserved by the body-content guard above.
+**Why `preferences.md` ships with a skeleton**: it holds the operator's own tastes (how they like output, what they value, the tools they live in), not working rules. How Kevin works already lives in `AGENTS.md` and `SOUL.md`, and a working rule the operator states later goes to the feedback log, compiles into `## Learnings`, and graduates into the manual through self-review. The file is read on demand, never loaded every session. On re-run, edits are preserved by the body-content guard above.
 
-Shipped `preferences.md` defaults:
+Shipped `preferences.md` skeleton:
 
 ````markdown
 ---
@@ -1260,34 +1260,19 @@ updated: <YYYY-MM-DD>
 
 # Preferences
 
-> **Shipped defaults.** These are sensible, generic defaults so Kevin has opinions out of the box even before you fill in personal preferences. Edit freely. If a section fits how you'd want every Claude Code project to behave, promote it to your own `~/.claude/CLAUDE.md` and delete it here.
+> Your own tastes: how you like output, what you value, the tools you live in. How Kevin works lives in `AGENTS.md` and `SOUL.md`; a working rule you state goes to the feedback log, not here. Edit freely and delete what doesn't fit.
 
-## Communication
+## Output
 
-- Concise by default — skip preamble, get to the answer.
-- Direct over diplomatic. Honest over flattering. Push back when something is wrong instead of agreeing reflexively.
-- When ambiguous, ask one clarifying question rather than guessing broadly.
-- "I don't know" is a valid answer — better than a confident-sounding guess.
-- Don't over-apologize. Own a mistake in one sentence and move on.
+- _(Tables or prose? Short or deep? Diagrams? Sources linked?)_
 
-## Workflow
+## Values
 
-- **Plan before non-trivial tasks** (3+ steps or architecture decisions). Surface tradeoffs and assumptions before building.
-- **Verify before claim.** Anything specific — numbers, statuses, page state, library behavior — gets a source check or "I don't know".
-- **Never mark a task complete** without proving it works (tests pass, feature verified, change reviewed).
-- **For UI / frontend changes**, exercise the feature in a browser before reporting done. Type checks verify code correctness, not feature correctness.
-- If something goes sideways mid-task, stop and re-plan instead of pushing through.
-- **When a built-in tool reports a missing dependency, relay its install hint and stop.** Don't improvise a fragile fallback. Example: the Read tool renders PDFs via poppler's `pdftoppm`; if it's absent, tell the operator to run `brew install poppler` instead of reaching for `pdftotext`, a Python lib, or manual transcription.
+- _(What should Kevin weigh when trading things off: privacy, family, cost, time?)_
 
-## Engineering Defaults
+## Tools and environment
 
-_(Delete this section if you don't write code.)_
-
-- **Simplicity first.** Minimum code that solves the problem. No speculative abstractions, no error handling for impossible scenarios, no features beyond what was asked.
-- **Surgical changes.** Touch only what the task requires. Don't refactor adjacent code or "improve" unrelated formatting.
-- **Comments only when WHY is non-obvious.** Well-named code already explains WHAT. Skip docstring novellas.
-- **Trust framework / SDK signals** over scraping text output. When a library exposes structured errors or status, use them.
-- **Match existing project conventions** over personal preference.
+- _(Apps, editors, note systems, and hardware you prefer.)_
 
 ## Hard No
 
@@ -1296,7 +1281,7 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 - _(empty)_
 ````
 
-If Step 5 URL synthesis surfaced anything that contradicts these defaults (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting them — let the user resolve the conflict later.
+If Step 5 URL synthesis surfaced anything that fills or contradicts this skeleton (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting it — let the user resolve the conflict later.
 
 Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
 
