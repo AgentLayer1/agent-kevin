@@ -126,10 +126,23 @@ shared `<repo>-` prefix from paths — the suffix is the name the operator knows
 inline: a merged-but-dirty tree (only the dirty files block deletion), a detached HEAD, the oldest
 unpushed work.
 
+**A verdict is advice, not permission: check who is still in each worktree.** Before building the
+offer, and before any drop the operator asks for by name, list the last day's sessions across every
+project, because a session launched from the agent home still works inside a worktree:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/where-am-i/scripts/list_sessions.ts" --hours 24 --scope all
+```
+
+A worktree is **in use** when a session's `cwd` is its path or anything under it (`acme-billing`
+must not claim `acme-billing-v2`), whatever its verdict says. Leave it out of the teardown offer and
+name the session (its title and how long ago it was active). For a drop the operator named, say
+which session is in it and get an explicit yes before continuing.
+
 **Close by offering the teardown.** End the audit with a question (AskUserQuestion where
 available) offering a **full tear down** of the confirmed-deletable worktrees only — the 🟢 group,
 named explicitly, one option per worktree (multi-select) plus a "keep everything" option. Never
-include dirty, unpushed, in-review, or judgment-call entries (e.g. a base-branch checkout) in the
+include in-use, dirty, unpushed, in-review, or judgment-call entries (e.g. a base-branch checkout) in the
 offer. A selection there is the explicit yes the drop flow below requires — proceed into it for
 the chosen worktrees (full teardown: workspace entry + worktree + branch + DB fork), where the
 harness's own `remove_worktree` permission prompt remains the second gate.
@@ -157,7 +170,7 @@ safety net on a destructive op.
 
 Flow:
 
-1. **Confirm first.** State what you're about to remove — the `worktreePath` and its `branch` — and
+1. **Confirm first.** Run the in-use check above for this path, then state what you're about to remove — the `worktreePath` and its `branch` — and
    ask the operator to confirm. If they didn't mention the branch, ask in the same breath whether to
    delete it too or keep it. Only proceed on an explicit yes.
 2. **Dry-run pre-check.** Call `mcp__plugin_agent-kevin_kevin__remove_worktree` with `dryRun: true`
