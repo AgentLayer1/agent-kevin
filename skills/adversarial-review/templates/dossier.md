@@ -13,7 +13,7 @@ One file per review target, for the whole loop. The implementer creates it on ro
 
 ## How this document works
 
-Two sessions of the same agent share this file, each on a different model, so the sections are named by role rather than by name. **The implementer** owns the Brief, the Ledger, and every Disposition section; it verifies findings against the code, fixes what is real, and commits on the operator's branch. **The reviewer** owns the `Findings` section of the current round only: it appends that section (opening with the model and host it runs on), changes nothing else here, and modifies nothing in the repositories. Findings carry ids `R<round>-<k>`; the Ledger tracks each one across rounds so a settled finding is never re-raised and an open one is never lost. A round is one reviewer pass plus the implementer's disposition of it; when several reviewers run the same round, each has its own lettered Findings section and ids (`R<round>A-<k>`). The operator hands the file back and forth; nothing here is posted anywhere.
+Two sessions of the same agent share this file, each on a different model, so the sections are named by role rather than by name. **The implementer** owns the Brief, the Ledger, and every Disposition section; it verifies findings against the work, fixes what is real, and commits on the operator's branch when the target is committed code (a working tree or a document is fixed in place). **The reviewer** owns the `Findings` section of the current round only: it appends that section (opening with the model and host it runs on), changes nothing else here, and modifies nothing in the repositories or the files under review. Findings carry ids `R<round>-<k>`; the Ledger tracks each one across rounds so a settled finding is never re-raised and an open one is never lost. A round is one reviewer pass plus the implementer's disposition of it; when several reviewers run the same round, each has its own lettered Findings section and ids (`R<round>A-<k>`). The operator hands the file back and forth; nothing here is posted anywhere.
 
 ---
 
@@ -21,7 +21,7 @@ Two sessions of the same agent share this file, each on a different model, so th
 
 *Rewritten by the implementer every round. It is the prompt: self-contained, model-neutral, and free of anything from the agent home (memory, feedback, private notes). Code facts and task intent only.*
 
-Adversarially review <the change in one clause>. Assume it is broken and prove where. Read-only: modify nothing in the repositories; read-only checks (a build, a test run, a script that inspects) are welcome and should be reported as what you ran.
+Adversarially review <the work in one clause>. Assume it is broken and prove where. Read-only: modify nothing in the repositories or the files under review; read-only checks (a build, a test run, a script that inspects) are welcome and should be reported as what you ran.
 
 ### Why this matters
 
@@ -29,17 +29,25 @@ Adversarially review <the change in one clause>. Assume it is broken and prove w
 
 ### What to review
 
-| Repository | Path | Range | Role |
-|---|---|---|---|
-| <name> | `<absolute path>` | `git diff <base>...<head>` | <app · engine · foundation> |
+| Target | Kind | Path | Range | Role |
+|---|---|---|---|---|
+| <name> | pr · range | `<absolute path>` | `git diff <base>...<head>` | <app · engine · foundation> |
+| <name> | working-tree | `<absolute path>` | `git diff <base>` plus untracked: `<path>`, `<path>` | <role> |
+| <name> | paths | `<absolute path>` | whole file, <n> lines, `<sha or mtime>` | <plan · spec · skill · doc> |
 
-<One paragraph: what the change does as a whole, grouped by concern, and which commits or files are the follow-up batch if there is one.>
+*One row per repository or artifact; drop the example rows that do not apply.*
 
-*On rounds ≥ 2 add the fixes since the last round as their own rows: `git diff <previous head>...<head>` per repository, labelled "fixes since round <n-1>". Those fixes were written under review pressure and are as suspect as the original change.*
+<One paragraph: what the work does as a whole, grouped by concern, and which commits or files are the follow-up batch if there is one.>
+
+*On rounds ≥ 2 add the fixes since the last round as their own rows: `git diff <previous head>...<head>` per repository, or the changed artifact at its new SHA or mtime, labelled "fixes since round <n-1>". Those fixes were written under review pressure and are as suspect as the original work.*
 
 ### Stance
 
+*Keep the paragraph that fits the target; drop the other. A working tree with no commit messages takes the code paragraph with "the author's claims below" in place of "the messages".*
+
 Read the code, not the commit messages. The messages assert things ("equivalent", "preserves ordering", "no early return precedes it"); each assertion is a claim to test, and where one is wrong, say so plainly. Judge the head commit with its callers and callees, not the diff in isolation: regressions live in unchanged code that relied on the old behavior. Unchanged code that predates the change is not a finding unless the change makes it worse or newly reachable; say which. Disagreement with the approach is welcome; state it directly.
+
+Read the text the way its reader will. A plan is executed by an engineer or an agent with no memory of the session that wrote it; a skill or prompt is executed literally by a model; a document is acted on by whoever it is for. Every instruction, path, tool name, parameter, flag, and number in it is a claim: one that cannot be followed, contradicts another, or names a thing that does not exist is a defect, not style. Judge each section with the sections it depends on, not in isolation: the most likely defect is two passages that disagree. Text that predates the change is not a finding unless the change makes it wrong or newly load-bearing; say which. Disagreement with the approach is welcome; state it directly.
 
 ### Bug classes already seen here
 
@@ -47,7 +55,7 @@ Read the code, not the commit messages. The messages assert things ("equivalent"
 
 ### Claims to falsify
 
-*Numbered. Each names the file or symbol, what the author claims, and what a counterexample would look like. Settled claims are retired between rounds; every fix the implementer lands becomes a new claim. Keep the numbering continuous across rounds so ids in the Ledger stay stable.*
+*Numbered. Each names the file, symbol, or section, what the author claims, and what a counterexample would look like. The claims come from whatever states the intent: the commit messages for a PR or branch; the task, the plan the change implements, and the author's own description for a working tree; the artifact's own assertions for a plan, skill, or document. Settled claims are retired between rounds; every fix the implementer lands becomes a new claim. Keep the numbering continuous across rounds so ids in the Ledger stay stable.*
 
 1. <Symbol or file>: <the claim>. <What to check, and what would falsify it.>
 2. …
@@ -58,7 +66,7 @@ Read the code, not the commit messages. The messages assert things ("equivalent"
 
 ### Output contract
 
-Read the whole of every range above; do not sample. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, each in this shape:
+Read the whole of every range and file above; do not sample. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, each in this shape:
 
 ```
 ### R<n>-<k>. <claim in one sentence>
@@ -110,9 +118,9 @@ The `code:` lines are the anchor of record; a finding whose snippet is not in th
 
 **Checks after the fixes**
 
-| Repository | Build | Tests |
+| Target | Build | Tests |
 |---|---|---|
-| <name> | <✅ scheme · ❌ · –> | <n passed / k failed · –> |
+| <name> | <✅ scheme · ❌ · – (nothing to build for a document)> | <n passed / k failed · –> |
 
 **Not done this round:** <fixes deferred to the operator's call, checks that could not run, one line each.>
 
