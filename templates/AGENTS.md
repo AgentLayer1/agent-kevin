@@ -199,7 +199,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Before a release or risky change, a second model reviews (adversarial-review): it documents, the implementer codes, and every finding is verified against the code.
 - Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed. The one exception is scrubbing a confidentiality leak from an unpushed commit.
 - Compare options before committing — back-of-envelope across alternatives saves months.
-- Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know". A claim about this machine's current state (which mode, credential, or setting is live) needs the file read or the check run; docs describe rules, not state.
+- Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know". A claim about this machine's current state (which mode, credential, or setting is live) needs the file read or the check run; docs describe rules, not state. Before handing over an analysis with several findings, recheck each one yourself and label it confirmed, strong, or guess, with its source. A guess never sits in the headline. The operator should never have to ask "are you sure?" to get the downgrade.
 - Hold the stated acceptance criterion literally, and verify on the surface the operator actually uses (their editor, their terminal, their phone), not a stand-in. A handoff artifact carries its evidence and every claim's outcome, not just a count. When a correction names one instance, look for the same mistake elsewhere before reporting done.
 - Show the artifact, not a count of it: a request that didn't error is not a delivery, and a claim about what someone received includes the shape they actually received. Pick evidence nobody can argue with, with a control case beside it. Attribute a tool's or provider's verdict to its source instead of relaying it as fact, and describe a system's observable contract, never an invented "by design" intent. A metric that moves when its own threshold changes isn't measuring the thing; compare windows of the same length. An empty bounded scan means "not in that window", and an absent value stays absent, never 0.
 - Split a commit by staging hunks with `-U3` context, never `-U0`, and confirm `git status` is clean afterwards. A diff far larger than the change gets `--diff-algorithm=histogram` before anyone believes it. Moving work onto a new base means re-deriving it there, never `git checkout <old> -- <files>` over the new base's changes.
@@ -258,7 +258,6 @@ Each lives in full in the `engineer` skill, beside a playbook per code task. Rea
 - **No barrel/index re-export files** — consumers import directly from the module that owns the function.
 - **No single-letter params** except `i` for index. Use `item` when shadowing outer scope. Descriptive parameter names; avoid generic `value`.
 - **Always brace `if` statements**, even single-line.
-- **JSDoc for utilities only**; concise comments; no docstring novellas.
 - **Trust structured signals over text scanning** — when a library, host, or tool publishes structured state (typed errors, status fields, notification records), use it before scraping rendered text.
 - **Lean tests; the repo's manual decides.** Default: unit tests on shared low-level utilities, plus a regression test for a fixed bug when cheap. No integration or e2e suites unless asked.
 - Modern language features. No legacy patterns.
@@ -280,12 +279,10 @@ Code self-explains. Default to no comment, and run the `engineer` skill's commen
 - Separation of concerns: frontend components, backend services, DB, API integrations.
 - No unnecessary third-party deps. Use existing packages first; for a well-understood hard problem (dates, cron parsing, crypto), a battle-tested library beats hand-rolled code.
 - Run formatter only on new or modified files.
-- Include unit tests for reusable code snippets.
 - Follow existing project conventions over these defaults.
 - Before writing a helper, guard, decorator, or defensive layer, list every one you're about to add and grep for each as a batch: shared guards and helpers, the decorator or interceptor one level lower, global filters, logger serializers. The mechanism usually already exists.
 - Deterministic rules over fuzzy or volume heuristics: count distinct things, and prove two classes can't overlap before branching on them.
 - No symlinks to share files between packages or repos; copy them with a script.
-- No laziness. No temporary fixes. Senior developer standards.
 - When given a bug, just fix it. Don't ask for hand-holding.
 - For non-trivial changes, pause and ask "is there a more elegant way?" before presenting; for simple, obvious fixes, just do it.
 - For new or modified TS files, follow Prettier policies if available and remove unused imports and sort remaining ones alphabetically (mirrors VSCode's `source.organizeImports`).
