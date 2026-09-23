@@ -43,6 +43,61 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.12] - 2026-09-23
+
+### Added
+- **`engineer` skill.** A working method for code work in a repo: fix a bug, build a feature,
+  refactor or simplify, chase a slowdown, prototype, explain how or why code is shaped the way
+  it is, check a change's blast radius, architect, interrogate a branch, or drive a long run.
+  It picks a playbook, applies 23 engineering principles (read on demand, one file each), and
+  runs a comment pass before any diff is shown. Adapted from pstack (MIT, credited in `NOTICE`
+  and in each file) and rewritten against the house rules.
+- **`self-review` measures a home against the templates every cycle.** `template-drift.ts`
+  prints the sections and lines a home's SOUL, IDENTITY, AGENTS, and rule files carry that the
+  templates lack, and flags rule-shaped bullets in USER.md and the preferences facet. Each line
+  is sorted into generic (promote upstream), personal (remembered), or pending upgrade.
+- `demo-home.ts` seeds a fictional home and renders the public demo dashboard from it, with
+  every machine path rewritten and a refusal to write if one survives.
+- `skills.test.ts` parses every SKILL.md frontmatter, checks the name matches its folder, holds
+  each description to the 1,024-character cap, and resolves relative links inside skill folders.
+
+### Changed
+- **Generic rules from real homes moved into the templates.** The manual gains Workflow lines
+  (git, release, repo-state, verification, and diff hygiene), Platform paragraphs ("keep the live
+  home out of harm's way", shell commands you run or hand over), "Reading the operator", and
+  Toolchain, Comments, and Code quality lines. Engineering Standards is condensed and indexes the
+  `engineer` principles. SOUL gains writing-style bullets, "Recommend once, then build", and two
+  confidentiality Boundaries. IDENTITY's Operational Pattern is seeded. The Claude Code bridge
+  keeps settings changes in the home.
+- The TypeScript rule is rewritten around types, narrowing, and boundary parsing plus house
+  idioms. The Swift rule gains a Types section.
+- `preferences.md` holds personal tastes only. Working rules route through feedback into
+  Learnings, and init seeds a skeleton instead of defaults that repeated the manual.
+- Review, spec, and writing skills carry the engineering principles.
+- Links to the retired `dev.agentlayer.one` point at `agentlayer.one`.
+
+### Fixed
+- Four skills shipped frontmatter a YAML parser rejects, and `where-am-i`'s description ran past
+  the 1,024-character cap hosts truncate at.
+- Shipped files no longer carry a real operator's name, projects, or personal defaults; examples
+  use a fictitious operator.
+
+### Removed
+- `simple-simplify`. Its audit criteria live in `engineer`'s refactoring playbook, which also
+  answers review-only "simplify this" requests.
+- The unused `templates/USER.md`; init writes USER.md from its own inline template.
+
+### Upgrade
+- `settings: mandatory` — in `permissions.allow`, add `Skill(agent-kevin:engineer)` and remove `Skill(agent-kevin:simple-simplify)` if present.
+- `template/AGENTS.md: mandatory` — new Workflow, Platform, "Reading the operator", Toolchain, Code style, Comments, and Code quality lines; Engineering Standards condensed around a Principles index (section-aware merge; home-only sections untouched).
+- `template/CLAUDE.md: mandatory` — Claude Code Session Rules gains one line: settings changes go in the home's `.claude/`, never the user-level `~/.claude/settings.json`.
+- `template/SOUL.md: optional` — new Writing Style bullets, the "Recommend once, then build" Core Truth, and two Boundaries; an operator's edited copy is diffed first.
+- `template/IDENTITY.md: optional` — Core Role widened, Operational Pattern seeded, and one Safety & Privacy line (never print a secret into chat); offered as a diff because the operator owns the section.
+- `template/rules/typescript.md: optional` — rewritten (types, narrowing, calls and runtime, house idioms); an operator's edited copy is diffed first.
+- `template/rules/swift.md: optional` — new Types section; an operator's edited copy is diffed first.
+- `manual: optional` — Xcode pack homes only: `.claude/rules/xcode.md` gains one line under "One build driver at a time" ("Leave the headless service itself running; stop it only when the operator says they are opening Xcode."). Add it by hand; homes without the pack skip this.
+- `manual: none` — `/simple-simplify` no longer exists; use `engineer` (or ask to "simplify this").
+
 ## [0.4.11] - 2026-09-23
 
 ### Changed
