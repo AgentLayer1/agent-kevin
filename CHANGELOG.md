@@ -43,6 +43,42 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.10] - 2026-09-23
+
+### Added
+- **`self-review` prunes first.** Before proposing anything new it runs a deletion pass
+  (graduated learnings, superseded or dead references, rules a guard already enforces, model
+  defaults retired on trial, stale memory) and reports the always-loaded bytes per host before
+  and after. Two new scripts back it: `context-weight.ts` measures Claude's bridge, imports and
+  unscoped rules separately from Codex's manual and static stack, and `plugin-source.ts`
+  resolves the install mode (contributor / consumer / ambiguous) from the hosts' enabled
+  registrations, so a plugin-level fix is edited in a local checkout for contributors and lands
+  as a home override plus an upstream proposal for marketplace installs.
+- **`graduated:` markers.** A theme carrying one drops out of the compiled Learnings; a
+  `graduated-rule:` marker moves a single rule out of a theme and keeps the rest.
+- `sync` nudges `self-review` 30 days after the previous run, even without new feedback.
+
+### Changed
+- **Codex homes mirror pack MCP servers from `.mcp.json`.** `codex_setup` now owns a
+  `[mcp_servers.<name>]` table for every server a pack registered (the Xcode pack's `xcode`),
+  regenerated each run with the operator's own keys kept and dropped once the pack is
+  deconfigured. A home that activated a pack before wiring Codex now gets the server; the pack
+  walk calls `codex_setup` instead of hand-merging TOML. Upgrade's Codex regeneration applies
+  it with no extra step.
+- `TASKS.md`'s Stale section is an id index per project (id and last-update date, oldest first)
+  instead of repeating every task line: 33 KB to 20 KB on a 68-stale board.
+- `knowledge-compile`'s Open Questions carry only stale, contradiction and missing items; a
+  filled gap drops off rather than lingering as `[resolved]`.
+- `release` documents that a pushed tag never moves.
+
+### Fixed
+- `memory_prune` rewrites an archived `[[memory/<date>]]` link whose daily file is gone to
+  "the <date> session log", so decision archives stop accumulating dead links.
+- A broken `.mcp.json` or settings file names itself in the Codex generator's parse error.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — Operational Rules and most of Session Rules removed (they repeated SOUL, Memory Routing and Workflow), "Ship > Start" moves into Workflow, the Architecture references list is retired, and Platform gains "a command the sandbox blocks is the operator's to run".
+
 ## [0.4.9] - 2026-09-18
 
 ### Added
