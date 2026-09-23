@@ -1,7 +1,7 @@
 /**
  * The two-line footer a Claude Code session shows from an agent home.
  *
- * Line one: model, folder (a `file://` link), git branch. Line two: a context bar with the
+ * Line one: model with its effort level, folder (a `file://` link), git branch. Line two: a context bar with the
  * percentage, session cost with the hourly rate, elapsed time, and the Pro/Max rate-limit
  * windows when the host reports them. Pure: the payload is Claude Code's status-line JSON
  * and the branch is looked up by the caller.
@@ -14,6 +14,7 @@ import { pathToFileURL } from 'node:url';
 
 export interface StatusLinePayload {
   model?: { display_name?: string };
+  effort?: { level?: string };
   cwd?: string;
   workspace?: { current_dir?: string; project_dir?: string };
   cost?: { total_cost_usd?: number; total_duration_ms?: number };
@@ -102,8 +103,10 @@ export const renderStatusLine = (payload: StatusLinePayload, options: StatusLine
   const fiveHour = percentOrNull(payload.rate_limits?.five_hour?.used_percentage);
   const sevenDay = percentOrNull(payload.rate_limits?.seven_day?.used_percentage);
 
+  const effort = payload.effort?.level ? ` ${paint(DIM, payload.effort.level)}` : '';
+
   const first = [
-    `${options.emoji ?? '🤖'} ${paint(WHITE, model)}`,
+    `${options.emoji ?? '🤖'} ${paint(WHITE, model)}${effort}`,
     paint(BRIGHT_BLUE, `📁 ${folderLink(dir)}`),
     ...(options.branch ? [paint(BRIGHT_CYAN, `🌿 ${options.branch}`)] : [])
   ];

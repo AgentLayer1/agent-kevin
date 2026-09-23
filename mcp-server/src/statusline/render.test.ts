@@ -19,6 +19,11 @@ describe('renderStatusLine', () => {
     expect(plain(second)).toBe('███⣿⣿⣿⣿⣿⣿⣿⣿⣿ 25% │ $1.00 ($2.00/hr) │ ⏱ 30m 0s');
   });
 
+  test('the effort level follows the model when the host reports one', () => {
+    const first = renderStatusLine({ ...payload, effort: { level: 'high' } }).split('\n')[0];
+    expect(plain(first)).toBe('🤖 Opus high │ 📁 Scout');
+  });
+
   test('no branch, no branch segment; the agent emoji replaces the robot', () => {
     const first = renderStatusLine(payload, { emoji: '🍌' }).split('\n')[0];
     expect(plain(first)).toBe('🍌 Opus │ 📁 Scout');
