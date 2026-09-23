@@ -30,7 +30,8 @@ The working method for code: a playbook per kind of task, principles the playboo
 | Why is X like this; where did this number come from | [why](references/playbooks/why.md) |
 | A defect to reproduce, root-cause, and fix | [bug fix](references/playbooks/bug-fix.md) |
 | New or changed behavior | [feature](references/playbooks/feature.md) |
-| Same behavior, better structure: refactor, simplify, clean up, "is this over-engineered?" | [refactoring](references/playbooks/refactoring.md) |
+| Simplify, clean up, "is this over-engineered?", `/engineer simplify <target>` | [simplify](references/playbooks/simplify.md) |
+| Same behavior, better structure: a refactor or reshape | [refactoring](references/playbooks/refactoring.md) |
 | A measured slowness | [performance](references/playbooks/perf.md) |
 | Push one metric toward a target | [hillclimb](references/playbooks/hillclimb.md) |
 | A live symptom (leak, spin, glitch) to diagnose | [runtime forensics](references/playbooks/runtime-forensics.md) |
@@ -42,7 +43,6 @@ The working method for code: a playbook per kind of task, principles the playboo
 | Keep going until a finish line | [autonomous run](references/playbooks/autonomous-run.md) |
 | Stop cleanly so a later session can resume | [pause safely](references/playbooks/pause-safely.md) |
 | Take over a prior session's in-flight work | [session pickup](references/playbooks/session-pickup.md) |
-| Reclaim disk from worktrees and simulators | [worktree cleanup](references/playbooks/worktree-cleanup.md) |
 | Write or edit a `SKILL.md` | [authoring a skill](references/playbooks/authoring-a-skill.md) |
 | Test whether a skill or prompt change changes behavior | [eval](references/playbooks/eval.md) |
 | Give a repo a scripted way to prove the app works | [verification skill](references/playbooks/verification-skill.md) |

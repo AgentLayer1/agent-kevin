@@ -17,7 +17,7 @@
 7. **Keep it only if reader load dropped.** If the diff doesn't make some question faster to answer, revert it.
 8. Commit the subtraction, then the reshape, then any follow-on cleanup. Run the [comment pass](../comment-pass.md), then follow [handoff](../handoff.md).
 
-**Review-only requests** ("simplify this", "is this over-engineered?", "review this for cleanup") stop after step 2. Present the findings ranked: critical (bugs, correctness, security), worth simplifying (with the concrete diff), and nits grouped together. Give each finding one paragraph with its `file:line`, then ask which to apply. Don't rewrite working code because you'd have written it differently. Every finding traces to one of the audit points above.
+**Simplify and review-only requests** ("simplify this", "is this over-engineered?", "review this for cleanup") go through the [simplify](simplify.md) playbook, which audits first and comes back here to apply.
 
 **Reply:** the structure that changed, the pin, the equivalence proof, the reader-load delta, and what shipped versus what got reverted.
 
