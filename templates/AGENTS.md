@@ -196,60 +196,29 @@ These guidelines apply to any code {{AGENT_NAME}} reads, writes, or reviews — 
 
 ### Think before coding
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+**Don't assume. Don't hide confusion. Surface tradeoffs.** State your assumptions. If several interpretations exist, present them instead of picking silently. If a simpler approach exists, say so and push back. If something is unclear, stop, name it, and ask. But if the answer is observable by running something (behavior, timing, output), run it or prototype it; ask only for product or preference calls.
 
 ### Simplicity first
 
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+**Minimum code that solves the problem. Nothing speculative.** No features, abstractions, configurability, or error handling beyond the ask or what can actually happen. If you write 200 lines and it could be 50, rewrite it.
 
 ### Surgical changes
 
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: every changed line should trace directly to the user's request.
+**Touch only what you must. Clean up only your own mess.** Don't "improve" adjacent code, comments, or formatting, and don't refactor what isn't broken. Match existing style. Mention unrelated dead code instead of deleting it; remove only the orphans your change created. Every changed line traces to the request.
 
 ### Goal-driven execution
 
-**Define success criteria. Loop until verified.**
+**Define success criteria. Loop until verified.** Turn the task into a check ("a test reproducing the bug now passes") and plan multi-step work as `[step] → verify: [check]`. Every claim carries its evidence or a label (measured, inferred, guess); never hand the operator a check you could run.
 
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
+### Principles
 
-For multi-step tasks, state a brief plan:
+Each lives in full in the `engineer` skill, beside a playbook per code task. Read it before applying; name the decision it changed.
 
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+- **Build less:** subtract first, foundational thinking (data shape first; redesign, don't bolt on), exhaust the design space, build the lever (script the edit or the proof), experience first.
+- **Shape:** model the domain, type system discipline (illegal states unrepresentable), boundary discipline (validate at the edges, trust types inside), minimize reader load.
+- **State:** make operations idempotent, separate before serializing (a target per writer before any lock), migrate then delete (one wave).
+- **Proof:** prove it works (the real artifact, proof-ladder level stated), fix root causes (reproduce, no silencing guards), sequence verifiable units (failing test before the fix), test behavior not implementation (passes with every import `undefined`? rewrite or delete).
+- **Meta:** encode lessons in structure (a rule needed twice becomes a type, test, lint, or hook), guard the context window.
 
 ### Toolchain
 
@@ -273,11 +242,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Trust SDK signals over text scanning** — when a library exposes structured error info, use it.
 - **Useless tests waste attention.** Tests must protect against real regressions; round-trip-for-coverage's-sake gets deleted.
 - Modern language features. No legacy patterns.
-- Simplicity and elegance, clarity and concise. Don't over-engineer.
 
 ### Comments
 
-Code self-explains. A comment that restates what a well-named identifier already says is noise, and long machine-generated comment blocks are an AI tell that buries the code, often a signal the code itself is awkward or an abstraction is leaking. Default to no comment.
+Code self-explains. Default to no comment, and run the `engineer` skill's comment pass before presenting a diff.
 
 - **Default: none.** If removing it wouldn't confuse a future reader, don't write it. Never narrate what the next line already says (`// validate input`, `// loop through items`).
 - **Keep only the *why*** — a non-obvious constraint, a subtle invariant, a bug workaround, behavior that would surprise a reader. One line is almost always enough.
@@ -293,10 +261,7 @@ Code self-explains. A comment that restates what a well-named identifier already
 - Run formatter only on new or modified files.
 - Include unit tests for reusable code snippets.
 - Follow existing project conventions over these defaults.
-- No laziness. Find root causes. No temporary fixes. Senior developer standards.
+- No laziness. No temporary fixes. Senior developer standards.
 - When given a bug, just fix it. Don't ask for hand-holding.
-- For non-trivial changes, pause and ask "is there a more elegant way?" before presenting.
-- For simple, obvious fixes — skip that and just do it. Don't over-engineer.
+- For non-trivial changes, pause and ask "is there a more elegant way?" before presenting; for simple, obvious fixes, just do it.
 - For new or modified TS files, follow Prettier policies if available and remove unused imports and sort remaining ones alphabetically (mirrors VSCode's `source.organizeImports`).
-
-**These guidelines are working if** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
