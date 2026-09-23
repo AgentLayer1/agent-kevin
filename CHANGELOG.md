@@ -43,6 +43,30 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.4.11] - 2026-09-23
+
+### Changed
+- **`pr-adversarial` is now `adversarial-review`, and it reviews any of the operator's own
+  work.** It handles four kinds of target: a PR, a commit range, an uncommitted working tree,
+  or a set of paths (a plan, spec, skill, or document). The claims to falsify come from
+  whatever states the intent: commit messages, the task and plan, or the document's own
+  assertions. The verify rubric is mapped onto prose, and fixes are committed only when the
+  target is committed code. Dossiers are found by the `adversarial` tag instead of the
+  `skill:` field, so existing `adversarial-*` dossiers still resolve. The slash command is
+  `/agent-kevin:adversarial-review`.
+- **Init defaults to Opus at high effort.** The model question recommends Opus over Fable,
+  and `effortLevel: "high"` is always written to project settings next to the model instead
+  of only filling a gap left by the global settings. The home runs the same model and effort
+  on every machine.
+- The Claude status line shows the effort level, dimmed, beside the model name. It shows
+  nothing when the host omits it.
+
+### Upgrade
+- `settings: mandatory` — replace the renamed skill grant in `permissions.allow`: remove `Skill(agent-kevin:pr-adversarial)`, add `Skill(agent-kevin:adversarial-review)`.
+- `template/AGENTS.md: mandatory` — the reporting-skills row, the `reports/reviews/` tree comment, and the "Where Your Code Lives" sentence now name `adversarial-review`.
+- `settings: optional` — set `"model": "opus"` and `"effortLevel": "high"` in `.claude/settings.json`. Ask with the current values shown next to the new ones. A yes sets both, even over an existing project value, because the operator is choosing on this run. Skip if the operator prefers Fable or their global default.
+- `manual: none` — `/pr-adversarial` no longer exists; use `/agent-kevin:adversarial-review`. Existing `adversarial-*` dossiers keep working, and the `skill:` field in their frontmatter is historical.
+
 ## [0.4.10] - 2026-09-23
 
 ### Added
