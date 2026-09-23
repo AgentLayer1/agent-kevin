@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { agentKeyName, runtimeDirName } from '../../../mcp-server/src/shared/naming';
 
 const SCRIPT = join(import.meta.dir, 'context-weight.ts');
 const dirs: string[] = [];
@@ -19,7 +20,7 @@ const home = () => {
     mkdirSync(join(path, '..'), { recursive: true });
     writeFileSync(path, content);
   };
-  write('.kevin/version.json', '{}');
+  write(join(runtimeDirName(), 'version.json'), '{}');
   write('AGENTS.md', '# Manual\n');
   write('SOUL.md', '# Soul\n');
   write('.claude/CLAUDE.md', '@../AGENTS.md\n@../SOUL.md\n');
@@ -62,7 +63,7 @@ describe('context-weight', () => {
     const other = home();
     const proc = spawnSync(process.execPath, [SCRIPT, '--home', root], {
       cwd: other.root,
-      env: { ...process.env, KEVIN_HOME: other.root }
+      env: { ...process.env, [agentKeyName('HOME')]: other.root }
     });
     expect(JSON.parse(proc.stdout.toString()).home).toBe(root);
     expect(run().out.home).toBe(root);
