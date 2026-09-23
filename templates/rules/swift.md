@@ -16,6 +16,18 @@ paths:
 - No force unwraps (`!`) unless the value is guaranteed at compile time (e.g., static URLs).
 - No `Any` or `AnyObject` without justification.
 
+## Types
+
+- Model variants as an `enum` with associated values, not a struct of optionals:
+  `enum Load { case idle, loading, loaded(Item), failed(any Error) }`.
+- Switch over enums you own without `default`, so a new case fails the build. `@unknown default`
+  is only for enums you don't own.
+- Give ids that must not swap their own type (`struct ItemID: Hashable, Codable { let rawValue: String }`)
+  instead of a bare `String`.
+- Parse at the `Codable` boundary: decode into domain types once (a custom `init(from:)` or a DTO
+  mapped in one place) and trust them inside.
+- Where a force unwrap or `fatalError("unreachable")` seems necessary, strengthen the type instead.
+
 ## Concurrency
 
 - **Never reach for `@unchecked Sendable` to silence a diagnostic.** It hides the race instead of
