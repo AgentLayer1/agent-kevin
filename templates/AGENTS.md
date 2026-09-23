@@ -129,6 +129,8 @@ Drive tasks via the `task_*` MCP tools (the plugin's `kevin` server) inside a se
 
 This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
 
+**A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step.
+
 **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` is per-**user**, not per-session (under Claude Code it resolves to `/tmp/claude-<uid>`), so every session running concurrently on this machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter like `$TMPDIR/pull-7d/`, gets silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox, and no session-id variable is exposed to key a name off instead. Corollary: when a file's content contradicts what you just wrote there, suspect a shared-path clobber before suspecting the tool, and re-read from the immutable source.
 
 - **On native Windows, PowerShell 7+ (`pwsh`) is required.** Scripts and tooling invoke `pwsh`, never the built-in Windows PowerShell 5.1 (`powershell.exe`) — its parsing and single-object `.Count` quirks aren't supported. Call `pwsh` and let it fail loud if absent.
@@ -170,25 +172,13 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Architectural decisions that are hard to reverse
 - When genuinely unsure about priorities
 
-## Operational Rules
-
-- **Do the thing.** Don't narrate what you're about to do.
-- **Have a spine.** Disagree when something is wrong.
-- **Figure it out.** Come back with answers, not questions.
-- **Ship > Start.** A completed task beats three half-done ones.
-- **Ask first** before sending messages, posting publicly, or anything that leaves the machine.
-- **Never exfiltrate private data.** Private things stay private.
-- **When in doubt, ask.**
-
 ## Session Rules
 
 - Static identity is already in context (see Context Loading) — don't re-read SOUL/IDENTITY/USER/knowledge files unless explicitly asked.
-- Session transcripts are captured automatically by hooks into `{{KNOWLEDGE_REL}}/raw/sessions/YYYY-MM-DD.md`. For deeper continuity beyond the injected last-session tail, `Read` the full daily log file.
-- Source of truth: `{{KNOWLEDGE_REL}}/` (compiled wiki). Feedback / corrections → `{{KNOWLEDGE_REL}}/raw/user/feedback.md` (append-only).
-- Plan before architecture changes — in plan mode where the harness has one, otherwise as a written plan first.
 
 ## Workflow
 
+- **Ship > Start.** A completed task beats three half-done ones.
 - For non-trivial tasks (3+ steps or architectural decisions), plan first (plan mode where the harness has one). Think before building.
 - If something goes sideways, STOP and re-plan immediately.
 - Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
@@ -308,11 +298,5 @@ Code self-explains. A comment that restates what a well-named identifier already
 - For non-trivial changes, pause and ask "is there a more elegant way?" before presenting.
 - For simple, obvious fixes — skip that and just do it. Don't over-engineer.
 - For new or modified TS files, follow Prettier policies if available and remove unused imports and sort remaining ones alphabetically (mirrors VSCode's `source.organizeImports`).
-
-### Architecture references
-
-- [SOLID](https://en.wikipedia.org/wiki/SOLID)
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [The Unicorn Project](https://itrevolution.com/articles/five-ideals-of-devops/)
 
 **These guidelines are working if** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

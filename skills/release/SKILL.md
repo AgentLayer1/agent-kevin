@@ -218,6 +218,10 @@ git tag -a vX.Y.Z -m "vX.Y.Z"      # commit+tag and above only
 git push && git push --tags        # push option only
 ```
 
+A pushed tag never moves. If `vX.Y.Z` already exists on the remote, leave it where it is:
+never `git tag -f`, delete and re-create, or force-push a tag. Later commits ride into the next
+release's range.
+
 ## Step 6 — Hand off
 
 Remind the maintainer of the consumer upgrade path so it can go in release notes:

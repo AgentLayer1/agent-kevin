@@ -45,6 +45,8 @@ When the loop ends (`compile_next` returns `done: true`) **and at least one item
 
 Format each as one line: `- **[stale|contradiction|missing]** <the gap — and where it shows up>`.
 
+Those three kinds are the only ones. A gap that got filled drops off the list; never carry it forward as `[resolved]`.
+
 Do **not** invent gaps to hit a quota. Most runs surface 0–3. This is a judgment pass, not a checklist. Because `memory/index.md` is auto-loaded every session, the list becomes ambient context — no briefing wiring needed.
 
 ## Boundaries
