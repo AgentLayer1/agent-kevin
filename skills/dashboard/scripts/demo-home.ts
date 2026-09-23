@@ -23,6 +23,11 @@ import { dirname, join, resolve } from 'node:path';
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined =>
   args.indexOf(name) === -1 ? undefined : args[args.indexOf(name) + 1];
+if (process.platform === 'win32') {
+  // TODO(windows): the render runs behind a POSIX sh shim on a ':'-joined PATH.
+  console.error('demo-home.ts runs on macOS or Linux; render the demo from there.');
+  process.exit(2);
+}
 const outArg = flag('--out');
 if (!outArg) {
   console.error('usage: demo-home.ts --out <dashboard.html> [--avatar <jpg>] [--keep]');

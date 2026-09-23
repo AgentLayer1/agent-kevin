@@ -9,7 +9,7 @@ const outDir = mkdtempSync(join(tmpdir(), 'demo-home-test-'));
 afterAll(() => rmSync(outDir, { recursive: true, force: true }));
 
 describe('demo-home', () => {
-  test('renders a green, fully populated demo with no machine or temp paths left in it', () => {
+  test.skipIf(process.platform === 'win32')('renders a green, fully populated demo with no machine or temp paths left in it', () => {
     const out = join(outDir, 'dashboard.html');
     const proc = spawnSync(process.execPath, [SCRIPT, '--out', out], { timeout: 120_000 });
     expect(proc.stderr.toString()).toBe('');

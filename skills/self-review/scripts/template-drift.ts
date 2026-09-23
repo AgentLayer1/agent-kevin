@@ -139,13 +139,13 @@ const pairs = [
     }))
 ].filter(({ homePath, templatePath }) => existsSync(homePath) && existsSync(templatePath));
 
-const ruleLike = ['USER.md', join('knowledge', 'user', 'preferences.md')]
-  .filter((rel) => existsSync(join(home, rel)))
-  .flatMap((rel) =>
-    readFileSync(join(home, rel), 'utf-8')
-      .split('\n')
+const ruleLike = [['USER.md'], ['knowledge', 'user', 'preferences.md']]
+  .filter((parts) => existsSync(join(home, ...parts)))
+  .flatMap((parts) =>
+    readFileSync(join(home, ...parts), 'utf-8')
+      .split(/\r?\n/)
       .filter((line) => /^\s*[-*] /.test(line) && RULE_WORDS.test(line))
-      .map((line) => ({ file: rel, line: normalize(line) }))
+      .map((line) => ({ file: parts.join('/'), line: normalize(line) }))
   );
 
 console.log(
