@@ -43,6 +43,30 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.5.0] - 2026-09-23
+
+### Changed
+- **Upgrade merges templates three ways.** A changed section is rebuilt as the new template plus
+  every line the operator wrote in it, instead of being replaced wholesale. `template-drift.ts`
+  takes `--base` (the templates at the home's baseline) and marks each home-only line as the old
+  template's wording or the operator's; it now covers the Claude bridge too. Upgrade reads that
+  base from `.kevin/template-base`, else the plugin's baseline tag, and asks when an operator's
+  edit collides with a line the release rewrote or no base exists. Init and every upgrade
+  snapshot the templates they applied into `.kevin/template-base`.
+- The manual's "Verify before claim" asks for each finding in a multi-finding analysis to be
+  rechecked and labelled confirmed, strong, or guess, with a guess never in the headline. Three
+  Code style / Code quality lines the `engineer` skill already covers are dropped.
+- SOUL's Writing Style splits the group-explanation clause into its own bullet (explanation, not
+  a findings list), and adds "I still don't understand" twice means a new angle, and shared
+  artifacts name roles, never the agent or the model.
+
+### Fixed
+- **Native Windows.** `template-drift.ts` reports the preferences facet as `knowledge/user/preferences.md` on every platform, and reads CRLF files line by line. The demo seeder, which needs a POSIX shell, now stops with a clear message on Windows instead of failing mid-render, and its test is skipped there.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — Workflow's "Verify before claim" line extended; three Code style / Code quality lines removed (section-aware three-way merge; operator lines and home-only sections untouched).
+- `template/SOUL.md: optional` — Writing Style: one bullet split in two, two new bullets; an operator's edited copy is diffed first.
+
 ## [0.4.12] - 2026-09-23
 
 ### Added
