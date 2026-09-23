@@ -43,7 +43,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 ## Lane 3 — Security and privacy
 
 - Secrets and PII in logs: interpolated API keys, tokens, signatures, emails, names, document contents into a log string or an exception message. Static message plus structured context is the convention; use the repo's redaction helper if it has one.
-- Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only.
+- Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only. Absolute machine paths leak the host's layout; user-facing output shows repo-relative paths.
 - Input validation: DTO fields without validation decorators, `any`-typed request bodies, string IDs passed straight into a query, enum fields typed as `string`.
 - Injection: raw SQL with interpolation, shell commands built from input, HTML rendered from a third-party payload without sanitizing.
 - Webhook trust: an inbound webhook handled without signature verification, a signature check that runs after the side effect, replay without an event-id dedupe.
@@ -89,7 +89,7 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 
 ## Lane 6 — Tests
 
-- Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted. Name the missing test by the behavior it pins.
+- Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted, where the repo's test policy calls for one (read it in `AGENTS.md`; a repo that tests only shared utilities makes a missing app-code spec a non-finding). Name the missing test by the behavior it pins.
 - Hollow tests, the ones that would still pass if every imported function returned `undefined`: no assertion or a weak one (`toBeDefined`, `toBeTruthy`, `not.toThrow`), only mock-call or absence checks (`toHaveBeenCalled`, `toEqual([])`), an expected value computed by the code under test, a restated constant or prompt string, or a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test, snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
 - Deleted or weakened tests: a removed assertion, a `.skip`, a loosened matcher, an invariant that used to be pinned and now is not.
 - Test placement: specs where the repo keeps them; end-to-end scenarios in the repo's harness, not ad hoc scripts.

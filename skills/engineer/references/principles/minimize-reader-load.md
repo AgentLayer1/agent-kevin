@@ -9,6 +9,8 @@ Maintainability is the work a reader does to understand the code. Track two inde
 - **Prefer deep modules.** A small interface that hides real decisions beats a broad one that makes the reader learn both the surface and the implementation.
 - **Shrink state scope:** returns over mutation, locals over fields, fields over module state, module state over globals. Derive values instead of syncing them.
 - **Name an invariant once,** at the boundary, not in every consumer.
+- **One name, one meaning.** Namespace an overloaded term (`knowledge:compile`, not a bare `compile`) so a reader never guesses which one.
+- **Keep the dependency graph acyclic.** Config modules import only the standard library; constants live with the function that uses them.
 
 Before adding a layer or a piece of state, ask whether it cuts reader load elsewhere by at least as much.
 

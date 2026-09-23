@@ -6,6 +6,8 @@ Verify against the real artifact, not a proxy, a self-report, or "it compiles".
 
 - **Build it** (necessary, not sufficient), **run it**, and exercise the actual feature path. Check the full chain from input to output. For an integration, drive the whole communication path.
 - **Read the actual value,** not a cached or derived one. Check liveness directly, not through mtimes or state files.
+- **Verify at the sink.** When content is injected, loaded, or sent, inspect the destination, not the log line upstream that says it went.
+- **Look before a destructive write.** Run a bulk UPDATE or DELETE as a SELECT first, check the rows, then convert it.
 - **When verification fails, suspect the observation before the system.**
 - **Delegated work** is checked from its diff, its files, and its running behavior. Never pass a subagent's summary through as proof.
 - **Verify on the surface the operator uses:** the simulator or device through the Xcode loop, the page through the browser tools, the CLI in a real terminal. A wrong-surface or inconclusive result is not a pass. Say so.

@@ -9,6 +9,7 @@ Every state-changing operation answers two questions: what happens if it runs tw
 - **Self-heal locks.** Detect a stale lock by PID or lease, never by the lock file merely existing.
 - **Write, verify, then stamp.** Record the "done" marker (a version, a cursor) last, so a partial run stays re-runnable.
 - **Respawn failed work cleanly,** and regenerate fresh input on each cycle.
+- **Nothing sticks forever.** Any pause, block, or lock proves it can't wedge: validate its shape on load, cap it with a hard ceiling, and make it visible at startup.
 
 **The test:** run it twice in a row, then kill it at each step and rerun. Does it converge to the same end state every time?
 

@@ -7,6 +7,7 @@ When implementation convenience conflicts with the user's experience, choose the
 - **Every feature, control, and option has to justify itself.** Three polished features beat ten rough ones.
 - **Get the details right:** transitions, alignment, spacing, feedback, empty states, and error states.
 - **Tighten the core loop.** Everything serves the central workflow or gets out of the way.
+- **Preview before bulk.** Show what an import or a batch change will do and get a confirmation before it runs.
 - **Prototype before committing.** A design decision is cheaper in throwaway HTML than in production code.
 
 The user is whoever consumes the work: the end user of an app, the colleague importing a library, and the engineer who maintains the code next. Explain impact from their side first.

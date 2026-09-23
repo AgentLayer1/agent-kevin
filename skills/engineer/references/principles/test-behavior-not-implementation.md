@@ -16,6 +16,8 @@ Five hollow shapes:
 
 **The fix:** call the subject with one concrete input and assert the literal output or the observable effect, as in `expect(slugify("Hello, World!")).toBe("hello-world")`. For an absence, assert the presence on the other input in the same test. For a mock, assert the payload it received or the state afterwards, not that it was called. Don't mock what you can run.
 
+**Which tests to write.** The repo's manual sets its test policy. Without one, the default is lean: unit tests on shared, low-level utilities where a bug would corrupt everything downstream, plus a regression test for a fixed bug when a cheap local test path exists. No integration or end-to-end suites unless the repo asks for them.
+
 **Keep** tests of a relation across rows of a table and compile-time type tests. The same bar applies in Swift Testing (`#expect`, `#require`) and XCTest. Tests exist to catch real regressions. Coverage for its own sake gets deleted.
 
 ---

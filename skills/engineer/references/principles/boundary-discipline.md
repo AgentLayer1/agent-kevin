@@ -7,6 +7,9 @@ Validate, narrow, and handle errors at system boundaries. Trust internal code. B
 - **At the boundary** (CLI args, config files, env, network, external APIs, webhooks, IPC): validate, parse into domain types, return errors, and be defensive.
 - **Inside:** typed data and propagated errors. No re-validation, and no nil checks deep in a chain the boundary already covered.
 - **Across the boundary,** expose domain concepts, not the transport's private representation. Don't re-export wire, storage, or framework types through a public surface. Keep general mechanism inside and special-purpose policy at the edge.
+- **Configuration is a boundary.** Read environment variables in one config module; nothing else touches `process.env` or its equivalent.
+- **Time is a boundary.** Store and compute in UTC; convert to a time zone only at display.
+- **Errors change shape at the edge.** Business errors are thrown by services; the transport layer (an HTTP controller, a CLI) maps them to status codes and messages.
 - **Keep logic out of framework wiring** so it tests without the framework. Parsing takes raw input and returns typed state. Prompt construction takes state and returns a string. Scoring takes state and returns a result.
 
 **The tests:**

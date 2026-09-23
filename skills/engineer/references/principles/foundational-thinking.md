@@ -7,6 +7,7 @@
 - **DRY the structure, not every line.** Types and models converge. Three similar statements still beat a premature abstraction. Explicit beats clever.
 - **Ask what concurrent actors share.** Before sharing state, ask what happens if another actor modifies it at the same time. If the answer isn't "nothing", isolate it ([separate before serializing](separate-before-serializing.md)).
 - **Redesign, don't bolt on.** When a requirement lands, read every affected file and ask: if this had been a day-one assumption, what would we have built? Propagate it through types, docs, examples, and tests. Think through the whole redesign, then deliver it in increments.
+- **A shared package earns its place.** Split out a workspace package or a monorepo when three or more modules are duplicated, one app calls the other synchronously, and they deploy as a unit. Before that, the boundary costs more than the duplication.
 - **Each increment lands a coherent abstraction or deepens one.** Don't spread a new capability across callers as special cases.
 
 **The test:** after the change, does the code read as if the design always accounted for the requirement?
