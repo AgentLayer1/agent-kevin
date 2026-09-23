@@ -44,7 +44,8 @@ MCP client, then `XcodeOpenWorkspace` again. Workspace identifiers do not surviv
 - **One build driver at a time.** The operator's Xcode GUI and the headless service are two Xcode
   instances sharing one project and one DerivedData. Building in the GUI while an agent workspace is
   open crashes Xcode in `IDEXCBuildServiceBuildOperation.performBuild()`. Close the agent's
-  workspace (`XcodeCloseWorkspace`) before handing the project back.
+  workspace (`XcodeCloseWorkspace`) before handing the project back. Leave the headless service
+  itself running; stop it only when the operator says they are opening Xcode.
 - **Read the repo's `AGENTS.md` first.** Targets, schemes, versioning source, dependency policy and
   the per-project build loop live there, not here.
 - **`.xcode-version` is a stop sign.** If the installed Xcode does not match, say so and stop rather

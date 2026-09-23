@@ -31,7 +31,7 @@ The TypeScript form of the `engineer` skill's type system and boundary principle
 - Object arguments over positional ones when two parameters share a type or there are more than two. Skip it on hot paths (render loops, parsers).
 - Diagnostics go through the repo's structured logger with enough context to debug from an id. `console.log` is for CLI output, not diagnostics.
 - Don't mock what you can run. Prefer the framework's real test primitives.
-- Log levels mean something: WARN for a user's input mistake, ERROR for a runtime failure.
+- Log levels mean something: WARN for a user's input mistake, ERROR for a runtime failure. Messages are constant strings; the data goes in the structured fields.
 
 ## House idioms
 

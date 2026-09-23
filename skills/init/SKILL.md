@@ -1179,7 +1179,8 @@ USER.md template:
 
 - **Name:** {{NAME}}
 - **Home timezone:** {{TIMEZONE}}
-- **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone.
+- **Current timezone:** read it from the session context's `## Today` line; it follows the machine clock, so it tracks travel. When that line flags traveling, use the current zone for "now" and scheduling, and keep home-anchored deadlines in the home zone. Check `knowledge/memory/index.md` for a travel thread.
+- Communication and writing style live in [SOUL.md](SOUL.md); workflow and engineering standards live in [AGENTS.md](AGENTS.md). Deeper tastes and values: [preferences](knowledge/user/preferences.md).
 
 ## How to Talk to Me
 
@@ -1203,7 +1204,7 @@ These files hold my evolving long-form knowledge. {{AGENT_NAME}} reads them on d
 
 - [Profile](knowledge/user/profile.md)
 - [Skills](knowledge/user/skills.md)
-- [Preferences](knowledge/user/preferences.md)
+- [Preferences](knowledge/user/preferences.md) — personal tastes: how you like output, values, tools, lifestyle
 - [Career](knowledge/user/career.md)
 - [Interests](knowledge/user/interests.md)
 ```

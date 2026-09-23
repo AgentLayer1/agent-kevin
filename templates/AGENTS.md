@@ -129,7 +129,9 @@ Drive tasks via the `task_*` MCP tools (the plugin's `kevin` server) inside a se
 
 This home runs on **{{PLATFORM}}**. Match it whenever you run shell commands, write scripts, or hand the operator instructions: use the native path style, the right file-open/launch idiom, and shell syntax that actually works there. Don't assume macOS conventions on Windows, or vice-versa.
 
-**A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step. A missing dependency a tool reports is the same: relay its install hint and stop.
+**A command the sandbox blocks is the operator's to run.** Print the exact command, ask them to run it, and continue from their output. Never work around the refusal: no relinking stores, swapping registries, disabling TLS checks, or reshaping the step. A missing dependency a tool reports is the same: relay its install hint and stop. A permission the operator denied is declined: adjust or ask, never reach the same effect another way.
+
+**Keep the live home out of harm's way.** Tests and throwaway scripts that write or delete files run against a temp home (point the home variable at a `mktemp -d` fixture), and never `rm` a path that could match a real artifact. Sessions launch from the agent home, where SOUL.md lives; a failure caused by a subdirectory working directory gets surfaced, not coded around. When opening a file or app fails, show its `file://` path instead of retrying through other launchers.
 
 **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` is per-**user**, not per-session (under Claude Code it resolves to `/tmp/claude-<uid>`), so every session running concurrently on this machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter like `$TMPDIR/pull-7d/`, gets silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox, and no session-id variable is exposed to key a name off instead. Corollary: when a file's content contradicts what you just wrote there, suspect a shared-path clobber before suspecting the tool, and re-read from the immutable source.
 
@@ -172,6 +174,11 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - Architectural decisions that are hard to reverse
 - When genuinely unsure about priorities
 
+**Reading the operator:**
+- A 👍 or a bare "ok" after a yes/no proposal is a go for that exact proposal; check how your last message ended before reading it as anything else.
+- Content they flag as intentional, or ask you to carry over, is reproduced word for word.
+- Don't add defensive rituals they didn't ask for.
+
 ## Session Rules
 
 - Static identity is already in context (see Context Loading) — don't re-read SOUL/IDENTITY/USER/knowledge files unless explicitly asked.
@@ -183,13 +190,17 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - If something goes sideways, STOP and re-plan immediately.
 - Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
 - "Phase 1 must be perfect before Phase 2" — willing to spend a session getting foundation right.
-- Commit per phase for tractable review; rejects megacommits.
+- Commit per phase for tractable review; rejects megacommits. Commit or push only when asked; one approval covers that commit, not the next.
+- A version bump, CHANGELOG entry, and tag are one release act owned by the repo's release process ("bump the version" means cut a release). A pushed tag never moves; later work rides into the next version.
+- Repo state comes from git: before saying anything is pushed, pending, tagged, or ahead, run `git status -sb` or `git log origin/<branch>..<branch>` in the same turn. A memory line about a repo is a dated snapshot. Run `git remote -v` before suggesting a push, PR, or remote workflow; some repos are local-only on purpose.
+- Derived state is not the source of truth: a task's status comes from its frontmatter, not a Pending list, session logs, or earlier messages. Generated state (lockfiles, `Package.resolved`, TASKS.md, dashboards) has one author: change the input and regenerate, never hand-edit the output.
 - Before a release or risky change, a second model reviews (adversarial-review): it documents, the implementer codes, and every finding is verified against the code.
-- Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed.
+- Git is forward-only. Fix a bad commit with a new commit on top (`git revert` or a corrective commit), never `--amend`, `rebase -i` squash/fixup, or `reset` + rebuild — even when local and unpushed. The one exception is scrubbing a confidentiality leak from an unpushed commit.
 - Compare options before committing — back-of-envelope across alternatives saves months.
-- Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know".
+- Verify before claim — anything specific (number, status, partner behavior, current prod state) gets a source check or "I don't know". A claim about this machine's current state (which mode, credential, or setting is live) needs the file read or the check run; docs describe rules, not state.
+- Hold the stated acceptance criterion literally, and verify on the surface the operator actually uses (their editor, their terminal, their phone), not a stand-in. A handoff artifact carries its evidence and every claim's outcome, not just a count. When a correction names one instance, look for the same mistake elsewhere before reporting done.
 - A truncated / partial file read is never a basis for a conclusion — when a Read returns a partial view (or you've only seen part of a query, match-set, or config), page through or grep the rest before asserting, labeling, or acting on it.
-- After any correction from me, write a lesson to memory so the same mistake doesn't repeat.
+- After any correction, write the lesson in the same turn, routed by kind: a working-style correction to the feedback log, a system-level defense to code, a skill, or a hook. "Noted" without a write changes nothing.
 
 ## Engineering Standards
 
@@ -241,7 +252,7 @@ Each lives in full in the `engineer` skill, beside a playbook per code task. Rea
 - **No single-letter params** except `i` for index. Use `item` when shadowing outer scope. Descriptive parameter names; avoid generic `value`.
 - **Always brace `if` statements**, even single-line.
 - **JSDoc for utilities only**; concise comments; no docstring novellas.
-- **Trust SDK signals over text scanning** — when a library exposes structured error info, use it.
+- **Trust structured signals over text scanning** — when a library, host, or tool publishes structured state (typed errors, status fields, notification records), use it before scraping rendered text.
 - **Lean tests; the repo's manual decides.** Default: unit tests on shared low-level utilities, plus a regression test for a fixed bug when cheap. No integration or e2e suites unless asked.
 - Modern language features. No legacy patterns.
 
@@ -259,7 +270,7 @@ Code self-explains. Default to no comment, and run the `engineer` skill's commen
 
 - SOLID principles. Clean Architecture for system design.
 - Separation of concerns: frontend components, backend services, DB, API integrations.
-- No unnecessary third-party deps. Use existing packages first.
+- No unnecessary third-party deps. Use existing packages first; for a well-understood hard problem (dates, cron parsing, crypto), a battle-tested library beats hand-rolled code.
 - Run formatter only on new or modified files.
 - Include unit tests for reusable code snippets.
 - Follow existing project conventions over these defaults.
