@@ -107,7 +107,7 @@ The diff's file list is also the **coverage checklist**. Before the fan-out, spl
 
 1. `github_fast_forward` on the repo so `origin/<headRefName>` is current.
 2. `list_worktrees` on the repo. If the head branch is already checked out somewhere, reuse that path and do not create another. A reused worktree is never torn down (Step 7).
-3. Otherwise `setup_worktree`, and keep the `worktreePath` and `branchExists` it returns for the Step 7 teardown:
+3. Otherwise `setup_worktree`. In review mode, keep the `worktreePath` and `branchExists` it returns for the Step 7 teardown:
    - **Review mode** (someone else's branch): `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch.
    - **Reply mode** (your branch): `{ repoPath, branch: "<headRefName>" }`, which checks the existing branch out.
 4. Run the repo's own scripts (read the root `package.json` or equivalent for their names) from the worktree, with an absolute `cd` on every call (cwd drifts between worktrees). `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
@@ -202,13 +202,11 @@ Runs after Steps 0–3, replacing the fan-out with a thread-driven pass (plus a 
 
 ## Step 7 — Tear down, then hand back
 
-Once the report is saved, remove only what `setup_worktree` created in this session. A worktree `list_worktrees` found, or one that existed before this session, stays: someone may be working in it. Never pass `force`, so every safety gate holds: `remove_worktree` refuses on uncommitted changes and on commits no remote has, and `git branch -d` refuses a branch its upstream does not contain. A follow-up question or a re-run recreates the worktree in one call.
+**Review mode only.** Reply mode never tears down and never weighs it: that worktree is the operator's own branch, where they keep working after the replies go out.
 
-- **Review mode:** `remove_worktree({ worktreePath, deleteBranch: !branchExists })`, with the values Step 3 kept. A `pr-<n>-review` branch that existed before this session stays even when the worktree goes.
-- **Reply mode:** keep it when `git status` shows fixes, because that working tree is the reviewable set. With no fixes, `remove_worktree({ worktreePath })`, which leaves the author's branch.
-- A `blocked-*` or `failed` status, or a `branchDeleteError`, is final: whatever it held back stays, and the hand-back names the path and the reason.
+Once the report is saved, remove only what `setup_worktree` created in this session: `remove_worktree({ worktreePath, deleteBranch: !branchExists })`, with the values Step 3 kept. A worktree `list_worktrees` found, or one that existed before this session, stays: someone may be working in it. A `pr-<n>-review` branch that existed before this session stays even when the worktree goes. Never pass `force`, so every safety gate holds: `remove_worktree` refuses on uncommitted changes and on commits no remote has, and `git branch -d` refuses a branch its upstream does not contain. A `blocked-*` or `failed` status, or a `branchDeleteError`, is final: whatever it held back stays, and the hand-back names the path and the reason. A follow-up question or a re-run recreates the worktree in one call.
 
-In chat, after the report is saved: the banner, the verdict line, the top three items with anchors, the checks that did not run, the worktree line (`removed <path>` or `kept <path> (<reason>)`), and the report path. Nothing else. Do not repeat the report.
+In chat, after the report is saved: the banner, the verdict line, the top three items with anchors, the checks that did not run, in review mode the worktree line (`removed <path>` or `kept <path> (<reason>)`), and the report path. Nothing else. Do not repeat the report.
 
 If the operator later says a finding was wrong, or a reply landed badly, that goes to `knowledge/raw/user/feedback.md` the same session, so the next review does not repeat it.
 
