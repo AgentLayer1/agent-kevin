@@ -28,8 +28,8 @@ Kevin is a portable, file-based personal AI assistant that plugs into the agent 
 
 It is not a chat wrapper. It is an operating system for personal AI:
 
-- A **56-tool MCP server** for tasks, knowledge compilation, reports, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
-- A **41-skill library** covering onboarding, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
+- A **57-tool MCP server** for tasks, knowledge compilation, reports, home history, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
+- A **42-skill library** covering onboarding, version history, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
 - **Opt-in packs** (SEO, Browser, Database, GitHub, API, Xcode) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
 - **You drive.** Every bundled skill waits for you to invoke it; Kevin acts when you ask, never on its own.
@@ -80,7 +80,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 |---|---|
 | [Getting started](https://agentlayer.one/docs/getting-started/install) | Install · Onboarding · Your first session · Updating |
 | [Dashboard](https://agentlayer.one/docs/dashboard) | Today · Tasks and projects · Sessions · Brain · Reports and scheduler · Capabilities · Persona and system |
-| [Platform](https://agentlayer.one/docs/platform) | The agent home · The brain · Capture · Sync · Self-evolution · Seed bundles · Multiple agents |
+| [Platform](https://agentlayer.one/docs/platform) | The agent home · The brain · Capture · Sync · History · Self-evolution · Seed bundles · Multiple agents |
 | [Agent](https://agentlayer.one/docs/agent) | Hosts · Claude Code · Codex · Hooks · Configuration · Tasks · Daily rhythm · Architecture |
 | [Modules](https://agentlayer.one/docs/modules) | Plan and run · Build and ship · Reach and see · Brain and memory · Skills · MCP tools · Browser · SEO · Accounts |
 | [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Worktrees · Specs and plans · Coding rules · Verification · API collections · Releases |
@@ -99,6 +99,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 - **Memory that compounds.** Hooks capture every session; the `knowledge-compile` skill distils them into user facets, concept articles, and active memory that load next launch. → [The brain](https://agentlayer.one/docs/platform/the-brain)
 - **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://agentlayer.one/docs/agent/tasks)
 - **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://agentlayer.one/docs/platform/sync)
+- **Every change can be undone.** The `history` skill turns on local version history for the home in one question, no git knowledge needed; sync saves a snapshot each run. A home in iCloud or Dropbox keeps its history in `~/.local/state`, where syncing can't damage it. → [History](https://agentlayer.one/docs/platform/history)
 - **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://agentlayer.one/docs/dashboard)
 - **Engineering by playbook.** The `engineer` skill routes code work to a playbook (bug fix, feature, refactor, performance, forensics, prototype, and more) backed by 23 named principles, proves the result on the running artifact, and strips comments before you see the diff. → [Engineering](https://agentlayer.one/docs/engineering)
 - **Pull requests, three ways.** Review a teammate's PR with verified findings and paste-ready comments, prep to present your own, or brief a second model on your branch and have its findings verified, fixed, and committed on one dossier. → [Pull requests](https://agentlayer.one/docs/engineering/pull-requests)

@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
@@ -203,6 +203,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 > ❓ Optional: should knowledge/ and projects/ live somewhere outside the home directory?
 > ❓ Communication style and values
 > ❓ Signal topics to track in your briefings (<AGENT_NAME> proposes a starter set)
+> ❓ Keep a history of <AGENT_NAME>'s memory, so changes can be undone (recommended)
 > ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, Xcode, third-party libraries)
 > ❓ Confirm + scaffold
 >
@@ -570,6 +571,15 @@ Kevin's project settings pin which Claude model powers this home. `AskUserQuesti
 > - **Fable** — Anthropic's most capable tier, one step up; spends plan usage faster.
 
 Stage the answer as `KEVIN_MODEL` — the literal string `opus` or `fable` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
+
+---
+
+## Step 6d — History
+
+Ask the offer from step 2 of `${CLAUDE_PLUGIN_ROOT}/skills/history/SKILL.md` (read it now), worded
+exactly as there. The synced-folder sentence can't be judged yet (the tool that checks runs once
+the home exists), so leave it out here; Step 7d says it if it applies. Stage the answer as
+`KEVIN_HISTORY` (`on` or `off`). Nothing is written until Step 7d.
 
 ---
 
@@ -1074,6 +1084,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__compile_status",
       "mcp__plugin_agent-kevin_kevin__compile_write",
       "mcp__plugin_agent-kevin_kevin__dashboard",
+      "mcp__plugin_agent-kevin_kevin__home_history",
       "mcp__plugin_agent-kevin_kevin__knowledge_lint",
       "mcp__plugin_agent-kevin_kevin__links_rewrite",
       "mcp__plugin_agent-kevin_kevin__memory_prune",
@@ -1095,6 +1106,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:dashboard)",
       "Skill(agent-kevin:engineer)",
       "Skill(agent-kevin:find-session)",
+      "Skill(agent-kevin:history)",
       "Skill(agent-kevin:humanizer)",
       "Skill(agent-kevin:mermaid)",
       "Skill(agent-kevin:plan-spec)",
@@ -1116,7 +1128,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `home_history`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **`remove_worktree` is deliberately not granted.** It deletes a worktree (a destructive filesystem action), so it's left off the allow list on purpose — every call surfaces a confirm prompt the operator has to approve. Don't "fix" the asymmetry with `setup_worktree` by adding it here; the prompt is the safeguard.
 
@@ -1124,13 +1136,13 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `home_history`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
 | GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
 
-The allow list also carries eighteen **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:engineer)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:find-session)`, `Skill(agent-kevin:standup)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:roadmap)`, `Skill(agent-kevin:seed-export)`, `Skill(agent-kevin:seed-import)`, `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:sync)`, `Skill(agent-kevin:upgrade)`, `Skill(agent-kevin:pr-review)`, `Skill(agent-kevin:pr-walkthrough)`, and `Skill(agent-kevin:adversarial-review)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `find-session` is its content-search sibling, firing when the operator names *what* a session worked on rather than when it ran; `standup` builds the did/next/blocked update on "what have I done"; `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `seed-export` fires on "export the agent for a teammate" / "make a seed bundle", running the interview + review gate before anything is zipped; `seed-import` fires when the operator hands over a `*-seed.zip` (its underlying `seed_import` tool sits in `ask`, so the actual write still confirms); `setup-worktree` fires on "make me a worktree for X"; `engineer` fires on code work in a repo (fix, build, refactor, simplify, "why is this slow") and routes it to a playbook; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration; `upgrade` applies pending HOME migrations after a `/plugin update`, so a plain "upgrade kevin" is enough — the operator doesn't have to know the slash command; the two PR skills and `adversarial-review` fire on how the operator actually asks ("review 610", "walk me through my PR", "get a second model on this branch / plan") rather than only on their slash names, and none of them writes to GitHub. `Skill(agent-kevin:plan-spec)` and `Skill(agent-kevin:release)` are **latent**: both set `disable-model-invocation` (slash-only — `/plan-spec`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `release` (producer-only) cuts a versioned release + CHANGELOG entry.
+The allow list also carries nineteen **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:engineer)`, `Skill(agent-kevin:where-am-i)`, `Skill(agent-kevin:find-session)`, `Skill(agent-kevin:history)`, `Skill(agent-kevin:standup)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:roadmap)`, `Skill(agent-kevin:seed-export)`, `Skill(agent-kevin:seed-import)`, `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:sync)`, `Skill(agent-kevin:upgrade)`, `Skill(agent-kevin:pr-review)`, `Skill(agent-kevin:pr-walkthrough)`, and `Skill(agent-kevin:adversarial-review)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `where-am-i` answers "where am I" directly and is also invoked by `dashboard` and `sync` to freshen the session radar (one source of truth for the radar); `find-session` is its content-search sibling, firing when the operator names *what* a session worked on rather than when it ran; `history` fires on "turn on history" / "can I undo changes to your memory" and asks before it writes anything; `standup` builds the did/next/blocked update on "what have I done"; `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `seed-export` fires on "export the agent for a teammate" / "make a seed bundle", running the interview + review gate before anything is zipped; `seed-import` fires when the operator hands over a `*-seed.zip` (its underlying `seed_import` tool sits in `ask`, so the actual write still confirms); `setup-worktree` fires on "make me a worktree for X"; `engineer` fires on code work in a repo (fix, build, refactor, simplify, "why is this slow") and routes it to a playbook; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration; `upgrade` applies pending HOME migrations after a `/plugin update`, so a plain "upgrade kevin" is enough — the operator doesn't have to know the slash command; the two PR skills and `adversarial-review` fire on how the operator actually asks ("review 610", "walk me through my PR", "get a second model on this branch / plan") rather than only on their slash names, and none of them writes to GitHub. `Skill(agent-kevin:plan-spec)` and `Skill(agent-kevin:release)` are **latent**: both set `disable-model-invocation` (slash-only — `/plan-spec`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `release` (producer-only) cuts a versioned release + CHANGELOG entry.
 
 **The three PR skills are the one credential-gated exception to model invocation.** Every other credential-gated pack skill (the SEO six, `browser-flows`) sets `disable-model-invocation`, because a pack skill registers on every install whether or not the operator configured it: auto-firing there burns a turn on a missing key, spends metered credit (SerpAPI bills per call), or assumes a stack they don't run (`wordpress-rest` assumes WordPress). `api-collections` is pack-labelled but needs no credential, so it stays model-invocable like any core skill. The PR skills earn the exception because failing unconfigured costs nothing — one `github_pr_*` call returns the actionable "GITHUB_TOKEN not set — run `/agent-kevin:configure-skills` → GitHub pack" error and stops — and because "review 610" is the phrasing operators actually reach for. Don't read this as licence to unflag the rest of the packs.
 
@@ -1442,6 +1454,14 @@ bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" -
 
 **Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all four entries, or Codex sessions start without Kevin's context and are never captured.
 
+## Step 7d — History (when Step 6d staged `on`)
+
+The home exists now, so the history flow can run. Follow `skills/history/SKILL.md` from its step 1
+with the offer already answered: skip its step 2 question, then run its steps 3 and 4. Its single
+source is the skill; don't restate it here. When
+`homeSyncedBy` is set, add the skill's synced-folder sentence to the confirmation line. Record the
+outcome for the `<HISTORY_ROW>` in Step 9. `KEVIN_HISTORY=off` writes nothing.
+
 ## Step 8 — Optional: configure skill packs
 
 The scaffold is done. Before showing the final confirmation, offer to wire up API keys + MCP servers + permissions for the optional packs. This is exactly what `/agent-kevin:configure-skills` does — invoking inline so the user doesn't have to run it as a separate command after relaunch.
@@ -1502,6 +1522,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Dashboard     dashboard.html — open it in any browser; rebuilt by every sync or `/agent-kevin:dashboard`
 > ✅ Concepts      4 seeded: karpathy-wiki · markdown-native-task-management · self-evolution-loop · audit-premise-decay
 > `<SKILL_PACK_ROW>`
+> `<HISTORY_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
 For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules) · user-level keys: .kevin/updates/codex-user-config.md`; otherwise omit the row.
@@ -1509,6 +1530,8 @@ For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
 - If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .kevin/updates/xcode-sandbox.md and the sudo enablement)">`
+
+For `<HISTORY_ROW>`: history turned on → `✅ History      on, kept in <gitDir> (a snapshot every sync)`; declined, or git not installed → `⏳ History      off — turn it on any time with /agent-kevin:history`; stopped before the first snapshot (setup reported `refused` or `failed`) → `⏳ History      not started — finish it with /agent-kevin:history`.
 
 Use ✅ for what landed and ⏳ for deferred (the hourglass implies "queued for later"). Don't list `<FACET_FILES_FILLED>/5` if Step 5 was skipped — just say "stubs only" instead.
 
