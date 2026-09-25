@@ -21,6 +21,7 @@ import {
   TIMEZONE
 } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
+import { type HistoryState, historyStatus, type LastCommit } from '@/home/history';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
 import { agentDisplayName } from '@/shared/agent-name';
@@ -356,6 +357,7 @@ export interface StatusSnapshot {
     upgradeState: UpgradeState;
     /** Released versions in `(baseline, installed]` per the CHANGELOG. */
     releasesBehind: number;
+    history: { state: HistoryState; gitDir: string | null; lastCommit: LastCommit | null };
   };
   persona: Persona;
   operator: OperatorInfo;
@@ -1443,6 +1445,11 @@ const collectMarkdownUrl = (): string => {
   return valid ? MARKDOWN_URL : DEFAULT_MARKDOWN_URL;
 };
 
+const runtimeHistory = (): StatusSnapshot['runtime']['history'] => {
+  const { state, gitDir, lastCommit } = historyStatus(FOLDERS.HOME);
+  return { state, gitDir, lastCommit };
+};
+
 const collectRuntime = (): StatusSnapshot['runtime'] => {
   const manifest = readJson<{ name?: string; version?: string }>(
     resolve(FOLDERS.ROOT, '.claude-plugin', 'plugin.json')
@@ -1468,7 +1475,8 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
     lastSync: '',
     baselineVersion: upgrade.baseline,
     upgradeState: upgrade.state,
-    releasesBehind: upgrade.releasesBehind
+    releasesBehind: upgrade.releasesBehind,
+    history: runtimeHistory()
   };
 };
 

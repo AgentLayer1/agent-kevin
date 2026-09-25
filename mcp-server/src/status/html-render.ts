@@ -26,6 +26,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
+import type { HistoryState } from '@/home/history';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
 import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
 import type {
@@ -1265,7 +1266,8 @@ const pagePersona = (snap: StatusSnapshot): string => {
       ['marketplace', esc(settings.plugin ? `${settings.plugin.marketplace} (${settings.plugin.sourceType})` : '—')],
       ['plugin path', pathLink(runtime.pluginRoot)],
       ['home', pathLink(runtime.home)],
-      ['timezone', esc(runtime.timezone)]
+      ['timezone', esc(runtime.timezone)],
+      ...historyRows(runtime.history)
     ]
   );
   return page(
@@ -1295,10 +1297,30 @@ const GROUP_COLORS: Record<ContextGroup, string> = {
   other: 'var(--dim)'
 };
 
+const HISTORY_LABEL: Record<HistoryState, string> = {
+  on: 'on',
+  off: 'off',
+  'pointer-missing': 'link missing',
+  'history-missing': 'history folder missing',
+  'managed-by-you': 'managed by your own git setup',
+  'git-missing': 'git not installed',
+  unsupported: 'not supported here yet'
+};
+
+const historyRows = ({ state, gitDir, lastCommit }: StatusSnapshot['runtime']['history']): string[][] => {
+  const tone = state === 'on' ? 'good' : state === 'off' ? 'dim' : 'warn';
+  const snapshot = lastCommit
+    ? [['last snapshot', `${esc(lastCommit.subject)} <span class="dim">${esc(lastCommit.date.slice(0, 10))}</span>`]]
+    : [];
+  const folder = gitDir ? [['history folder', pathLink(gitDir)]] : [];
+  return [['history', `<span class="${tone}">${esc(HISTORY_LABEL[state])}</span>`], ...snapshot, ...folder];
+};
+
 const MANIFEST_ICON: Record<ManifestEntry['status'], { icon: string; cls: string }> = {
   loaded: { icon: '✓', cls: 'good' },
   missing: { icon: '✗', cls: 'bad' },
-  unavailable: { icon: '⚠', cls: 'warn' }
+  unavailable: { icon: '⚠', cls: 'warn' },
+  off: { icon: '○', cls: 'dim' }
 };
 
 /** The "what loads into every session" view — static @-imports plus the

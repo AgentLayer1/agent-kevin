@@ -32,7 +32,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     lastSync: '2026-06-11T09:30:00+08:00',
     baselineVersion: '0.1.4',
     upgradeState: 'current',
-    releasesBehind: 0
+    releasesBehind: 0,
+    history: { state: 'off', gitDir: null, lastCommit: null }
   },
   markdownUrl: 'obsidian://open?path={path}',
   surfaces: [],

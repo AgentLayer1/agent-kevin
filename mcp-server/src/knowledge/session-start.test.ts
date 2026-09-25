@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FOLDERS, staticContextFiles } from '@/config';
@@ -177,5 +178,41 @@ describe('sessionStart', () => {
     expect(result.systemMessage).not.toContain('Do NOT run init');
     expect(result.systemMessage).not.toContain('Not set up yet');
     expect(result.error).toBeUndefined();
+  });
+  test('home history: a deleted .git link is restored and the lane says so', async () => {
+    const gitDir = mkdtempSync(resolve(tmpdir(), 'session-start-history-')) + '.git';
+    const git = (home: string, ...args: string[]) =>
+      execFileSync('git', ['-C', home, ...args], { stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+    try {
+      const result = await withHome(
+        (home) => {
+          markedHome(home, {
+            '.claude/settings.local.json': JSON.stringify({ env: { AGENT_HOME_GIT_DIR: gitDir } })
+          });
+          mkdirSync(resolve(home, 'knowledge'));
+          writeFileSync(resolve(home, 'knowledge', 'index.md'), '# Index\n');
+          git(home, 'init', '-q', '-b', 'main', '--separate-git-dir', gitDir);
+          git(home, 'config', 'agent.home', realpathSync(home));
+          git(home, '-c', 'user.name=Ada', '-c', 'user.email=ada@localhost', 'commit', '-q', '--allow-empty', '-m', 'one');
+          rmSync(resolve(home, '.git'));
+        },
+        async () => ({ start: await sessionStart(), pointer: readFileSync(resolve(FOLDERS.HOME, '.git'), 'utf-8') })
+      );
+      expect(result.pointer).toBe(`gitdir: ${gitDir}\n`);
+      expect(result.start.systemMessage).toContain('link restored');
+    } finally {
+      rmSync(gitDir, { recursive: true, force: true });
+    }
+  });
+
+  test('home history: a home without history shows it as off, not broken', async () => {
+    const result = await withHome(
+      (home) => {
+        markedHome(home, {});
+        mkdirSync(resolve(home, 'knowledge'));
+      },
+      () => sessionStart()
+    );
+    expect(result.systemMessage).toMatch(/○ history .*off · run /);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BrainCommitStatus, commitBrain, parseStatusZ } from "./commit-brain";
@@ -172,6 +172,62 @@ describe("commitBrain grouping", () => {
     const outcome = commitBrain(home);
     expect(outcome.status).toBe(BrainCommitStatus.Committed);
     expect(outcome.commits.map((entry) => entry.message)).toEqual(["Sync: update knowledge"]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("a history with no first snapshot is left for the history setup's safety check", () => {
+    const home = mkdtempSync(join(tmpdir(), "brain-commit-unborn-"));
+    git(home, "init", "-q", "-b", "main");
+    write(home, "knowledge/notes.md", "ghp_0123456789abcdefghijklmnopqrstuvwxyz\n");
+    const outcome = commitBrain(home);
+    expect(outcome.status).toBe(BrainCommitStatus.SkippedNoSnapshot);
+    expect(() => git(home, "rev-parse", "--verify", "-q", "HEAD")).toThrow();
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  test("a split home whose .git link is missing reports it and commits nothing", () => {
+    const root = mkdtempSync(join(tmpdir(), "brain-commit-link-"));
+    const home = join(root, "home");
+    const gitDir = join(root, "data.git");
+    mkdirSync(home);
+    seedHome(home, ["--separate-git-dir", gitDir]);
+    write(home, ".gitignore", ".env\n.kevin/*\n.claude/settings.local.json\n");
+    git(home, "commit", "-qam", "ignore local settings");
+    write(home, ".claude/settings.local.json", JSON.stringify({ env: { AGENT_HOME_GIT_DIR: gitDir } }));
+    unlinkSync(join(home, ".git"));
+    write(home, "knowledge/index.md", "changed\n");
+    const before = execFileSync("git", ["--git-dir", gitDir, "rev-list", "--count", "HEAD"], { encoding: "utf8" });
+    expect(commitBrain(home).status).toBe(BrainCommitStatus.SkippedLinkMissing);
+    expect(execFileSync("git", ["--git-dir", gitDir, "rev-list", "--count", "HEAD"], { encoding: "utf8" })).toBe(before);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("a split home that was moved keeps committing into its history", () => {
+    const root = mkdtempSync(join(tmpdir(), "brain-commit-moved-"));
+    const before = join(root, "before");
+    const after = join(root, "after");
+    mkdirSync(before);
+    seedHome(before, ["--separate-git-dir", join(root, "data.git")]);
+    git(before, "config", "agent.home", realpathSync(before));
+    renameSync(before, after);
+    write(after, "knowledge/index.md", "changed after the move\n");
+    expect(commitBrain(after).status).toBe(BrainCommitStatus.Committed);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("a copied home whose .git link points at another home's history never commits into it", () => {
+    const root = mkdtempSync(join(tmpdir(), "brain-commit-copy-"));
+    const original = join(root, "original");
+    const copy = join(root, "copy");
+    const gitDir = join(root, "data.git");
+    mkdirSync(original);
+    mkdirSync(copy);
+    seedHome(original, ["--separate-git-dir", gitDir]);
+    git(original, "config", "agent.home", realpathSync(original));
+    writeFileSync(join(copy, ".git"), `gitdir: ${gitDir}\n`);
+    write(copy, "knowledge/index.md", "the copy's own notes\n");
+    expect(commitBrain(copy).status).toBe(BrainCommitStatus.SkippedOtherHome);
+    expect(git(original, "log", "--format=%s")).not.toContain("Sync:");
     rmSync(root, { recursive: true, force: true });
   });
 });

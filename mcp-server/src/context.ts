@@ -22,8 +22,11 @@ import {
   PLUGIN_VERSION,
   TIMEZONE
 } from '@/config';
+import { historyStatus, restorePointer } from '@/home/history';
 import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
 import { agentDisplayName } from '@/shared/agent-name';
+import { log as baseLog } from '@/shared/log';
+import { isInside } from '@/shared/paths';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
@@ -32,9 +35,12 @@ import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
 
+const log = baseLog.session.with('context');
+
 export interface ManifestEntry {
   label: string;
-  status: 'loaded' | 'missing' | 'unavailable';
+  /** `off` is a choice the operator made (history not turned on), so it never raises the issue flag. */
+  status: 'loaded' | 'missing' | 'unavailable' | 'off';
   bytes: number;
   note?: string;
 }
@@ -192,12 +198,15 @@ async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   };
 }
 
+const countOf = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
+
 const formatKB = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
 const STATUS_ICON: Record<ManifestEntry['status'], string> = {
   loaded: '✓',
   missing: '✗',
-  unavailable: '⚠'
+  unavailable: '⚠',
+  off: '○'
 };
 
 function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
@@ -231,6 +240,51 @@ export interface AssembledContext {
   hasIssues: boolean;
 }
 
+/**
+ * The knowledge lane says why history is missing instead of a bare ⚠, when the knowledge folder
+ * lives in the home. A home with a remote, or one inside a larger project, keeps the plain log.
+ */
+function homeHistoryLane(plain: ManifestEntry, restored: boolean): ManifestEntry {
+  if (!isInside(FOLDERS.KNOWLEDGE, FOLDERS.HOME)) {
+    return plain;
+  }
+  const history = historyStatus(FOLDERS.HOME);
+  const turnOn = `run /${PLUGIN_NAME}:history`;
+  switch (history.state) {
+    case 'off':
+      return { ...plain, status: 'off', note: `off · ${turnOn}` };
+    case 'unsupported':
+      return { ...plain, status: 'unavailable', note: 'not supported here yet' };
+    case 'git-missing':
+      return { ...plain, status: 'unavailable', note: 'git not installed' };
+    case 'pointer-missing':
+      return { ...plain, status: 'unavailable', note: `link missing · ${turnOn}` };
+    case 'history-missing':
+      return { ...plain, status: 'unavailable', note: `folder missing · ${turnOn}` };
+    case 'on':
+      if (!history.lastCommit) {
+        return { ...plain, status: 'unavailable', note: `no snapshots yet · ${turnOn}` };
+      }
+      return restored && plain.note ? { ...plain, note: `${plain.note} · link restored` } : plain;
+    case 'managed-by-you':
+      return plain;
+  }
+}
+
+/**
+ * A synced folder can delete the one-line `.git` pointer while the history it points at survives;
+ * put it back before the git lane reads it. Only the SessionStart payload does this, never the
+ * status screen.
+ */
+function healHistoryLink(): boolean {
+  try {
+    return restorePointer(FOLDERS.HOME);
+  } catch (err) {
+    log.error('history link not restored', err);
+    return false;
+  }
+}
+
 interface GatheredContext {
   dateStr: string;
   entries: ManifestEntry[];
@@ -245,7 +299,7 @@ interface GatheredContext {
  * `contextManifest` (which exposes the structured manifest for the status
  * screen) so the two never drift.
  */
-async function gatherContext(): Promise<GatheredContext> {
+async function gatherContext(restoredHistory = false): Promise<GatheredContext> {
   const tail = await lastSessionTail(CONTEXT.SESSION_TAIL_BYTES);
   const reports = await todaysReports(CONTEXT.REPORTS_BYTES);
 
@@ -257,24 +311,35 @@ async function gatherContext(): Promise<GatheredContext> {
     timeZone: TIMEZONE
   });
 
-  const repos: { label: string; path: string }[] = [
-    { label: 'knowledge', path: FOLDERS.KNOWLEDGE },
-    ...extraGitRepos().map((path) => ({ label: basename(path), path }))
+  // Inside the home, the knowledge log is the home's own history, so it reads as that.
+  const homeHistory = isInside(FOLDERS.KNOWLEDGE, FOLDERS.HOME);
+  const repos: { label: string; lane: string; unit: string; path: string }[] = [
+    {
+      label: homeHistory ? 'history' : 'knowledge',
+      lane: homeHistory ? 'history' : 'git: knowledge',
+      unit: homeHistory ? 'snapshot' : 'commit',
+      path: FOLDERS.KNOWLEDGE
+    },
+    ...extraGitRepos().map((path) => ({ label: basename(path), lane: `git: ${basename(path)}`, unit: 'commit', path }))
   ];
   const gitLogs = repos.map((repo) => ({
     ...repo,
     output: recentGitLog(repo.path)
   }));
 
+  const [knowledgeGit, ...extraGit] = gitLogs.map(
+    (log): ManifestEntry => ({
+      label: log.lane,
+      status: log.output ? 'loaded' : 'unavailable',
+      bytes: log.output?.length ?? 0,
+      note: log.output ? countOf(log.output.split('\n').length, log.unit) : undefined
+    })
+  );
   const entries: ManifestEntry[] = [
     tail.entry,
     reports.entry,
-    ...gitLogs.map((log) => ({
-      label: `git: ${log.label}`,
-      status: (log.output ? 'loaded' : 'unavailable') as ManifestEntry['status'],
-      bytes: log.output?.length ?? 0,
-      note: log.output ? `${log.output.split('\n').length} commits` : undefined
-    }))
+    ...(knowledgeGit ? [homeHistoryLane(knowledgeGit, restoredHistory)] : []),
+    ...extraGit
   ];
 
   const traveling = HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? ` — ✈️ traveling (home: ${HOME_TIMEZONE})` : '';
@@ -413,14 +478,14 @@ const manualLayoutIssues = (): string[] => {
 };
 
 export async function assembleContext(): Promise<AssembledContext> {
-  const { entries, parts } = await gatherContext();
+  const { entries, parts } = await gatherContext(healHistoryLink());
 
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
   }
   const banner = renderBanner(entries, context.length);
-  const hasIssues = entries.some((e) => e.status !== 'loaded');
+  const hasIssues = entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
   return { context, banner, hasIssues };
 }
 

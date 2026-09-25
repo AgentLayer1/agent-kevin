@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
+import { HOME_BINDING_KEY, recordedGitDir, stampClaims } from "../../../mcp-server/src/home/git-dir-record";
 import { agentHomePath, env, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
 import { expandTilde } from "../../../mcp-server/src/shared/paths";
@@ -19,6 +20,9 @@ export const BrainCommitStatus = {
   NotARepo: "NOT_A_REPO",
   SkippedHasRemote: "SKIPPED_HAS_REMOTE",
   SkippedNotMain: "SKIPPED_NOT_MAIN",
+  SkippedNoSnapshot: "SKIPPED_NO_SNAPSHOT",
+  SkippedLinkMissing: "SKIPPED_LINK_MISSING",
+  SkippedOtherHome: "SKIPPED_OTHER_HOME",
   Clean: "CLEAN",
   Committed: "COMMITTED",
   CommitBlocked: "COMMIT_BLOCKED",
@@ -163,7 +167,7 @@ const inProgressOp = (home: string): boolean => {
 };
 
 const GRANT_HINT =
-  "git could not write to the repo. If this HOME uses a split git dir, add that dir to permissions.additionalDirectories in <HOME>/.claude/settings.local.json so the sandbox can commit.";
+  "git could not write to the repo. If this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.local.json so the sandbox can commit.";
 
 export const commitBrain = (home: string): BrainCommitResult => {
   const result = (status: BrainCommitStatus, extra: Partial<BrainCommitResult> = {}): BrainCommitResult => ({
@@ -176,7 +180,26 @@ export const commitBrain = (home: string): BrainCommitResult => {
   try {
     git(home, "rev-parse", "--git-dir");
   } catch {
-    return result(BrainCommitStatus.NotARepo);
+    // A synced folder can delete a split home's one-line `.git` link; the next session start or the
+    // history skill puts it back. Choosing a history folder from the settings record alone is not
+    // this script's call, since a copied home carries that record too.
+    return recordedGitDir(home)
+      ? result(BrainCommitStatus.SkippedLinkMissing, {
+          detail: "the link to this home's history is missing; the next session start or the history skill restores it",
+        })
+      : result(BrainCommitStatus.NotARepo);
+  }
+  const bound = ((): string => {
+    try {
+      return git(home, "config", "--get", HOME_BINDING_KEY);
+    } catch {
+      return "";
+    }
+  })();
+  if (bound !== "" && !stampClaims(bound, home)) {
+    return result(BrainCommitStatus.SkippedOtherHome, {
+      detail: `this history belongs to ${bound}; a copied folder never commits into it`,
+    });
   }
   if (git(home, "remote") !== "") {
     return result(BrainCommitStatus.SkippedHasRemote, {
@@ -197,6 +220,14 @@ export const commitBrain = (home: string): BrainCommitResult => {
   }
   if (inProgressOp(home)) {
     return result(BrainCommitStatus.SkippedNotMain, { detail: "merge/rebase/cherry-pick in progress" });
+  }
+  // The first snapshot belongs to the history setup and its safety check; never make it here.
+  try {
+    git(home, "rev-parse", "--verify", "-q", "HEAD");
+  } catch {
+    return result(BrainCommitStatus.SkippedNoSnapshot, {
+      detail: "history has no first snapshot yet: finish setup with the history skill",
+    });
   }
 
   const changes = parseStatusZ(
