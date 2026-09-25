@@ -32,6 +32,7 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_fast_forward
   - mcp__plugin_agent-kevin_kevin__setup_worktree
   - mcp__plugin_agent-kevin_kevin__list_worktrees
+  - mcp__plugin_agent-kevin_kevin__remove_worktree
   - mcp__plugin_agent-kevin_kevin__database_query
   - mcp__plugin_agent-kevin_kevin__video_frames
   - mcp__plugin_agent-kevin_kevin__report_write
@@ -203,6 +204,8 @@ Report the verdict line and the path in chat. Nothing else.
 ## Step 7 — Hand back
 
 In chat, after the report is saved: the banner, the pitch line, the gap count with the first gap named, the scene count with the runtime estimate, and the report path. Then the Step 6 rehearse offer as its `AskUserQuestion`. Do not repeat the report.
+
+Once the rehearsal closes or the offer is declined, remove the worktree `setup_worktree` created in this session, never one `list_worktrees` found or one that predates the session: `remove_worktree({ worktreePath })` without `force`, which leaves the author's branch in place and refuses on uncommitted changes or unpushed commits. A `blocked-*` or `failed` result keeps it: say which and why in one line.
 
 If the operator later says a question landed differently at standup, or a scene did not prove what it claimed, that goes to `knowledge/raw/user/feedback.md` the same session.
 
