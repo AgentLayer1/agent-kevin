@@ -7,8 +7,9 @@
  *
  * Usage: home-baseline.ts --home <dir> [--write]
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import { resolveEnv } from '../../../mcp-server/src/shared/naming';
 import { expandTilde } from '../../../mcp-server/src/shared/paths';
 
@@ -25,52 +26,7 @@ if (!homeFlag) {
 const home = resolve(homeFlag);
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
 
-const reconcileGitignore = (current: string, template: string) => {
-  const templateRules = template
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== '' && !line.startsWith('#'));
-
-  // Two git rules: the last matching pattern wins, so a negation must sit below the rule it
-  // carves out of; and git can't re-include a file whose parent directory is excluded, so a
-  // bare `dir/` must become the template's `dir/*`.
-  const contentsRules = new Map(
-    templateRules
-      .filter((rule) => rule.endsWith('/*'))
-      .flatMap((rule) => {
-        const dir = rule.slice(0, -2);
-        return [dir, `${dir}/`, `/${dir}`, `/${dir}/`].map((bare) => [bare, rule] as const);
-      })
-  );
-  const eol = current.includes('\r\n') ? '\r\n' : '\n';
-  const original = current.split(/\r?\n/);
-  const lines = original.map((line) => contentsRules.get(line.trim()) ?? line);
-  const rewritten = original.map((line) => line.trim()).filter((line) => contentsRules.has(line));
-
-  const homeRules = lines.map((line) => line.trim());
-  const added = templateRules.reduce<string[]>((acc, rule, index) => {
-    const present = [...homeRules, ...acc];
-    const carvedFrom = rule.startsWith('!')
-      ? templateRules.slice(0, index).findLast((above) => !above.startsWith('!'))
-      : undefined;
-    const effective = carvedFrom ? present.lastIndexOf(rule) > present.lastIndexOf(carvedFrom) : present.includes(rule);
-    return effective ? acc : [...acc, rule];
-  }, []);
-
-  const body = lines.join(eol);
-  const separated = body === '' ? '' : `${body.endsWith(eol) ? body : body + eol}${eol}`;
-  const text = added.length === 0 ? body : `${separated}# agent-kevin${eol}${added.join(eol)}${eol}`;
-  return { text, rewritten, added };
-};
-
-const gitignorePath = join(home, '.gitignore');
-const template = readFileSync(join(pluginRoot, 'templates', '.gitignore'), 'utf-8');
-const created = !existsSync(gitignorePath);
-const before = created ? '' : readFileSync(gitignorePath, 'utf-8');
-const gitignore = created ? { text: template, rewritten: [], added: [] } : reconcileGitignore(before, template);
-if (gitignore.text !== before && args.includes('--write')) {
-  writeFileSync(gitignorePath, gitignore.text);
-}
+const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'));
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {
@@ -105,7 +61,7 @@ const defaultPlans = reportsRoot === join(home, 'reports') ? './reports/plans' :
 process.stdout.write(
   JSON.stringify(
     {
-      gitignore: { created, rewritten: gitignore.rewritten, added: gitignore.added },
+      gitignore,
       settings: {
         allowMissing: baselineAllow.filter((entry) => !decidedForAllow.has(entry)),
         askMissing: baselineAsk.filter((entry) => !decidedForAsk.has(entry)),

@@ -7,8 +7,8 @@ certificates/
 *.pem
 *.key
 
-# local overrides
-.claude/settings.local.json
+# local overrides (and any temp or backup copy of them)
+.claude/settings.local.json*
 
 # runtime state (tokens, logs) — but TRACK two records that must survive a clone
 # or restore: the compile cursor (the only record of what's been ingested; if

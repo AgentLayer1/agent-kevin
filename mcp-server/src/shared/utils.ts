@@ -1,5 +1,6 @@
 import { FOLDERS } from '@/config';
-import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'fs';
+import { randomUUID } from 'node:crypto';
+import { chmodSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { dirname, relative } from 'path';
 
 // ── Path helpers ──────────────────────────────────────────────────────
@@ -19,15 +20,22 @@ export function repoRelative(absolutePath: string): string {
 // ── Filesystem helpers ────────────────────────────────────────────────
 
 /**
- * Atomic write: serialise to a sibling `.tmp` file, then rename. A crash
- * between write and rename leaves the previous file intact.
+ * Atomic write: serialise to a uniquely named sibling temp file, then rename. A crash leaves the
+ * previous file intact, and concurrent writers never share a temp file.
  */
 export function writeFileAtomic(path: string, content: string | Uint8Array, mode?: number): void {
   mkdirSync(dirname(path), { recursive: true });
-  const tmp = path + '.tmp';
-  writeFileSync(tmp, content);
-  if (mode !== undefined) chmodSync(tmp, mode);
-  renameSync(tmp, path);
+  const tmp = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(tmp, content);
+    if (mode !== undefined) {
+      chmodSync(tmp, mode);
+    }
+    renameSync(tmp, path);
+  } catch (error) {
+    rmSync(tmp, { force: true });
+    throw error;
+  }
 }
 
 /** Atomic JSON write — thin wrapper over `writeFileAtomic`. */

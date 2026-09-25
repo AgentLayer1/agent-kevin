@@ -7,7 +7,7 @@
  * had already drifted — two handled `~/foo` but not a bare `~`.
  */
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 /** Expand `~` or `~/foo` to an absolute path under the user's home. Other paths pass through. */
 export const expandTilde = (path: string): string => {
@@ -15,4 +15,10 @@ export const expandTilde = (path: string): string => {
     return homedir();
   }
   return path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path;
+};
+
+/** Whether `child` is `parent` or somewhere beneath it (lexical; resolve symlinks first when they matter). */
+export const isInside = (child: string, parent: string): boolean => {
+  const rel = relative(parent, child);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 };

@@ -131,6 +131,7 @@ const CORE_GRANTS = new Set([
     'compile_status',
     'compile_write',
     'dashboard',
+    'home_history',
     'knowledge_lint',
     'links_rewrite',
     'memory_prune',
