@@ -204,7 +204,8 @@ Upgrade vBASELINE → vINSTALLED (N releases)
 
 ## Step 3 — Back up first
 
-Snapshot every HOME file the plan will touch, before any write:
+Snapshot every HOME file the plan will touch, before any write. `.gitignore` and
+`.claude/settings.json` are always in it: Step 4's baseline reconcile may change them on any run.
 
 ```bash
 TS=$(date +%Y%m%d-%H%M%S)
@@ -465,35 +466,28 @@ Then snapshot the templates this home now tracks, so the next upgrade has its ba
 rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME_DIR/.kevin/template-base"
 ```
 
-**Ensure the baseline is git-trackable (built-in invariant, every run).** Homes
-scaffolded before this feature ignore all of `.kevin/` except `knowledge.json`, so a
-freshly written `version.json` would be gitignored and lost on the next clone/restore
-— silently resetting upgrade tracking. Un-ignore it. Idempotent; appending at EOF
-keeps the negation after the `.kevin/*` line (git can't re-include a file whose
-parent dir is ignored):
+**Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
+writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries and its
+`plansDirectory` once, and no template merge touches them, so a home that missed one stays
+behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
+cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
+unconditionally, never via a CHANGELOG block, so a home that skipped releases still converges:
 
 ```bash
-GI="$HOME_DIR/.gitignore"
-# Act only if .kevin/* is ignored and no version.json rule exists yet.
-if [ -f "$GI" ] && grep -qxF ".kevin/*" "$GI"; then
-  grep -qF "kevin/version.json" "$GI" || printf '%s\n' '!.kevin/version.json' >> "$GI"
-fi
+bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --write
 ```
 
-(If `.gitignore` is absent or doesn't ignore `.kevin/*`, `version.json` is already
-trackable — nothing to do.)
+- **`gitignore`** is already written, the same reconcile init Step 7 runs.
+- **`settings.allowMissing`** / **`settings.askMissing`** are the init Step 7 entries the home
+  lacks (Step 7 is the source of truth; never restate the lists here). An entry the operator put
+  in `ask` or `deny` is their decision and is never granted; `remove_worktree` is never listed.
+  The `ask` entries are the only gate that survives auto mode's classifier, so a home missing
+  them has no enforced checkpoint before a push or an outbound request.
+- **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
 
-**Backfill the `permissions.ask` guards (built-in invariant, every run).** These are the
-only rules that survive auto mode's classifier, so a home missing them has no enforced
-checkpoint before a push or an outbound request. Reconcile unconditionally rather than
-via a CHANGELOG block: the list grows over time, and version-gating each addition would
-mean a home that skipped the releases in between never gets the entries.
-
-Read `$HOME_DIR/.claude/settings.json` and union in any missing entry from the init
-skill's baseline `ask` list — **Step 7 of `skills/init/SKILL.md` is the source of truth;
-do not restate the entries here or the two copies will drift.** Never remove or reorder
-an entry the operator added. Write with the Write tool after an in-memory merge, same as
-Step 7 does; no `jq`.
+Read `$HOME_DIR/.claude/settings.json` once, union both lists and set `plansDirectory` in one
+in-memory merge, and write it with the Write tool, same as Step 7 does; no `jq`. Never remove or
+reorder an operator's entry.
 
 If the write fails with a permission error, the operator's sandbox protects
 `settings.json` from agent writes (a correct posture, and the default in some setups).
@@ -570,7 +564,10 @@ One concise summary:
 - any `manual:` notes still needing the operator's hand — **quoted verbatim** from the
   CHANGELOG or the generated report, never paraphrased: a note the operator cannot act on
   by copy-paste is a note that gets skipped
-- the `permissions.ask` backfill, when it added anything (stay silent when it didn't)
+- the baseline reconcile, when it changed anything (stay silent when it didn't): the
+  `.gitignore` lines added or rewritten, `plansDirectory` if set, and every `allow` and `ask`
+  entry backfilled, named one by one (an operator who deleted a grant on purpose moves it to
+  `ask` to keep it out)
 - **Codex hooks re-trust, whenever the regeneration reported `changed: true`:** "Run
   `/hooks` in your next Codex session from this home and trust the 4 Kevin entries;
   until then Codex starts without Kevin's context and captures nothing." Verbatim, every time.

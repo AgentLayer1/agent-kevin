@@ -737,44 +737,15 @@ context every session from then on.
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows the manual was appended below their existing `AGENTS.md`. Their instructions and Kevin's coexist in one file that every harness reads, and the `.claude/CLAUDE.md` bridge still pulls in the identity stack for Claude Code.
 
-Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append the Kevin-critical entries (`.claude/settings.local.json` holds local config, `.kevin/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `.obsidian/workspace.json` churns on every Obsidian pane move) if they aren't already covered. The first two must be gitignored or the user will leak secrets (`.kevin/secrets/` lives under `.kevin/*`) / churn on every Kevin run; the third saves the operator from a dirty working tree every time they open the vault.
+Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append every template rule it lacks (`.claude/settings.local.json` holds local config, `.kevin/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `reports/captures/` keeps binary captures out of history, `.obsidian/workspace.json` churns on every Obsidian pane move). The first two must be gitignored or the user will leak secrets (`.kevin/secrets/` lives under `.kevin/*`) / churn on every Kevin run; the rest keep the working tree clean.
 
 Two records inside `.kevin/` must survive a clone or restore, so we un-ignore them while keeping the rest (tokens, logs) ignored: the compile cursor (`.kevin/knowledge.json`) is the *only* record of what's been ingested — rolled back (iCloud, restore, fresh clone), the next blind compile re-ingests everything and corrupts memory; the template baseline (`.kevin/version.json`) records which plugin version this home's scaffolded files are reconciled to — lost, upgrade-tracking resets to onboarding and the "you're behind" signal breaks.
 
 ```bash
-if [ ! -f "$HOME_DIR/.gitignore" ]; then
-  cp "${CLAUDE_PLUGIN_ROOT}/templates/.gitignore" "$HOME_DIR/.gitignore"
-else
-  # Existing .gitignore — append Kevin-critical entries if missing.
-  # Upgrade a legacy bare `.kevin/` (ignores the cursor too) to the
-  # cursor-tracking pattern: drop the line, the APPEND below re-adds it.
-  if grep -qxF ".kevin/" "$HOME_DIR/.gitignore"; then
-    grep -vxF ".kevin/" "$HOME_DIR/.gitignore" > "$HOME_DIR/.gitignore.tmp" && mv "$HOME_DIR/.gitignore.tmp" "$HOME_DIR/.gitignore"
-  fi
-  APPEND=""
-  # The Claude Code Bash tool runs commands through an eval wrapper where '!' is
-  # unusable — a literal leading '!' is mangled to '\!', and the '!' negation
-  # operator errors ("command not found: !"). So: no '!' negation (positive grep +
-  # else for the fresh case), grep '!'-free substrings, emit '!' via octal \041.
-  BANG=$(printf '\041')
-  grep -qxF ".claude/settings.local.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.claude/settings.local.json"$'\n'
-  if grep -qxF ".kevin/*" "$HOME_DIR/.gitignore"; then
-    # Already ignores .kevin/* — re-add either negation if a legacy init missed it.
-    grep -qF "kevin/knowledge.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}${BANG}.kevin/knowledge.json"$'\n'
-    grep -qF "kevin/version.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}${BANG}.kevin/version.json"$'\n'
-  else
-    # Fresh: ignore runtime state, but track the two records that must survive a clone.
-    APPEND="${APPEND}.kevin/*"$'\n'"${BANG}.kevin/knowledge.json"$'\n'"${BANG}.kevin/version.json"$'\n'
-  fi
-  grep -qxF ".obsidian/workspace.json" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/workspace.json"$'\n'
-  grep -qxF ".obsidian/cache/" "$HOME_DIR/.gitignore" || APPEND="${APPEND}.obsidian/cache/"$'\n'
-  if [ -n "$APPEND" ]; then
-    printf '\n# agent-kevin\n%s' "$APPEND" >> "$HOME_DIR/.gitignore"
-  fi
-fi
+bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --write
 ```
 
-Match is exact-line (`grep -xF`) — so `.kevin/*` won't false-match on `!.kevin/knowledge.json` or a partial substring, and the negation must follow the `.kevin/*` line (git can't re-include a file whose parent dir is ignored, so order matters). The full template (when written fresh) also ignores secrets (`.env*`, `keys.json`, `*.pem`, `*.key`, `certificates/`) and OS cruft (`.DS_Store`, `Thumbs.db`); on collision we trust the user's existing patterns for those and only enforce the Kevin-specific entries.
+With no `.gitignore` it copies the template. Over an existing one it appends each template rule the home lacks under `# agent-kevin`, places every `!` negation after the rule it carves out of (git can't re-include a file whose parent dir is ignored), and rewrites a bare `.kevin/` in place to the template's `.kevin/*`. The operator's other lines are never removed or reordered. Every upgrade that applies a release runs the same script, so a home that drifts converges.
 
 Write project settings so the plugin auto-loads on subsequent launches AND the **always-on core** MCP tools are pre-granted (no per-call confirm prompts). Pack-gated tools are NOT granted here — they land in `permissions.allow` only when the matching `configure-skills` walk runs (Step 8 inline or `/agent-kevin:configure-skills` later).
 
