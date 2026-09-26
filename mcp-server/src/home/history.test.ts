@@ -77,7 +77,7 @@ describe('setupHistory', () => {
 
   test('a synced home keeps its history in the local state folder, recorded with both grants', () => {
     const home = makeHome(syncedRoot);
-    const gitDir = join(userHome, '.local', 'state', 'kevin', 'Documents-Ada.git');
+    const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
     expect(historyStatus(home, historyEnv).historyFolder).toBe(gitDir);
     const result = setupHistory(home, {}, historyEnv);
     expect(result.outcome).toBe('turned-on');
@@ -90,9 +90,12 @@ describe('setupHistory', () => {
     expect(git(home, 'config', '--get', 'agent.home')).toBe(home);
   });
 
-  test('a synced home outside the user\'s home folder is named by its full path', () => {
+  test("a synced home outside the user's home folder is named by its full path", () => {
     const home = makeHome(join(root, 'volume'));
-    const everywhereSynced = { ...historyEnv, syncedBy: (path: string) => (path.startsWith(join(root, 'volume')) ? 'Dropbox' : null) };
+    const everywhereSynced = {
+      ...historyEnv,
+      syncedBy: (path: string) => (path.startsWith(join(root, 'volume')) ? 'Dropbox' : null)
+    };
     const folder = historyStatus(home, everywhereSynced).historyFolder ?? '';
     expect(basename(folder)).toBe(`${join(root, 'volume', 'Ada').split(sep).filter(Boolean).join('-')}.git`);
   });
@@ -103,8 +106,10 @@ describe('setupHistory', () => {
 
   test('steps around a file where the history folder would go, and refuses a synced one', () => {
     const home = makeHome(syncedRoot);
-    write(join(userHome, '.local', 'state', 'kevin', 'Documents-Ada.git'), 'not a folder');
-    expect(historyStatus(home, historyEnv).historyFolder).toBe(join(userHome, '.local', 'state', 'kevin', 'Documents-Ada-2.git'));
+    write(join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git'), 'not a folder');
+    expect(historyStatus(home, historyEnv).historyFolder).toBe(
+      join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada-2.git')
+    );
     const everywhereSynced = { ...historyEnv, syncedBy: () => 'iCloud Drive' };
     expect(setupHistory(home, {}, everywhereSynced).outcome).toBe('refused');
     expect(existsSync(join(home, '.git'))).toBe(false);
@@ -130,7 +135,7 @@ describe('setupHistory', () => {
       })
     );
     setupHistory(home, {}, historyEnv);
-    const gitDir = join(userHome, '.local', 'state', 'kevin', 'Documents-Ada.git');
+    const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
     expect(settingsOf(home)).toEqual({
       env: { AGENT_CODE_PATH: '/code/acme', AGENT_HOME_GIT_DIR: gitDir },
       permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code', gitDir] },
@@ -252,7 +257,10 @@ describe('pre-release review fixes', () => {
   test('a home that starts syncing after setup is flagged, and setup moves its history out', () => {
     const home = makeHome(join(root, 'local'));
     setupHistory(home, {}, historyEnv);
-    const nowSynced = { ...historyEnv, syncedBy: (path: string) => (path.startsWith(join(root, 'local')) ? 'iCloud Drive' : null) };
+    const nowSynced = {
+      ...historyEnv,
+      syncedBy: (path: string) => (path.startsWith(join(root, 'local')) ? 'iCloud Drive' : null)
+    };
     const status = historyStatus(home, nowSynced);
     expect(status).toMatchObject({ state: 'on', layout: 'in-place', homeSyncedBy: 'iCloud Drive' });
     const moved = setupHistory(home, {}, nowSynced);
@@ -339,7 +347,10 @@ describe('history set up some other way is left alone', () => {
     const original = makeHome(syncedRoot);
     const { status } = setupHistory(original, {}, historyEnv);
     const copy = makeHome(join(syncedRoot, 'copies'));
-    write(join(copy, '.claude', 'settings.local.json'), readFileSync(join(original, '.claude', 'settings.local.json'), 'utf-8'));
+    write(
+      join(copy, '.claude', 'settings.local.json'),
+      readFileSync(join(original, '.claude', 'settings.local.json'), 'utf-8')
+    );
     expect(restorePointer(copy)).toBe(false);
     expect(historyStatus(copy, historyEnv).state).toBe('history-missing');
     writeFileSync(join(copy, '.git'), `gitdir: ${status.gitDir}\n`);
@@ -350,19 +361,22 @@ describe('history set up some other way is left alone', () => {
 
 describe('link repair and platform', () => {
   // Creating a symlink on Windows needs admin rights or Developer Mode.
-  test.skipIf(process.platform === 'win32')('restores a deleted link from the recorded location, and never writes through a symlink', () => {
-    const home = makeHome(syncedRoot);
-    setupHistory(home, {}, historyEnv);
-    rmSync(join(home, '.git'));
-    expect(historyStatus(home, historyEnv).state).toBe('pointer-missing');
-    expect(restorePointer(home)).toBe(true);
-    expect(historyStatus(home, historyEnv).state).toBe('on');
-    rmSync(join(home, '.git'));
-    const outside = join(root, 'outside-target');
-    symlinkSync(outside, join(home, '.git'));
-    expect(restorePointer(home)).toBe(false);
-    expect(existsSync(outside)).toBe(false);
-  });
+  test.skipIf(process.platform === 'win32')(
+    'restores a deleted link from the recorded location, and never writes through a symlink',
+    () => {
+      const home = makeHome(syncedRoot);
+      setupHistory(home, {}, historyEnv);
+      rmSync(join(home, '.git'));
+      expect(historyStatus(home, historyEnv).state).toBe('pointer-missing');
+      expect(restorePointer(home)).toBe(true);
+      expect(historyStatus(home, historyEnv).state).toBe('on');
+      rmSync(join(home, '.git'));
+      const outside = join(root, 'outside-target');
+      symlinkSync(outside, join(home, '.git'));
+      expect(restorePointer(home)).toBe(false);
+      expect(existsSync(outside)).toBe(false);
+    }
+  );
 
   test('never invents a history folder that is gone', () => {
     const home = makeHome(syncedRoot);
@@ -384,7 +398,7 @@ describe('link repair and platform', () => {
       expect(historyStatus(home, oneDrive)).toMatchObject({
         state: 'off',
         homeSyncedBy: 'OneDrive',
-        historyFolder: join(userHome, 'AppData', 'Local', 'kevin', 'Documents-Ada.git')
+        historyFolder: join(userHome, 'AppData', 'Local', 'agent-kevin', 'Documents-Ada.git')
       });
     } finally {
       if (platform) {

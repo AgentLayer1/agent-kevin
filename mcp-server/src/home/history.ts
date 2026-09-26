@@ -11,7 +11,7 @@
  * Runs git via execFileSync (argv arrays, no shell). Through the MCP server this executes outside
  * the Bash sandbox, which refuses to create `.git` at the working-directory root.
  */
-import { FOLDERS } from '@/config';
+import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { type SyncedBy, syncedBy } from '@/home/cloud-sync';
 import {
   boundHome,
@@ -38,13 +38,7 @@ const log = baseLog.with('history');
 
 const FIRST_COMMIT_MESSAGE = 'History: first snapshot\n\nThe first saved version of this agent home.\n';
 
-export type HistoryState =
-  | 'off'
-  | 'on'
-  | 'pointer-missing'
-  | 'history-missing'
-  | 'managed-by-you'
-  | 'git-missing';
+export type HistoryState = 'off' | 'on' | 'pointer-missing' | 'history-missing' | 'managed-by-you' | 'git-missing';
 
 export interface LastCommit {
   hash: string;
@@ -316,18 +310,16 @@ const freePath = (candidate: string, home: string): string => {
 };
 
 /**
- * Where a synced home keeps its history: this plugin's folder in the per-user local state directory,
- * which no sync service touches (`%LOCALAPPDATA%` on Windows, the XDG `~/.local/state` elsewhere).
+ * Where a synced home keeps its history: a folder named after this plugin in the per-user local
+ * state directory, which no sync service touches (`%LOCALAPPDATA%` on Windows, the XDG
+ * `~/.local/state` elsewhere).
  */
 const historyFolderFor = (home: string, historyEnv: HistoryEnv): string => {
   const stateRoot =
     process.platform === 'win32'
       ? (resolveEnv('LOCALAPPDATA') ?? join(historyEnv.userHome, 'AppData', 'Local'))
       : join(historyEnv.userHome, '.local', 'state');
-  return freePath(
-    join(stateRoot, runtimeDirName().replace(/^\./, ''), `${pathName(home, historyEnv.userHome)}.git`),
-    home
-  );
+  return freePath(join(stateRoot, PLUGIN_NAME, `${pathName(home, historyEnv.userHome)}.git`), home);
 };
 
 /**
