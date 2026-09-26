@@ -251,8 +251,22 @@ export const followMove = (home: string): void => {
     return;
   }
   const bound = tryGit(home, ['config', '--get', HOME_BINDING_KEY]);
-  if (bound !== null && bound !== canonicalPath(home) && stampClaims(bound, home)) {
+  if (bound === null || !stampClaims(bound, home)) {
+    return;
+  }
+  if (bound !== canonicalPath(home)) {
     git(home, ['config', HOME_BINDING_KEY, canonicalPath(home)]);
+  }
+  pinWorkingCopy(home);
+};
+
+/**
+ * A history kept outside the home names the home as its working copy. Git finds it through the
+ * `.git` link, but tools that open the history folder itself (Tower) otherwise take its parent.
+ */
+const pinWorkingCopy = (home: string): void => {
+  if (linkTarget(home) !== null && tryGit(home, ['config', '--get', 'core.worktree']) !== canonicalPath(home)) {
+    git(home, ['config', 'core.worktree', canonicalPath(home)]);
   }
 };
 
@@ -484,6 +498,7 @@ export const setupHistory = (
     if (tryGit(home, ['config', '--get', HOME_BINDING_KEY]) !== canonicalPath(home)) {
       git(home, ['config', HOME_BINDING_KEY, canonicalPath(home)]);
     }
+    pinWorkingCopy(home);
 
     const current = historyStatus(home, historyEnv);
     if (current.layout === 'split' && current.gitDir) {

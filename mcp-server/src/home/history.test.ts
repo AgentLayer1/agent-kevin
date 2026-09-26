@@ -314,6 +314,46 @@ describe('leftovers from the pre-release review', () => {
   });
 });
 
+describe('git tools that open the history folder itself', () => {
+  const toolView = (gitDir: string): string =>
+    execFileSync('git', ['--git-dir', gitDir, 'status', '--porcelain'], {
+      cwd: dirname(gitDir),
+      encoding: 'utf8'
+    }).trim();
+
+  test('a split history names the home as its working copy, so it opens clean from either side', () => {
+    const home = makeHome(syncedRoot);
+    const gitDir = setupHistory(home, {}, historyEnv).status.gitDir ?? '';
+    expect(git(home, 'config', '--get', 'core.worktree')).toBe(home);
+    expect(toolView(gitDir)).toBe('');
+  });
+
+  test('a renamed home gets its working copy back at the next session start', () => {
+    const before = makeHome(syncedRoot);
+    setupHistory(before, {}, historyEnv);
+    const after = join(syncedRoot, 'Moved');
+    renameSync(before, after);
+    followMove(after);
+    expect(git(after, 'config', '--get', 'core.worktree')).toBe(after);
+    expect(git(after, 'status', '--porcelain')).toBe('');
+  });
+
+  test('a split history made before the working copy was recorded gets it at the next session start', () => {
+    const home = makeHome(syncedRoot);
+    const gitDir = setupHistory(home, {}, historyEnv).status.gitDir ?? '';
+    git(home, 'config', '--unset', 'core.worktree');
+    followMove(home);
+    expect(toolView(gitDir)).toBe('');
+  });
+
+  test('history kept inside the home needs no recorded working copy', () => {
+    const home = makeHome(join(root, 'local'));
+    setupHistory(home, {}, historyEnv);
+    followMove(home);
+    expect(() => git(home, 'config', '--get', 'core.worktree')).toThrow();
+  });
+});
+
 describe('history set up some other way is left alone', () => {
   test('a home with a remote', () => {
     const home = makeHome(join(root, 'local'));
