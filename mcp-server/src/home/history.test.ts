@@ -301,6 +301,24 @@ describe('leftovers from the pre-release review', () => {
     expect(settingsOf(home).env?.AGENT_HOME_GIT_DIR).toBe(first.status.gitDir ?? '');
   });
 
+  test('a history moved and stamped by hand is status on with no record, and setup records it with both grants', () => {
+    const home = makeHome(syncedRoot);
+    const handMoved = join(root, 'hand-moved.git');
+    git(home, 'init', '-q', '-b', 'main', '--separate-git-dir', handMoved);
+    git(home, '-c', 'user.name=Ada', '-c', 'user.email=ada@localhost', 'commit', '-q', '--allow-empty', '-m', 'mine');
+    git(home, 'config', 'agent.home', home);
+    expect(historyStatus(home, historyEnv)).toMatchObject({ state: 'on', layout: 'split', gitDir: handMoved });
+    expect(existsSync(join(home, '.claude', 'settings.local.json'))).toBe(false);
+    const adopted = setupHistory(home, {}, historyEnv);
+    expect(adopted).toMatchObject({ outcome: 'already-on', settingsChanged: true });
+    expect(commitCount(home)).toBe(1);
+    const settings = settingsOf(home);
+    expect(settings.env?.AGENT_HOME_GIT_DIR).toBe(handMoved);
+    expect(settings.permissions?.additionalDirectories).toContain(handMoved);
+    expect(settings.sandbox?.filesystem?.allowWrite).toContain(handMoved);
+    expect(setupHistory(home, {}, historyEnv).settingsChanged).toBe(false);
+  });
+
   test('a symlinked settings file stays a symlink, and its target gets the record', () => {
     const home = makeHome(syncedRoot);
     const real = join(root, 'dotfiles', 'settings.local.json');
