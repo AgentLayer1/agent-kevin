@@ -394,10 +394,14 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
     );
   }
 
-  const statusLine = statusLineDrift(
-    resolve(FOLDERS.HOME, '.claude', 'settings.json'),
-    resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, ''))
-  );
+  // A due upgrade re-points the footer itself, and the banner's upgrade line already says to run it.
+  const statusLine =
+    getUpgradeStatus().state === 'current'
+      ? statusLineDrift(
+          resolve(FOLDERS.HOME, '.claude', 'settings.json'),
+          resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, ''))
+        )
+      : undefined;
   if (statusLine) {
     entries.push({ label: 'status line', status: 'unavailable', bytes: 0, note: 'needs upgrade' });
     parts.push(

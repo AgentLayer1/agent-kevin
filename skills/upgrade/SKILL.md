@@ -138,11 +138,14 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
   check — proceed.)
 - **No CHANGELOG / no entries** → the installed plugin predates release tracking.
   Tell the user there's nothing to apply; stop.
-- **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)." One check
-  still runs before stopping: the **codex wiring** paragraph in Step 4. It is not a migration
-  and has no version (an existing, current home run from Codex for the first time has no
-  `.codex/` yet), so it must not hide behind the release range. Print its re-trust line and
-  any owed install lines exactly as Step 6 words them (this path never reaches Step 6), then stop.
+- **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)." Two checks
+  still run before stopping: the **codex wiring** paragraph and the **Re-point the status line**
+  paragraph, both in Step 4. Neither is a migration or has a version (an existing, current home
+  run from Codex for the first time has no `.codex/` yet; switching marketplaces or checkouts at
+  the same version leaves the footer pinned to the old path, and the SessionStart banner sends the
+  operator here for exactly that), so they must not hide behind the release range. Print the
+  re-trust line, any owed install lines, and a changed status line's relaunch note exactly as
+  Step 6 words them (this path never reaches Step 6), then stop.
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
   tell the user to run `/plugin marketplace update <marketplace>` then
   `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.

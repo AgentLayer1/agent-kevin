@@ -3,9 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { FOLDERS, staticContextFiles } from '@/config';
+import { FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
+import { statusLineSetting } from '@/statusline/setting';
 
 /**
  * Run `fn` against a throwaway home built by `setup`. This agent's own
@@ -106,6 +107,36 @@ describe('sessionStart', () => {
       () => sessionStart()
     );
     expect(result.additionalContext).not.toContain('Operating manual layout');
+  });
+
+  const staleStatusLine = JSON.stringify({ statusLine: statusLineSetting('/cache/agent-kevin/0.0.1/bin/kevin') });
+
+  test('a stale status line on a current home is flagged, since upgrade is the only pointer to the fix', async () => {
+    const result = await withHome(
+      (home) =>
+        markedHome(home, {
+          [`${RUNTIME_DIR_DEFAULT}/version.json`]: JSON.stringify({ templateVersion: PLUGIN_VERSION }),
+          '.claude/settings.json': staleStatusLine
+        }),
+      () => sessionStart()
+    );
+    expect(result.systemMessage).toContain('status line');
+    expect(result.systemMessage).not.toContain('Upgrade:');
+    expect(result.additionalContext).toContain('/cache/agent-kevin/0.0.1/bin/kevin');
+  });
+
+  test('a stale status line stays quiet while an upgrade is due, which re-points it', async () => {
+    const result = await withHome(
+      (home) =>
+        markedHome(home, {
+          [`${RUNTIME_DIR_DEFAULT}/version.json`]: JSON.stringify({ templateVersion: '0.0.1' }),
+          '.claude/settings.json': staleStatusLine
+        }),
+      () => sessionStart()
+    );
+    expect(result.systemMessage).toContain('Upgrade:');
+    expect(result.systemMessage).not.toContain('status line');
+    expect(result.additionalContext).not.toContain('/cache/agent-kevin/0.0.1/bin/kevin');
   });
 
   test('codex protocol: the payload carries the identity files with file markers and the dynamic lane', async () => {
