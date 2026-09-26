@@ -25,7 +25,7 @@ import {
 } from '@/home/git-dir-record';
 import { reconcileHomeGitignore } from '@/home/gitignore';
 import { log as baseLog } from '@/shared/log';
-import { runtimeDirName } from '@/shared/naming';
+import { resolveEnv, runtimeDirName } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { writeFileAtomic } from '@/shared/utils';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -43,8 +43,7 @@ export type HistoryState =
   | 'pointer-missing'
   | 'history-missing'
   | 'managed-by-you'
-  | 'git-missing'
-  | 'unsupported';
+  | 'git-missing';
 
 export interface LastCommit {
   hash: string;
@@ -192,6 +191,9 @@ const recordLocation = (home: string, gitDir: string): boolean => {
   return true;
 };
 
+/** A path git printed, in this platform's own form (Git for Windows prints `C:/…`). */
+const gitPath = (path: string | null): string | null => (path ? resolve(path) : null);
+
 const hasDotGit = (home: string): boolean => {
   try {
     lstatSync(join(home, '.git'));
@@ -215,10 +217,15 @@ const forgetRecord = (home: string): void => {
  * An unstamped history with no snapshot, no remote, and this home as its root: a setup that stopped
  * before stamping (or a bare `git init`). There is nothing in it to lose, so setup takes it over.
  */
-const interruptedSetup = (home: string): boolean =>
-  !gitSucceeds(home, ['rev-parse', '-q', '--verify', 'HEAD']) &&
-  (tryGit(home, ['remote']) ?? '') === '' &&
-  tryGit(home, ['rev-parse', '--show-toplevel']) === canonicalPath(home);
+const interruptedSetup = (home: string): boolean => {
+  const top = gitPath(tryGit(home, ['rev-parse', '--show-toplevel']));
+  return (
+    top !== null &&
+    canonicalPath(top) === canonicalPath(home) &&
+    !gitSucceeds(home, ['rev-parse', '-q', '--verify', 'HEAD']) &&
+    (tryGit(home, ['remote']) ?? '') === ''
+  );
+};
 
 const homeSlug = (home: string): string =>
   basename(resolve(home))
@@ -247,11 +254,16 @@ const freePath = (candidate: string): string => {
 };
 
 /**
- * Where a synced home keeps its history: this plugin's folder in the per-user state directory (the
- * XDG convention, `~/.local/state/<runtime name>`), which no sync service touches.
+ * Where a synced home keeps its history: this plugin's folder in the per-user local state directory,
+ * which no sync service touches (`%LOCALAPPDATA%` on Windows, the XDG `~/.local/state` elsewhere).
  */
-const historyFolderFor = (home: string, historyEnv: HistoryEnv): string =>
-  freePath(join(historyEnv.userHome, '.local', 'state', runtimeDirName().replace(/^\./, ''), `${pathName(home, historyEnv.userHome)}.git`));
+const historyFolderFor = (home: string, historyEnv: HistoryEnv): string => {
+  const stateRoot =
+    process.platform === 'win32'
+      ? (resolveEnv('LOCALAPPDATA') ?? join(historyEnv.userHome, 'AppData', 'Local'))
+      : join(historyEnv.userHome, '.local', 'state');
+  return freePath(join(stateRoot, runtimeDirName().replace(/^\./, ''), `${pathName(home, historyEnv.userHome)}.git`));
+};
 
 /**
  * The home's location as a folder name, so several homes never share one: its path under the user's
@@ -263,6 +275,7 @@ const pathName = (home: string, userHome: string): string => {
   return (
     (isInside(real, base) ? relative(base, real) : real)
       .split(sep)
+      .map((segment) => segment.replace(/:$/, ''))
       .filter(Boolean)
       .join('-')
       .replace(/[^A-Za-z0-9._-]+/g, '-') || 'home'
@@ -285,8 +298,7 @@ const MESSAGES: Record<HistoryState, string> = {
   'history-missing': "The saved history this folder points to isn't here anymore (it was deleted, or it is on another computer).",
   'managed-by-you':
     'This folder already has version history set up some other way (by hand, copied from another folder, or as part of a larger project), so history leaves it alone.',
-  'git-missing': 'Git, the tool that keeps the history, is not installed.',
-  unsupported: 'History for a OneDrive-synced home on Windows is not supported yet.'
+  'git-missing': 'Git, the tool that keeps the history, is not installed.'
 };
 
 /** Where this home's history stands, and what setup would offer. Read-only. */
@@ -305,11 +317,6 @@ export const historyStatus = (home: string, historyEnv: HistoryEnv = defaultEnv(
   const hint = gitInstallHint();
   if (hint) {
     return build('git-missing', { message: `${MESSAGES['git-missing']} Install it with: ${hint}` });
-  }
-  // TODO(windows): history in or beside a OneDrive home is unverified; refuse rather than half-work.
-  const windowsSync = process.platform === 'win32' ? historyEnv.syncedBy(home) : null;
-  if (windowsSync) {
-    return build('unsupported', { homeSyncedBy: windowsSync });
   }
 
   if (!hasDotGit(home)) {
@@ -333,7 +340,7 @@ export const historyStatus = (home: string, historyEnv: HistoryEnv = defaultEnv(
   const layout = historyInside(home) ? 'in-place' : 'split';
   return build('on', {
     layout,
-    gitDir: layout === 'in-place' ? join(home, '.git') : tryGit(home, ['rev-parse', '--absolute-git-dir']),
+    gitDir: layout === 'in-place' ? join(home, '.git') : gitPath(tryGit(home, ['rev-parse', '--absolute-git-dir'])),
     lastCommit: lastCommitOf(home)
   });
 };
@@ -449,7 +456,8 @@ export const restorePointer = (home: string): boolean => {
   }
   // Exclusive create: an existing entry, even a dangling symlink, is left alone and never followed.
   try {
-    writeFileSync(join(home, '.git'), `gitdir: ${gitDir}\n`, { flag: 'wx' });
+    // Forward slashes on every platform, the way git writes this file itself.
+    writeFileSync(join(home, '.git'), `gitdir: ${gitDir.split(sep).join('/')}\n`, { flag: 'wx' });
   } catch (err) {
     if (err instanceof Error && 'code' in err && err.code === 'EEXIST') {
       return false;

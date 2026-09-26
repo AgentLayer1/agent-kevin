@@ -1,6 +1,7 @@
+import { resolveEnv } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { execFileSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -51,10 +52,37 @@ const macSyncedBy = (path: string, userHome: string): SyncedBy => {
   return ancestors.reverse().some(hasFileProviderXattr) ? 'iCloud Drive' : null;
 };
 
+const namesIn = (dir: string): string[] => {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * OneDrive publishes its folders in the environment (personal and work accounts alike, wherever
+ * they were moved), and names them `OneDrive…` under the user's home by default.
+ */
+const windowsSyncedBy = (path: string, userHome: string): SyncedBy => {
+  const oneDriveRoots = [
+    resolveEnv('OneDrive'),
+    resolveEnv('OneDriveConsumer'),
+    resolveEnv('OneDriveCommercial'),
+    ...namesIn(userHome)
+      .filter((name) => name.startsWith('OneDrive'))
+      .map((name) => join(userHome, name))
+  ].filter((root): root is string => Boolean(root));
+  if (oneDriveRoots.some((root) => isInside(path, resolveExisting(root)))) {
+    return 'OneDrive';
+  }
+  return isInside(path, join(userHome, 'Dropbox')) ? 'Dropbox' : null;
+};
+
 /**
  * Detect whether a path sits in a cloud-synced folder. macOS checks the iCloud and File Provider
- * locations plus the file-provider xattr on each ancestor under the user's home; Linux knows
- * Dropbox's default folder; native Windows only knows OneDrive's default folder.
+ * locations plus the file-provider xattr on each ancestor under the user's home; Windows asks
+ * OneDrive where its folders are and knows Dropbox's default folder; Linux knows Dropbox's.
  */
 export const syncedBy = (path: string, userHome: string = homedir()): SyncedBy => {
   const real = resolveExisting(path);
@@ -63,7 +91,7 @@ export const syncedBy = (path: string, userHome: string = homedir()): SyncedBy =
     return macSyncedBy(real, home);
   }
   if (process.platform === 'win32') {
-    return isInside(real, join(home, 'OneDrive')) ? 'OneDrive' : null;
+    return windowsSyncedBy(real, home);
   }
   return isInside(real, join(home, 'Dropbox')) ? 'Dropbox' : null;
 };

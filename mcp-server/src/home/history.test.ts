@@ -266,7 +266,8 @@ describe('history set up some other way is left alone', () => {
 });
 
 describe('link repair and platform', () => {
-  test('restores a deleted link from the recorded location, and never writes through a symlink', () => {
+  // Creating a symlink on Windows needs admin rights or Developer Mode.
+  test.skipIf(process.platform === 'win32')('restores a deleted link from the recorded location, and never writes through a symlink', () => {
     const home = makeHome(syncedRoot);
     setupHistory(home, {}, historyEnv);
     rmSync(join(home, '.git'));
@@ -289,19 +290,28 @@ describe('link repair and platform', () => {
     expect(historyStatus(home, historyEnv).state).toBe('history-missing');
   });
 
-  test('on Windows, a OneDrive home is unsupported', () => {
+  test('on Windows, a OneDrive home keeps its history in the local app data folder', () => {
     const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    const localAppData = process.env.LOCALAPPDATA;
     const oneDrive = { ...historyEnv, syncedBy: (path: string) => (path.startsWith(syncedRoot) ? 'OneDrive' : null) };
     const home = makeHome(syncedRoot);
+    process.env.LOCALAPPDATA = join(userHome, 'AppData', 'Local');
     Object.defineProperty(process, 'platform', { value: 'win32' });
     try {
-      expect(historyStatus(home, oneDrive).state).toBe('unsupported');
-      expect(setupHistory(home, {}, oneDrive).outcome).toBe('refused');
+      expect(historyStatus(home, oneDrive)).toMatchObject({
+        state: 'off',
+        homeSyncedBy: 'OneDrive',
+        historyFolder: join(userHome, 'AppData', 'Local', 'kevin', 'Documents-Ada.git')
+      });
     } finally {
       if (platform) {
         Object.defineProperty(process, 'platform', platform);
       }
+      if (localAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = localAppData;
+      }
     }
-    expect(existsSync(join(home, '.git'))).toBe(false);
   });
 });

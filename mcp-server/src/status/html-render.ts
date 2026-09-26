@@ -1303,8 +1303,7 @@ const HISTORY_LABEL: Record<HistoryState, string> = {
   'pointer-missing': 'link missing',
   'history-missing': 'history folder missing',
   'managed-by-you': 'managed by your own git setup',
-  'git-missing': 'git not installed',
-  unsupported: 'not supported here yet'
+  'git-missing': 'git not installed'
 };
 
 const historyRows = ({ state, gitDir, lastCommit }: StatusSnapshot['runtime']['history']): string[][] => {

@@ -29,3 +29,36 @@ describe.if(process.platform === 'darwin')('syncedBy on macOS', () => {
     expect(syncedBy(local, userHome)).toBeNull();
   });
 });
+
+describe('syncedBy on Windows', () => {
+  const asWindows = (run: () => void): void => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    const saved = process.env.OneDrive;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      run();
+    } finally {
+      if (platform) {
+        Object.defineProperty(process, 'platform', platform);
+      }
+      if (saved === undefined) {
+        delete process.env.OneDrive;
+      } else {
+        process.env.OneDrive = saved;
+      }
+    }
+  };
+
+  test('finds a work OneDrive folder by name, and a moved one through its environment variable', () => {
+    const work = join(userHome, 'OneDrive - Acme', 'Documents', 'Ada');
+    const moved = join(userHome, 'elsewhere', 'SyncRoot', 'Ada');
+    const local = join(userHome, 'Code', 'Ada');
+    [work, moved, local].forEach((path) => mkdirSync(path, { recursive: true }));
+    asWindows(() => {
+      process.env.OneDrive = join(userHome, 'elsewhere', 'SyncRoot');
+      expect(syncedBy(work, userHome)).toBe('OneDrive');
+      expect(syncedBy(moved, userHome)).toBe('OneDrive');
+      expect(syncedBy(local, userHome)).toBeNull();
+    });
+  });
+});

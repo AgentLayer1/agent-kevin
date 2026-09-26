@@ -253,8 +253,6 @@ function homeHistoryLane(plain: ManifestEntry, restored: boolean): ManifestEntry
   switch (history.state) {
     case 'off':
       return { ...plain, status: 'off', note: `off · ${turnOn}` };
-    case 'unsupported':
-      return { ...plain, status: 'unavailable', note: 'not supported here yet' };
     case 'git-missing':
       return { ...plain, status: 'unavailable', note: 'git not installed' };
     case 'pointer-missing':

@@ -25,9 +25,8 @@ Then branch on `state`:
 | `on`, `lastCommit` null | A setup that stopped early: step 3 with no questions |
 | `on` | When `codexWired` is true and `layout` is `"split"`, call `codex_setup` first (it changes nothing when Codex is already set). Then: "History is on, kept in `<gitDir>`. Last saved `<lastCommit.date>`." Stop |
 | `managed-by-you` | "This folder already has version history set up some other way, so <Agent> leaves it alone." Stop |
-| `git-missing` | "History needs Apple's free developer tools. Run `! <hint>` in this chat and follow the installer, then ask me again." (The hint is in `message`.) Stop |
+| `git-missing` | History needs git, a free tool. Relay the install step from `message`: on a Mac it is a command to run in this chat as `! xcode-select --install`, elsewhere a download link. Then: "Ask me again once it's installed." Stop |
 | `history-missing` | Ask with `AskUserQuestion`: "The saved history this folder pointed to isn't on this computer anymore. Start a new history here?" with "Start a new one (Recommended)" / "Not now". Mention once that if this folder is also used on another Mac, its history there is separate. Yes runs step 3 with `startOver: true`, and step 4 names the new folder |
-| `unsupported` | Relay `message` in plain words. Stop |
 
 ## 2. Offer it (one question)
 
@@ -62,6 +61,6 @@ the history folder too. It changes nothing when Codex is already set, so calling
 Close with one line:
 
 > History is on. <Agent> saves a snapshot every time you run sync. It stays on this computer,
-> in `<status.gitDir>`; Time Machine backs it up if you use it.
+> in `<status.gitDir>`, and your computer's own backup (Time Machine on a Mac) covers it.
 
 For `already-on` after a restored link, say what was fixed in one line instead.
