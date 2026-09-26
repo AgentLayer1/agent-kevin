@@ -22,7 +22,7 @@ import {
   PLUGIN_VERSION,
   TIMEZONE
 } from '@/config';
-import { historyStatus, restorePointer } from '@/home/history';
+import { followMove, historyStatus, restorePointer } from '@/home/history';
 import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
 import { agentDisplayName } from '@/shared/agent-name';
 import { log as baseLog } from '@/shared/log';
@@ -263,6 +263,9 @@ function homeHistoryLane(plain: ManifestEntry, restored: boolean): ManifestEntry
       if (!history.lastCommit) {
         return { ...plain, status: 'unavailable', note: `no snapshots yet · ${turnOn}` };
       }
+      if (history.homeSyncedBy) {
+        return { ...plain, status: 'unavailable', note: `inside a synced folder · ${turnOn}` };
+      }
       return restored && plain.note ? { ...plain, note: `${plain.note} · link restored` } : plain;
     case 'managed-by-you':
       return plain;
@@ -276,7 +279,9 @@ function homeHistoryLane(plain: ManifestEntry, restored: boolean): ManifestEntry
  */
 function healHistoryLink(): boolean {
   try {
-    return restorePointer(FOLDERS.HOME);
+    const restored = restorePointer(FOLDERS.HOME);
+    followMove(FOLDERS.HOME);
+    return restored;
   } catch (err) {
     log.error('history link not restored', err);
     return false;

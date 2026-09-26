@@ -167,7 +167,7 @@ const inProgressOp = (home: string): boolean => {
 };
 
 const GRANT_HINT =
-  "git could not write to the repo. If this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.local.json so the sandbox can commit.";
+  "git could not write to the repo. If history was turned on in this session, start a new session first, since the new write grant may only apply from the next launch. Otherwise, if this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.local.json so the sandbox can commit.";
 
 export const commitBrain = (home: string): BrainCommitResult => {
   const result = (status: BrainCommitStatus, extra: Partial<BrainCommitResult> = {}): BrainCommitResult => ({
@@ -183,6 +183,11 @@ export const commitBrain = (home: string): BrainCommitResult => {
     // A synced folder can delete a split home's one-line `.git` link; the next session start or the
     // history skill puts it back. Choosing a history folder from the settings record alone is not
     // this script's call, since a copied home carries that record too.
+    if (existsSync(join(home, ".git"))) {
+      return result(BrainCommitStatus.NotARepo, {
+        detail: "this home's history folder is gone; the history skill can start a new one",
+      });
+    }
     return recordedGitDir(home)
       ? result(BrainCommitStatus.SkippedLinkMissing, {
           detail: "the link to this home's history is missing; the next session start or the history skill restores it",

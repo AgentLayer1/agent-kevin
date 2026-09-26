@@ -23,10 +23,11 @@ Then branch on `state`:
 |---|---|
 | `off` | Step 2 |
 | `on`, `lastCommit` null | A setup that stopped early: step 3 with no questions |
+| `on`, `homeSyncedBy` set | The folder started syncing after history was turned on, so the history sits where syncing can damage it. Ask with `AskUserQuestion`: "<Agent>'s folder now syncs to `<homeSyncedBy>`, which can damage its history. Move the history to `<historyFolder>`, on this computer?" with "Move it (Recommended)" / "Not now". Yes runs step 3 |
 | `on` | When `codexWired` is true and `layout` is `"split"`, call `codex_setup` first (it changes nothing when Codex is already set). Then: "History is on, kept in `<gitDir>`. Last saved `<lastCommit.date>`." Stop |
 | `managed-by-you` | "This folder already has version history set up some other way, so <Agent> leaves it alone." Stop |
 | `git-missing` | History needs git, a free tool. Relay the install step from `message`: on a Mac it is a command to run in this chat as `! xcode-select --install`, elsewhere a download link. Then: "Ask me again once it's installed." Stop |
-| `history-missing` | Ask with `AskUserQuestion`: "The saved history this folder pointed to isn't on this computer anymore. Start a new history here?" with "Start a new one (Recommended)" / "Not now". Mention once that if this folder is also used on another Mac, its history there is separate. Yes runs step 3 with `startOver: true`, and step 4 names the new folder |
+| `history-missing` | Ask with `AskUserQuestion`: "The saved history this folder pointed to isn't available (it was deleted, it's on another computer, or it belongs to the folder this one was copied from). Start a new history here?" with "Start a new one (Recommended)" / "Not now". Mention once that if this folder is also used on another computer, its history there is separate. Yes runs step 3 with `startOver: true`, and step 4 names the new folder |
 
 ## 2. Offer it (one question)
 
@@ -46,12 +47,13 @@ Call `home_history` with `action: "setup"` and `name` set to the operator's
 name from `USER.md` (used only when this computer has never been told who's saving). Branch on
 `outcome`:
 
-- **`turned-on`, `already-on`**: step 4.
+- **`turned-on`, `already-on`, `moved`**: step 4.
 - **`refused`**: relay `message` in plain words and stop. When it names private files that would
   enter history, say they are kept out on purpose and that this folder's ignore list lets them in;
   nothing was saved.
 - **`failed`**: relay `message` in plain words and stop. Don't say nothing changed: setup may
-  already have created the history folder, and running it again picks up where it stopped.
+  already have created the history folder. Running it again usually picks up where it stopped; if
+  the same message comes back, it needs that problem fixed first.
 
 ## 4. Confirm
 
@@ -63,4 +65,5 @@ Close with one line:
 > History is on. <Agent> saves a snapshot every time you run sync. It stays on this computer,
 > in `<status.gitDir>`, and your computer's own backup (Time Machine on a Mac) covers it.
 
-For `already-on` after a restored link, say what was fixed in one line instead.
+For `moved`, say the history now lives in `<status.gitDir>`, on this computer. For `already-on` after
+a restored link, say what was fixed in one line instead.

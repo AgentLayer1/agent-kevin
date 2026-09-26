@@ -23,6 +23,12 @@ describe.if(process.platform === 'darwin')('syncedBy on macOS', () => {
     expect(syncedBy(join(drive, 'Agents', 'Ada', 'history.git'), userHome)).toBe('iCloud Drive');
   });
 
+  test('the older Dropbox client\'s ~/Dropbox counts as synced', () => {
+    const home = join(userHome, 'Dropbox', 'Agents', 'Ada');
+    mkdirSync(home, { recursive: true });
+    expect(syncedBy(home, userHome)).toBe('Dropbox');
+  });
+
   test('a plain local folder stays on this computer', () => {
     const local = join(userHome, 'Developer', 'ada-data.git');
     mkdirSync(local, { recursive: true });

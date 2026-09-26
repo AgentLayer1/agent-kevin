@@ -215,6 +215,15 @@ describe("commitBrain grouping", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  test("a link left pointing at a deleted history folder is reported, not promised a repair", () => {
+    const home = mkdtempSync(join(tmpdir(), "brain-commit-dead-link-"));
+    writeFileSync(join(home, ".git"), `gitdir: ${join(home, "..", "gone.git")}\n`);
+    const outcome = commitBrain(home);
+    expect(outcome.status).toBe(BrainCommitStatus.NotARepo);
+    expect(outcome.detail).toContain("history folder is gone");
+    rmSync(home, { recursive: true, force: true });
+  });
+
   test("a copied home whose .git link points at another home's history never commits into it", () => {
     const root = mkdtempSync(join(tmpdir(), "brain-commit-copy-"));
     const original = join(root, "original");

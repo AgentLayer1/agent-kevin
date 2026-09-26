@@ -29,7 +29,7 @@ import { resolveEnv, runtimeDirName } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { writeFileAtomic } from '@/shared/utils';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -63,7 +63,7 @@ export interface HistoryStatus {
   message: string;
 }
 
-export type SetupOutcome = 'turned-on' | 'already-on' | 'refused' | 'failed';
+export type SetupOutcome = 'turned-on' | 'already-on' | 'moved' | 'refused' | 'failed';
 
 export interface SetupResult {
   outcome: SetupOutcome;
@@ -203,6 +203,64 @@ const hasDotGit = (home: string): boolean => {
   }
 };
 
+/** Where this folder's one-line `.git` link points, or null when `.git` is not such a link. */
+const linkTarget = (home: string): string | null => {
+  try {
+    if (!lstatSync(join(home, '.git')).isFile()) {
+      return null;
+    }
+    const target = /^gitdir:\s*(.+)$/m.exec(readFileSync(join(home, '.git'), 'utf-8'))?.[1]?.trim();
+    return target ? resolve(home, target) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Remove a `.git` link whose history folder is gone; a directory, a symlink, or a live link is never touched. */
+const removeDeadLink = (home: string): void => {
+  const target = linkTarget(home);
+  if (target !== null && !existsSync(target)) {
+    rmSync(join(home, '.git'));
+  }
+};
+
+const STALE_LOCK_MS = 10 * 60 * 1000;
+
+/**
+ * A crash during the first snapshot leaves git's `index.lock` behind, and every retry then fails.
+ * Before the first snapshot the index holds nothing worth protecting, so an old lock is cleared.
+ */
+const clearStaleLock = (gitDir: string): void => {
+  const lock = join(gitDir, 'index.lock');
+  try {
+    if (Date.now() - statSync(lock).mtimeMs > STALE_LOCK_MS) {
+      rmSync(lock, { force: true });
+    }
+  } catch {
+    // no lock
+  }
+};
+
+/** `git init` on the main line, without the `-b` flag git before 2.28 lacks. */
+const initOnMain = (home: string, target: string | null): void => {
+  git(home, ['init', '-q', ...(target ? ['--separate-git-dir', target] : [])]);
+  git(home, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+};
+
+/**
+ * Re-stamp a history that followed its home to a new path, so a folder later created at the old path
+ * can't claim it. Runs at session start; a history this feature didn't stamp is never touched.
+ */
+export const followMove = (home: string): void => {
+  if (!hasDotGit(home)) {
+    return;
+  }
+  const bound = tryGit(home, ['config', '--get', HOME_BINDING_KEY]);
+  if (bound !== null && bound !== canonicalPath(home) && stampClaims(bound, home)) {
+    git(home, ['config', HOME_BINDING_KEY, canonicalPath(home)]);
+  }
+};
+
 /** Drop the recorded location, keeping every other setting. */
 const forgetRecord = (home: string): void => {
   const settings = readSettings(home);
@@ -295,7 +353,8 @@ const MESSAGES: Record<HistoryState, string> = {
   off: 'History is off.',
   on: 'History is on.',
   'pointer-missing': 'History is on, but the link from this folder to it went missing; setup restores it.',
-  'history-missing': "The saved history this folder points to isn't here anymore (it was deleted, or it is on another computer).",
+  'history-missing':
+    "The saved history this folder points to isn't available: it was deleted, it's on another computer, or it belongs to the folder this one was copied from.",
   'managed-by-you':
     'This folder already has version history set up some other way (by hand, copied from another folder, or as part of a larger project), so history leaves it alone.',
   'git-missing': 'Git, the tool that keeps the history, is not installed.'
@@ -332,16 +391,25 @@ export const historyStatus = (home: string, historyEnv: HistoryEnv = defaultEnv(
     return build('off', { homeSyncedBy, historyFolder: homeSyncedBy ? historyFolderFor(home, historyEnv) : null });
   }
 
+  const link = linkTarget(home);
+  if (link !== null && !existsSync(link)) {
+    return build('history-missing', { layout: 'split', gitDir: link });
+  }
   // Only a history this feature stamped (see `stampClaims`) is ours; git reads the stamp through any `.git`.
   const bound = tryGit(home, ['config', '--get', HOME_BINDING_KEY]);
   if (!stampClaims(bound, home) && !(bound === null && interruptedSetup(home))) {
     return build('managed-by-you');
   }
   const layout = historyInside(home) ? 'in-place' : 'split';
+  // A home that started syncing after setup (iCloud "Desktop & Documents" turned on later) has its
+  // history inside the synced folder; setup moves it out.
+  const homeSyncedBy = layout === 'in-place' ? historyEnv.syncedBy(home) : null;
   return build('on', {
     layout,
     gitDir: layout === 'in-place' ? join(home, '.git') : gitPath(tryGit(home, ['rev-parse', '--absolute-git-dir'])),
-    lastCommit: lastCommitOf(home)
+    lastCommit: lastCommitOf(home),
+    homeSyncedBy,
+    historyFolder: homeSyncedBy ? historyFolderFor(home, historyEnv) : null
   });
 };
 
@@ -392,21 +460,26 @@ export const setupHistory = (
   try {
     restorePointer(home);
     if (options.startOver === true && historyStatus(home, historyEnv).state === 'history-missing') {
+      removeDeadLink(home);
       forgetRecord(home);
     }
     const status = historyStatus(home, historyEnv);
     if (status.state !== 'off' && status.state !== 'on') {
       return result('refused', status.message, { status });
     }
+    const target = status.historyFolder;
+    if (target && historyEnv.syncedBy(target) !== null) {
+      return result('refused', `${target} is in a synced folder too; history must stay on this computer.`, { status });
+    }
+    if (target) {
+      mkdirSync(dirname(target), { recursive: true });
+    }
+    // Off: create it. On, but kept inside a folder that now syncs: git moves the existing history out.
+    const moved = status.state === 'on' && target !== null;
     if (status.state === 'off') {
-      const target = status.historyFolder;
-      if (target && historyEnv.syncedBy(target) !== null) {
-        return result('refused', `${target} is in a synced folder too; history must stay on this computer.`, { status });
-      }
-      if (target) {
-        mkdirSync(dirname(target), { recursive: true });
-      }
-      git(home, ['init', '-q', '-b', 'main', ...(target ? ['--separate-git-dir', target] : [])]);
+      initOnMain(home, target);
+    } else if (moved) {
+      git(home, ['init', '-q', '--separate-git-dir', target]);
     }
     // Stamp a new history, finish an interrupted one, and follow a home that was renamed or moved.
     if (tryGit(home, ['config', '--get', HOME_BINDING_KEY]) !== canonicalPath(home)) {
@@ -418,7 +491,8 @@ export const setupHistory = (
       settingsChanged = recordLocation(home, current.gitDir);
     }
     if (current.lastCommit) {
-      return result('already-on', `History is on, kept in ${current.gitDir}.`, { status: current, settingsChanged });
+      const outcome = moved ? 'moved' : 'already-on';
+      return result(outcome, `History is on, kept in ${current.gitDir}.`, { status: current, settingsChanged });
     }
 
     ensureIdentity(home, options.name);
@@ -430,6 +504,9 @@ export const setupHistory = (
         `These private files would enter history, because this folder's .gitignore lets them in: ${exposed.join(', ')}.`,
         { settingsChanged }
       );
+    }
+    if (current.gitDir) {
+      clearStaleLock(current.gitDir);
     }
     git(home, ['add', '-A']);
     if (!gitSucceeds(home, ['diff', '--cached', '--quiet'])) {

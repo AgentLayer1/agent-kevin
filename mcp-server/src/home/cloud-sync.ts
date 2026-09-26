@@ -42,6 +42,10 @@ const macSyncedBy = (path: string, userHome: string): SyncedBy => {
     const provider = relative(cloudStorage, path).split(sep)[0] ?? '';
     return provider.split('-')[0] || 'a cloud drive';
   }
+  // The older Dropbox client syncs ~/Dropbox directly and marks nothing.
+  if (isInside(path, join(userHome, 'Dropbox'))) {
+    return 'Dropbox';
+  }
   // iCloud "Desktop & Documents" and other file providers mark the synced root, not each child.
   const ancestors: string[] = [];
   // Every ancestor up to the root: a sync root can live outside the user's home (an external drive).

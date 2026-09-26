@@ -10,11 +10,12 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
-import { type HistoryEnv, historyStatus, restorePointer, setupHistory } from '@/home/history';
+import { followMove, type HistoryEnv, historyStatus, restorePointer, setupHistory } from '@/home/history';
 
 let root: string;
 let userHome: string;
@@ -220,6 +221,62 @@ describe('recovering from interruptions, moves and deletions', () => {
     const fresh = setupHistory(home, { startOver: true }, historyEnv);
     expect(fresh.outcome).toBe('turned-on');
     expect(settingsOf(home).env?.AGENT_HOME_GIT_DIR).toBe(fresh.status.gitDir ?? '');
+  });
+});
+
+describe('pre-release review fixes', () => {
+  test('a link left pointing at a deleted history folder can be started over, not stuck', () => {
+    const home = makeHome(syncedRoot);
+    const first = setupHistory(home, {}, historyEnv);
+    rmSync(first.status.gitDir ?? '', { recursive: true });
+    expect(existsSync(join(home, '.git'))).toBe(true);
+    expect(historyStatus(home, historyEnv).state).toBe('history-missing');
+    expect(setupHistory(home, {}, historyEnv).outcome).toBe('refused');
+    const fresh = setupHistory(home, { startOver: true }, historyEnv);
+    expect(fresh.outcome).toBe('turned-on');
+    expect(fresh.status.state).toBe('on');
+    expect(commitCount(home)).toBe(1);
+  });
+
+  test('a stale index lock from a crashed first snapshot does not block setup forever', () => {
+    const home = makeHome(join(root, 'local'));
+    git(home, 'init', '-q');
+    git(home, 'config', 'agent.home', home);
+    const lock = join(home, '.git', 'index.lock');
+    writeFileSync(lock, '');
+    const old = new Date(Date.now() - 60 * 60 * 1000);
+    utimesSync(lock, old, old);
+    expect(setupHistory(home, {}, historyEnv).outcome).toBe('turned-on');
+  });
+
+  test('a home that starts syncing after setup is flagged, and setup moves its history out', () => {
+    const home = makeHome(join(root, 'local'));
+    setupHistory(home, {}, historyEnv);
+    const nowSynced = { ...historyEnv, syncedBy: (path: string) => (path.startsWith(join(root, 'local')) ? 'iCloud Drive' : null) };
+    const status = historyStatus(home, nowSynced);
+    expect(status).toMatchObject({ state: 'on', layout: 'in-place', homeSyncedBy: 'iCloud Drive' });
+    const moved = setupHistory(home, {}, nowSynced);
+    expect(moved.outcome).toBe('moved');
+    expect(moved.status.layout).toBe('split');
+    expect(commitCount(home)).toBe(1);
+    expect(settingsOf(home).env?.AGENT_HOME_GIT_DIR).toBe(moved.status.gitDir ?? '');
+  });
+
+  test('a moved synced home is re-stamped, so a folder later made at the old path cannot claim it', () => {
+    const before = makeHome(syncedRoot);
+    setupHistory(before, {}, historyEnv);
+    const after = join(syncedRoot, 'Moved');
+    renameSync(before, after);
+    followMove(after);
+    makeHome(syncedRoot);
+    expect(historyStatus(after, historyEnv).state).toBe('on');
+    expect(git(after, 'config', '--get', 'agent.home')).toBe(after);
+  });
+
+  test('history is created on the main line whatever the git version defaults to', () => {
+    const home = makeHome(join(root, 'local'));
+    setupHistory(home, {}, historyEnv);
+    expect(git(home, 'symbolic-ref', '--short', 'HEAD')).toBe('main');
   });
 });
 
