@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
-import { resolveEnv } from '../../../mcp-server/src/shared/naming';
+import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
 import { expandTilde } from '../../../mcp-server/src/shared/paths';
 
 const args = process.argv.slice(2);
@@ -26,7 +26,7 @@ if (!homeFlag) {
 const home = resolve(homeFlag);
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
 
-const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'));
+const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'), runtimeDirName());
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {

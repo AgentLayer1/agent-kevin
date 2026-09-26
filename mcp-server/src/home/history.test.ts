@@ -280,6 +280,32 @@ describe('pre-release review fixes', () => {
   });
 });
 
+describe('leftovers from the pre-release review', () => {
+  test('losing both the link and the record reattaches the existing history instead of starting a second', () => {
+    const home = makeHome(syncedRoot);
+    const first = setupHistory(home, {}, historyEnv);
+    rmSync(join(home, '.git'));
+    rmSync(join(home, '.claude', 'settings.local.json'));
+    expect(historyStatus(home, historyEnv).historyFolder).toBe(first.status.gitDir);
+    const again = setupHistory(home, {}, historyEnv);
+    expect(again.outcome).toBe('already-on');
+    expect(again.status.gitDir).toBe(first.status.gitDir);
+    expect(settingsOf(home).env?.AGENT_HOME_GIT_DIR).toBe(first.status.gitDir ?? '');
+  });
+
+  test('a symlinked settings file stays a symlink, and its target gets the record', () => {
+    const home = makeHome(syncedRoot);
+    const real = join(root, 'dotfiles', 'settings.local.json');
+    write(real, JSON.stringify({ env: { AGENT_CODE_PATH: '/code' } }));
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    symlinkSync(real, join(home, '.claude', 'settings.local.json'));
+    setupHistory(home, {}, historyEnv);
+    expect(lstatSync(join(home, '.claude', 'settings.local.json')).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(readFileSync(real, 'utf-8')).env.AGENT_CODE_PATH).toBe('/code');
+    expect(JSON.parse(readFileSync(real, 'utf-8')).env.AGENT_HOME_GIT_DIR).toContain('Documents-Ada.git');
+  });
+});
+
 describe('history set up some other way is left alone', () => {
   test('a home with a remote', () => {
     const home = makeHome(join(root, 'local'));

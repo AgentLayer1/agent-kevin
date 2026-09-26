@@ -14,6 +14,7 @@
 import { FOLDERS } from '@/config';
 import { type SyncedBy, syncedBy } from '@/home/cloud-sync';
 import {
+  boundHome,
   canonicalPath,
   historyInside,
   HOME_BINDING_KEY,
@@ -291,13 +292,16 @@ const homeSlug = (home: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'agent';
 
-/** First free spelling of a location: itself, then `-2`, `-3`… */
-const freePath = (candidate: string): string => {
+/**
+ * First free spelling of a location: itself, then `-2`, `-3`… A history already stamped for this home
+ * is its own spelling, so a home that lost both its link and its record gets its history back.
+ */
+const freePath = (candidate: string, home: string): string => {
   // Anything unreadable there (a file, no permission) counts as taken; never throw from here,
   // because SessionStart and the dashboard read this status too.
   const taken = (path: string): boolean => {
     try {
-      return existsSync(path) && readdirSync(path).length > 0;
+      return existsSync(path) && readdirSync(path).length > 0 && boundHome(path) !== canonicalPath(home);
     } catch {
       return true;
     }
@@ -320,7 +324,10 @@ const historyFolderFor = (home: string, historyEnv: HistoryEnv): string => {
     process.platform === 'win32'
       ? (resolveEnv('LOCALAPPDATA') ?? join(historyEnv.userHome, 'AppData', 'Local'))
       : join(historyEnv.userHome, '.local', 'state');
-  return freePath(join(stateRoot, runtimeDirName().replace(/^\./, ''), `${pathName(home, historyEnv.userHome)}.git`));
+  return freePath(
+    join(stateRoot, runtimeDirName().replace(/^\./, ''), `${pathName(home, historyEnv.userHome)}.git`),
+    home
+  );
 };
 
 /**
@@ -496,7 +503,7 @@ export const setupHistory = (
     }
 
     ensureIdentity(home, options.name);
-    reconcileHomeGitignore(home, join(FOLDERS.TEMPLATES, '.gitignore'), true);
+    reconcileHomeGitignore(home, join(FOLDERS.TEMPLATES, '.gitignore'), true, runtimeDirName());
     const exposed = exposedPrivatePaths(home);
     if (exposed.length > 0) {
       return result(

@@ -80,13 +80,38 @@ const windowsSyncedBy = (path: string, userHome: string): SyncedBy => {
   if (oneDriveRoots.some((root) => isInside(path, resolveExisting(root)))) {
     return 'OneDrive';
   }
+  // Google Drive for desktop streams to a drive letter's `My Drive` by default, or mirrors under the home.
+  if (/^[A-Za-z]:[\\/](My Drive|Shared drives)([\\/]|$)/.test(path)) {
+    return 'Google Drive';
+  }
+  return userFolderSyncedBy(path, userHome);
+};
+
+/** Default sync folders directly under a Windows user folder, whether reached natively or from WSL. */
+const userFolderSyncedBy = (path: string, userHome: string): SyncedBy => {
+  const folders: [string, string][] = [
+    ['iCloudDrive', 'iCloud Drive'],
+    ['Dropbox', 'Dropbox'],
+    ['My Drive', 'Google Drive']
+  ];
+  return folders.find(([folder]) => isInside(path, join(userHome, folder)))?.[1] ?? null;
+};
+
+/** WSL reaches the Windows user folder at `/mnt/<drive>/Users/<name>`; its OneDrive folders sync. */
+const linuxSyncedBy = (path: string, userHome: string): SyncedBy => {
+  const windowsUser = /^\/mnt\/[a-z]\/Users\/[^/]+/i.exec(path)?.[0];
+  if (windowsUser) {
+    const folder = relative(windowsUser, path).split(sep)[0] ?? '';
+    return folder.startsWith('OneDrive') ? 'OneDrive' : userFolderSyncedBy(path, windowsUser);
+  }
   return isInside(path, join(userHome, 'Dropbox')) ? 'Dropbox' : null;
 };
 
 /**
  * Detect whether a path sits in a cloud-synced folder. macOS checks the iCloud and File Provider
- * locations plus the file-provider xattr on each ancestor under the user's home; Windows asks
- * OneDrive where its folders are and knows Dropbox's default folder; Linux knows Dropbox's.
+ * locations plus the file-provider xattr on each ancestor; Windows asks OneDrive where its folders
+ * are and knows the iCloud, Dropbox and Google Drive defaults; Linux knows Dropbox's, and under WSL
+ * the Windows user folder's.
  */
 export const syncedBy = (path: string, userHome: string = homedir()): SyncedBy => {
   const real = resolveExisting(path);
@@ -97,5 +122,6 @@ export const syncedBy = (path: string, userHome: string = homedir()): SyncedBy =
   if (process.platform === 'win32') {
     return windowsSyncedBy(real, home);
   }
-  return isInside(real, join(home, 'Dropbox')) ? 'Dropbox' : null;
+  // Judged on the path as given too: a WSL mount can be missing from where this runs.
+  return linuxSyncedBy(real, home) ?? linuxSyncedBy(resolve(path), home);
 };

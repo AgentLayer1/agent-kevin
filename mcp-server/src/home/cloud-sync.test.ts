@@ -55,6 +55,17 @@ describe('syncedBy on Windows', () => {
     }
   };
 
+  test('knows the iCloud for Windows and Google Drive mirror folders', () => {
+    const icloud = join(userHome, 'iCloudDrive', 'Agents', 'Ada');
+    const google = join(userHome, 'My Drive', 'Agents', 'Ada');
+    mkdirSync(icloud, { recursive: true });
+    mkdirSync(google, { recursive: true });
+    asWindows(() => {
+      expect(syncedBy(icloud, userHome)).toBe('iCloud Drive');
+      expect(syncedBy(google, userHome)).toBe('Google Drive');
+    });
+  });
+
   test('finds a work OneDrive folder by name, and a moved one through its environment variable', () => {
     const work = join(userHome, 'OneDrive - Acme', 'Documents', 'Ada');
     const moved = join(userHome, 'elsewhere', 'SyncRoot', 'Ada');
@@ -66,5 +77,20 @@ describe('syncedBy on Windows', () => {
       expect(syncedBy(moved, userHome)).toBe('OneDrive');
       expect(syncedBy(local, userHome)).toBeNull();
     });
+  });
+});
+
+describe('syncedBy under WSL', () => {
+  test('a home in the Windows OneDrive folder, reached from WSL, counts as synced', () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    try {
+      expect(syncedBy('/mnt/c/Users/ada/OneDrive - Acme/Agents/Ada', userHome)).toBe('OneDrive');
+      expect(syncedBy('/mnt/c/Users/ada/Code/Ada', userHome)).toBeNull();
+    } finally {
+      if (platform) {
+        Object.defineProperty(process, 'platform', platform);
+      }
+    }
   });
 });
