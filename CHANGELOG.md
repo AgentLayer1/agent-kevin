@@ -43,6 +43,51 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.5.1] - 2026-09-26
+
+### Added
+- **Home history.** The `home_history` tool and the `history` skill give a home local version
+  history without the operator knowing git. A cloud-synced home (iCloud, Dropbox, OneDrive,
+  Google Drive) keeps it in a local folder behind a one-line `.git` link, since sync services
+  damage git internals. Setup stamps the history with its home and manages only what it stamped;
+  a history set up by hand is left alone. Init offers it, the session banner and the dashboard
+  show it, SessionStart puts back a `.git` link a synced folder deleted, and sync never makes the
+  first snapshot or commits into another home's history. Written for macOS, Windows and WSL; not
+  yet run on a real Windows machine.
+- **`/engineer simplify`** gets its own playbook, carrying the retired `simple-simplify` audit
+  whole, and **`/engineer help`** replies with a menu card of every playbook.
+
+### Changed
+- **Upgrade backfills init's baseline every run:** missing `.gitignore` rules, the
+  `permissions.allow` / `permissions.ask` entries and `plansDirectory`, via
+  `skills/init/scripts/home-baseline.ts`. An entry the operator put in `ask` or `deny` is never
+  granted.
+- **Worktree teardown.** `pr-review` removes the review worktree it created once the report is
+  saved (review mode only; never the operator's own branch), and the setup-worktree audit holds
+  back a worktree a session from the last day is working in. The `worktree-cleanup` playbook is
+  retired into setup-worktree.
+
+### Fixed
+- `writeFileAtomic` writes to a unique temp file, so two writers of one file no longer share a
+  temp path, and writes through a symlinked file instead of replacing the link; the home
+  `.gitignore` template ignores `.claude/settings.local.json*` so a crash-leftover temp copy stays
+  out.
+- Stuck home-history states from the pre-release review: a deleted history folder, a leftover
+  `index.lock` from a crashed first snapshot, a home moved to a new path, a folder that starts
+  syncing after setup, git older than 2.28, a renamed runtime folder, and a home that lost both
+  its link and its settings record (it reattaches instead of starting a second history).
+- The `history` skill runs setup on any home whose history is on, instead of stopping at status.
+  A history folder moved and stamped by hand read as `on` but never got its location or write
+  grants recorded, so sync could not commit into it. Setup now also regenerates the Codex wiring when it records the folder, so Codex can write the history too.
+- Tower and other tools that open the history folder directly show the home's files instead of
+  every file deleted: setup records the home as the history's working copy, and session start
+  repairs it after a rename or on an older setup.
+
+### Upgrade
+- `settings: mandatory` — upgrade's built-in baseline reconcile backfills `plansDirectory` and any missing init `permissions.allow` / `permissions.ask` entries, including the new `mcp__plugin_agent-kevin_kevin__home_history` and `Skill(agent-kevin:history)`. Applied automatically; every addition is named in the report.
+- `template/.gitignore: mandatory` — ignore `.claude/settings.local.json*`, so a temp or backup copy of the local settings stays out of history; any other missing rule (incl. `!.kevin/knowledge.json`) is backfilled too. The baseline reconcile applies it.
+- `manual: optional` — turn on version history for this home any time with `/agent-kevin:history`. Nothing is applied automatically; a history set up by hand is left as it is.
+
 ## [0.5.0] - 2026-09-23
 
 ### Changed
