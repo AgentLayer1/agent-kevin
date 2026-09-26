@@ -1,7 +1,7 @@
 ---
 name: history
 description: Turn on version history for the agent's memory, so any change to what it knows can be seen and undone. Stays on this computer, nothing is uploaded; a cloud-synced home (iCloud, Dropbox, OneDrive) keeps its history in a local folder instead. Fully managed, no git knowledge needed. Use when the operator says "turn on history", "keep a history of my agent", "can I undo changes to your memory", or the upgrade or init flow points here.
-allowed-tools: AskUserQuestion, Read, mcp__plugin_agent-kevin_kevin__home_history, mcp__plugin_agent-kevin_kevin__codex_setup
+allowed-tools: AskUserQuestion, Read, mcp__plugin_agent-kevin_kevin__home_history
 ---
 
 # History
@@ -56,8 +56,10 @@ name from `USER.md` (used only when this computer has never been told who's savi
 
 ## 4. Confirm
 
-When `codexWired` is true and `status.layout` is `"split"`, call `codex_setup` so Codex can write to
-the history folder too. It changes nothing when Codex is already set, so calling it again is harmless.
+Setup refreshes Codex's access to the history folder itself whenever it records the folder. When the
+result carries `codex` with `ok: false`, say Codex could not be given access to the history folder
+and relay its `message`; when `codex.report.hooks.changed` is true, say the hook entries need
+re-trusting in Codex's `/hooks`.
 
 Close with one line:
 

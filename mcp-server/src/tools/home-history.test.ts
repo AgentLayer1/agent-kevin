@@ -39,4 +39,22 @@ describe('home_history tool', () => {
     expect(await tools[0].handler({ action: 'status' })).toMatchObject({ restored: true, state: 'on' });
     expect(readFileSync(resolve(HOME, '.git'), 'utf-8')).toBe(`gitdir: ${GIT_DIR}\n`);
   });
+
+  test('setup regenerates the Codex wiring only on a Codex-wired home whose grants it just recorded', async () => {
+    const setup = () => tools[0].handler({ action: 'setup', name: 'Ada' }) as Promise<Record<string, unknown>>;
+    const withoutCodex = await setup();
+    expect(withoutCodex).toMatchObject({ settingsChanged: true, codexWired: false });
+    expect(withoutCodex.codex).toBeUndefined();
+
+    writeFileSync(resolve(HOME, '.claude', 'settings.local.json'), JSON.stringify({ env: { AGENT_HOME_GIT_DIR: GIT_DIR } }));
+    mkdirSync(resolve(HOME, '.codex'), { recursive: true });
+    writeFileSync(resolve(HOME, '.codex', 'config.toml'), '');
+    const regranted = await setup();
+    expect(regranted).toMatchObject({ settingsChanged: true, codexWired: true, codex: { ok: true } });
+    expect(readFileSync(resolve(HOME, '.codex', 'config.toml'), 'utf-8')).toContain(GIT_DIR);
+
+    const unchanged = await setup();
+    expect(unchanged).toMatchObject({ settingsChanged: false, codexWired: true });
+    expect(unchanged.codex).toBeUndefined();
+  });
 });
