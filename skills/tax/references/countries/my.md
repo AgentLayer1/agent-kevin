@@ -64,9 +64,9 @@ Copy an entry into the entity profile's `## Obligations` yaml block (never its f
 - id: cp204-instalment
   title: CP204 instalment
   period: { months: 1, anchor: 1 }
-  due: { from: end, months: 1, day: 15 }
+  due: { from: end, months: 0, day: 15 }
   lead: 10
-  note: Monthly instalment of the estimate, due the 15th. Set from/until to the instalment months on the LHDN schedule; skip when the estimate is RM0.
+  note: Monthly instalment of the estimate, due the 15th of each instalment month; here each period is the payment month itself. Set from/until to the first and last instalment months on the LHDN schedule, which start in the 2nd month of the basis period (a January–December year pays 15 Feb through 15 Jan, so from "2026-02", until "2027-01"; a new company starts in its 6th month). Skip when the estimate is RM0.
   source: ITA 1967 s107C(12); hasil.gov.my Anggaran Cukai
 - id: form-c
   title: Form C (company tax return)
@@ -127,7 +127,7 @@ Copy an entry into the entity profile's `## Obligations` yaml block (never its f
   title: SSM annual return
   period: { months: 12, anchor: 4 }
   due: { from: end, months: 1, day: 10 }
-  note: Within 30 days of the incorporation anniversary. Set anchor to the incorporation month and day to the date 30 days after the anniversary (incorporated 10 Apr, due 10 May). Company secretary files.
+  note: Within 30 days of the incorporation anniversary. Work out the anniversary plus 30 days, then set anchor to the incorporation month, months to how many months later that date falls (0, 1 or 2), and day to its day of the month (incorporated 10 Apr, due 10 May, so anchor 4, months 1, day 10; incorporated 1 May, due 31 May, so anchor 5, months 0, day 31). When the date shifts with leap years (late January), use the earlier one. Company secretary files.
   source: Companies Act 2016 s68; ssm.com.my Annual Submission
 - id: fs-circulate
   title: Circulate audited financial statements

@@ -326,6 +326,21 @@ describe("country catalogs", () => {
       expect(occurrences(entity, "2027-01-01", "2027-12-31").length).toBeGreaterThan(0);
     }
   );
+
+  const catalogEntry = (id: string): string => {
+    const entries = blocks.flatMap((block) => (Bun.YAML.parse(block.yaml) as Array<Record<string, unknown>>));
+    const found = entries.find((entry) => entry.id === id);
+    return `- ${JSON.stringify(found)}\n`;
+  };
+
+  test("CP204 instalments bounded as the note says fall on the LHDN schedule, 15 Feb through 15 Jan", () => {
+    const entry = catalogEntry("cp204-instalment").replace("}\n", ', "from": "2026-02", "until": "2027-01" }\n');
+    const entity = parseEntity("catalog", `---\nname: Catalog\nfye: 12-31\n---\n\n## Obligations\n\n\`\`\`yaml\n${entry}\`\`\`\n`);
+    const dues = occurrences(entity, "2026-01-01", "2027-12-31").map((item) => item.due);
+    expect(dues).toHaveLength(12);
+    expect(dues[0]).toBe("2026-02-15");
+    expect(dues.at(-1)).toBe("2027-01-15");
+  });
 });
 
 test("addDays crosses month and year boundaries", () => {
