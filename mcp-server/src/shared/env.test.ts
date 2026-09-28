@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
 import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
+import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
 
 /** Scaffold `dir/` as a marked agent data dir under `home` (what init produces). */
@@ -282,7 +283,7 @@ describe('readEnvFile', () => {
   });
 });
 
-describe('loadSecretsEnv', () => {
+describe.skipIf(secretsReadBlocked())('loadSecretsEnv', () => {
   /** A home whose secrets store holds `key=value`. */
   const homeWithSecret = (key: string, value: string): string => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-secrets-'));
