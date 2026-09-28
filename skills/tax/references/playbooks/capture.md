@@ -13,7 +13,7 @@
    | `salary` | employment income; the `tax` column holds the PCB withheld, which counts as paid. Once any salary is recorded, every month of the year up to the latest payslip needs a row (the engine leaves the year unpriced and names the missing months otherwise), so a month without salary gets a `0` row |
    | `tax-payment` | paid toward the YA named in `reference` (`YA 2026 instalment 3`); a payment without a YA is not counted |
    | `zakat` | an individual's rebate or a company's capped deduction |
-   | `relief` | spending that counts toward a personal relief; `category` holds the relief's id from the country file's `reliefs:` list (`lifestyle`, `medical`, `prs`), and the engine caps the total at the relief's limit |
+   | `relief` | spending that counts toward a personal relief; `category` holds the relief's id from the country file's `reliefs:` list (`lifestyle`, `medical`, `prs`), and the engine caps the total at the relief's limit. Use the most specific id: a dental bill is `medical-dental`, not `medical`, because its sublimit is far below the parent's |
    | `opening` | the accountant's profit to date, as of the row's date (from management accounts) |
    | `statement` | kept for the close, not counted; `category` holds the account id from the profile's `## Accounts`, dated in the month the statement covers, so the books show that month's statement as in |
 

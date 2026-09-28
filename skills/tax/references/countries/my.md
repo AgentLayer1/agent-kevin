@@ -195,7 +195,7 @@ Withholding tax paid late costs 10% of the unpaid tax, and the expense is disall
 
 ## Rates
 
-Read by the tax engine to compute what is owed at any moment. Rates are percentages; each band taxes the slice of chargeable income up to `upto` (the last band has none). Update this block when a budget changes them, and the engine follows.
+Read by the tax engine to compute what is owed at any moment. Rates are percentages; each band taxes the slice of chargeable income up to `upto` (the last band has none). A relief with `within: <id>` is a sublimit: spending recorded under it is capped at its own `cap` and also counts toward the parent relief's cap. Update this block when a budget changes them, and the engine follows.
 
 ```yaml
 ya: 2025-2026
@@ -228,9 +228,15 @@ individual:
     - { id: child-under-18, title: Each unmarried child under 18, cap: 2000, basis: per-child }
     - { id: lifestyle, title: "Lifestyle: books, devices, internet, courses", cap: 2500 }
     - { id: sports, title: "Sports: equipment, facilities, gym, training", cap: 1000 }
-    - { id: medical, title: "Medical, dental, vaccination (self, spouse, child)", cap: 10000 }
+    - { id: medical, title: "Medical: serious diseases, fertility (self, spouse, child)", cap: 10000 }
+    - { id: medical-dental, title: Dental examination and treatment (within medical), cap: 1000, within: medical }
+    - { id: medical-vaccination, title: Vaccination (within medical), cap: 1000, within: medical }
+    - { id: medical-checkup, title: "Check-ups, mental health, self-monitoring, detection tests (within medical)", cap: 1000, within: medical }
+    - { id: medical-learning-disability, title: Child learning disability assessment and intervention (within medical), cap: 6000, within: medical }
     - { id: parents-medical, title: Parents' and grandparents' medical and care, cap: 8000 }
+    - { id: parents-checkup, title: Parents' complete medical examination (within parents' medical), cap: 1000, within: parents-medical }
     - { id: education-fees, title: Education fees (self), cap: 7000 }
+    - { id: education-upskilling, title: Upskilling and self-enhancement courses (within education fees), cap: 2000, within: education-fees }
     - { id: epf, title: EPF contributions, cap: 4000 }
     - { id: life-insurance, title: Life insurance or family takaful, cap: 3000 }
     - { id: prs, title: Private Retirement Scheme or deferred annuity, cap: 3000 }

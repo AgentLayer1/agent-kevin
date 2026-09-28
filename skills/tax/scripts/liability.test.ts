@@ -243,6 +243,24 @@ describe("position: personal view", () => {
     expect(result.personal?.taxOnUnwithheld).toBeCloseTo(withBusiness - withoutBusiness, 2);
   });
 
+  test("a sublimit caps its own spending and counts toward its parent, without counting twice", () => {
+    const dentalOnly = position(person, [...salaryYear(2000), row("2026-03-01", "relief", 10000, { category: "medical-dental" })], rates, "2026-06-30", null).personal;
+    const lineOf = (view: typeof dentalOnly, id: string) => view?.reliefs.find((line) => line.id === id);
+    expect(lineOf(dentalOnly, "medical-dental")?.claimed).toBe(1000);
+    expect(lineOf(dentalOnly, "medical")?.claimed).toBe(1000);
+    expect(dentalOnly?.reliefTotal).toBe(9000 + 1000);
+    const both = position(
+      person,
+      [...salaryYear(2000), row("2026-03-01", "relief", 9500, { category: "medical" }), row("2026-03-02", "relief", 1000, { category: "medical-dental" })],
+      rates,
+      "2026-06-30",
+      null
+    ).personal;
+    expect(lineOf(both, "medical")?.claimed).toBe(10000);
+    expect(both?.reliefTotal).toBe(9000 + 10000);
+    expect(lineOf(both, "medical-vaccination")?.worth).toBe(0);
+  });
+
   test("a relief row naming no known relief is left out and flagged", () => {
     const rows = [...salaryYear(2000), row("2026-03-01", "relief", 800, { category: "lifestlye" })];
     const result = position(person, rows, rates, "2026-06-30", null);

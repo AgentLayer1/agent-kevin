@@ -22,6 +22,7 @@ export interface ReliefCap {
   title: string;
   cap: number;
   basis: ReliefBasis;
+  within: string | null;
 }
 
 export interface Rates {
@@ -61,6 +62,7 @@ export type ReliefStatus = (typeof ReliefStatus)[keyof typeof ReliefStatus];
 export interface ReliefLine {
   id: string;
   title: string;
+  within: string | null;
   cap: number;
   claimed: number;
   status: ReliefStatus;
@@ -146,13 +148,19 @@ const toReliefs = (value: unknown): ReliefCap[] => {
   if (!Array.isArray(value) || !value.some((item) => isRecord(item) && item.id === "self")) {
     throw new Error("Rates: individual.reliefs needs a list that includes the self relief");
   }
-  return value.map((item, i) => {
+  const reliefs = value.map((item, i): ReliefCap => {
     if (!isRecord(item) || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.cap !== "number") {
       throw new Error(`Rates: individual.reliefs entry ${i + 1} needs id, title and a numeric cap`);
     }
     const basis = typeof item.basis === "string" && BASES.has(item.basis) ? (item.basis as ReliefBasis) : ReliefBasis.Claimed;
-    return { id: item.id, title: item.title, cap: item.cap, basis };
+    return { id: item.id, title: item.title, cap: item.cap, basis, within: typeof item.within === "string" ? item.within : null };
   });
+  const ids = new Set(reliefs.map((relief) => relief.id));
+  const orphan = reliefs.find((relief) => relief.within !== null && !ids.has(relief.within));
+  if (orphan !== undefined) {
+    throw new Error(`Rates: individual.reliefs entry ${orphan.id} is within ${orphan.within}, which is not a relief`);
+  }
+  return reliefs;
 };
 
 export const parseRates = (markdown: string): Rates => {
@@ -332,12 +340,19 @@ const individualTax = (rates: Rates, resident: boolean | null, total: number, re
 
 /**
  * Each relief with what's claimed against its cap, and what filling the rest would save at the
- * projected income: fixed reliefs from the profile, claimed ones from `relief` ledger rows.
+ * projected income. A sublimit (`within` a parent) is capped on its own and also counts against
+ * its parent's cap, so dental spending can never use the whole medical allowance.
  */
 const reliefLines = (entity: Entity, rates: Rates, rows: LedgerRow[], projectedIncome: number, zakat: number): ReliefLine[] => {
-  const claimedOf = (id: string): number =>
+  const reliefs = rates.individual.reliefs;
+  const spentOn = (id: string): number =>
     sum(rows.filter((row) => row.type === LedgerType.Relief && row.category === id).map((row) => myr(row) ?? 0));
-  const base = rates.individual.reliefs.map((relief): Omit<ReliefLine, "worth"> => {
+  const statusOf = (claimed: number, cap: number): ReliefStatus =>
+    claimed >= cap ? ReliefStatus.Full : claimed > 0 ? ReliefStatus.Partial : ReliefStatus.Open;
+  const subClaimed = new Map(
+    reliefs.filter((relief) => relief.within !== null).map((relief) => [relief.id, Math.min(relief.cap, spentOn(relief.id))])
+  );
+  const base = reliefs.map((relief): Omit<ReliefLine, "worth"> => {
     if (relief.basis === ReliefBasis.Automatic) {
       return { ...relief, claimed: relief.cap, status: ReliefStatus.Full };
     }
@@ -351,15 +366,24 @@ const reliefLines = (entity: Entity, rates: Rates, rows: LedgerRow[], projectedI
         ? { ...relief, claimed: 0, status: ReliefStatus.Unconfirmed }
         : { ...relief, cap: relief.cap * entity.childrenUnder18, claimed: relief.cap * entity.childrenUnder18, status: ReliefStatus.Full };
     }
-    const claimed = Math.min(relief.cap, claimedOf(relief.id));
-    const status = claimed >= relief.cap ? ReliefStatus.Full : claimed > 0 ? ReliefStatus.Partial : ReliefStatus.Open;
-    return { ...relief, claimed, status };
+    if (relief.within !== null) {
+      const claimed = subClaimed.get(relief.id) ?? 0;
+      return { ...relief, claimed, status: statusOf(claimed, relief.cap) };
+    }
+    const fromSubs = sum(reliefs.filter((child) => child.within === relief.id).map((child) => subClaimed.get(child.id) ?? 0));
+    const claimed = Math.min(relief.cap, spentOn(relief.id) + fromSubs);
+    return { ...relief, claimed, status: statusOf(claimed, relief.cap) };
   });
-  const total = sum(base.map((line) => line.claimed));
+  const total = sum(base.filter((line) => line.within === null).map((line) => line.claimed));
+  const headroom = (line: Omit<ReliefLine, "worth">): number => {
+    const own = line.status === ReliefStatus.Unconfirmed ? line.cap : line.cap - line.claimed;
+    const parent = base.find((candidate) => candidate.id === line.within);
+    return parent === undefined ? own : Math.min(own, parent.cap - parent.claimed);
+  };
   const taxAt = (reliefs: number): number => individualTax(rates, entity.resident, projectedIncome, reliefs, zakat);
   return base.map((line) => ({
     ...line,
-    worth: line.status === ReliefStatus.Full ? 0 : Math.max(0, taxAt(total) - taxAt(total + (line.status === ReliefStatus.Unconfirmed ? line.cap : line.cap - line.claimed))),
+    worth: line.status === ReliefStatus.Full ? 0 : Math.max(0, taxAt(total) - taxAt(total + Math.max(0, headroom(line)))),
   }));
 };
 
@@ -451,7 +475,7 @@ export const position = (
   const pcbProjected = extend(sum(coveredSalary.map((row) => row.tax)));
   const projectedIncome = Math.max(0, businessProjected) + employmentProjected;
   const lines = entity.kind === EntityKind.Individual ? reliefLines(entity, rates, inPeriod, projectedIncome, zakat) : [];
-  const reliefTotal = sum(lines.map((line) => line.claimed));
+  const reliefTotal = sum(lines.filter((line) => line.within === null).map((line) => line.claimed));
   const taxSoFar = known ? taxOn(entity, rates, { business, employment, zakat, reliefs: reliefTotal }) : 0;
   const projectedTax = known
     ? taxOn(entity, rates, { business: businessProjected, employment: employmentProjected, zakat, reliefs: reliefTotal })
