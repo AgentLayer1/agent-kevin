@@ -193,6 +193,39 @@ Withholding tax paid late costs 10% of the unpaid tax, and the expense is disall
 - **No estimate filed** when one was required: the tax for the YA is increased by 10% (s107C(10A)), and the late filing is an offence (fine RM200–20,000).
 - **Pre-commencement costs** are not deductible (Public Ruling 11/2013), which is one reason the commencement date matters.
 
+## Rates
+
+Read by the tax engine to compute what is owed at any moment. Rates are percentages; each band taxes the slice of chargeable income up to `upto` (the last band has none). Update this block when a budget changes them, and the engine follows.
+
+```yaml
+ya: 2025-2026
+currency: MYR
+company:
+  flat: 24
+  sme:
+    - { upto: 150000, rate: 15 }
+    - { upto: 600000, rate: 17 }
+    - { rate: 24 }
+  zakat_cap: 2.5
+  source: hasil.gov.my navigasi-hasil-2026 (company rates); SME rates need paid-up capital up to RM2.5M, gross business income up to RM50M, and no more than 20% foreign ownership from YA 2024 (ITA 1967 Sch. 1)
+individual:
+  resident:
+    - { upto: 5000, rate: 0 }
+    - { upto: 20000, rate: 1 }
+    - { upto: 35000, rate: 3 }
+    - { upto: 50000, rate: 6 }
+    - { upto: 70000, rate: 11 }
+    - { upto: 100000, rate: 19 }
+    - { upto: 400000, rate: 25 }
+    - { upto: 600000, rate: 26 }
+    - { upto: 2000000, rate: 28 }
+    - { rate: 30 }
+  non_resident: 30
+  self_relief: 9000
+  rebate: { upto: 35000, amount: 400 }
+  source: hasil.gov.my navigasi-hasil-2026 (resident schedule YA 2025, reliefs, RM400 rebate); PwC Malaysian Tax Booklet (YA 2025/2026 schedule and RM9,000 self relief)
+```
+
 ## Annual cycle (company, FYE month M)
 
 1. Month M closed, final management accounts to the accountant.

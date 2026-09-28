@@ -10,16 +10,21 @@ import {
   parseEntity,
   pendingCloses,
   plan,
-  renderDashboard,
   stateOf,
   TaskState,
 } from "./calendar";
+import { renderDashboard } from "./dashboard";
 
 const acme: Entity = {
   slug: "acme",
   name: "Acme Sdn. Bhd.",
+  kind: "company",
+  country: "my",
   fye: "12-31",
   close: "monthly",
+  sme: false,
+  resident: null,
+  reliefs: null,
   obligations: [
     { id: "cp204", title: "CP204 estimate", period: { months: 12, anchor: "fye" }, due: { from: "start", days: -31 } },
     { id: "cp204a-11th", title: "CP204A 11th month", period: { months: 12, anchor: "fye" }, due: { from: "start", months: 10, day: "last" } },
@@ -206,18 +211,36 @@ describe("renderDashboard", () => {
     write(dir, "tasks/ta-010-a.md", task("ta-010", "open", ["tax", "entity:acme"]).replace("due:\n", "due: 2026-10-20\n"));
     write(dir, "tasks/ta-011-b.md", task("ta-011", "done", ["tax"]).replace("due:\n", "due: 2026-10-21\n"));
     const html = renderDashboard(dir, "2026-10-08");
-    const soon = html.slice(html.indexOf("Next 30 days"), html.indexOf("<h2>Calendar"));
-    expect(soon).toContain("2026-10-20");
-    expect(soon).not.toContain("2026-10-21");
+    const soon = html.slice(html.indexOf("Next 60 days"), html.indexOf("Twelve months"));
+    expect(soon).toContain("20 Oct");
+    expect(soon).not.toContain("21 Oct");
   });
 
-  test("shows the estimate on file against the projection", () => {
+  test("prices the year from the ledger and shows the estimate on file against it", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile.replace("kind: company", "kind: company\ncountry: my"));
+    write(dir, "estimates/acme/2026.md", "---\nya: 2026\nfiled: 0\nupdated: 2026-11-20\n---\n");
+    write(dir, "ledger/acme/2026.csv", "date,type,counterparty,country,currency,amount,tax,reference,category,file,flags,notes\n2026-10-15,opening,Acme accountant,MY,MYR,100000,0,management accounts to Oct,,,,\n");
+    const html = renderDashboard(dir, "2026-11-21");
+    expect(html).toContain("RM 24,000");
+    expect(html).toContain("Penalty if left as is");
+  });
+
+  test("an entity with no books this year shows a dash, never RM 0", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile);
-    write(dir, "estimates/acme/2026.md", "---\nya: 2026\nfiled: 0\nprojected: 28460.4\nexposure: 1992.23\nupdated: 2026-11-20\n---\n");
-    const html = renderDashboard(dir, "2026-11-21");
-    expect(html).toContain("RM28,460.40");
-    expect(html).toContain("RM2,450.78");
+    const html = renderDashboard(dir, "2026-10-08");
+    expect(html).toContain('<div class="hero-figure">—</div>');
+    expect(html).not.toContain('<div class="hero-figure">RM 0</div>');
+  });
+
+  test("switches tabs with CSS alone: one radio and one panel per entity plus the overview", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile);
+    const html = renderDashboard(dir, "2026-10-08");
+    expect(html).toContain('id="tab-overview" checked');
+    expect(html).toContain('id="panel-acme"');
+    expect(html).toContain("#tab-acme:checked~.panels #panel-acme{display:block}");
   });
 });
 
@@ -230,7 +253,8 @@ describe("country catalogs", () => {
         file,
         yaml: match[1],
       }))
-    );
+    )
+    .filter((block) => Array.isArray(Bun.YAML.parse(block.yaml)));
 
   test("ship at least one obligation block", () => {
     expect(blocks.length).toBeGreaterThan(0);

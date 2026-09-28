@@ -9,6 +9,12 @@ Your companies and your personal return, kept ahead of their deadlines. I prepar
 | "Set up my taxes", "add my new company" | **setup** | A profile per entity and its obligations, from your country's rules |
 | "What's due?", `/tax calendar` | **calendar** | Dated tasks beside all your other deadlines, and a year-at-a-glance dashboard |
 
+### 🧮 What you owe
+
+| Ask | Playbook | You get |
+|---|---|---|
+| "How much tax do I owe right now?" | **position** | Tax owed now per entity and in total, the monthly set-aside, and how sure the number is |
+
 ### 🧾 Books
 
 | Ask | Playbook | You get |

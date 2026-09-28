@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
@@ -10,8 +10,9 @@ import { parseFrontmatter } from "../../../mcp-server/src/tasks/schema";
  * expands each obligation into dated occurrences, matches them against existing tasks by their
  * `obl:` label, and renders <projects>/tax/dashboard.html. Never creates tasks itself.
  *
- * Usage: bun calendar.ts plan [--today YYYY-MM-DD]    prints { missing, existing, pendingCloses }
- *        bun calendar.ts render [--today YYYY-MM-DD]  writes dashboard.html, prints its path
+ * Usage: bun calendar.ts plan [--today YYYY-MM-DD]       prints { missing, existing, pendingCloses }
+ *        bun calendar.ts liability [--today YYYY-MM-DD]  prints each entity's tax position
+ *        bun calendar.ts render [--today YYYY-MM-DD]     writes dashboard.html, prints its path
  */
 
 export const DueFrom = { Start: "start", End: "end" } as const;
@@ -38,11 +39,19 @@ export interface Obligation {
   source?: string;
 }
 
+export const EntityKind = { Company: "company", Individual: "individual" } as const;
+export type EntityKind = (typeof EntityKind)[keyof typeof EntityKind];
+
 export interface Entity {
   slug: string;
   name: string;
+  kind: EntityKind;
+  country: string;
   fye: string;
   close: "monthly" | "none";
+  sme: boolean;
+  resident: boolean | null;
+  reliefs: number | null;
   obligations: Obligation[];
 }
 
@@ -208,8 +217,13 @@ export const parseEntity = (slug: string, raw: string): Entity => {
   return {
     slug,
     name: typeof data.name === "string" ? data.name : slug,
+    kind: data.kind === EntityKind.Individual ? EntityKind.Individual : EntityKind.Company,
+    country: typeof data.country === "string" ? data.country : "my",
     fye: typeof data.fye === "string" ? data.fye : "12-31",
     close: data.close === "monthly" ? "monthly" : "none",
+    sme: data.sme === true,
+    resident: typeof data.resident === "boolean" ? data.resident : null,
+    reliefs: typeof data.reliefs === "number" ? data.reliefs : null,
     obligations: obligations.filter(isObligation),
   };
 };
@@ -336,203 +350,6 @@ export const stateOf = (occurrence: Occurrence, existing: ExistingTask[], today:
   return occurrence.due < today ? TaskState.Overdue : TaskState.Open;
 };
 
-interface EstimateRecord {
-  entity: string;
-  ya: string;
-  filed: number;
-  projected: number;
-  exposure: number;
-  updated: string;
-}
-
-/**
- * The newest estimate record per entity: estimates/<entity>/<YA>.md frontmatter, written by the
- * estimate playbook.
- */
-export const loadEstimates = (taxDir: string, entities: Entity[]): EstimateRecord[] =>
-  entities.flatMap((entity) => {
-    const dir = join(taxDir, "estimates", entity.slug);
-    if (!existsSync(dir)) {
-      return [];
-    }
-    const latest = readdirSync(dir)
-      .filter((file) => file.endsWith(".md"))
-      .sort()
-      .at(-1);
-    if (latest === undefined) {
-      return [];
-    }
-    const block = readFileSync(join(dir, latest), "utf8").match(FRONTMATTER_RE)?.[1];
-    const data: unknown = block === undefined ? null : Bun.YAML.parse(block);
-    if (!isRecord(data)) {
-      return [];
-    }
-    return [
-      {
-        entity: entity.name,
-        ya: String(data.ya ?? basename(latest, ".md")),
-        filed: Number(data.filed ?? 0),
-        projected: Number(data.projected ?? 0),
-        exposure: Number(data.exposure ?? 0),
-        updated: String(data.updated ?? ""),
-      },
-    ];
-  });
-
-const lastClosed = (taxDir: string, entity: Entity): string | null => {
-  const dir = join(taxDir, "closes", entity.slug);
-  if (!existsSync(dir)) {
-    return null;
-  }
-  return (
-    readdirSync(dir)
-      .filter((file) => /^\d{4}-\d{2}\.md$/.test(file))
-      .sort()
-      .map((file) => basename(file, ".md"))
-      .at(-1) ?? null
-  );
-};
-
-const escapeHtml = (text: string): string =>
-  text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-
-const ringgit = (amount: number): string =>
-  `RM${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-const monthLabel = (key: string): string => {
-  const [year, month] = key.split("-").map(Number);
-  return `${MONTH_NAMES[month - 1]} ${year}`;
-};
-
-const chip = (occurrence: Occurrence, state: TaskState): string =>
-  `<li class="chip ${state}" title="${escapeHtml(occurrence.note ?? occurrence.title)}"><span class="day">${Number(
-    occurrence.due.slice(8)
-  )}</span> ${escapeHtml(occurrence.title)}</li>`;
-
-/**
- * The whole dashboard page. Pure: the same inputs and `today` give byte-identical output, so the
- * file only changes when an obligation, task, close or estimate does.
- */
-export const renderDashboard = (taxDir: string, today: string): string => {
-  const entities = loadEntities(taxDir);
-  const existing = loadExisting(taxDir);
-  const [year, month] = today.split("-").map(Number);
-  const months = Array.from({ length: 12 }, (_, i) => monthKey(monthIndex(year, month) + i));
-  const windowEnd = dateOf(monthIndex(year, month) + 11, "last");
-  const oneOffs = loadOneOffs(taxDir, entities);
-  const all = [
-    ...entities.flatMap((entity) => occurrences(entity, `${months[0]}-01`, windowEnd)),
-    ...oneOffs.filter((item) => item.due >= `${months[0]}-01` && item.due <= windowEnd),
-  ].sort((a, b) => a.due.localeCompare(b.due) || a.label.localeCompare(b.label));
-  const overdue = [
-    ...entities.flatMap((entity) => occurrences(entity, addDays(today, -366), addDays(today, -1))),
-    ...oneOffs.filter((item) => item.due < today),
-  ].filter((occurrence) => stateOf(occurrence, existing, today) === TaskState.Overdue);
-  const soon = [...overdue, ...all.filter((occurrence) => occurrence.due >= today && occurrence.due <= addDays(today, 30))];
-
-  const grid = entities
-    .map(
-      (entity) =>
-        `<tr><th scope="row">${escapeHtml(entity.name)}</th>${months
-          .map((key) => {
-            const cell = all.filter((item) => item.entity === entity.slug && item.due.startsWith(key));
-            return `<td>${cell.length === 0 ? "" : `<ul>${cell.map((item) => chip(item, stateOf(item, existing, today))).join("")}</ul>`}</td>`;
-          })
-          .join("")}</tr>`
-    )
-    .join("\n");
-
-  const soonRows =
-    soon.length === 0
-      ? `<p class="empty">Nothing due in the next 30 days.</p>`
-      : `<table class="list"><thead><tr><th>Due</th><th>Entity</th><th>What</th><th>State</th></tr></thead><tbody>${soon
-          .map((item) => {
-            const state = stateOf(item, existing, today);
-            return `<tr><td>${item.due}</td><td>${escapeHtml(item.entityName)}</td><td>${escapeHtml(item.title)}</td><td><span class="tag ${state}">${state}</span></td></tr>`;
-          })
-          .join("")}</tbody></table>`;
-
-  const estimates = loadEstimates(taxDir, entities);
-  const estimateSection =
-    estimates.length === 0
-      ? ""
-      : `<section><h2>Tax estimates</h2><table class="list"><thead><tr><th>Entity</th><th>YA</th><th>On file</th><th>Projected</th><th>Penalty exposure</th><th>Updated</th></tr></thead><tbody>${estimates
-          .map(
-            (item) =>
-              `<tr><td>${escapeHtml(item.entity)}</td><td>${escapeHtml(item.ya)}</td><td>${ringgit(item.filed)}</td><td>${ringgit(item.projected)}</td><td class="${item.exposure > 0 ? "warn" : ""}">${ringgit(item.exposure)}</td><td>${escapeHtml(item.updated)}</td></tr>`
-          )
-          .join("")}</tbody></table></section>`;
-
-  const closeRows = entities
-    .filter((entity) => entity.close === "monthly")
-    .map((entity) => {
-      const closed = lastClosed(taxDir, entity);
-      const due = previousMonth(today);
-      const current = closed !== null && closed >= due;
-      return `<tr><td>${escapeHtml(entity.name)}</td><td>${closed === null ? "never" : monthLabel(closed)}</td><td><span class="tag ${current ? "done" : "overdue"}">${current ? "current" : `${monthLabel(due)} open`}</span></td></tr>`;
-    })
-    .join("");
-  const closeSection =
-    closeRows === ""
-      ? ""
-      : `<section><h2>Monthly close</h2><table class="list"><thead><tr><th>Entity</th><th>Last closed</th><th>Status</th></tr></thead><tbody>${closeRows}</tbody></table></section>`;
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tax &amp; Books</title>
-<style>
-:root { color-scheme: light dark; --bg: #fbfaf7; --fg: #1d1d1f; --muted: #6e6e73; --line: #e3e1dc; --card: #ffffff;
-  --done: #2f7d4f; --open: #2b62c2; --overdue: #c2412b; --upcoming: #8a8a8e; --skipped: #a0a0a4; }
-@media (prefers-color-scheme: dark) { :root { --bg: #151517; --fg: #ececee; --muted: #9a9aa0; --line: #2c2c30; --card: #1d1d20;
-  --done: #5cc38a; --open: #7aa7ff; --overdue: #ff7a63; --upcoming: #8e8e94; --skipped: #6a6a70; } }
-* { box-sizing: border-box; }
-body { margin: 0; padding: 32px; background: var(--bg); color: var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 10px; }
-.sub { color: var(--muted); margin: 0 0 20px; }
-section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; overflow-x: auto; }
-section h2 { margin-top: 0; }
-table { border-collapse: collapse; width: 100%; }
-.grid th, .grid td { border: 1px solid var(--line); vertical-align: top; padding: 5px; min-width: 84px; }
-.grid thead th { font-weight: 600; color: var(--muted); text-align: left; }
-.grid tbody th { text-align: left; white-space: nowrap; }
-.grid ul { list-style: none; margin: 0; padding: 0; }
-.chip { font-size: 11.5px; margin: 0 0 4px; padding: 2px 6px; border-left: 3px solid var(--upcoming); border-radius: 4px; background: color-mix(in srgb, var(--upcoming) 10%, transparent); }
-.chip .day { font-weight: 600; }
-.chip.done { border-color: var(--done); background: color-mix(in srgb, var(--done) 12%, transparent); text-decoration: line-through; }
-.chip.open { border-color: var(--open); background: color-mix(in srgb, var(--open) 12%, transparent); }
-.chip.overdue { border-color: var(--overdue); background: color-mix(in srgb, var(--overdue) 14%, transparent); }
-.chip.skipped { border-color: var(--skipped); opacity: 0.6; }
-.list th, .list td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-.list thead th { color: var(--muted); font-weight: 600; }
-.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
-.tag.done { color: var(--done); } .tag.open { color: var(--open); } .tag.overdue { color: var(--overdue); }
-.tag.upcoming { color: var(--upcoming); } .tag.skipped { color: var(--skipped); }
-.warn { color: var(--overdue); font-weight: 600; }
-.empty { color: var(--muted); margin: 0; }
-.legend { color: var(--muted); font-size: 12px; margin-top: 8px; }
-</style>
-</head>
-<body>
-<h1>Tax &amp; Books</h1>
-<p class="sub">As of ${today} · generated by the tax skill, don't edit by hand</p>
-<section><h2>Next 30 days</h2>${soonRows}</section>
-<section><h2>Calendar</h2><table class="grid"><thead><tr><th></th>${months
-    .map((key) => `<th>${monthLabel(key)}</th>`)
-    .join("")}</tr></thead><tbody>
-${grid}
-</tbody></table><p class="legend">Blue: task open · green: done · red: overdue · grey: not yet a task (created ${DEFAULT_LEAD_DAYS} days ahead by default)</p></section>
-${estimateSection}
-${closeSection}
-</body>
-</html>
-`;
-};
-
 const argValue = (args: string[], flag: string): string | undefined => {
   const index = args.indexOf(flag);
   return index === -1 ? undefined : args[index + 1];
@@ -547,14 +364,18 @@ if (import.meta.main) {
     process.exit(1);
   }
   if (command === "render") {
-    mkdirSync(taxDir, { recursive: true });
+    const { renderDashboard } = await import("./dashboard");
     const path = join(taxDir, "dashboard.html");
     writeFileSync(path, renderDashboard(taxDir, today));
     console.log(path);
+  } else if (command === "liability") {
+    const { positions } = await import("./liability");
+    const countriesDir = join(import.meta.dir, "..", "references", "countries");
+    console.log(JSON.stringify(positions(taxDir, countriesDir, loadEntities(taxDir), today), null, 2));
   } else if (command === "plan") {
     console.log(JSON.stringify(plan(taxDir, today), null, 2));
   } else {
-    console.error(`unknown command: ${command} (use plan or render)`);
+    console.error(`unknown command: ${command} (use plan, liability or render)`);
     process.exit(1);
   }
 }

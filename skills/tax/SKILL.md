@@ -1,9 +1,9 @@
 ---
 name: tax
 description: >
-  Bookkeeping and tax compliance for the operator's companies and personal return: deadline
-  calendar as dated tasks, receipt capture, monthly close, tax-estimate planning, the accountant's
-  requests, and optimizations to raise with them. Triggers on "tax", "receipt", "bookkeeping",
+  Bookkeeping and tax compliance for the operator's companies and personal return: what tax is
+  owed right now, deadlines as dated tasks, receipt capture, monthly close, estimate planning, the
+  accountant's requests. Triggers on "tax", "how much tax do I owe", "receipt", "bookkeeping",
   "close the month", "what's due", "my accountant asked".
 allowed-tools:
   - AskUserQuestion
@@ -40,6 +40,7 @@ Keep every entity the operator files for (companies and their own return) ahead 
 |---|---|
 | First run, a new entity, or a changed fact (FYE, payroll, SST) | [setup](references/playbooks/setup.md) |
 | "What's due?", refresh deadlines, `/tax calendar` | [calendar](references/playbooks/calendar.md) |
+| "How much tax do I owe?", "how much should I set aside?" | [position](references/playbooks/position.md) |
 | A receipt, invoice, or statement to record, `/tax capture` | [capture](references/playbooks/capture.md) |
 | Close last month for the accountant, `/tax close` | [close](references/playbooks/close.md) |
 | How much tax to estimate or revise, and the cash to set aside | [estimate](references/playbooks/estimate.md) |
@@ -50,7 +51,7 @@ Keep every entity the operator files for (companies and their own return) ahead 
 ## Every time
 
 - **Deadlines are tasks.** Every dated obligation lives as a task in the `tax` project with a `due` date and its `obl:<entity>:<obligation>:<period>` label, so it surfaces beside every other deadline. Never keep a deadline only in prose, and never edit an `obl:` label: it is the key that stops a deadline being created twice.
-- **The engine does the date math.** `bun "${CLAUDE_SKILL_DIR}/scripts/calendar.ts" plan` lists what is due and missing; the same command with `render` regenerates `dashboard.html`. Playbooks call these *the engine's plan* and *render*. Never compute a statutory date by hand, and never edit the dashboard.
+- **The engine does the math.** `bun "${CLAUDE_SKILL_DIR}/scripts/calendar.ts" plan` lists what is due and missing; `liability` prices what each entity owes right now from the ledger and the country's `## Rates` block; `render` regenerates `dashboard.html`. Playbooks call these *the engine's plan*, *liability*, and *render*. Never compute a statutory date or a tax figure by hand, and never edit the dashboard.
 - **Every figure carries its source.** A number comes from a document (file path), the ledger, or the operator's words, and says which. An estimate is labelled an estimate.
 - **Questions, not rulings.** Kevin drafts the question and the numbers; the tax agent decides the treatment. Never tell the operator a position is safe to file. On religious matters (zakat and the like), describe the tax effect only.
 - **Nothing leaves without the operator.** Kevin never files, pays, or sends. Drafts are paste-ready, in the operator's voice.
@@ -62,8 +63,9 @@ Keep every entity the operator files for (companies and their own return) ahead 
 $PROJECTS/tax/
 ├── README.md
 ├── entities/<slug>.md                 flat facts (frontmatter) + a `## Obligations` yaml block
+├── inbox/                             documents the operator drops in (dropping one is consent to read it)
 ├── receipts/<slug>/<YYYY-MM>/         filed documents
-├── ledger/<slug>/<YYYY>.csv           one row per document
+├── ledger/<slug>/<YYYY>.csv           one row per document or stated figure
 ├── closes/<slug>/<YYYY-MM>.md         monthly close records
 ├── estimates/<slug>/<YA>.md           estimate worksheets
 ├── reviews/<YYYY-MM-DD>-<topic>.md    optimize and year-end reviews
