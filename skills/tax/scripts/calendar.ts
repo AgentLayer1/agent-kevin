@@ -238,6 +238,43 @@ export const loadExisting = (taxDir: string): ExistingTask[] =>
             .map((label): ExistingTask => ({ id: frontmatter.id, label, status: frontmatter.status }))
     );
 
+/**
+ * Open tax tasks with a due date that no obligation generated (a one-off filing, a request from
+ * the accountant), so the dashboard shows everything with a date, not only the recurring rules.
+ */
+export const loadOneOffs = (taxDir: string, entities: Entity[]): Occurrence[] => {
+  const dir = join(taxDir, "tasks");
+  if (!existsSync(dir)) {
+    return [];
+  }
+  return readdirSync(dir)
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => parseFrontmatter(readFileSync(join(dir, file), "utf8")))
+    .flatMap((frontmatter) => {
+      if (
+        frontmatter === null ||
+        !frontmatter.due ||
+        frontmatter.status === "done" ||
+        frontmatter.status === "cancelled" ||
+        frontmatter.labels.some((label) => label.startsWith("obl:"))
+      ) {
+        return [];
+      }
+      const slug = frontmatter.labels.find((label) => label.startsWith("entity:"))?.slice("entity:".length) ?? "";
+      return [
+        {
+          entity: slug,
+          entityName: entities.find((entity) => entity.slug === slug)?.name ?? "—",
+          obligation: frontmatter.id,
+          title: frontmatter.title,
+          period: frontmatter.due.slice(0, 7),
+          due: frontmatter.due,
+          label: `task:${frontmatter.id}`,
+        },
+      ];
+    });
+};
+
 const previousMonth = (today: string): string => {
   const [year, month] = today.split("-").map(Number);
   return monthKey(monthIndex(year, month) - 1);
@@ -276,6 +313,9 @@ export const plan = (taxDir: string, today: string): Plan => {
 };
 
 export const stateOf = (occurrence: Occurrence, existing: ExistingTask[], today: string): TaskState => {
+  if (occurrence.label.startsWith("task:")) {
+    return occurrence.due < today ? TaskState.Overdue : TaskState.Open;
+  }
   const task = existing.find((item) => item.label === occurrence.label);
   if (task === undefined) {
     return occurrence.due < today ? TaskState.Overdue : TaskState.Upcoming;
@@ -374,10 +414,15 @@ export const renderDashboard = (taxDir: string, today: string): string => {
   const [year, month] = today.split("-").map(Number);
   const months = Array.from({ length: 12 }, (_, i) => monthKey(monthIndex(year, month) + i));
   const windowEnd = dateOf(monthIndex(year, month) + 11, "last");
-  const all = entities.flatMap((entity) => occurrences(entity, `${months[0]}-01`, windowEnd));
-  const overdue = entities
-    .flatMap((entity) => occurrences(entity, addDays(today, -366), addDays(today, -1)))
-    .filter((occurrence) => stateOf(occurrence, existing, today) === TaskState.Overdue);
+  const oneOffs = loadOneOffs(taxDir, entities);
+  const all = [
+    ...entities.flatMap((entity) => occurrences(entity, `${months[0]}-01`, windowEnd)),
+    ...oneOffs.filter((item) => item.due >= `${months[0]}-01` && item.due <= windowEnd),
+  ].sort((a, b) => a.due.localeCompare(b.due) || a.label.localeCompare(b.label));
+  const overdue = [
+    ...entities.flatMap((entity) => occurrences(entity, addDays(today, -366), addDays(today, -1))),
+    ...oneOffs.filter((item) => item.due < today),
+  ].filter((occurrence) => stateOf(occurrence, existing, today) === TaskState.Overdue);
   const soon = [...overdue, ...all.filter((occurrence) => occurrence.due >= today && occurrence.due <= addDays(today, 30))];
 
   const grid = entities
@@ -445,11 +490,11 @@ h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 10
 section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; overflow-x: auto; }
 section h2 { margin-top: 0; }
 table { border-collapse: collapse; width: 100%; }
-.grid th, .grid td { border: 1px solid var(--line); vertical-align: top; padding: 6px; min-width: 104px; }
+.grid th, .grid td { border: 1px solid var(--line); vertical-align: top; padding: 5px; min-width: 84px; }
 .grid thead th { font-weight: 600; color: var(--muted); text-align: left; }
 .grid tbody th { text-align: left; white-space: nowrap; }
 .grid ul { list-style: none; margin: 0; padding: 0; }
-.chip { font-size: 12px; margin: 0 0 4px; padding: 2px 6px; border-left: 3px solid var(--upcoming); border-radius: 4px; background: color-mix(in srgb, var(--upcoming) 10%, transparent); }
+.chip { font-size: 11.5px; margin: 0 0 4px; padding: 2px 6px; border-left: 3px solid var(--upcoming); border-radius: 4px; background: color-mix(in srgb, var(--upcoming) 10%, transparent); }
 .chip .day { font-weight: 600; }
 .chip.done { border-color: var(--done); background: color-mix(in srgb, var(--done) 12%, transparent); text-decoration: line-through; }
 .chip.open { border-color: var(--open); background: color-mix(in srgb, var(--open) 12%, transparent); }

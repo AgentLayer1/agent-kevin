@@ -183,6 +183,17 @@ describe("renderDashboard", () => {
     expect(first).toContain("Acme Sdn. Bhd.");
   });
 
+  test("lists dated one-off tax tasks beside the obligations, and leaves finished ones out", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile);
+    write(dir, "tasks/ta-010-a.md", task("ta-010", "open", ["tax", "entity:acme"]).replace("due:\n", "due: 2026-10-20\n"));
+    write(dir, "tasks/ta-011-b.md", task("ta-011", "done", ["tax"]).replace("due:\n", "due: 2026-10-21\n"));
+    const html = renderDashboard(dir, "2026-10-08");
+    const soon = html.slice(html.indexOf("Next 30 days"), html.indexOf("<h2>Calendar"));
+    expect(soon).toContain("2026-10-20");
+    expect(soon).not.toContain("2026-10-21");
+  });
+
   test("shows the estimate on file against the projection", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile);
