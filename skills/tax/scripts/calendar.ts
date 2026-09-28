@@ -88,6 +88,7 @@ export interface PendingClose {
 const DEFAULT_LEAD_DAYS = 21;
 const MONTHS_AROUND = 36;
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
+const OBLIGATIONS_RE = /^## Obligations[^\n]*\n(?:(?!^## )[\s\S])*?^```ya?ml\r?\n([\s\S]*?)^```/m;
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 const lastDayOf = (year: number, month: number): number => new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -183,8 +184,9 @@ const isObligation = (value: unknown): value is Obligation =>
   isDue(value.due);
 
 /**
- * Parses one entity profile. Throws with the file and obligation named, so a typo in a profile
- * stops the run instead of silently dropping a deadline.
+ * Parses one entity profile: flat facts in the frontmatter, obligations in the fenced yaml block
+ * under `## Obligations` (a list of objects in frontmatter shows as raw JSON in Obsidian). Throws
+ * with the file and obligation named, so a typo stops the run instead of dropping a deadline.
  */
 export const parseEntity = (slug: string, raw: string): Entity => {
   const block = raw.match(FRONTMATTER_RE)?.[1];
@@ -192,7 +194,12 @@ export const parseEntity = (slug: string, raw: string): Entity => {
   if (!isRecord(data)) {
     throw new Error(`entities/${slug}.md has no frontmatter`);
   }
-  const obligations: unknown[] = Array.isArray(data.obligations) ? data.obligations : [];
+  if ("obligations" in data) {
+    throw new Error(`entities/${slug}.md: move obligations out of the frontmatter into the yaml block under ## Obligations`);
+  }
+  const listed = raw.match(OBLIGATIONS_RE)?.[1];
+  const parsed: unknown = listed === undefined ? [] : Bun.YAML.parse(listed);
+  const obligations: unknown[] = Array.isArray(parsed) ? parsed : [];
   const invalid = obligations.find((item) => !isObligation(item));
   if (invalid !== undefined) {
     const id = isRecord(invalid) && typeof invalid.id === "string" ? invalid.id : JSON.stringify(invalid);

@@ -32,7 +32,7 @@ Source: [hasil.gov.my, Anggaran Cukai](https://www.hasil.gov.my/en/syarikat/angg
 
 ## Obligation catalog
 
-Copy an entry into the entity profile's `obligations:` only when the entity's facts trigger it, then set `from:` to the first period to track. Periods are keyed by their end month. `anchor` is a month in which a period ends, or `fye`.
+Copy an entry into the entity profile's `## Obligations` yaml block (never its frontmatter) only when the entity's facts trigger it, then set `from:` to the first period to track. Periods are keyed by their end month. `anchor` is a month in which a period ends, or `fye`.
 
 ### Company income tax (LHDN)
 

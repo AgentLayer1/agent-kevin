@@ -54,14 +54,14 @@ Keep every entity the operator files for (companies and their own return) ahead 
 - **Every figure carries its source.** A number comes from a document (file path), the ledger, or the operator's words, and says which. An estimate is labelled an estimate.
 - **Questions, not rulings.** Kevin drafts the question and the numbers; the tax agent decides the treatment. Never tell the operator a position is safe to file. On religious matters (zakat and the like), describe the tax effect only.
 - **Nothing leaves without the operator.** Kevin never files, pays, or sends. Drafts are paste-ready, in the operator's voice.
-- **Private by default.** Tax ids, amounts, and documents stay in the home. Nothing from an entity profile goes into a plugin file, a report shared outside the home, or a commit message.
+- **Private by default.** Tax ids, amounts, and documents stay in the home. Nothing from an entity profile goes into a plugin file, a report shared outside the home, or a commit message. A residential address is never transcribed anywhere (profile, ledger, filename, task, draft); a company's registered or office address is fine. Ask before opening a personal document likely to carry one (payslips, employment statements, tenancy papers, utility bills, identity documents), since whatever is read goes to the model provider.
 
 ## Where things live
 
 ```
 $PROJECTS/tax/
 ├── README.md
-├── entities/<slug>.md                 facts + obligations (frontmatter)
+├── entities/<slug>.md                 flat facts (frontmatter) + a `## Obligations` yaml block
 ├── receipts/<slug>/<YYYY-MM>/         filed documents
 ├── ledger/<slug>/<YYYY>.csv           one row per document
 ├── closes/<slug>/<YYYY-MM>.md         monthly close records

@@ -58,12 +58,20 @@ name: Acme Sdn. Bhd.
 kind: company
 fye: 12-31
 close: monthly
-obligations:
-  - { id: form-c, title: Form C, period: { months: 12, anchor: fye }, due: { from: end, months: 7, day: last }, from: "2026-07" }
-  - { id: instalment, title: CP204 instalment, period: { months: 1, anchor: 1 }, due: { from: end, months: 1, day: 15 }, lead: 10, from: "2026-07" }
 ---
 
 # Acme
+
+## Obligations
+
+\`\`\`yaml
+- { id: form-c, title: Form C, period: { months: 12, anchor: fye }, due: { from: end, months: 7, day: last }, from: "2026-07" }
+- { id: instalment, title: CP204 instalment, period: { months: 1, anchor: 1 }, due: { from: end, months: 1, day: 15 }, lead: 10, from: "2026-07" }
+\`\`\`
+
+## Notes
+
+Anything after the block is ignored by the engine.
 `;
 
 describe("occurrences", () => {
@@ -118,6 +126,15 @@ describe("parseEntity", () => {
     expect(entity.name).toBe("Acme Sdn. Bhd.");
     expect(entity.close).toBe("monthly");
     expect(entity.obligations.map((item) => item.id)).toEqual(["form-c", "instalment"]);
+  });
+
+  test("keeps frontmatter flat: obligations there are refused with a pointer to the body block", () => {
+    const nested = "---\nname: Acme\nobligations:\n  - { id: form-c }\n---\n";
+    expect(() => parseEntity("acme", nested)).toThrow(/## Obligations/);
+  });
+
+  test("a profile with no obligations section has none", () => {
+    expect(parseEntity("acme", "---\nname: Acme\n---\n\n# Acme\n").obligations).toEqual([]);
   });
 
   test("names the broken obligation instead of dropping it", () => {
@@ -222,11 +239,7 @@ describe("country catalogs", () => {
   test.each(blocks.map((block, i) => [`${block.file} block ${i + 1}`, block.yaml]))(
     "%s parses as obligations the engine accepts",
     (_, yaml) => {
-      const indented = String(yaml)
-        .split("\n")
-        .map((line) => `  ${line}`)
-        .join("\n");
-      const entity = parseEntity("catalog", `---\nname: Catalog\nfye: 12-31\nobligations:\n${indented}\n---\n`);
+      const entity = parseEntity("catalog", `---\nname: Catalog\nfye: 12-31\n---\n\n## Obligations\n\n\`\`\`yaml\n${yaml}\`\`\`\n`);
       expect(entity.obligations.length).toBeGreaterThan(0);
       expect(occurrences(entity, "2027-01-01", "2027-12-31").length).toBeGreaterThan(0);
     }

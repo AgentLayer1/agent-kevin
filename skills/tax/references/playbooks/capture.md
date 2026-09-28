@@ -4,7 +4,7 @@
 
 1. **Read the document** (PDF or image) with Read. If a page is illegible, say which field you could not read instead of guessing it.
 2. **Pick the entity.** Whose money paid or received it: a company's account or the operator personally. Ask when the document doesn't say; a personal expense in company books is a disallowed deduction.
-3. **Extract:** date, type (`receipt`, `supplier-invoice`, `sales-invoice`, `statement`), counterparty, counterparty country, currency, amount, tax shown on the document, reference number, what was bought or sold, and how it was paid.
+3. **Extract** (never a residential address; a document showing one is filed as is, the address left out of every field): date, type (`receipt`, `supplier-invoice`, `sales-invoice`, `statement`), counterparty, counterparty country, currency, amount, tax shown on the document, reference number, what was bought or sold, and how it was paid.
 4. **Check for a duplicate:** the same counterparty, date, and amount already in the ledger means stop and report, not a second row.
 5. **File it** as `receipts/<slug>/<YYYY-MM>/<YYYY-MM-DD> <counterparty> <amount> <CUR>.<ext>`, with the month taken from the document's date. Copy a file that lives outside the home; never move or delete the original unless the operator asks.
 6. **Add a ledger row** to `ledger/<slug>/<YYYY>.csv`, creating it with this header when missing:
