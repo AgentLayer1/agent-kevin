@@ -1047,6 +1047,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     say: '“create a task in <project>: …”',
     what: 'New task file with id, priority, and due date; shows up here and in TASKS.md.'
   },
+  {
+    when: 'Taxes and receipts',
+    say: `/${plugin}:tax <what’s due | receipt | close | help>`,
+    what: 'Tax deadlines as dated tasks, receipts filed to the ledger, monthly close for the accountant; nothing is filed or paid without you.'
+  },
   { when: 'Grab a page', say: '“screenshot https://…”', what: 'Headless-browser PNG into reports/captures/.' },
   {
     when: 'Make a PDF',

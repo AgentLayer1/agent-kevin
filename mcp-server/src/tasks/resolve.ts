@@ -2,6 +2,8 @@ import type { TaskFile } from '@/shared/types';
 import { daysAgoDate, todayDate } from '@/shared/date';
 import { isValidTransition } from './schema';
 
+export const DUE_SOON_DAYS = 14;
+
 export interface ScanResult {
   total: number;
   unblocked: TaskFile[];
@@ -10,6 +12,7 @@ export interface ScanResult {
   manualClosed: TaskFile[];
   clearedBlockers: TaskFile[];
   overdue: TaskFile[];
+  dueSoon: TaskFile[];
   stale: TaskFile[];
   priorityBumps: Array<{ blocker: TaskFile; blocked: TaskFile }>;
   pendingIds: TaskFile[];
@@ -28,6 +31,13 @@ const isOverdue = (task: TaskFile): boolean => {
   if (!task.frontmatter.due) return false;
   if (task.frontmatter.status === 'done' || task.frontmatter.status === 'cancelled') return false;
   return task.frontmatter.due < todayDate();
+};
+
+/** Open work due today or within DUE_SOON_DAYS; overdue tasks are counted as overdue, not here. */
+const isDueSoon = (task: TaskFile): boolean => {
+  if (!task.frontmatter.due) return false;
+  if (task.frontmatter.status === 'done' || task.frontmatter.status === 'cancelled') return false;
+  return task.frontmatter.due >= todayDate() && task.frontmatter.due <= daysAgoDate(-DUE_SOON_DAYS);
 };
 
 /** Check if a task is stale (not closed, no update in 7+ days) — same
@@ -59,6 +69,7 @@ export const resolveTasks = (tasks: TaskFile[], archived: TaskFile[] = []): Scan
     manualClosed: [],
     clearedBlockers: [],
     overdue: [],
+    dueSoon: [],
     stale: [],
     priorityBumps: [],
     pendingIds: []
@@ -112,6 +123,10 @@ export const resolveTasks = (tasks: TaskFile[], archived: TaskFile[] = []): Scan
     // Overdue check
     if (isOverdue(task)) {
       result.overdue.push(task);
+    }
+
+    if (isDueSoon(task)) {
+      result.dueSoon.push(task);
     }
 
     // Stale check

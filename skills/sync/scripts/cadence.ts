@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { FOLDERS } from "../../../mcp-server/src/config";
+import { todayDate } from "../../../mcp-server/src/shared/date";
 import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
+import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
 
 /**
  * Read-only cadence detector for sync. Prints a JSON array of the planning /
@@ -83,6 +86,16 @@ const hasNewFeedback = feedbackMtime !== null && (lastReview === null || feedbac
 // calendar too; a home that never ran it still waits for feedback, so a fresh init stays quiet.
 if ((reviewAgeDays >= 14 && hasNewFeedback) || (lastReview !== null && reviewAgeDays >= 30)) {
   due.push({ skill: "self-review", label: "Self-review", lastRun: selfReview.lastRun ?? null });
+}
+
+// The close records are the watermark: an entity is due when last month's record is missing.
+const taxDir = join(FOLDERS.PROJECTS, "tax");
+if (existsSync(join(taxDir, "entities"))) {
+  const closes = pendingCloses(taxDir, loadEntities(taxDir), todayDate());
+  if (closes.length > 0) {
+    const entities = closes.map((close) => close.entity).join(", ");
+    due.push({ skill: "tax", label: `Tax close for ${closes[0].month} (${entities})`, lastRun: null });
+  }
 }
 
 console.log(JSON.stringify(due));

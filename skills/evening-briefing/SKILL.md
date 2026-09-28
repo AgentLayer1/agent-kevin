@@ -18,7 +18,7 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt 'today 00:00' -not -path '*/node_modules/*'`.
 4. **Closed today** — `mcp__plugin_agent-kevin_kevin__task_query` `{closed_on:"today"}` (or scan task frontmatter `closed:` for today's date).
 5. **Active / open P0–P1** — `{status:"active"}`, `{status:"open", priority:"P0"}`, `{status:"open", priority:"P1"}`.
-6. **Overdue / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan`.
+6. **Overdue / due soon / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan` (`dueSoon` is the next 14 days; name anything due tomorrow in tomorrow's first move).
 7. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` to compute end-of-day delta.
 
 ## Hard guardrails

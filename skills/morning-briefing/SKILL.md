@@ -21,7 +21,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
 4. **Tasks**:
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
-   - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / stale / blocked surfacing
+   - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / due-soon (`dueSoon`, the next 14 days) / stale / blocked surfacing. A dated deadline in `dueSoon` belongs in `🎯 Today` when it's within a week or needs the operator's input first
 5. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap.
 6. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `mcp__plugin_agent-kevin_kevin__web_search` calls in parallel** — the plugin's Perplexity-backed tool, **not** Claude's built-in `WebSearch` (the bare name `web_search` below always means this MCP tool; it returns raw dated sources with `recency`/`domains`/`country` filters, no pre-synthesis). One call per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
    - Pick clusters from the user's `## Signal Topics` (each topic or related-topic group becomes one query). Typical clusters: a competitive/industry cluster tied to the day job, a local-regulatory cluster (recency `"week"`, set `country` if applicable), an AI/tooling cluster covering the model ecosystem they build on, and a geopolitics cluster for events that touch their values or travel.

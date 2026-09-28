@@ -139,7 +139,8 @@ export const tools: ToolDef[] = [
   }),
   defineTool({
     name: 'task_scan',
-    description: 'Resolve cross-task state: auto-unblock, auto-block, surface overdue/stale, plan priority bumps.',
+    description:
+      'Resolve cross-task state: auto-unblock, auto-block, surface overdue, due-soon (next 14 days) and stale tasks, plan priority bumps.',
     inputSchema: {},
     handler: async () => {
       const all = scanAllTasks();
@@ -152,6 +153,7 @@ export const tools: ToolDef[] = [
         manualClosed: result.manualClosed.map(slim),
         clearedBlockers: result.clearedBlockers.map(slim),
         overdue: result.overdue.map(slim),
+        dueSoon: result.dueSoon.map(slim),
         stale: result.stale.map(slim),
         priorityBumps: result.priorityBumps.map(({ blocker, blocked }) => ({
           blocker: slim(blocker),

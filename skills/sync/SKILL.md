@@ -123,7 +123,7 @@ Bound the breadth: touch every active project, don't sink the whole session into
 mcp__plugin_agent-kevin_kevin__task_scan
 ```
 
-Returns `{ unblocked, autoBlocked, autoClosed, overdue, stale, priorityBumps, pendingIds }`. **`task_scan` is read-only — it computes these buckets but persists nothing.** Frontmatter `status` stays the source of truth (both TASKS.md and the dashboard count blocked/active from frontmatter, never from this scan). Treat every bucket as a human-judgment queue: when a computed `unblocked` / `autoBlocked` / `autoClosed` / `manualClosed` is genuinely right, apply it explicitly with `task_update` / `task_close`; surface `overdue` / `stale` / `priorityBumps` in the output. Note `autoBlocked` over-reports while archived done-deps aren't loaded into the dependency map — verify the dep is actually unresolved before acting.
+Returns `{ unblocked, autoBlocked, autoClosed, overdue, dueSoon, stale, priorityBumps, pendingIds }`; `dueSoon` is open work due within the next 14 days. **`task_scan` is read-only — it computes these buckets but persists nothing.** Frontmatter `status` stays the source of truth (both TASKS.md and the dashboard count blocked/active from frontmatter, never from this scan). Treat every bucket as a human-judgment queue: when a computed `unblocked` / `autoBlocked` / `autoClosed` / `manualClosed` is genuinely right, apply it explicitly with `task_update` / `task_close`; surface `overdue` / `dueSoon` / `stale` / `priorityBumps` in the output. Note `autoBlocked` over-reports while archived done-deps aren't loaded into the dependency map — verify the dep is actually unresolved before acting.
 
 **Also check for a pending plugin upgrade.** Drift between the installed plugin code and this home's migrated baseline is exactly a "needs attention" item: `/plugin update` refreshes code but never the home's scaffolded files (`AGENTS.md`, `SOUL.md`, settings, rules), so a stale baseline means migrations are waiting. This is a read-only comparison only — **sync never runs `/upgrade`.** `/upgrade` backs up and mutates HOME files; that's a deliberate, operator-gated beat (and if it pulled new deps/MCP code it needs a Claude Code restart first). Sync's job is to raise the flag, same as the dashboard staleness warning.
 
@@ -166,6 +166,7 @@ Returns a JSON array of `{ skill, label, lastRun }` for each due item — empty 
 - **weekly-goals** — a new ISO week has begun since `lastRun` (or never run).
 - **monthly-goals** — a new calendar month has begun since `lastRun`.
 - **yearly-goals** — a new calendar quarter has begun since `lastRun`.
+- **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Unlike the others, `tax` is model-invocable, but sync still only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
 - **self-review** — `raw/user/feedback.md` has new entries since self-review's `lastRun` **and** that run is >14 days old, or a previous run is 30 or more days old regardless of feedback. The second clause is for the prune pass: loaded context goes stale with no new corrections. A home that never ran it waits for feedback, so a fresh init isn't nudged.
 
 Watermarks live in `.kevin/cadence.json` (the goals trio, keyed `skill → last-run date`, stamped by each goals skill on completion) and `.kevin/review.json` (`lastRun`, owned by self-review). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
@@ -247,7 +248,7 @@ Then honor the second answer:
 - **Act now** → do the chosen step this session. External/outbound actions (emails, messages, public posts, `git push`, anything that leaves the machine) still confirm first per the operating rules — an interview pick is not standing authorization for those.
 - **Queue as a task** → if the choice maps to an existing task, `task_thread` a note and bump priority/status as fitting; otherwise `task_create` one. Confirm the id/title back in a single line, then stop.
 
-**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation`, and `upgrade` — though model-invocable — chains sync itself, so sync invoking it would recurse. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
+**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation`, a tax close needs the operator's documents, and `upgrade` — though model-invocable — chains sync itself, so sync invoking it would recurse. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
 
 ## Output
 
