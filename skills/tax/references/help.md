@@ -20,6 +20,7 @@ Your companies and your personal return, kept ahead of their deadlines. I prepar
 | Ask | Playbook | You get |
 |---|---|---|
 | "Here's a receipt", `/tax capture` | **capture** | The document filed and logged, with foreign-supplier taxes flagged |
+| "What do I need to collect?", "what's missing for the books?" | **close** | Each month's state (booked, with your accountant, gaps, not started) and the statements, receipts and answers still owed |
 | "Close last month", `/tax close` | **close** | A completeness check, the package for your accountant, and the message to send |
 
 ### 💰 Planning

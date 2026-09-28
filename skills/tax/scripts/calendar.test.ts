@@ -26,6 +26,9 @@ const acme: Entity = {
   resident: null,
   spouseRelief: null,
   childrenUnder18: null,
+  startedOn: null,
+  bookedThrough: null,
+  accounts: [],
   obligations: [
     { id: "cp204", title: "CP204 estimate", period: { months: 12, anchor: "fye" }, due: { from: "start", days: -31 } },
     { id: "cp204a-11th", title: "CP204A 11th month", period: { months: 12, anchor: "fye" }, due: { from: "start", months: 10, day: "last" } },
@@ -250,6 +253,25 @@ describe("renderDashboard", () => {
     const html = renderDashboard(dir, "2026-10-08");
     expect(html).toContain("Confirm</span>");
     expect(html).not.toContain("up to RM 0");
+  });
+
+  test("shows each company's books: the month states and what is left to collect, escaped", () => {
+    const dir = scratch();
+    write(
+      dir,
+      "entities/acme.md",
+      profile.replace("close: monthly", 'close: monthly\nbooked_through: "2026-08"').replace("## Obligations", "## Accounts\n\n```yaml\n- { id: main, name: <Main> account }\n```\n\n## Obligations")
+    );
+    const html = renderDashboard(dir, "2026-10-08");
+    expect(html).toContain("booked through Aug 2026 · 1 month not booked · 1 needs you");
+    expect(html).toContain("&lt;Main&gt; account statement · Sep 2026");
+    expect(html).not.toContain("<Main>");
+  });
+
+  test("a profile with booked_through unquoted stops the run instead of reading a wrong month", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile.replace("close: monthly", "close: monthly\nbooked_through: 2026-07"));
+    expect(() => renderDashboard(dir, "2026-10-08")).toThrow("booked_through");
   });
 
   test("switches tabs with CSS alone: one radio and one panel per entity plus the overview", () => {

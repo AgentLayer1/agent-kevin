@@ -12,6 +12,7 @@ import { parseFrontmatter } from "../../../mcp-server/src/tasks/schema";
  *
  * Usage: bun calendar.ts plan [--today YYYY-MM-DD]       prints { missing, existing, pendingCloses }
  *        bun calendar.ts liability [--today YYYY-MM-DD]  prints each entity's tax position
+ *        bun calendar.ts books [--today YYYY-MM-DD]      prints each company's bookkeeping state
  *        bun calendar.ts render [--today YYYY-MM-DD]     writes dashboard.html, prints its path
  */
 
@@ -42,6 +43,11 @@ export interface Obligation {
 export const EntityKind = { Company: "company", Individual: "individual" } as const;
 export type EntityKind = (typeof EntityKind)[keyof typeof EntityKind];
 
+export interface Account {
+  id: string;
+  name: string;
+}
+
 export interface Entity {
   slug: string;
   name: string;
@@ -53,6 +59,9 @@ export interface Entity {
   resident: boolean | null;
   spouseRelief: boolean | null;
   childrenUnder18: number | null;
+  startedOn: string | null;
+  bookedThrough: string | null;
+  accounts: Account[];
   obligations: Obligation[];
 }
 
@@ -98,7 +107,7 @@ export interface PendingClose {
 const DEFAULT_LEAD_DAYS = 21;
 const MONTHS_AROUND = 36;
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
-const OBLIGATIONS_RE = /^## Obligations[^\n]*\n(?:(?!^## )[\s\S])*?^```ya?ml\r?\n([\s\S]*?)^```/m;
+const MONTH_RE = /^\d{4}-\d{2}$/;
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 const lastDayOf = (year: number, month: number): number => new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -193,28 +202,72 @@ const isObligation = (value: unknown): value is Obligation =>
   (value.period.anchor === "fye" || typeof value.period.anchor === "number") &&
   isDue(value.due);
 
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The flat frontmatter of a markdown file as a record, or null when it has none.
+ */
+export const frontmatterOf = (raw: string): Record<string, unknown> | null => {
+  const block = raw.match(FRONTMATTER_RE)?.[1];
+  const data: unknown = block === undefined ? null : Bun.YAML.parse(block);
+  return isRecord(data) ? data : null;
+};
+
+/**
+ * The parsed fenced yaml block under a `## <heading>` section of a markdown body, or null when the
+ * section or its block is absent. Structured data lives here because frontmatter stays flat.
+ */
+export const yamlBlock = (raw: string, heading: string): unknown => {
+  const pattern = new RegExp(`^## ${escapeRegExp(heading)}[^\\n]*\\n(?:(?!^## )[\\s\\S])*?^\`\`\`ya?ml\\r?\\n([\\s\\S]*?)^\`\`\``, "m");
+  const block = raw.match(pattern)?.[1];
+  return block === undefined ? null : Bun.YAML.parse(block);
+};
+
+const isAccount = (value: unknown): value is Account =>
+  isRecord(value) && typeof value.id === "string" && typeof value.name === "string";
+
+const monthField = (slug: string, data: Record<string, unknown>, field: string): string | null => {
+  const raw = data[field];
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  if (typeof raw !== "string" || !MONTH_RE.test(raw)) {
+    throw new Error(`entities/${slug}.md: ${field} must be a quoted "YYYY-MM"`);
+  }
+  return raw;
+};
+
+const dateField = (data: Record<string, unknown>, field: string): string | null => {
+  const raw = data[field];
+  return typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+};
+
 /**
  * Parses one entity profile: flat facts in the frontmatter, obligations in the fenced yaml block
  * under `## Obligations` (a list of objects in frontmatter shows as raw JSON in Obsidian). Throws
  * with the file and obligation named, so a typo stops the run instead of dropping a deadline.
  */
 export const parseEntity = (slug: string, raw: string): Entity => {
-  const block = raw.match(FRONTMATTER_RE)?.[1];
-  const data: unknown = block === undefined ? null : Bun.YAML.parse(block);
-  if (!isRecord(data)) {
+  const data = frontmatterOf(raw);
+  if (data === null) {
     throw new Error(`entities/${slug}.md has no frontmatter`);
   }
   if ("obligations" in data) {
     throw new Error(`entities/${slug}.md: move obligations out of the frontmatter into the yaml block under ## Obligations`);
   }
-  const listed = raw.match(OBLIGATIONS_RE)?.[1];
-  const parsed: unknown = listed === undefined ? [] : Bun.YAML.parse(listed);
+  const parsed = yamlBlock(raw, "Obligations");
   const obligations: unknown[] = Array.isArray(parsed) ? parsed : [];
   const invalid = obligations.find((item) => !isObligation(item));
   if (invalid !== undefined) {
     const id = isRecord(invalid) && typeof invalid.id === "string" ? invalid.id : JSON.stringify(invalid);
     throw new Error(`entities/${slug}.md: obligation ${id} is malformed (needs id, title, period, due)`);
   }
+  const listedAccounts = yamlBlock(raw, "Accounts");
+  const accounts: unknown[] = Array.isArray(listedAccounts) ? listedAccounts : [];
+  if (accounts.some((item) => !isAccount(item))) {
+    throw new Error(`entities/${slug}.md: every entry under ## Accounts needs an id and a name`);
+  }
+  const dates = [dateField(data, "incorporated"), dateField(data, "commenced")].filter((date): date is string => date !== null).sort();
   return {
     slug,
     name: typeof data.name === "string" ? data.name : slug,
@@ -226,6 +279,9 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     resident: typeof data.resident === "boolean" ? data.resident : null,
     spouseRelief: typeof data.spouse_relief === "boolean" ? data.spouse_relief : null,
     childrenUnder18: typeof data.children_under_18 === "number" ? data.children_under_18 : null,
+    startedOn: dates[0] ?? null,
+    bookedThrough: monthField(slug, data, "booked_through"),
+    accounts: accounts.filter(isAccount),
     obligations: obligations.filter(isObligation),
   };
 };
@@ -374,10 +430,13 @@ if (import.meta.main) {
     const { positions } = await import("./liability");
     const countriesDir = join(import.meta.dir, "..", "references", "countries");
     console.log(JSON.stringify(positions(taxDir, countriesDir, loadEntities(taxDir), today), null, 2));
+  } else if (command === "books") {
+    const { booksAll } = await import("./books");
+    console.log(JSON.stringify(booksAll(taxDir, loadEntities(taxDir), today), null, 2));
   } else if (command === "plan") {
     console.log(JSON.stringify(plan(taxDir, today), null, 2));
   } else {
-    console.error(`unknown command: ${command} (use plan, liability or render)`);
+    console.error(`unknown command: ${command} (use plan, liability, books or render)`);
     process.exit(1);
   }
 }

@@ -1,5 +1,5 @@
-import { existsSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
+import { type Books, booksAll, type CollectItem, type MonthBooks, MonthState } from "./books";
 import {
   addDays,
   type Entity,
@@ -175,9 +175,11 @@ const kindLabel = (kind: EntityKind): string => (kind === EntityKind.Company ? "
 /**
  * A title without its leading "<Entity>: " when the row already names the entity.
  */
+const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
 const shortTitle = (occurrence: Occurrence): string => {
   const prefix = occurrence.entityName.split(/[\s(]/)[0];
-  return occurrence.title.startsWith(`${prefix}: `) ? occurrence.title.slice(prefix.length + 2) : occurrence.title;
+  return occurrence.title.startsWith(`${prefix}: `) ? capitalize(occurrence.title.slice(prefix.length + 2)) : occurrence.title;
 };
 
 const notes = (position: Position): string => {
@@ -203,6 +205,128 @@ const LEGAL_SUFFIX = /[\s,]+(sdn\.?\s*bhd\.?|bhd\.?|pte\.?\s*ltd\.?|ltd\.?|llc|i
 
 export const shortName = (name: string): string => name.replace(LEGAL_SUFFIX, "") || name;
 
+const BOOK_META: Record<MonthState, { icon: string; label: string }> = {
+  [MonthState.Before]: { icon: "", label: "Before the company started" },
+  [MonthState.Booked]: { icon: "✓", label: "Booked by your accountant" },
+  [MonthState.Sent]: { icon: "↗", label: "With your accountant" },
+  [MonthState.Ready]: { icon: "●", label: "Ready to send" },
+  [MonthState.Gaps]: { icon: "!", label: "Gaps to explain" },
+  [MonthState.Collecting]: { icon: "◐", label: "Collecting" },
+  [MonthState.Todo]: { icon: "○", label: "Not started" },
+  [MonthState.Open]: { icon: "…", label: "This month" },
+  [MonthState.Future]: { icon: "", label: "Not yet" },
+};
+
+const LEGEND_STATES: MonthState[] = [
+  MonthState.Booked,
+  MonthState.Sent,
+  MonthState.Ready,
+  MonthState.Gaps,
+  MonthState.Collecting,
+  MonthState.Todo,
+  MonthState.Open,
+];
+
+const SETTLED_STATES = new Set<MonthState>([MonthState.Booked, MonthState.Sent, MonthState.Ready]);
+
+const bookMark = (item: MonthBooks): string =>
+  `<span class="book ${item.state}" title="${escapeHtml(`${monthLabel(item.month)} · ${BOOK_META[item.state].label}`)}"><span aria-hidden="true">${BOOK_META[item.state].icon}</span></span>`;
+
+const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+const booksSummary = (books: Books): string =>
+  [
+    books.bookedThrough ? `booked through ${monthLabel(books.bookedThrough)}` : "booked month unknown",
+    books.behind > 0 ? `${plural(books.behind, "month")} not booked` : "up to date",
+    books.needsYou > 0 ? `${books.needsYou} need${books.needsYou === 1 ? "s" : ""} you` : "",
+  ]
+    .filter((part) => part !== "")
+    .join(" · ");
+
+const monthSpan = (months: string[]): string => {
+  const first = months[0] ?? "";
+  const last = months.at(-1) ?? first;
+  if (first === last) {
+    return monthLabel(first);
+  }
+  return first.slice(0, 4) === last.slice(0, 4) ? `${monthLabel(first, false)}–${monthLabel(last)}` : `${monthLabel(first)}–${monthLabel(last)}`;
+};
+
+const GAP_NEED: Record<string, string> = { receipt: "Receipt for", invoice: "Invoice for", explanation: "Explain" };
+
+const collectText = (entity: Entity, item: CollectItem): string => {
+  if (item.kind === "profile") {
+    return escapeHtml(item.text);
+  }
+  if (item.kind === "statements") {
+    return `${escapeHtml(item.name)} ${item.months.length === 1 ? "statement" : "statements"} · ${monthSpan(item.months)}${item.months.length > 1 ? ` <span class="count">${item.months.length}</span>` : ""}`;
+  }
+  if (item.kind === "gap") {
+    const { gap } = item;
+    const account = entity.accounts.find((candidate) => candidate.id === gap.account)?.name ?? gap.account;
+    const amount =
+      gap.currency === "MYR"
+        ? money(gap.amount, 2)
+        : `${escapeHtml(gap.currency)} ${gap.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${GAP_NEED[gap.need]} for ${amount} ${gap.direction === "out" ? "paid out" : "received"} on ${dayLabel(gap.date)}${account ? ` (${escapeHtml(account)})` : ""}${gap.note ? ` · ${escapeHtml(gap.note)}` : ""}`;
+  }
+  const prefix = `${shortName(entity.name)}: `;
+  const title = item.ask.title.startsWith(prefix) ? capitalize(item.ask.title.slice(prefix.length)) : item.ask.title;
+  return `${escapeHtml(title)}${item.ask.due ? ` <span class="count">due ${dayLabel(item.ask.due)}</span>` : ""}`;
+};
+
+const collectList = (entries: Array<{ entity: Entity; item: CollectItem }>, showEntity: boolean, empty: string): string =>
+  entries.length === 0
+    ? `<p class="empty">${empty}</p>`
+    : `<ul class="collect">${entries
+        .map(
+          ({ entity, item }) =>
+            `<li><span class="box-tick" aria-hidden="true"></span><span>${collectText(entity, item)}</span>${showEntity ? `<span class="who"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(shortName(entity.name))}</span>` : ""}</li>`
+        )
+        .join("")}</ul>`;
+
+const booksLegend = (): string =>
+  `<p class="note book-legend">${LEGEND_STATES.map((state) => `<span>${bookMark({ month: "2000-01", state, statementsIn: [], statementsMissing: [], documents: 0, gaps: 0, sent: null }).replace(/ title="[^"]*"/, "")} ${BOOK_META[state].label}</span>`).join("")}</p>`;
+
+const booksGrid = (rows: Array<{ entity: Entity; books: Books }>, withSummary: boolean): string => {
+  const months = rows[0]?.books.months.map((item) => item.month) ?? [];
+  const body = rows
+    .map(
+      ({ entity, books }) =>
+        `<tr><th scope="row"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(shortName(entity.name))}</th>${books.months.map((item) => `<td>${bookMark(item)}</td>`).join("")}${withSummary ? `<td class="book-sum">${booksSummary(books)}</td>` : ""}</tr>`
+    )
+    .join("");
+  return `<div class="scroll"><table class="bgrid"><thead><tr><th></th>${months.map((month) => `<th>${monthLabel(month, false)}</th>`).join("")}${withSummary ? "<th></th>" : ""}</tr></thead><tbody>${body}</tbody></table></div>${booksLegend()}`;
+};
+
+const booksTable = (entity: Entity, books: Books): string => {
+  const rows = books.months
+    .filter((item) => item.state !== MonthState.Before && item.state !== MonthState.Future)
+    .reverse()
+    .map((item) => {
+      const settled = SETTLED_STATES.has(item.state) || item.state === MonthState.Open;
+      const statements =
+        entity.accounts.length === 0 || (settled && item.statementsIn.length === 0)
+          ? "—"
+          : `${item.statementsIn.length} of ${entity.accounts.length}`;
+      const documents = settled && item.documents === 0 ? "—" : String(item.documents);
+      return `<tr><td>${monthLabel(item.month)}</td><td>${bookMark(item)} ${BOOK_META[item.state].label}${item.sent ? ` <span class="count">sent ${dayLabel(item.sent)}</span>` : ""}</td><td class="num">${statements}</td><td class="num">${documents}</td><td class="num">${item.gaps > 0 ? item.gaps : "—"}</td></tr>`;
+    })
+    .join("");
+  return `<table class="list months"><thead><tr><th>Month</th><th>State</th><th class="num">Statements</th><th class="num">Documents</th><th class="num">Open gaps</th></tr></thead><tbody>${rows}</tbody></table>`;
+};
+
+const booksSection = (entity: Entity, books: Books): string => {
+  const asks = books.toCollect.filter((item) => item.kind === "ask").map((item) => ({ entity, item }));
+  const collect = books.toCollect.filter((item) => item.kind !== "ask").map((item) => ({ entity, item }));
+  return `<section class="box books"><h2>Books</h2><p class="books-line">${booksSummary(books)}</p>${booksGrid([{ entity, books }], false)}
+<div class="two even">
+  <div><h3>To collect</h3>${collectList(collect, false, "Nothing to collect for the months that have ended.")}</div>
+  <div><h3>Open with your accountant</h3>${collectList(asks, false, "Nothing open with your accountant.")}</div>
+</div>
+<details open><summary>Month by month</summary>${booksTable(entity, books)}</details></section>`;
+};
+
 const sortedReliefs = (view: PersonalView): ReliefLine[] =>
   [...view.reliefs].sort((a, b) => RELIEF_ORDER[a.status] - RELIEF_ORDER[b.status] || b.worth - a.worth);
 
@@ -214,17 +338,32 @@ const personalCard = (entity: Entity, position: Position, view: PersonalView, ne
   return `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span>${entity.name === kindLabel(entity.kind) ? "" : `<span class="kind">${kindLabel(entity.kind)}</span>`}</div><div class="card-figure">${outcome.figure}</div><div class="card-caption">${outcome.caption}</div><dl><dt>Withheld from salary</dt><dd>${position.known ? money(view.withheld) : "—"}</dd><dt>Tax on income not withheld</dt><dd>${position.known ? money(view.taxOnUnwithheld) : "—"}</dd><dt>Best unused relief</dt><dd>${best ? `${escapeHtml(best.title.split(":")[0])} · up to ${money(best.worth)}` : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
 };
 
-const entityCard = (entity: Entity, position: Position, next: Item | undefined): string =>
+const entityCard = (entity: Entity, position: Position, next: Item | undefined, books: Books | undefined): string =>
   position.personal !== null
     ? personalCard(entity, position, position.personal, next)
-    : `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span><span class="kind">${kindLabel(entity.kind)}</span></div><div class="card-figure">${moneyOrDash(position.owedNow)}</div><div class="card-caption">${position.known ? `owed now for YA ${position.ya}` : "not priced yet"}${position.aheadBy > 0 ? ` · ahead by ${money(position.aheadBy)}` : ""}</div><dl><dt>Year projection</dt><dd>${moneyOrDash(position.projectedTax)}</dd><dt>Per month</dt><dd>${moneyOrDash(position.monthlyTax)}</dd><dt>Books through</dt><dd>${position.coverage ? monthLabel(position.coverage) : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
+    : `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span><span class="kind">${kindLabel(entity.kind)}</span></div><div class="card-figure">${moneyOrDash(position.owedNow)}</div><div class="card-caption">${position.known ? `owed now for YA ${position.ya}` : "not priced yet"}${position.aheadBy > 0 ? ` · ahead by ${money(position.aheadBy)}` : ""}</div><dl><dt>Year projection</dt><dd>${moneyOrDash(position.projectedTax)}</dd><dt>Per month</dt><dd>${moneyOrDash(position.monthlyTax)}</dd><dt>Books</dt><dd>${books ? escapeHtml(books.bookedThrough ? `booked to ${monthLabel(books.bookedThrough, false)}${books.behind > 0 ? ` · ${books.behind} behind` : ""}` : `${books.behind} not booked`) : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
 
 const sumKnown = (list: Position[], pick: (position: Position) => number | null): number | null => {
   const known = list.map(pick).filter((value): value is number => value !== null);
   return known.length === 0 ? null : known.reduce((acc, value) => acc + value, 0);
 };
 
-const overviewPanel = (entities: Entity[], list: Position[], items: Item[], months: string[], today: string): string => {
+const OVERVIEW_COLLECT = 6;
+
+const overviewBooks = (entities: Entity[], books: Books[]): string => {
+  const rows = orderEntities(entities).flatMap((entity) => {
+    const found = books.find((item) => item.entity === entity.slug);
+    return found === undefined ? [] : [{ entity, books: found }];
+  });
+  if (rows.length === 0) {
+    return "";
+  }
+  const entries = rows.flatMap(({ entity, books: found }) => found.toCollect.map((item) => ({ entity, item })));
+  const more = entries.length - OVERVIEW_COLLECT;
+  return `<section class="box books"><h2>Books</h2>${booksGrid(rows, true)}<h3>To collect</h3>${collectList(entries.slice(0, OVERVIEW_COLLECT), true, "Nothing to collect for the months that have ended.")}${more > 0 ? `<p class="note">${plural(more, "more item")} on the company tabs.</p>` : ""}</section>`;
+};
+
+const overviewPanel = (entities: Entity[], list: Position[], items: Item[], months: string[], today: string, books: Books[]): string => {
   const businesses = list.filter((position) => position.kind === EntityKind.Company);
   const personal = list.filter((position) => position.kind === EntityKind.Individual);
   const total = sumKnown(list, (position) => position.owedNow);
@@ -251,9 +390,10 @@ const overviewPanel = (entities: Entity[], list: Position[], items: Item[], mont
 <div class="cards">${orderEntities(entities)
     .map((entity) => {
       const position = list.find((item) => item.entity === entity.slug);
-      return position === undefined ? "" : entityCard(entity, position, nextFor(entity));
+      return position === undefined ? "" : entityCard(entity, position, nextFor(entity), books.find((item) => item.entity === entity.slug));
     })
     .join("")}</div>
+${overviewBooks(entities, books)}
 <section class="box"><h2>Next 60 days</h2>${deadlineRows(window, today, true)}</section>
 <section class="box"><h2>Twelve months</h2>${calendarGrid(orderEntities(entities), items, months, today)}</section>
 </section>`;
@@ -308,7 +448,7 @@ ${notes(position)}
 </section>`;
 };
 
-const entityPanel = (entity: Entity, position: Position, items: Item[], rows: LedgerRow[], closed: string | null, today: string): string => {
+const entityPanel = (entity: Entity, position: Position, items: Item[], rows: LedgerRow[], books: Books | undefined, today: string): string => {
   if (position.personal !== null) {
     return personalPanel(entity, position, position.personal, items, rows, today);
   }
@@ -329,12 +469,8 @@ const entityPanel = (entity: Entity, position: Position, items: Item[], rows: Le
     entity.kind === EntityKind.Company
       ? `<section class="box"><h2>Tax estimate</h2><dl class="facts"><dt>On file for YA ${position.ya}</dt><dd>${moneyOrDash(position.estimateOnFile)}</dd><dt>Projected tax</dt><dd>${moneyOrDash(position.projectedTax)}</dd><dt>Penalty if left as is</dt><dd class="${position.underestimationPenalty ? "warn" : ""}">${position.underestimationPenalty ? money(position.underestimationPenalty) : "—"}</dd></dl></section>`
       : "";
-  const close =
-    entity.close === "monthly"
-      ? `<section class="box"><h2>Monthly close</h2><p class="big">${closed ? `Closed through ${monthLabel(closed)}` : "No month closed yet"}</p></section>`
-      : "";
   return `<section class="panel" id="panel-${slug(entity.slug)}">
-<div class="entity-head"><span class="dot big e-${slug(entity.slug)}"></span><div><h2>${escapeHtml(entity.name)}</h2><p class="sub">${kindLabel(entity.kind)} · YA ${position.ya} · ${dayLabel(position.period.start)} ${position.period.start.slice(0, 4)} – ${dayLabel(position.period.end)} ${position.period.end.slice(0, 4)} · books through ${position.coverage ? monthLabel(position.coverage) : "—"}</p></div></div>
+<div class="entity-head"><span class="dot big e-${slug(entity.slug)}"></span><div><h2>${escapeHtml(entity.name)}</h2><p class="sub">${kindLabel(entity.kind)} · YA ${position.ya} · ${dayLabel(position.period.start)} ${position.period.start.slice(0, 4)} – ${dayLabel(position.period.end)} ${position.period.end.slice(0, 4)} · priced through ${position.coverage ? monthLabel(position.coverage) : "—"}</p></div></div>
 <div class="tiles">
   <div class="tile lead"><div class="eyebrow">Owed now</div><div class="tile-figure">${moneyOrDash(position.owedNow)}</div>${position.aheadBy > 0 ? `<div class="tile-note">ahead by ${money(position.aheadBy)}</div>` : ""}</div>
   <div class="tile"><div class="eyebrow">Tax so far</div><div class="tile-figure">${position.known ? money(position.taxSoFar) : "—"}</div></div>
@@ -343,6 +479,7 @@ const entityPanel = (entity: Entity, position: Position, items: Item[], rows: Le
   <div class="tile"><div class="eyebrow">Per month</div><div class="tile-figure">${moneyOrDash(position.monthlyTax)}</div></div>
 </div>
 ${notes(position)}
+${books ? booksSection(entity, books) : ""}
 <div class="two">
   <section class="box"><h2>How the number is built</h2>${
     position.known
@@ -353,23 +490,9 @@ ${notes(position)}
 </div>
 <div class="two">
   <section class="box"><h2>Deadlines</h2>${deadlineRows(upcoming.slice(0, 12), today, false)}</section>
-  <div class="stack">${estimate}${close}</div>
+  <div class="stack">${estimate}</div>
 </div>
 </section>`;
-};
-
-const lastClosed = (taxDir: string, entitySlug: string): string | null => {
-  const dir = join(taxDir, "closes", entitySlug);
-  if (!existsSync(dir)) {
-    return null;
-  }
-  return (
-    readdirSync(dir)
-      .filter((file) => /^\d{4}-\d{2}\.md$/.test(file))
-      .map((file) => basename(file, ".md"))
-      .sort()
-      .at(-1) ?? null
-  );
 };
 
 const STYLE = `
@@ -465,7 +588,29 @@ dt{color:var(--muted)}dd{margin:0;text-align:right;font-variant-numeric:tabular-
 details{margin-top:10px;font-size:12.5px}summary{cursor:pointer;color:var(--ink-2)}
 .reliefs td{vertical-align:middle}.relief-name{width:42%}.relief-bar{width:34%}.relief-bar .hbar-track{display:block;margin-bottom:3px}.relief-amount{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .facts{font-size:13.5px}.warn{color:var(--critical);font-weight:600}
-.big{font-size:18px;font-weight:600;margin:0}
+.books-line{margin:-6px 0 12px;color:var(--ink-2);font-size:13px}
+.bgrid{border-collapse:separate;border-spacing:0 4px;font-size:11.5px;width:100%}
+.bgrid th{color:var(--muted);font-weight:600;text-align:center;padding:0 3px}
+.bgrid tbody th{text-align:left;white-space:nowrap;color:var(--ink);padding-right:12px}.bgrid tbody th .dot{margin-right:6px}
+.bgrid td{text-align:center;padding:0 3px}.bgrid .book-sum{text-align:left;white-space:nowrap;color:var(--ink-2);padding-left:12px;font-size:12.5px}
+.book{display:inline-flex;width:24px;height:24px;border-radius:6px;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid transparent;vertical-align:middle;line-height:1}
+.book.booked{background:var(--good);color:#fff}
+.book.sent{background:var(--bar-muted);color:var(--ink)}
+.book.ready{border-color:var(--good);color:var(--good)}
+.book.gaps{background:var(--warning);color:#0b0b0b}
+.book.collecting{border-color:var(--serious);color:var(--serious)}
+.book.todo{border-color:var(--critical);border-style:dashed;color:var(--critical)}
+.book.open{border-color:var(--line);border-style:dashed;color:var(--muted)}
+.book.before,.book.future{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.book-legend{display:flex;flex-wrap:wrap;gap:6px 16px}.book-legend span{display:inline-flex;align-items:center;gap:6px}.book-legend .book{width:18px;height:18px;font-size:10px}
+.collect{list-style:none;margin:0;padding:0;font-size:13px}
+.collect li{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line)}
+.collect li>span:nth-child(2){flex:1}
+.box-tick{flex:none;width:12px;height:12px;border:1.5px solid var(--muted);border-radius:3px;transform:translateY(1px)}
+.collect .who{white-space:nowrap;color:var(--ink-2);font-size:12px}.collect .who .dot{margin-right:6px}
+.count{color:var(--muted);font-size:12px;margin-left:4px}
+.two.even{grid-template-columns:1fr 1fr;margin:16px 0 0}
+.months .num{text-align:right;font-variant-numeric:tabular-nums}.months td{vertical-align:middle}
 footer{color:var(--muted);font-size:12px;margin-top:24px}
 @media (max-width:900px){.hero,.two{grid-template-columns:1fr}.hero-side{border-left:0;border-top:1px solid var(--line)}.tiles{grid-template-columns:1fr 1fr}}
 `;
@@ -494,6 +639,7 @@ export const renderDashboard = (taxDir: string, today: string, countriesDir: str
   const entities = orderEntities(loadEntities(taxDir));
   const existing: ExistingTask[] = loadExisting(taxDir);
   const list = positions(taxDir, countriesDir, entities, today);
+  const books = booksAll(taxDir, entities, today);
   const months = monthKeys(today.slice(0, 7), 12);
   const windowEnd = lastDay(months[11]);
   const oneOffs = loadOneOffs(taxDir, entities);
@@ -518,12 +664,12 @@ export const renderDashboard = (taxDir: string, today: string, countriesDir: str
     ...entities.map((entity) => `<label for="tab-${slug(entity.slug)}"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(shortName(entity.name))}</label>`),
   ].join("");
   const panels = [
-    overviewPanel(entities, list, items, months, today),
+    overviewPanel(entities, list, items, months, today, books),
     ...entities.map((entity) => {
       const position = list.find((item) => item.entity === entity.slug);
       return position === undefined
         ? ""
-        : entityPanel(entity, position, items, loadLedger(taxDir, entity.slug), lastClosed(taxDir, entity.slug), today);
+        : entityPanel(entity, position, items, loadLedger(taxDir, entity.slug), books.find((item) => item.entity === entity.slug), today);
     }),
   ].join("\n");
 
