@@ -292,6 +292,19 @@ const monthsBetween = (fromMonth: string, toMonth: string): number => {
   return (ty - fy) * 12 + (tm - fm) + 1;
 };
 
+const monthsFrom = (fromMonth: string, count: number): string[] => {
+  const [year, month] = fromMonth.split("-").map(Number);
+  return Array.from({ length: Math.max(0, count) }, (_, i) => {
+    const index = year * 12 + month - 1 + i;
+    return `${Math.floor(index / 12)}-${pad((index % 12) + 1)}`;
+  });
+};
+
+const monthEnd = (month: string): string => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return `${month}-${pad(new Date(Date.UTC(year, monthNumber, 0)).getUTCDate())}`;
+};
+
 const myr = (row: LedgerRow): number | null => row.amountMyr ?? (row.currency === "MYR" ? row.amount : null);
 
 const sum = (values: number[]): number => values.reduce((total, value) => total + value, 0);
@@ -410,16 +423,38 @@ export const position = (
     ...incomeMonths,
   ].sort();
   const coverage = coverageMonths.at(-1) ?? null;
-  const known = coverage !== null;
   const monthsCovered = coverage === null ? 0 : monthsBetween(period.start.slice(0, 7), coverage);
-  const scaleFor = (months: number): number => (months > 0 ? periodMonths / months : 0);
-  const projectedIncome = (Math.max(0, business) + employment) * scaleFor(monthsCovered);
+  // The latest payslip proves nothing about the months before it: once an individual records any
+  // salary, every month through coverage needs a salary row (a 0 row for a month without one).
+  const salaryMonths = new Set(counted.filter((row) => row.type === LedgerType.Salary).map((row) => row.date.slice(0, 7)));
+  const salaryGaps =
+    entity.close === "none" && salaryMonths.size > 0
+      ? monthsFrom(period.start.slice(0, 7), monthsCovered).filter(
+          (month) => !salaryMonths.has(month) && (opening === undefined || month > opening.date.slice(0, 7))
+        )
+      : [];
+  const known = coverage !== null && salaryGaps.length === 0;
+
+  // The projection uses only what the covered months hold, so a transaction in a month not yet
+  // closed is never annualised over fewer months than it belongs to.
+  const covered = coverage === null ? [] : counted.filter((row) => row.date <= monthEnd(coverage));
+  const coveredOf = (types: Set<string>, keep: (row: LedgerRow) => boolean = () => true): number =>
+    sum(covered.filter((row) => types.has(row.type) && keep(row)).map((row) => myr(row) ?? 0));
+  const coveredSalary = covered.filter((row) => row.type === LedgerType.Salary);
+  const paidMonths = new Set(coveredSalary.filter((row) => (myr(row) ?? 0) > 0).map((row) => row.date.slice(0, 7))).size;
+  const remaining = Math.max(0, periodMonths - monthsCovered);
+  const extend = (total: number): number => total + (paidMonths > 0 ? (total / paidMonths) * remaining : 0);
+  const businessProjected =
+    (openingProfit + coveredOf(new Set([LedgerType.SalesInvoice])) - coveredOf(EXPENSE_TYPES, isDeductible)) *
+    (monthsCovered > 0 ? periodMonths / monthsCovered : 0);
+  const employmentProjected = extend(sum(coveredSalary.map((row) => myr(row) ?? 0)));
+  const pcbProjected = extend(sum(coveredSalary.map((row) => row.tax)));
+  const projectedIncome = Math.max(0, businessProjected) + employmentProjected;
   const lines = entity.kind === EntityKind.Individual ? reliefLines(entity, rates, inPeriod, projectedIncome, zakat) : [];
   const reliefTotal = sum(lines.map((line) => line.claimed));
   const taxSoFar = known ? taxOn(entity, rates, { business, employment, zakat, reliefs: reliefTotal }) : 0;
-  const scale = scaleFor(monthsCovered);
   const projectedTax = known
-    ? taxOn(entity, rates, { business: business * scale, employment: employment * scale, zakat, reliefs: reliefTotal })
+    ? taxOn(entity, rates, { business: businessProjected, employment: employmentProjected, zakat, reliefs: reliefTotal })
     : null;
   const personal: PersonalView | null =
     entity.kind === EntityKind.Individual
@@ -431,11 +466,11 @@ export const position = (
             : 0,
           reliefs: lines,
           reliefTotal,
-          filingBalance: projectedTax === null ? null : projectedTax - (paymentsForYa + pcb * scale),
+          filingBalance: projectedTax === null ? null : projectedTax - (paymentsForYa + pcbProjected),
           effectiveRate: projectedTax === null || projectedIncome <= 0 ? null : projectedTax / projectedIncome,
         }
       : null;
-  const projectedPaid = paymentsForYa + pcb * scale;
+  const projectedPaid = paymentsForYa + pcbProjected;
   const underestimation =
     entity.kind === EntityKind.Company && projectedTax !== null && estimateOnFile !== null
       ? Math.max(0, 0.1 * (projectedTax - estimateOnFile - 0.3 * projectedTax))
@@ -447,13 +482,16 @@ export const position = (
     return `${Math.floor(index / 12)}-${pad((index % 12) + 1)}`;
   })();
   const missing = [
-    ...(known
+    ...(coverage !== null
       ? []
       : [
           entity.close === "none"
             ? `no income recorded for YA ${period.ya} yet`
             : `no closed month or opening figure from the accountant for YA ${period.ya} yet`,
         ]),
+    ...(salaryGaps.length > 0
+      ? [`no salary recorded for ${salaryGaps.join(", ")}: add each payslip, or a 0 salary row for a month without one`]
+      : []),
     ...(known && coverage !== null && coverage < lastFullMonth && lastFullMonth >= period.start.slice(0, 7)
       ? [`books are complete only through ${coverage}; months after it up to ${lastFullMonth} are not closed`]
       : []),

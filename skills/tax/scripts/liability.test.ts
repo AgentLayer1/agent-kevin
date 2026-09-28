@@ -149,6 +149,15 @@ describe("position: company", () => {
     expect(result.underestimationPenalty).toBeCloseTo(0.1 * (57600 - 0 - 0.3 * 57600), 2);
   });
 
+  test("income in a month not yet closed counts toward owed now but not toward the projection", () => {
+    const rows = [row("2026-01-31", "opening", 10000), row("2026-02-15", "sales-invoice", 10000)];
+    const open = position(company, rows, rates, "2026-02-28", null, []);
+    const closed = position(company, rows, rates, "2026-02-28", null, ["2026-02"]);
+    expect(open.taxSoFar).toBeCloseTo(20000 * 0.24, 2);
+    expect(open.projectedTax).toBeCloseTo(10000 * 12 * 0.24, 2);
+    expect(closed.projectedTax).toBeCloseTo(20000 * 6 * 0.24, 2);
+  });
+
   test("company zakat is a deduction capped at 2.5% of profit", () => {
     const rows = [row("2026-02-10", "sales-invoice", 100000), row("2026-02-11", "zakat", 5000)];
     expect(position(company, rows, rates, "2026-02-20", null, ["2026-01"]).taxSoFar).toBeCloseTo((100000 - 2500) * 0.24, 2);
@@ -170,12 +179,13 @@ describe("position: individual", () => {
   });
 
   test("zakat reduces tax ringgit for ringgit but never below zero", () => {
-    const rows = [row("2026-02-28", "salary", 30000), row("2026-02-28", "zakat", 99999)];
+    const rows = [row("2026-01-31", "salary", 30000), row("2026-02-28", "salary", 30000), row("2026-02-28", "zakat", 99999)];
+    expect(position(person, rows.slice(0, 2), rates, "2026-02-28", null).taxSoFar).toBeGreaterThan(0);
     expect(position(person, rows, rates, "2026-02-28", null).taxSoFar).toBe(0);
   });
 
   test("the RM400 rebate applies at or below RM35,000 chargeable", () => {
-    const rows = [row("2026-02-28", "salary", 44000)];
+    const rows = [row("2026-01-31", "salary", 0), row("2026-02-28", "salary", 44000)];
     expect(position(person, rows, rates, "2026-02-28", null).taxSoFar).toBeCloseTo(Math.max(0, bandTax(35000, rates.individual.resident) - 400), 2);
   });
 
@@ -238,6 +248,27 @@ describe("position: personal view", () => {
     const result = position(person, rows, rates, "2026-06-30", null);
     expect(result.personal?.reliefTotal).toBe(9000);
     expect(result.warnings.join(" ")).toContain("1 relief row");
+  });
+
+  test("a payslip gap before the latest one leaves the year unpriced and names the missing months", () => {
+    const juneOnly = position(person, [row("2026-06-30", "salary", 20000, { tax: 3000 })], rates, "2026-06-30", null);
+    expect(juneOnly.known).toBe(false);
+    expect(juneOnly.personal?.filingBalance).toBeNull();
+    expect(juneOnly.missing.join(" ")).toContain("2026-01, 2026-02, 2026-03, 2026-04, 2026-05");
+    const full = position(person, salaryYear(3000), rates, "2026-06-30", null);
+    expect(full.known).toBe(true);
+    expect(full.personal?.filingBalance ?? 0).toBeGreaterThan(0);
+  });
+
+  test("zero rows mark months without salary, and a mid-year starter projects from the months paid", () => {
+    const rows = [
+      ...["01", "02", "03", "04", "05"].map((month) => row(`2026-${month}-28`, "salary", 0)),
+      row("2026-06-30", "salary", 20000, { tax: 3000 }),
+    ];
+    const result = position(person, rows, rates, "2026-06-30", null);
+    expect(result.known).toBe(true);
+    expect(result.projectedTax).toBeCloseTo(bandTax(20000 * 7 - 9000, rates.individual.resident), 2);
+    expect(result.personal?.filingBalance).toBeCloseTo(bandTax(20000 * 7 - 9000, rates.individual.resident) - 3000 * 7, 2);
   });
 
   test("a company has no personal view", () => {
