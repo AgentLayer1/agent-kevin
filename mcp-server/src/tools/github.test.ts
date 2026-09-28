@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { classifyFetchFailure, fastForwardBranch, parseGitHubRemote } from './github';
+import { classifyFetchFailure, fastForwardBranch, parseGitHubRemote, prListArgs } from './github';
 
 describe('parseGitHubRemote', () => {
   test('SSH remote', () => {
@@ -218,5 +218,28 @@ describe('classifyFetchFailure', () => {
 
   test('anything unrecognised stays UNKNOWN rather than guessing', () => {
     expect(classifyFetchFailure('fatal: early EOF')).toBe('UNKNOWN');
+  });
+});
+
+describe('prListArgs', () => {
+  const flag = (args: string[], name: string): string | undefined => args[args.indexOf(name) + 1];
+
+  test('defaults to the 20 newest open PRs with no author or search filter', () => {
+    const args = prListArgs('acme/app', {});
+    expect(flag(args, '--state')).toBe('open');
+    expect(flag(args, '--limit')).toBe('20');
+    expect(args).not.toContain('--author');
+    expect(args).not.toContain('--search');
+  });
+
+  test('author and a pending review request become gh filters', () => {
+    const args = prListArgs('acme/app', { author: 'alex-chen', reviewRequested: 'alex-chen', search: 'draft:false' });
+    expect(flag(args, '--author')).toBe('alex-chen');
+    expect(flag(args, '--search')).toBe('review-requested:alex-chen draft:false');
+  });
+
+  test('a login that is not a GitHub login is refused before gh runs', () => {
+    expect(() => prListArgs('acme/app', { author: 'alex --web' })).toThrow('Invalid author');
+    expect(() => prListArgs('acme/app', { reviewRequested: 'a b' })).toThrow('Invalid reviewRequested');
   });
 });

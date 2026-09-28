@@ -430,8 +430,47 @@ const PR_LIST_FIELDS = [
   'updatedAt',
   'url',
   'reviewDecision',
+  'mergeable',
   'labels'
 ].join(',');
+
+const LOGIN_RE = /^(@me|[A-Za-z0-9][A-Za-z0-9-]{0,38})$/;
+
+export interface PrListFilters {
+  state?: 'open' | 'closed' | 'merged' | 'all';
+  limit?: number;
+  author?: string;
+  reviewRequested?: string;
+  search?: string;
+}
+
+const login = (field: string, value: string): string => {
+  if (!LOGIN_RE.test(value)) {
+    throw new Error(`Invalid ${field} (expected a GitHub login): ${value}`);
+  }
+  return value;
+};
+
+export const prListArgs = (target: string, filters: PrListFilters): string[] => {
+  const search = [
+    filters.reviewRequested && `review-requested:${login('reviewRequested', filters.reviewRequested)}`,
+    filters.search
+  ].filter((part): part is string => Boolean(part));
+  return [
+    'pr',
+    'list',
+    '-R',
+    target,
+    '--state',
+    filters.state ?? 'open',
+    '--limit',
+    String(filters.limit ?? 20),
+    ...(filters.author ? ['--author', login('author', filters.author)] : []),
+    ...(search.length ? ['--search', search.join(' ')] : []),
+    '--json',
+    PR_LIST_FIELDS
+  ];
+};
 
 /**
  * GraphQL because `isResolved` exists nowhere else — REST's `/pulls/{n}/comments` returns the
@@ -544,26 +583,18 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_pr_list',
     description:
-      'List pull requests for a repo (read-only). Returns number, title, state, author, branch, draft flag, review decision, labels, timestamps. Filter by state; cap with limit.',
+      'List pull requests for a repo (read-only). Returns number, title, state, author, branch, draft flag, review decision, mergeability, labels, timestamps. Filter by state, author, a pending review request, or a GitHub search query; cap with limit.',
     inputSchema: {
       ...repoField,
       state: z.enum(['open', 'closed', 'merged', 'all']).optional().describe('Defaults to open.'),
-      limit: z.number().int().positive().max(100).optional().describe('Max PRs to return (default 20).')
+      limit: z.number().int().positive().max(100).optional().describe('Max PRs to return (default 20).'),
+      author: z.string().optional().describe('GitHub login of the PR author.'),
+      reviewRequested: z.string().optional().describe('GitHub login with a pending review request on the PR.'),
+      search: z.string().optional().describe('Extra GitHub search qualifiers, e.g. "draft:false".')
     },
-    handler: async ({ repo, state, limit }) => {
+    handler: async ({ repo, ...filters }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:pr_list:${target}`, [
-        'pr',
-        'list',
-        '-R',
-        target,
-        '--state',
-        state ?? 'open',
-        '--limit',
-        String(limit ?? 20),
-        '--json',
-        PR_LIST_FIELDS
-      ]);
+      return ghJson(`github:pr_list:${target}`, prListArgs(target, filters));
     }
   }),
 
