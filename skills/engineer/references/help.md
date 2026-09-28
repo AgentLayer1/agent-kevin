@@ -40,7 +40,17 @@ Ask in plain words, or name the playbook: `/engineer <playbook> <target>`. It re
 | "check every endpoint for X" | **swarm** | Workers over slices, one merged report |
 | "interrogate this branch" | **interrogate** | Several reviewers, findings sorted into act, consider, noted, dismissed |
 
-A second model on your own work is the `adversarial-review` skill; a teammate's PR is `pr-review`.
+A second model on your own work, code or not, is the `adversarial-review` skill.
+
+### 🔀 Pull requests
+
+Read-only against GitHub: every output is a report in `reports/reviews/` you paste from.
+
+| Ask | Playbook | You get |
+|---|---|---|
+| "review PR 531" | **pr review** | The change explained, seven lanes held to the principles, every finding verified, paste-ready comments at `file:line` |
+| "reply to the comments on my PR" | **pr replies** | Each thread judged against the code, accurate ones fixed uncommitted, a reply for every thread in scroll order |
+| "prep my PR for standup" | **pr walkthrough** | A standup script, the diff tour, the questions with receipts, a recording runbook; `--rehearse` quizzes you |
 
 ### 🏃 Long and multi-session work
 

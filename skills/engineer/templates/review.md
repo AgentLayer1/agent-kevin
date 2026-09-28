@@ -56,13 +56,13 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 
 ## 🔍 Findings
 
-*Ranked: security/authz › data loss › domain invariant › correctness › regression › tests › conventions. Each finding is one anchor, one claim, one paste block. The paste block follows `references/comment-style.md`.*
+*Ranked: security/authz › data loss › domain invariant › correctness › regression › tests › conventions. Each finding is one anchor, one claim, one paste block. The paste block follows `references/pr/comment-style.md`.*
 
 ### 🔴 Blockers
 
 #### 1. <Claim in one sentence>
 
-📍 `<path>:<line>` · <lane> · introduced by this PR
+📍 `<path>:<line>` · <lane> · introduced by this PR · <principle or repo rule, when one applies>
 
 <Failure scenario in one sentence. Evidence in one or two: what you read, what you ran, file:line.>
 

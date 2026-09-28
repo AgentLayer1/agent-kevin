@@ -1,23 +1,26 @@
 # Review lanes
 
-Each lane is one parallel agent in Step 4. The checklist is the agent's prompt body; hand it over verbatim with the PR context. Every lane returns findings in the shape defined in `SKILL.md` → Step 4 and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
+Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fan-out (step 2). The checklist is the agent's prompt body; hand it over verbatim with the PR context, plus the absolute paths of the files its **Reads** line names. Every lane returns findings in the shape defined in that step and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
 
 Common rules for every lane:
 
 - Judge the **head commit** in the worktree, not the diff in isolation. Open the callers and callees of anything changed.
 - `git blame` before calling unchanged code a bug. Mark `introduced: pre-existing` honestly; the verifier drops it unless the PR makes it worse or newly reachable.
 - One finding per defect. A pattern repeated in six places is one finding listing six anchors.
-- Do not report what the linter, formatter, or type checker reports; those ran in Step 3. Do not report style outside the repo's written conventions.
+- Do not report what the linter, formatter, or type checker reports; those ran in local verification ([foundation](foundation.md) → Step 3). Do not report style outside the repo's written conventions.
 - The failure sentence is mandatory: inputs or state, then the wrong outcome. No failure sentence, no finding; turn it into a `question`.
 - Every file on the coverage checklist gets its own pass and its own `coverage:` line. Reading an implementation does not cover its interface, schema, migration, or config counterpart, and a small file is not a reason to skip it.
 - `code:` carries the anchored lines verbatim from the head commit. The verifier re-finds a finding by that snippet when the line number drifts; a paraphrased snippet cannot be found.
-- When a language addendum from `references/langs/` is attached, it extends this checklist for files of that language; it does not replace it.
+- Read the files a lane's **Reads** line names before judging, and cite the one a finding applies in its `principle:` field. They are the bar the lane holds the change to, not background.
+- When a language addendum from `langs/` is attached, it extends this checklist for files of that language; it does not replace it.
 
 ---
 
 ## Lane 1 — Correctness
 
 The code does what the PR says it does, for every input it will actually see.
+
+**Reads:** [make operations idempotent](../principles/make-operations-idempotent.md) · [separate before serializing shared state](../principles/separate-before-serializing-shared-state.md) · [boundary discipline](../principles/boundary-discipline.md) · [fix root causes](../principles/fix-root-causes.md)
 
 - Null and undefined paths: optional chaining that silently skips a write, a `?? default` that masks a missing required field, a narrowed `select` that no longer loads a field a downstream read needs.
 - Boundaries: off-by-one in pagination and batch windows, inclusive/exclusive date ranges, timezone assumptions in deadline math, floating point where the domain needs a decimal type.
@@ -32,6 +35,8 @@ The code does what the PR says it does, for every input it will actually see.
 
 Anything that moves value, changes what a user can do, or decides an outcome the business depends on. The invariants come from `knowledge/concepts/` and the repo's own docs; cite the article you apply.
 
+**Reads:** [model the domain](../principles/model-the-domain.md) · [type system discipline](../principles/type-system-discipline.md)
+
 - State transitions: does the change auto-advance or auto-recover a state the design deliberately leaves for manual investigation? A "fix" that unsticks something the concept article says must stay stuck is a finding, not a fix.
 - Double effects: any external call without an idempotency key or a marker written before the call; a side effect that runs twice on retry.
 - Ledger-style invariants: every movement has its counterpart record; amounts reconcile across legs; fees or counters are not double-applied; enums cover the new path.
@@ -41,6 +46,8 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 - Thresholds and reporting: limits, deadline math, and report triggers changed without a test pinning the boundary.
 
 ## Lane 3 — Security and privacy
+
+**Reads:** [boundary discipline](../principles/boundary-discipline.md)
 
 - Secrets and PII in logs: interpolated API keys, tokens, signatures, emails, names, document contents into a log string or an exception message. Static message plus structured context is the convention; use the repo's redaction helper if it has one.
 - Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only. Absolute machine paths leak the host's layout; user-facing output shows repo-relative paths.
@@ -55,6 +62,8 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 
 What this PR breaks in code it did not touch.
 
+**Reads:** [blast radius](../playbooks/blast-radius.md) · [prove it works](../principles/prove-it-works.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md)
+
 - The safety fact first: most risky-looking changes are safe because of one fact ("this only drops entries that are already dead"). Name it, then check it as far as is cheap: point at the line, walk the failure, or run a script against the real code. Report which level it reached; an unproven safety fact is a question, not a pass.
 - Callers: `Grep` the worktree for every changed exported symbol and every changed signature. A default parameter added, an argument reordered, a return shape narrowed: check each call site.
 - Deleted or moved writes: for every removed assignment or `data:` field, find the `select`/`include`/reader that still expects it. A UI element that silently renders nothing is the classic symptom.
@@ -68,7 +77,9 @@ What this PR breaks in code it did not touch.
 
 ## Lane 5 — Conventions and quality
 
-Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and any directory-level file) and the `engineer` skill's principles. Cite the rule or principle you apply.
+Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and any directory-level file) and the engineering principles. Cite the rule or principle you apply.
+
+**Reads:** [laziness protocol](../principles/laziness-protocol.md) · [subtract before you add](../principles/subtract-before-you-add.md) · [minimize reader load](../principles/minimize-reader-load.md) · [model the domain](../principles/model-the-domain.md) · [type system discipline](../principles/type-system-discipline.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md) · [encode lessons in structure](../principles/encode-lessons-in-structure.md) · [architect](../architect.md) (the design red flags) · [comment pass](../comment-pass.md) (what a comment may say)
 
 - Errors: the repo's error type only at API boundaries, a real error code, thrown close to the check, not in controllers or pipes.
 - Logging: the repo's logger idiom; static message plus structured fields; no interpolated identifiers.
@@ -89,6 +100,8 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 
 ## Lane 6 — Tests
 
+**Reads:** [test behavior, not implementation](../principles/test-behavior-not-implementation.md) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
+
 - Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted, where the repo's test policy calls for one (read it in `AGENTS.md`; a repo that tests only shared utilities makes a missing app-code spec a non-finding). Name the missing test by the behavior it pins.
 - Hollow tests, the ones that would still pass if every imported function returned `undefined`: no assertion or a weak one (`toBeDefined`, `toBeTruthy`, `not.toThrow`), only mock-call or absence checks (`toHaveBeenCalled`, `toEqual([])`), an expected value computed by the code under test, a restated constant or prompt string, or a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test, snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
 - Deleted or weakened tests: a removed assertion, a `.skip`, a loosened matcher, an invariant that used to be pinned and now is not.
@@ -98,6 +111,8 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 ## Lane 7 — PR hygiene
 
 The PR as an artifact a reviewer can trust.
+
+**Reads:** [handoff](../handoff.md) (what a PR description and commit shape owe a reviewer) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
 
 - **Body versus diff.** Does the description describe this diff? Deleted files, removed guards, or behavior changes the body calls "none" are blockers: a reviewer approving the body approves a different change.
 - Scope: hunks that do not trace to the stated purpose. A root-cause fix carries only itself; unrelated improvements are a defect even when builds pass. Exception: a reviewer-requested fix inside files the PR already touches.

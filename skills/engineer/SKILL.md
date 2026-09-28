@@ -4,11 +4,30 @@ description: >
   Engineering rigor for code work in a repository: fix a bug, build or change a feature, refactor
   or simplify, chase a slowdown or hillclimb a metric, prototype a choice, explain how code works
   or why it is shaped that way, check a change's blast radius, architect a design, run an arena or
-  swarm, interrogate a branch, or drive a long run to a finish line. Picks the playbook, applies 23
-  engineering principles (laziness protocol, prove it works, fix root causes, model the domain…),
-  and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor",
-  "simplify", "why is this slow", "how does X work", "why is X like this", "architect this",
-  "blast radius", "interrogate", "engineer help".
+  swarm, interrogate a branch, or drive a long run to a finish line. Pull requests too, read-only
+  against GitHub: review a teammate's PR with verified findings and paste-ready comments, answer
+  the review on your own PR (fixes uncommitted, replies drafted), or prep your own PR for standup
+  and its test video. Picks the playbook, applies 23 engineering principles (laziness protocol,
+  prove it works, fix root causes…), and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor", "simplify", "why is this slow", "how
+  does X work", "why is X like this", "architect this", "blast radius", "interrogate", "review PR
+  123", "reply to the comments on my PR", "walk me through my PR", "engineer help".
+allowed-tools:
+  - Agent
+  - AskUserQuestion
+  - mcp__plugin_agent-kevin_kevin__github_pr_view
+  - mcp__plugin_agent-kevin_kevin__github_pr_diff
+  - mcp__plugin_agent-kevin_kevin__github_pr_comments
+  - mcp__plugin_agent-kevin_kevin__github_pr_list
+  - mcp__plugin_agent-kevin_kevin__github_run_list
+  - mcp__plugin_agent-kevin_kevin__github_run_view
+  - mcp__plugin_agent-kevin_kevin__github_issue_view
+  - mcp__plugin_agent-kevin_kevin__github_fast_forward
+  - mcp__plugin_agent-kevin_kevin__setup_worktree
+  - mcp__plugin_agent-kevin_kevin__list_worktrees
+  - mcp__plugin_agent-kevin_kevin__remove_worktree
+  - mcp__plugin_agent-kevin_kevin__database_query
+  - mcp__plugin_agent-kevin_kevin__video_frames
+  - mcp__plugin_agent-kevin_kevin__report_write
 ---
 
 # Engineer
@@ -51,11 +70,19 @@ The working method for code: a playbook per kind of task, principles the playboo
 | Test whether a skill or prompt change changes behavior | [eval](references/playbooks/eval.md) |
 | Give a repo a scripted way to prove the app works | [verification skill](references/playbooks/verification-skill.md) |
 
+Pull requests share one [foundation](references/pr/foundation.md) (resolve the PR, prior context, understand the change, a local build in a worktree) and never post to GitHub; the operator pastes. Whose PR it is picks the playbook:
+
+| Task | Playbook |
+|---|---|
+| A teammate's PR: "review 531", `/engineer review 531` | [pr review](references/playbooks/pr-review.md) |
+| The review on your own PR: "reply to the comments", `/engineer replies 531` | [pr replies](references/playbooks/pr-replies.md) |
+| Present or record your own PR: "prep my PR for standup", `/engineer walkthrough 531` | [pr walkthrough](references/playbooks/pr-walkthrough.md) |
+
 Cross-cutting references:
 
 - Code that crosses a function boundary, or a shape that isn't obvious: [architect](references/architect.md).
 - N competing attempts, then pick and graft: [arena](references/arena.md). N workers over slices or a race: [swarm](references/swarm.md).
-- Several reviewers attacking a change: [interrogate](references/interrogate.md). A second model on your work: the adversarial-review skill. Someone else's PR: the pr-review skill.
+- Several reviewers attacking your own change before it's a PR: [interrogate](references/interrogate.md). A second model on your work, code or not: the adversarial-review skill. Someone else's PR: [pr review](references/playbooks/pr-review.md).
 - Before any diff is presented: [comment pass](references/comment-pass.md).
 - Commit messages and PR descriptions: [handoff](references/handoff.md) and [technical writing](references/technical-writing.md).
 - A reviewable trail for long or unattended work: [decision log](references/decision-log.md).

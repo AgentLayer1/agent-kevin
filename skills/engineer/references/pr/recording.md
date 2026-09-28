@@ -37,7 +37,7 @@ Each scene's `Expect` cell names something a viewer who does not know the codeba
 
 In order of preference, name in the scene's `Setup`:
 
-1. **The repo's own seed or fixture scripts.** Read the root `package.json` (or equivalent) and any `scripts/` or fixtures directory for a command that seeds the exact state (a user in a status, a record in a step); prefer it over hand-clicking there. Name the command and its flags. A command that spends money or targets production never runs from this skill; the operator runs it on camera if at all.
+1. **The repo's own seed or fixture scripts.** Read the root `package.json` (or equivalent) and any `scripts/` or fixtures directory for a command that seeds the exact state (a user in a status, a record in a step); prefer it over hand-clicking there. Name the command and its flags. A command that spends money or targets production never runs from this playbook; the operator runs it on camera if at all.
 2. **A `browser-flows` flow** for UI paths that need a real login and a real UI.
 3. **An `api-collections` request** for endpoint paths; the operator fires it from Bruno or curl on camera, which doubles as showing the request.
 4. **A `database_query`** for the state before and after a background-job scene.
@@ -66,9 +66,9 @@ In order of preference, name in the scene's `Setup`:
 ## Attaching to the PR
 
 - Drag the `.mov` or `.mp4` into the PR description; GitHub renders it inline. If GitHub refuses the size, upload to Loom or Drive and paste the link.
-- Add one line to the body, under the description: `Video: <link>, scenes 1–<n>: <three-word labels>`. The operator edits the body themselves; this skill never posts.
+- Add one line to the body, under the description: `Video: <link>, scenes 1–<n>: <three-word labels>`. The operator edits the body themselves; nothing here posts.
 - If the PR changes after recording, either re-record the affected scenes or add `Video predates <sha>; scenes <k> unchanged` to the body. A stale video that no longer matches the diff is worse than none.
 
 ## After recording
 
-`/pr-walkthrough <n> --check <path-to-video>` extracts scene-change frames, maps them onto the runbook, and reports covered / missing / unclear scenes plus anything on camera that should not be. Post only after the check says *post it*.
+`/engineer walkthrough <n> --check <path-to-video>` extracts scene-change frames, maps them onto the runbook, and reports covered / missing / unclear scenes plus anything on camera that should not be. Post only after the check says *post it*.

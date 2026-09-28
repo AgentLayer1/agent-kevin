@@ -94,7 +94,7 @@ Legend: ★ a place the room will look (five at most) · 💬 came from a review
 - say · "<…>"
 
 **Not demoed** · <branch> → <stand-in: spec, log line, run column>
-**After** · `/pr-walkthrough <n> --check <video>` · attach to the PR · body line: `Video: <link>, scenes 1–<n>: <labels>`
+**After** · `/engineer walkthrough <n> --check <video>` · attach to the PR · body line: `Video: <link>, scenes 1–<n>: <labels>`
 
 ---
 

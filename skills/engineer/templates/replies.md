@@ -7,7 +7,7 @@ Flat by design. A thread is a heading with a permalink, the reviewer's words on 
 ````markdown
 ---
 title: "PR #<n> replies: <k> threads, paste-ready, <what every claim was checked against>"
-skill: pr-review
+skill: engineer
 created: <ISO 8601 with offset>
 summary: "<One sentence: whose threads, how many, that they are in the operator's voice, and what every \"done\" was verified against.>"
 status: clean | findings | draft
@@ -23,7 +23,7 @@ tags: [<area>, pr-<n>, replies]
 
 <Reviewer> wrote: "<their words, quoted, trimmed with … where long>"
 
-> <The reply, paste-ready, in the operator's voice. Answer in the first three words. Follows references/comment-style.md → "Replies on your own PR".>
+> <The reply, paste-ready, in the operator's voice. Answer in the first three words. Follows references/pr/comment-style.md → "Replies on your own PR".>
 
 ### 2. …
 

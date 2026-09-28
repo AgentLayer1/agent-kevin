@@ -1,6 +1,6 @@
 # Swift addendum
 
-Ported from `internal/config/rules/rule_docs/swift.md` in [alibaba/open-code-review](https://github.com/alibaba/open-code-review) (Apache-2.0, Copyright 2026 Alibaba), trimmed to the classes of defect this skill reports. Appended to the correctness, invariants, and security lane prompts when the changed files include `.swift`.
+Ported from `internal/config/rules/rule_docs/swift.md` in [alibaba/open-code-review](https://github.com/alibaba/open-code-review) (Apache-2.0, Copyright 2026 Alibaba), trimmed to the classes of defect the PR review lanes report. Appended to the correctness, invariants, and security lane prompts when the changed files include `.swift`.
 
 Report only defects that are real in changed code on a reachable path. Before reporting non-local behavior (threading, retain cycles, error contracts), read the owner, the callers, and the input source; never infer it from names or types. Do not duplicate what the compiler, SwiftLint, or the Xcode analyzer reports unless the diff creates a concrete correctness impact.
 
