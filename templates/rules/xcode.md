@@ -20,6 +20,10 @@ before any file is read: "build the app" is the moment the toolchain gets reache
   (location, erase, device list), and `xcodebuild archive` / `-exportArchive`, because the MCP
   surface has no archive action. Anything that uploads (`-exportArchive`, `altool`, `notarytool`)
   is gated on the operator by a `permissions.ask` rule. Never widen the sandbox yourself.
+- **An excluded command must be the whole command line.** The exclusion matches only a bare call:
+  a leading `cd … &&` or a trailing `> log 2>&1` makes it run sandboxed, where it fails with package
+  resolution `permissionDenied` and `simdiskimaged` errors. Pass absolute paths instead of `cd`, and
+  capture output with `run_in_background` rather than a redirect.
 
 ## Headless setup and recovery
 
