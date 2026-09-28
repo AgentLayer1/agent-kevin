@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type Ask, booksFor, type CloseRecord, MonthState, monthRange, parseClose } from "./books";
+import { type Ask, booksFor, MonthState, monthRange } from "./books";
+import { type CloseRecord, parseClose } from "./closes";
 import type { Entity } from "./calendar";
 import type { LedgerRow } from "./liability";
 

@@ -262,6 +262,12 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     const id = isRecord(invalid) && typeof invalid.id === "string" ? invalid.id : JSON.stringify(invalid);
     throw new Error(`entities/${slug}.md: obligation ${id} is malformed (needs id, title, period, due)`);
   }
+  const unquotedBound = obligations
+    .filter(isObligation)
+    .find((item) => [item.from, item.until].some((bound) => bound !== undefined && (typeof bound !== "string" || !MONTH_RE.test(bound))));
+  if (unquotedBound !== undefined) {
+    throw new Error(`entities/${slug}.md: obligation ${unquotedBound.id} needs from and until as quoted "YYYY-MM" (YAML reads an unquoted 2026-07 as a number)`);
+  }
   const listedAccounts = yamlBlock(raw, "Accounts");
   const accounts: unknown[] = Array.isArray(listedAccounts) ? listedAccounts : [];
   if (accounts.some((item) => !isAccount(item))) {

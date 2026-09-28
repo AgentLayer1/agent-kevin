@@ -152,6 +152,13 @@ describe("parseEntity", () => {
   });
 });
 
+test("parseEntity refuses an unquoted from or until month instead of dropping every deadline", () => {
+  const unquoted = profile.replace('from: "2026-07" }', "from: 2026-07 }");
+  expect(unquoted).not.toBe(profile);
+  expect(() => parseEntity("acme", unquoted)).toThrow("form-c");
+  expect(parseEntity("acme", profile).obligations).toHaveLength(2);
+});
+
 describe("plan", () => {
   test("creates only what is inside its lead window and not already a task", () => {
     const dir = scratch();
@@ -272,6 +279,17 @@ describe("renderDashboard", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile.replace("close: monthly", "close: monthly\nbooked_through: 2026-07"));
     expect(() => renderDashboard(dir, "2026-10-08")).toThrow("booked_through");
+  });
+
+  test("a partial close leaves the year unpriced, never RM 0", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile.replace("kind: company", "kind: company\ncountry: my"));
+    const partial = '---\nmonth: "2026-08"\nstatus: partial\n---\n\n## Gaps\n\n```yaml\n- { date: "2026-08-12", account: main, amount: 90000, direction: in, need: explanation }\n```\n';
+    write(dir, "closes/acme/2026-08.md", partial);
+    const html = renderDashboard(dir, "2026-09-20");
+    expect(html).toContain('<div class="hero-figure">—</div>');
+    write(dir, "closes/acme/2026-08.md", '---\nmonth: "2026-08"\nstatus: closed\n---\n');
+    expect(renderDashboard(dir, "2026-09-20")).toContain('<div class="hero-figure">RM 0</div>');
   });
 
   test("switches tabs with CSS alone: one radio and one panel per entity plus the overview", () => {

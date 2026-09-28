@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { parseFrontmatter } from "../../../mcp-server/src/tasks/schema";
-import { type Entity, EntityKind, frontmatterOf, yamlBlock } from "./calendar";
+import { type Entity, EntityKind } from "./calendar";
+import { type CloseRecord, type Gap, loadCloses } from "./closes";
 import { type LedgerRow, LedgerType, loadLedger } from "./liability";
 
 /**
@@ -22,26 +23,6 @@ export const MonthState = {
   Future: "future",
 } as const;
 export type MonthState = (typeof MonthState)[keyof typeof MonthState];
-
-export const GapNeed = { Receipt: "receipt", Invoice: "invoice", Explanation: "explanation" } as const;
-export type GapNeed = (typeof GapNeed)[keyof typeof GapNeed];
-
-export interface Gap {
-  date: string;
-  account: string;
-  amount: number;
-  currency: string;
-  direction: "in" | "out";
-  need: GapNeed;
-  note: string;
-}
-
-export interface CloseRecord {
-  month: string;
-  status: "closed" | "partial";
-  sent: string | null;
-  gaps: Gap[];
-}
 
 export interface Ask {
   id: string;
@@ -87,51 +68,6 @@ export const monthRange = (from: string, to: string): string[] =>
     : Array.from({ length: monthIndex(to) - monthIndex(from) + 1 }, (_, i) => monthOf(monthIndex(from) + i));
 
 export const shiftMonth = (month: string, by: number): string => monthOf(monthIndex(month) + by);
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isGap = (value: unknown): value is Gap =>
-  isRecord(value) &&
-  typeof value.date === "string" &&
-  typeof value.amount === "number" &&
-  (value.direction === "in" || value.direction === "out") &&
-  Object.values(GapNeed).includes(value.need as GapNeed);
-
-/**
- * One close record: flat frontmatter plus the open gaps in the yaml block under `## Gaps`. A
- * malformed gap throws with the file named, so an unexplained payment is never silently dropped.
- */
-export const parseClose = (file: string, raw: string): CloseRecord => {
-  const data = frontmatterOf(raw) ?? {};
-  const listed = yamlBlock(raw, "Gaps");
-  const gaps: unknown[] = Array.isArray(listed) ? listed : [];
-  if (gaps.some((gap) => !isGap(gap))) {
-    throw new Error(`${file}: every gap needs date, amount, direction (in or out) and need (receipt, invoice or explanation)`);
-  }
-  return {
-    month: typeof data.month === "string" ? data.month : basename(file, ".md"),
-    status: data.status === "closed" ? "closed" : "partial",
-    sent: typeof data.sent === "string" ? data.sent : null,
-    gaps: gaps.filter(isGap).map((gap) => ({
-      ...gap,
-      account: typeof gap.account === "string" ? gap.account : "",
-      currency: typeof gap.currency === "string" ? gap.currency : "MYR",
-      note: typeof gap.note === "string" ? gap.note : "",
-    })),
-  };
-};
-
-export const loadCloses = (taxDir: string, slug: string): CloseRecord[] => {
-  const dir = join(taxDir, "closes", slug);
-  if (!existsSync(dir)) {
-    return [];
-  }
-  return readdirSync(dir)
-    .filter((file) => /^\d{4}-\d{2}\.md$/.test(file))
-    .sort()
-    .map((file) => parseClose(join("closes", slug, file), readFileSync(join(dir, file), "utf8")));
-};
 
 /**
  * Open tax tasks the accountant is waiting on: labelled `accountant` or `bookkeeping` and

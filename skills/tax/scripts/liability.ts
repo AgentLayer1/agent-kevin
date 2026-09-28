@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { type Entity, EntityKind } from "./calendar";
+import { loadCloses } from "./closes";
 
 /**
  * The tax position engine: what each entity owes if its year ended today, what is already paid,
@@ -515,14 +516,14 @@ const estimateFiled = (taxDir: string, slug: string, ya: number): number | null 
   return isRecord(data) && typeof data.filed === "number" ? data.filed : null;
 };
 
-const closedMonths = (taxDir: string, slug: string): string[] => {
-  const dir = join(taxDir, "closes", slug);
-  return existsSync(dir)
-    ? readdirSync(dir)
-        .filter((file) => /^\d{4}-\d{2}\.md$/.test(file))
-        .map((file) => basename(file, ".md"))
-    : [];
-};
+/**
+ * Months whose close is complete. A partial close, or one with open gaps, has unpriced lines in
+ * it, so it never counts as covered.
+ */
+const closedMonths = (taxDir: string, slug: string): string[] =>
+  loadCloses(taxDir, slug)
+    .filter((record) => record.status === "closed" && record.gaps.length === 0)
+    .map((record) => record.month);
 
 /**
  * Every entity's position, in the order given.
