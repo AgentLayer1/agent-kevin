@@ -13,7 +13,7 @@ Your companies and your personal return, kept ahead of their deadlines. I prepar
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "How much tax do I owe right now?" | **position** | Tax owed now per entity and in total, the monthly set-aside, and how sure the number is |
+| "How much tax do I owe right now?" | **position** | Tax owed now per company and in total, the monthly set-aside, your refund or top-up at filing, the reliefs you haven't used, and how sure each number is |
 
 ### 🧾 Books
 

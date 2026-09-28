@@ -15,7 +15,8 @@ const company: Entity = {
   close: "monthly",
   sme: false,
   resident: null,
-  reliefs: null,
+  spouseRelief: null,
+  childrenUnder18: null,
   obligations: [],
 };
 
@@ -38,7 +39,7 @@ const row = (date: string, type: string, amount: number, extra: Partial<LedgerRo
 describe("rates", () => {
   test("every country reference ships a Rates block the engine parses", () => {
     expect(rates.company.flat).toBe(24);
-    expect(rates.individual.selfRelief).toBe(9000);
+    expect(rates.individual.reliefs.find((relief) => relief.id === "self")?.cap).toBe(9000);
   });
 
   test("resident bands match the published cumulative schedule at every boundary", () => {
@@ -178,6 +179,59 @@ describe("position: individual", () => {
   test("an unconfirmed residence is computed as resident and says so", () => {
     const result = position({ ...person, resident: null }, [row("2026-02-28", "salary", 10000)], rates, "2026-02-28", null);
     expect(result.warnings.join(" ")).toContain("unconfirmed");
+  });
+});
+
+describe("position: personal view", () => {
+  const salaryYear = (pcb: number) =>
+    Array.from({ length: 6 }, (_, i) => row(`2026-0${i + 1}-28`, "salary", 20000, { tax: pcb }));
+
+  test("claimed reliefs count up to their cap, and profile reliefs apply only when confirmed", () => {
+    const rows = [...salaryYear(2000), row("2026-03-01", "relief", 3000, { category: "lifestyle" }), row("2026-04-01", "relief", 1500, { category: "prs" })];
+    const view = position({ ...person, spouseRelief: true, childrenUnder18: 3 }, rows, rates, "2026-06-30", null).personal;
+    const byId = Object.fromEntries((view?.reliefs ?? []).map((line) => [line.id, line]));
+    expect(byId.lifestyle.claimed).toBe(2500);
+    expect(byId.lifestyle.status).toBe("full");
+    expect(byId.prs.status).toBe("partial");
+    expect(byId.spouse.claimed).toBe(4000);
+    expect(byId["child-under-18"].claimed).toBe(6000);
+    expect(view?.reliefTotal).toBe(9000 + 4000 + 6000 + 2500 + 1500);
+  });
+
+  test("an unconfirmed spouse or child count is shown as possible, not claimed", () => {
+    const view = position(person, salaryYear(2000), rates, "2026-06-30", null).personal;
+    const spouse = view?.reliefs.find((line) => line.id === "spouse");
+    expect(spouse?.status).toBe("unconfirmed");
+    expect(spouse?.claimed).toBe(0);
+    expect(spouse?.worth).toBeGreaterThan(0);
+    expect(view?.reliefTotal).toBe(9000);
+  });
+
+  test("an unused relief is priced at the operator's rate on the projected income", () => {
+    const view = position(person, salaryYear(2000), rates, "2026-06-30", null).personal;
+    const lifestyle = view?.reliefs.find((line) => line.id === "lifestyle");
+    const projected = 240000 - 9000;
+    expect(lifestyle?.worth).toBeCloseTo(bandTax(projected, rates.individual.resident) - bandTax(projected - 2500, rates.individual.resident), 2);
+  });
+
+  test("the filing balance is a refund when salary tax was over-withheld and a top-up when it was not", () => {
+    const refund = position(person, salaryYear(6000), rates, "2026-06-30", null).personal;
+    expect(refund?.filingBalance ?? 0).toBeLessThan(0);
+    const topUp = position(person, [...salaryYear(1000), row("2026-05-15", "sales-invoice", 60000)], rates, "2026-06-30", null).personal;
+    expect(topUp?.filingBalance ?? 0).toBeGreaterThan(0);
+  });
+
+  test("tax on income nobody withheld from is the extra tax the business income adds", () => {
+    const rows = [...salaryYear(2000), row("2026-05-15", "sales-invoice", 30000)];
+    const result = position(person, rows, rates, "2026-06-30", null);
+    const withoutBusiness = bandTax(120000 - 9000, rates.individual.resident);
+    const withBusiness = bandTax(150000 - 9000, rates.individual.resident);
+    expect(result.personal?.unwithheldIncome).toBe(30000);
+    expect(result.personal?.taxOnUnwithheld).toBeCloseTo(withBusiness - withoutBusiness, 2);
+  });
+
+  test("a company has no personal view", () => {
+    expect(position(company, [], rates, "2026-06-30", null).personal).toBeNull();
   });
 });
 

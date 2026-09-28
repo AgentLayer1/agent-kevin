@@ -24,7 +24,8 @@ const acme: Entity = {
   close: "monthly",
   sme: false,
   resident: null,
-  reliefs: null,
+  spouseRelief: null,
+  childrenUnder18: null,
   obligations: [
     { id: "cp204", title: "CP204 estimate", period: { months: 12, anchor: "fye" }, due: { from: "start", days: -31 } },
     { id: "cp204a-11th", title: "CP204A 11th month", period: { months: 12, anchor: "fye" }, due: { from: "start", months: 10, day: "last" } },

@@ -13,7 +13,17 @@ import {
   stateOf,
   TaskState,
 } from "./calendar";
-import { EXPENSE_TYPES, isDeductible, type LedgerRow, loadLedger, type Position, positions } from "./liability";
+import {
+  EXPENSE_TYPES,
+  isDeductible,
+  type LedgerRow,
+  loadLedger,
+  type PersonalView,
+  type Position,
+  positions,
+  type ReliefLine,
+  ReliefStatus,
+} from "./liability";
 
 /**
  * The tax project's dashboard: one static page, no JavaScript (tabs are radio inputs styled with
@@ -175,8 +185,35 @@ const notes = (position: Position): string => {
   return lines.length === 0 ? "" : `<ul class="notes">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`;
 };
 
+const filing = (balance: number | null): { label: string; figure: string; caption: string } =>
+  balance === null
+    ? { label: "At filing", figure: "—", caption: "not priced yet" }
+    : balance < 0
+      ? { label: "Refund at filing", figure: money(-balance), caption: "refund expected when you file, at this pace" }
+      : { label: "Top-up at filing", figure: money(balance), caption: "to pay when you file, at this pace" };
+
+const RELIEF_ORDER: Record<ReliefStatus, number> = {
+  [ReliefStatus.Unconfirmed]: 0,
+  [ReliefStatus.Partial]: 1,
+  [ReliefStatus.Open]: 2,
+  [ReliefStatus.Full]: 3,
+};
+
+const sortedReliefs = (view: PersonalView): ReliefLine[] =>
+  [...view.reliefs].sort((a, b) => RELIEF_ORDER[a.status] - RELIEF_ORDER[b.status] || b.worth - a.worth);
+
+const percent = (rate: number | null): string => (rate === null ? "—" : `${(rate * 100).toFixed(1)}%`);
+
+const personalCard = (entity: Entity, position: Position, view: PersonalView, next: Item | undefined): string => {
+  const outcome = filing(view.filingBalance);
+  const best = sortedReliefs(view).find((line) => line.status !== ReliefStatus.Full && line.worth > 0);
+  return `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span>${entity.name === kindLabel(entity.kind) ? "" : `<span class="kind">${kindLabel(entity.kind)}</span>`}</div><div class="card-figure">${outcome.figure}</div><div class="card-caption">${outcome.caption}</div><dl><dt>Withheld from salary</dt><dd>${position.known ? money(view.withheld) : "—"}</dd><dt>Tax on income not withheld</dt><dd>${position.known ? money(view.taxOnUnwithheld) : "—"}</dd><dt>Best unused relief</dt><dd>${best ? `${escapeHtml(best.title.split(":")[0])} · up to ${money(best.worth)}` : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
+};
+
 const entityCard = (entity: Entity, position: Position, next: Item | undefined): string =>
-  `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span><span class="kind">${kindLabel(entity.kind)}</span></div><div class="card-figure">${moneyOrDash(position.owedNow)}</div><div class="card-caption">${position.known ? `owed now for YA ${position.ya}` : "not priced yet"}${position.aheadBy > 0 ? ` · ahead by ${money(position.aheadBy)}` : ""}</div><dl><dt>Year projection</dt><dd>${moneyOrDash(position.projectedTax)}</dd><dt>Per month</dt><dd>${moneyOrDash(position.monthlyTax)}</dd><dt>Books through</dt><dd>${position.coverage ? monthLabel(position.coverage) : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
+  position.personal !== null
+    ? personalCard(entity, position, position.personal, next)
+    : `<label for="tab-${slug(entity.slug)}" class="card entity e-${slug(entity.slug)}"><div class="card-head"><span class="dot e-${slug(entity.slug)}"></span><span class="card-name">${escapeHtml(entity.name)}</span><span class="kind">${kindLabel(entity.kind)}</span></div><div class="card-figure">${moneyOrDash(position.owedNow)}</div><div class="card-caption">${position.known ? `owed now for YA ${position.ya}` : "not priced yet"}${position.aheadBy > 0 ? ` · ahead by ${money(position.aheadBy)}` : ""}</div><dl><dt>Year projection</dt><dd>${moneyOrDash(position.projectedTax)}</dd><dt>Per month</dt><dd>${moneyOrDash(position.monthlyTax)}</dd><dt>Books through</dt><dd>${position.coverage ? monthLabel(position.coverage) : "—"}</dd><dt>Next deadline</dt><dd>${next ? `${dayLabel(next.occurrence.due)} · ${escapeHtml(shortTitle(next.occurrence))}` : "—"}</dd></dl>${[...position.missing, ...position.warnings].map((line) => `<div class="card-flag">${escapeHtml(line)}</div>`).join("")}</label>`;
 
 const sumKnown = (list: Position[], pick: (position: Position) => number | null): number | null => {
   const known = list.map(pick).filter((value): value is number => value !== null);
@@ -203,7 +240,7 @@ const overviewPanel = (entities: Entity[], list: Position[], items: Item[], mont
 <div class="hero">
   <div class="hero-main"><div class="eyebrow">Tax you owe right now</div><div class="hero-figure">${moneyOrDash(total)}</div><p class="hero-caption">${heroCaption}</p></div>
   <div class="hero-side">
-    <div class="split"><div><div class="eyebrow">Business</div><div class="split-figure">${moneyOrDash(sumKnown(businesses, (position) => position.owedNow))}</div></div><div><div class="eyebrow">Personal</div><div class="split-figure">${moneyOrDash(sumKnown(personal, (position) => position.owedNow))}</div></div></div>
+    <div class="split"><div><div class="eyebrow">Business</div><div class="split-figure">${moneyOrDash(sumKnown(businesses, (position) => position.owedNow))}</div></div><div><div class="eyebrow">Personal, beyond PCB</div><div class="split-figure">${moneyOrDash(sumKnown(personal, (position) => position.owedNow))}</div></div></div>
     <div class="budget"><div class="eyebrow">Set aside every month</div><div class="split-figure">${moneyOrDash(monthly)}</div><p>of what comes in is tax this year, at the current pace.</p></div>
   </div>
 </div>
@@ -218,7 +255,59 @@ const overviewPanel = (entities: Entity[], list: Position[], items: Item[], mont
 </section>`;
 };
 
+const reliefTable = (view: PersonalView): string =>
+  `<table class="list reliefs"><tbody>${sortedReliefs(view)
+    .map((line) => {
+      const width = line.cap > 0 ? Math.min(100, (line.claimed / line.cap) * 100) : 0;
+      const note =
+        line.status === ReliefStatus.Full
+          ? `<span class="tag done"><span aria-hidden="true">✓</span> Claimed</span>`
+          : line.status === ReliefStatus.Unconfirmed
+            ? `<span class="tag soon"><span aria-hidden="true">?</span> Confirm · up to ${money(line.worth)}</span>`
+            : `<span class="tag upcoming">${line.worth > 0 ? `up to ${money(line.worth)} off` : "open"}</span>`;
+      return `<tr><td class="relief-name">${escapeHtml(line.title)}</td><td class="relief-bar"><span class="hbar-track"><span class="hbar-fill ink" style="width:${width.toFixed(1)}%"></span></span><span class="relief-amount">${money(line.claimed)} of ${money(line.cap)}</span></td><td class="state">${note}</td></tr>`;
+    })
+    .join("")}</tbody></table><p class="note">"Up to" is the tax a relief would save if you claimed all of it, at this year's projected income. Record what you spend as relief rows (or drop the receipts in the inbox) and it counts.</p>`;
+
+const personalPanel = (entity: Entity, position: Position, view: PersonalView, items: Item[], rows: LedgerRow[], today: string): string => {
+  const periodMonths = monthKeys(position.period.start.slice(0, 7), position.periodMonths);
+  const flows = monthlyFlows(
+    rows.filter((row) => row.date >= position.period.start && row.date <= position.period.end),
+    periodMonths
+  );
+  const outcome = filing(view.filingBalance);
+  const incomeMax = Math.max(position.employment, position.income, view.reliefTotal, 1);
+  const taxMax = Math.max(position.taxSoFar, view.withheld, 1);
+  const upcoming = items.filter(
+    (item) => item.occurrence.entity === entity.slug && (item.state === TaskState.Overdue || (item.occurrence.due >= today && item.state !== TaskState.Done))
+  );
+  return `<section class="panel" id="panel-${slug(entity.slug)}">
+<div class="entity-head"><span class="dot big e-${slug(entity.slug)}"></span><div><h2>${escapeHtml(entity.name)}</h2><p class="sub">YA ${position.ya} · ${dayLabel(position.period.start)} ${position.period.start.slice(0, 4)} – ${dayLabel(position.period.end)} ${position.period.end.slice(0, 4)} · income recorded through ${position.coverage ? monthLabel(position.coverage) : "—"}</p></div></div>
+<div class="tiles">
+  <div class="tile lead"><div class="eyebrow">${outcome.label}</div><div class="tile-figure">${outcome.figure}</div><div class="tile-note">${outcome.caption}</div></div>
+  <div class="tile"><div class="eyebrow">Withheld from salary</div><div class="tile-figure">${position.known ? money(view.withheld) : "—"}</div><div class="tile-note">PCB so far</div></div>
+  <div class="tile"><div class="eyebrow">Income not withheld</div><div class="tile-figure">${position.known ? money(view.unwithheldIncome) : "—"}</div><div class="tile-note">consulting and other business income</div></div>
+  <div class="tile"><div class="eyebrow">Set aside from it</div><div class="tile-figure">${position.known ? money(view.taxOnUnwithheld) : "—"}</div><div class="tile-note">the tax that income adds</div></div>
+  <div class="tile"><div class="eyebrow">Effective rate</div><div class="tile-figure">${percent(view.effectiveRate)}</div><div class="tile-note">of the year's income</div></div>
+</div>
+${notes(position)}
+<div class="two">
+  <section class="box"><h2>How the number is built</h2>${
+    position.known
+      ? `<div class="build"><h3>Income so far</h3>${hbar("Employment income", position.employment, incomeMax, "ink")}${hbar("Business income", position.income, incomeMax, "ink")}${hbar("Reliefs", view.reliefTotal, incomeMax, "muted")}<h3>Tax</h3>${hbar("Tax on it so far", position.taxSoFar, taxMax, "ink")}${hbar("Withheld from salary", view.withheld, taxMax, "muted")}${hbar(position.aheadBy > 0 ? "Over-withheld so far" : "Not yet covered", position.aheadBy > 0 ? position.aheadBy : (position.owedNow ?? 0), taxMax, `e-${slug(entity.slug)}`)}</div>`
+      : `<p class="empty">Priced once this year's salary and invoices are recorded.</p>`
+  }</section>
+  <section class="box"><h2>Month by month</h2>${monthlyChart(flows)}</section>
+</div>
+<section class="box"><h2>Deadlines</h2>${deadlineRows(upcoming.slice(0, 8), today, false)}</section>
+<section class="box"><h2>Reliefs this year</h2>${reliefTable(view)}</section>
+</section>`;
+};
+
 const entityPanel = (entity: Entity, position: Position, items: Item[], rows: LedgerRow[], closed: string | null, today: string): string => {
+  if (position.personal !== null) {
+    return personalPanel(entity, position, position.personal, items, rows, today);
+  }
   const periodMonths = monthKeys(position.period.start.slice(0, 7), position.periodMonths);
   const flows = monthlyFlows(
     rows.filter((row) => row.date >= position.period.start && row.date <= position.period.end),
@@ -370,6 +459,7 @@ dt{color:var(--muted)}dd{margin:0;text-align:right;font-variant-numeric:tabular-
 .vbar.expense,.key.expense{background:var(--bar-muted)}
 .col-label{font-size:11px;color:var(--muted);margin-top:4px}
 details{margin-top:10px;font-size:12.5px}summary{cursor:pointer;color:var(--ink-2)}
+.reliefs td{vertical-align:middle}.relief-name{width:42%}.relief-bar{width:34%}.relief-bar .hbar-track{display:block;margin-bottom:3px}.relief-amount{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .facts{font-size:13.5px}.warn{color:var(--critical);font-weight:600}
 .big{font-size:18px;font-weight:600;margin:0}
 footer{color:var(--muted);font-size:12px;margin-top:24px}

@@ -7,6 +7,7 @@
 3. **An unknown stays unknown.** An entity with `known: false` shows "—" and the reason, never RM 0. Say what would price it: a monthly close, the accountant's year-to-date figure as an `opening` row, or salary and invoices recorded for an individual.
 4. **Say how sure the number is.** Name the coverage month, every warning (a foreign amount without its MYR value, a tax payment that names no YA, an unconfirmed residence), and that it is a planning figure: the tax agent's computation is the one filed.
 5. **Close the gaps you can.** A missing month points at [close](close.md); a document the operator mentions goes through [capture](capture.md); an estimate on file well below the projection points at [estimate](estimate.md), with the penalty the engine priced.
-6. **Render the dashboard** with the engine's `render` so the page matches what you just said.
+6. **For an individual whose salary tax is withheld** (`personal` in the output), "owed now" is the wrong question: PCB already went out with every payslip. Lead instead with the filing balance (a top-up to pay or a refund due when the return is filed, at this pace), the tax the non-withheld income adds (the part to set aside from consulting and other business income), and the unused reliefs with what each would save. A relief marked `unconfirmed` (spouse, children) is a question for the operator, never a claim.
+7. **Render the dashboard** with the engine's `render` so the page matches what you just said.
 
-**Reply:** the owed-now total and its split, the monthly set-aside, each entity in one line (owed now, projection, books through), and what would make the number firmer.
+**Reply:** the owed-now total and its split, the monthly set-aside, each entity in one line (owed now, projection, books through; for a withheld individual, the filing balance and the best unused relief), and what would make the number firmer.

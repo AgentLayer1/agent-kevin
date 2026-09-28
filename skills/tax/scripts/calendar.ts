@@ -51,7 +51,8 @@ export interface Entity {
   close: "monthly" | "none";
   sme: boolean;
   resident: boolean | null;
-  reliefs: number | null;
+  spouseRelief: boolean | null;
+  childrenUnder18: number | null;
   obligations: Obligation[];
 }
 
@@ -223,7 +224,8 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     close: data.close === "monthly" ? "monthly" : "none",
     sme: data.sme === true,
     resident: typeof data.resident === "boolean" ? data.resident : null,
-    reliefs: typeof data.reliefs === "number" ? data.reliefs : null,
+    spouseRelief: typeof data.spouse_relief === "boolean" ? data.spouse_relief : null,
+    childrenUnder18: typeof data.children_under_18 === "number" ? data.children_under_18 : null,
     obligations: obligations.filter(isObligation),
   };
 };

@@ -13,9 +13,19 @@ export interface Band {
   rate: number;
 }
 
+export const ReliefBasis = { Automatic: "automatic", Profile: "profile", PerChild: "per-child", Claimed: "claimed" } as const;
+export type ReliefBasis = (typeof ReliefBasis)[keyof typeof ReliefBasis];
+
+export interface ReliefCap {
+  id: string;
+  title: string;
+  cap: number;
+  basis: ReliefBasis;
+}
+
 export interface Rates {
   company: { flat: number; sme: Band[]; zakatCap: number };
-  individual: { resident: Band[]; nonResident: number; selfRelief: number; rebate: { upto: number; amount: number } };
+  individual: { resident: Band[]; nonResident: number; reliefs: ReliefCap[]; rebate: { upto: number; amount: number } };
 }
 
 export const LedgerType = {
@@ -26,6 +36,7 @@ export const LedgerType = {
   TaxPayment: "tax-payment",
   Zakat: "zakat",
   Opening: "opening",
+  Relief: "relief",
   Statement: "statement",
 } as const;
 export type LedgerType = (typeof LedgerType)[keyof typeof LedgerType];
@@ -43,6 +54,32 @@ export interface LedgerRow {
   flags: string[];
 }
 
+export const ReliefStatus = { Full: "full", Partial: "partial", Open: "open", Unconfirmed: "unconfirmed" } as const;
+export type ReliefStatus = (typeof ReliefStatus)[keyof typeof ReliefStatus];
+
+export interface ReliefLine {
+  id: string;
+  title: string;
+  cap: number;
+  claimed: number;
+  status: ReliefStatus;
+  worth: number;
+}
+
+/**
+ * What matters for an individual whose salary tax is withheld at source: the refund or top-up at
+ * filing, the tax on income nobody withheld from, and the reliefs still open.
+ */
+export interface PersonalView {
+  withheld: number;
+  unwithheldIncome: number;
+  taxOnUnwithheld: number;
+  reliefs: ReliefLine[];
+  reliefTotal: number;
+  filingBalance: number | null;
+  effectiveRate: number | null;
+}
+
 export interface Position {
   entity: string;
   name: string;
@@ -55,6 +92,7 @@ export interface Position {
   periodMonths: number;
   carriedIn: number;
   carriedInTo: string | null;
+  personal: PersonalView | null;
   income: number;
   employment: number;
   expenses: number;
@@ -101,6 +139,21 @@ const numberAt = (record: Record<string, unknown>, key: string, where: string): 
   return value;
 };
 
+const BASES = new Set<string>(Object.values(ReliefBasis));
+
+const toReliefs = (value: unknown): ReliefCap[] => {
+  if (!Array.isArray(value) || !value.some((item) => isRecord(item) && item.id === "self")) {
+    throw new Error("Rates: individual.reliefs needs a list that includes the self relief");
+  }
+  return value.map((item, i) => {
+    if (!isRecord(item) || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.cap !== "number") {
+      throw new Error(`Rates: individual.reliefs entry ${i + 1} needs id, title and a numeric cap`);
+    }
+    const basis = typeof item.basis === "string" && BASES.has(item.basis) ? (item.basis as ReliefBasis) : ReliefBasis.Claimed;
+    return { id: item.id, title: item.title, cap: item.cap, basis };
+  });
+};
+
 export const parseRates = (markdown: string): Rates => {
   const block = markdown.match(RATES_RE)?.[1];
   const data: unknown = block === undefined ? null : Bun.YAML.parse(block);
@@ -118,7 +171,7 @@ export const parseRates = (markdown: string): Rates => {
     individual: {
       resident: toBands(individual.resident, "individual.resident"),
       nonResident: numberAt(individual, "non_resident", "individual"),
-      selfRelief: numberAt(individual, "self_relief", "individual"),
+      reliefs: toReliefs(individual.reliefs),
       rebate: { upto: numberAt(rebate, "upto", "individual.rebate"), amount: numberAt(rebate, "amount", "individual.rebate") },
     },
   };
@@ -251,7 +304,50 @@ interface Figures {
   business: number;
   employment: number;
   zakat: number;
+  reliefs: number;
 }
+
+const individualTax = (rates: Rates, resident: boolean | null, total: number, reliefs: number, zakat: number): number => {
+  if (resident === false) {
+    return (total * rates.individual.nonResident) / 100;
+  }
+  const chargeable = Math.max(0, total - reliefs);
+  const rebate = chargeable <= rates.individual.rebate.upto ? rates.individual.rebate.amount : 0;
+  return Math.max(0, bandTax(chargeable, rates.individual.resident) - rebate - zakat);
+};
+
+/**
+ * Each relief with what's claimed against its cap, and what filling the rest would save at the
+ * projected income: fixed reliefs from the profile, claimed ones from `relief` ledger rows.
+ */
+const reliefLines = (entity: Entity, rates: Rates, rows: LedgerRow[], projectedIncome: number, zakat: number): ReliefLine[] => {
+  const claimedOf = (id: string): number =>
+    sum(rows.filter((row) => row.type === LedgerType.Relief && row.category === id).map((row) => myr(row) ?? 0));
+  const base = rates.individual.reliefs.map((relief): Omit<ReliefLine, "worth"> => {
+    if (relief.basis === ReliefBasis.Automatic) {
+      return { ...relief, claimed: relief.cap, status: ReliefStatus.Full };
+    }
+    if (relief.basis === ReliefBasis.Profile) {
+      return entity.spouseRelief === null
+        ? { ...relief, claimed: 0, status: ReliefStatus.Unconfirmed }
+        : { ...relief, claimed: entity.spouseRelief ? relief.cap : 0, status: entity.spouseRelief ? ReliefStatus.Full : ReliefStatus.Open };
+    }
+    if (relief.basis === ReliefBasis.PerChild) {
+      return entity.childrenUnder18 === null
+        ? { ...relief, claimed: 0, status: ReliefStatus.Unconfirmed }
+        : { ...relief, cap: relief.cap * entity.childrenUnder18, claimed: relief.cap * entity.childrenUnder18, status: ReliefStatus.Full };
+    }
+    const claimed = Math.min(relief.cap, claimedOf(relief.id));
+    const status = claimed >= relief.cap ? ReliefStatus.Full : claimed > 0 ? ReliefStatus.Partial : ReliefStatus.Open;
+    return { ...relief, claimed, status };
+  });
+  const total = sum(base.map((line) => line.claimed));
+  const taxAt = (reliefs: number): number => individualTax(rates, entity.resident, projectedIncome, reliefs, zakat);
+  return base.map((line) => ({
+    ...line,
+    worth: line.status === ReliefStatus.Full ? 0 : Math.max(0, taxAt(total) - taxAt(total + (line.status === ReliefStatus.Unconfirmed ? line.cap : line.cap - line.claimed))),
+  }));
+};
 
 const taxOn = (entity: Entity, rates: Rates, figures: Figures): number => {
   if (entity.kind === EntityKind.Company) {
@@ -260,13 +356,7 @@ const taxOn = (entity: Entity, rates: Rates, figures: Figures): number => {
     const chargeable = Math.max(0, profit - zakatDeduction);
     return entity.sme ? bandTax(chargeable, rates.company.sme) : (chargeable * rates.company.flat) / 100;
   }
-  const total = Math.max(0, figures.business) + figures.employment;
-  if (entity.resident === false) {
-    return (total * rates.individual.nonResident) / 100;
-  }
-  const chargeable = Math.max(0, total - (entity.reliefs ?? rates.individual.selfRelief));
-  const rebate = chargeable <= rates.individual.rebate.upto ? rates.individual.rebate.amount : 0;
-  return Math.max(0, bandTax(chargeable, rates.individual.resident) - rebate - figures.zakat);
+  return individualTax(rates, entity.resident, Math.max(0, figures.business) + figures.employment, figures.reliefs, figures.zakat);
 };
 
 /**
@@ -321,9 +411,29 @@ export const position = (
   const coverage = coverageMonths.at(-1) ?? null;
   const known = coverage !== null;
   const monthsCovered = coverage === null ? 0 : monthsBetween(period.start.slice(0, 7), coverage);
-  const taxSoFar = known ? taxOn(entity, rates, { business, employment, zakat }) : 0;
-  const scale = monthsCovered > 0 ? periodMonths / monthsCovered : 0;
-  const projectedTax = known ? taxOn(entity, rates, { business: business * scale, employment: employment * scale, zakat }) : null;
+  const scaleFor = (months: number): number => (months > 0 ? periodMonths / months : 0);
+  const projectedIncome = (Math.max(0, business) + employment) * scaleFor(monthsCovered);
+  const lines = entity.kind === EntityKind.Individual ? reliefLines(entity, rates, inPeriod, projectedIncome, zakat) : [];
+  const reliefTotal = sum(lines.map((line) => line.claimed));
+  const taxSoFar = known ? taxOn(entity, rates, { business, employment, zakat, reliefs: reliefTotal }) : 0;
+  const scale = scaleFor(monthsCovered);
+  const projectedTax = known
+    ? taxOn(entity, rates, { business: business * scale, employment: employment * scale, zakat, reliefs: reliefTotal })
+    : null;
+  const personal: PersonalView | null =
+    entity.kind === EntityKind.Individual
+      ? {
+          withheld: pcb,
+          unwithheldIncome: Math.max(0, business),
+          taxOnUnwithheld: known
+            ? Math.max(0, taxSoFar - taxOn(entity, rates, { business: 0, employment, zakat, reliefs: reliefTotal }))
+            : 0,
+          reliefs: lines,
+          reliefTotal,
+          filingBalance: projectedTax === null ? null : projectedTax - (paymentsForYa + pcb * scale),
+          effectiveRate: projectedTax === null || projectedIncome <= 0 ? null : projectedTax / projectedIncome,
+        }
+      : null;
   const projectedPaid = paymentsForYa + pcb * scale;
   const underestimation =
     entity.kind === EntityKind.Company && projectedTax !== null && estimateOnFile !== null
@@ -369,6 +479,7 @@ export const position = (
     coverage,
     monthsCovered,
     periodMonths,
+    personal,
     carriedIn: openingProfit,
     carriedInTo: opening === undefined ? null : opening.date,
     income,

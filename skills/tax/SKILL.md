@@ -40,7 +40,7 @@ Keep every entity the operator files for (companies and their own return) ahead 
 |---|---|
 | First run, a new entity, or a changed fact (FYE, payroll, SST) | [setup](references/playbooks/setup.md) |
 | "What's due?", refresh deadlines, `/tax calendar` | [calendar](references/playbooks/calendar.md) |
-| "How much tax do I owe?", "how much should I set aside?" | [position](references/playbooks/position.md) |
+| "How much tax do I owe?", "how much should I set aside?", "will I get a refund?" | [position](references/playbooks/position.md) |
 | A receipt, invoice, or statement to record, `/tax capture` | [capture](references/playbooks/capture.md) |
 | Close last month for the accountant, `/tax close` | [close](references/playbooks/close.md) |
 | How much tax to estimate or revise, and the cash to set aside | [estimate](references/playbooks/estimate.md) |

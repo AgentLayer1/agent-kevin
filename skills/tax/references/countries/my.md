@@ -221,9 +221,24 @@ individual:
     - { upto: 2000000, rate: 28 }
     - { rate: 30 }
   non_resident: 30
-  self_relief: 9000
   rebate: { upto: 35000, amount: 400 }
-  source: hasil.gov.my navigasi-hasil-2026 (resident schedule YA 2025, reliefs, RM400 rebate); PwC Malaysian Tax Booklet (YA 2025/2026 schedule and RM9,000 self relief)
+  reliefs:
+    - { id: self, title: Individual and dependent relatives, cap: 9000, basis: automatic }
+    - { id: spouse, title: Spouse with no income, or alimony, cap: 4000, basis: profile }
+    - { id: child-under-18, title: Each unmarried child under 18, cap: 2000, basis: per-child }
+    - { id: lifestyle, title: "Lifestyle: books, devices, internet, courses", cap: 2500 }
+    - { id: sports, title: "Sports: equipment, facilities, gym, training", cap: 1000 }
+    - { id: medical, title: "Medical, dental, vaccination (self, spouse, child)", cap: 10000 }
+    - { id: parents-medical, title: Parents' and grandparents' medical and care, cap: 8000 }
+    - { id: education-fees, title: Education fees (self), cap: 7000 }
+    - { id: epf, title: EPF contributions, cap: 4000 }
+    - { id: life-insurance, title: Life insurance or family takaful, cap: 3000 }
+    - { id: prs, title: Private Retirement Scheme or deferred annuity, cap: 3000 }
+    - { id: education-medical-insurance, title: Education and medical insurance, cap: 4000 }
+    - { id: socso, title: SOCSO and EIS, cap: 350 }
+    - { id: sspn, title: SSPN net deposit, cap: 8000 }
+    - { id: childcare, title: Registered childcare or kindergarten (child 6 and under), cap: 3000 }
+  source: hasil.gov.my navigasi-hasil-2026 (resident schedule YA 2025, RM400 rebate); hasil.gov.my/en/individu/pelepasan-cukai (YA 2025 reliefs and caps); PwC Malaysian Tax Booklet (YA 2025/2026 schedule)
 ```
 
 ## Annual cycle (company, FYE month M)
@@ -248,6 +263,6 @@ Questions to raise with the tax agent, never actions to take unaided.
 | Commencement date | Costs incurred before the first sales invoice | Pre-commencement costs are lost; bill early or time the costs | PR 11/2013 |
 | Capital allowances | Equipment and software bought for the business | Claimed over its life instead of expensed | ITA 1967 Sch. 3 |
 | Salary vs dividends from the operator's company | The operator draws money from a company they own | Salary is deductible to the company but taxed with payroll duties; dividend treatment for individuals changed from YA 2025, so confirm the current rules | Ask the tax agent |
-| Personal reliefs | Resident individual | EPF/PRS, medical, lifestyle, education, spouse and child reliefs; caps change yearly, so read LHDN's current reliefs page | hasil.gov.my |
+| Personal reliefs | Resident individual | Each relief in the Rates block, capped; the engine tracks what's claimed (ledger `relief` rows) against each cap and prices every unused one at the operator's rate. Caps change yearly: refresh the block from LHDN's reliefs page each budget | hasil.gov.my/en/individu/pelepasan-cukai |
 | Related-party fees | The operator's companies bill each other | Needs arm's-length pricing and transfer-pricing documentation unless exempt. The domestic exemption is lost when one party has a tax incentive or a different rate | Income Tax (Transfer Pricing) Rules 2023; Malaysian TP Guidelines 2024 |
 | Tax incentives (e.g. MD Status) | The company holds an approved incentive | Qualifying income taxed at the incentive rate; keep it in a separate account | The incentive's own guidelines |
