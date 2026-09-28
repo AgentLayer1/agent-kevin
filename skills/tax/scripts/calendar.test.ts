@@ -288,8 +288,9 @@ describe("renderDashboard", () => {
     write(dir, "closes/acme/2026-08.md", partial);
     const html = renderDashboard(dir, "2026-09-20");
     expect(html).toContain('<div class="hero-figure">—</div>');
+    write(dir, "ledger/acme/2026.csv", "date,type,counterparty,country,currency,amount,tax,reference,category,file,flags,notes\n2026-07-31,opening,Acme accountant,MY,MYR,50000,0,management accounts to Jul,,,,\n");
     write(dir, "closes/acme/2026-08.md", '---\nmonth: "2026-08"\nstatus: closed\n---\n');
-    expect(renderDashboard(dir, "2026-09-20")).toContain('<div class="hero-figure">RM 0</div>');
+    expect(renderDashboard(dir, "2026-09-20")).toContain('<div class="hero-figure">RM 12,000</div>');
   });
 
   test("switches tabs with CSS alone: one radio and one panel per entity plus the overview", () => {

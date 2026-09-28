@@ -158,6 +158,15 @@ describe("position: company", () => {
     expect(closed.projectedTax).toBeCloseTo(20000 * 6 * 0.24, 2);
   });
 
+  test("a later complete close does not price over an earlier month that is not closed", () => {
+    const rows = [row("2026-07-31", "opening", 60000)];
+    const gap = position(company, rows, rates, "2026-10-01", null, ["2026-09"]);
+    expect(gap.coverage).toBe("2026-07");
+    expect(gap.missing.join(" ")).toContain("complete only through 2026-07");
+    expect(position(company, rows, rates, "2026-10-01", null, ["2026-08", "2026-09"]).coverage).toBe("2026-09");
+    expect(position(company, [], rates, "2026-10-01", null, ["2026-09"]).known).toBe(false);
+  });
+
   test("company zakat is a deduction capped at 2.5% of profit", () => {
     const rows = [row("2026-02-10", "sales-invoice", 100000), row("2026-02-11", "zakat", 5000)];
     expect(position(company, rows, rates, "2026-02-20", null, ["2026-01"]).taxSoFar).toBeCloseTo((100000 - 2500) * 0.24, 2);
@@ -287,6 +296,17 @@ describe("position: personal view", () => {
     expect(result.known).toBe(true);
     expect(result.projectedTax).toBeCloseTo(bandTax(20000 * 7 - 9000, rates.individual.resident), 2);
     expect(result.personal?.filingBalance).toBeCloseTo(bandTax(20000 * 7 - 9000, rates.individual.resident) - 3000 * 7, 2);
+  });
+
+  test("an invoice in the current month does not ask for a payslip that is not payable yet", () => {
+    const rows = [...salaryYear(3000), row("2026-07-01", "sales-invoice", 5000)];
+    const result = position(person, rows, rates, "2026-07-02", null);
+    expect(result.known).toBe(true);
+    expect(result.missing.join(" ")).not.toContain("no salary recorded");
+    expect(result.projectedTax).toBeCloseTo(bandTax(20000 * 12 + (5000 * 12) / 7 - 9000, rates.individual.resident), 2);
+    const later = position(person, rows, rates, "2026-08-02", null);
+    expect(later.known).toBe(false);
+    expect(later.missing.join(" ")).toContain("no salary recorded for 2026-07");
   });
 
   test("a company has no personal view", () => {
