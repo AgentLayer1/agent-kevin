@@ -131,6 +131,10 @@ interface Render {
 
 const render = async (browser: Browser, path: string): Promise<Render> => {
   const context = await browser.newContext({ viewport: VIEWPORT });
+  // Only local files load, so a web font or image arriving late can't make one render differ from the other.
+  await context.route('**/*', (route) =>
+    /^(file|data|blob):/.test(route.request().url()) ? route.continue() : route.abort()
+  );
   try {
     const page = await context.newPage();
     const errors: string[] = [];

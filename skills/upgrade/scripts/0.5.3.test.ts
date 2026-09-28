@@ -110,11 +110,11 @@ describe.skipIf(Boolean(chromiumBlocked))('migrating a home', () => {
     write(join(projects, 'web', 'roadmap.html'), '<p>a hand-made page</p>');
 
     const first = await migrateHome(home, projects, data);
-    expect(first.map(({ path, verdict }) => [path, verdict])).toEqual([
-      ['roadmap.html', 'migrated'],
-      ['projects/acme/roadmap.html', 'migrated'],
-      ['projects/ops/roadmap.html', 'left'],
-      ['projects/web/roadmap.html', 'skipped']
+    expect(first.map(({ path, verdict, reason }) => ({ path, verdict, reason }))).toMatchObject([
+      { path: 'roadmap.html', verdict: 'migrated' },
+      { path: 'projects/acme/roadmap.html', verdict: 'migrated' },
+      { path: 'projects/ops/roadmap.html', verdict: 'left' },
+      { path: 'projects/web/roadmap.html', verdict: 'skipped' }
     ]);
     expect(first[0].pixelsDiffering).toBe(0);
     expect(first[2].reason).toContain('the rendered page differs');
