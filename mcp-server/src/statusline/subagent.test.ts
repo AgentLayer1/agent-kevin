@@ -33,7 +33,7 @@ describe('renderSubagentRow', () => {
       },
       40
     );
-    expect(plain(row)).toBe('Explore · a description t… · ⣿⣿⣿⣿⣿⣿⣿⣿ 1%');
+    expect(plain(row)).toBe('Explore · a description t… · █⣿⣿⣿⣿⣿⣿⣿ 1%');
     expect(plain(row).length).toBeLessThanOrEqual(40);
   });
 });

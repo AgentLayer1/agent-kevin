@@ -56,7 +56,7 @@ const paint = (color: string, text: string): string => `${color}${text}${RESET}`
 const usageColor = (percent: number): string => (percent < 50 ? GREEN : percent < 80 ? YELLOW : RED);
 
 export const contextBar = (percent: number, width = BAR_WIDTH): string => {
-  const filled = Math.floor((percent * width) / 100);
+  const filled = percent > 0 ? Math.max(1, Math.floor((percent * width) / 100)) : 0;
   return `${usageColor(percent)}${'█'.repeat(filled)}${DIM}${'⣿'.repeat(width - filled)}${RESET}`;
 };
 

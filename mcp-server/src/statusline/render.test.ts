@@ -82,6 +82,10 @@ describe('contextBar', () => {
     expect(contextBar(50)).toStartWith('\x1b[33m');
     expect(contextBar(80)).toStartWith('\x1b[31m');
   });
+
+  test('shows one cell for any usage too small to fill a whole cell', () => {
+    expect(plain(contextBar(11, 8))).toBe(`█${'⣿'.repeat(7)}`);
+  });
 });
 
 describe('shortModelName / formatDuration', () => {
