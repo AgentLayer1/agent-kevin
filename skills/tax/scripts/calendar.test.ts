@@ -13,7 +13,7 @@ import {
   stateOf,
   TaskState,
 } from "./calendar";
-import { renderDashboard } from "./dashboard";
+import { renderDashboard, shortName } from "./dashboard";
 
 const acme: Entity = {
   slug: "acme",
@@ -194,6 +194,15 @@ describe("stateOf", () => {
     expect(stateOf(occurrence, existing("open"), "2026-10-01")).toBe(TaskState.Open);
     expect(stateOf(occurrence, existing("open"), "2026-10-20")).toBe(TaskState.Overdue);
   });
+});
+
+test("shortName drops a trailing legal suffix and leaves other names alone", () => {
+  expect(shortName("Acme Sdn. Bhd.")).toBe("Acme");
+  expect(shortName("Acme Sdn Bhd")).toBe("Acme");
+  expect(shortName("Acme Pte. Ltd.")).toBe("Acme");
+  expect(shortName("Acme, Inc.")).toBe("Acme");
+  expect(shortName("Personal")).toBe("Personal");
+  expect(shortName("Bhd.")).toBe("Bhd.");
 });
 
 describe("renderDashboard", () => {

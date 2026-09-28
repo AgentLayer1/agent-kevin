@@ -164,7 +164,7 @@ const calendarGrid = (entities: Entity[], items: Item[], months: string[], today
             .join("")}</td>`;
         })
         .join("");
-      return `<tr><th scope="row"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(entity.name)}</th>${cells}</tr>`;
+      return `<tr><th scope="row"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(shortName(entity.name))}</th>${cells}</tr>`;
     })
     .join("");
   return `<div class="scroll"><table class="grid"><thead><tr><th></th>${months.map((month) => `<th>${monthLabel(month)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div><p class="note">✓ done · ● open · ◷ due within 14 days · ! overdue · ○ not a task yet (tasks are created three weeks ahead)</p>`;
@@ -198,6 +198,10 @@ const RELIEF_ORDER: Record<ReliefStatus, number> = {
   [ReliefStatus.Open]: 2,
   [ReliefStatus.Full]: 3,
 };
+
+const LEGAL_SUFFIX = /[\s,]+(sdn\.?\s*bhd\.?|bhd\.?|pte\.?\s*ltd\.?|ltd\.?|llc|inc\.?|plc|gmbh)$/i;
+
+export const shortName = (name: string): string => name.replace(LEGAL_SUFFIX, "") || name;
 
 const sortedReliefs = (view: PersonalView): ReliefLine[] =>
   [...view.reliefs].sort((a, b) => RELIEF_ORDER[a.status] - RELIEF_ORDER[b.status] || b.worth - a.worth);
@@ -511,7 +515,7 @@ export const renderDashboard = (taxDir: string, today: string, countriesDir: str
   const radios = ids.map((id, i) => `<input class="tab" type="radio" name="tab" id="tab-${id}"${i === 0 ? " checked" : ""}>`).join("");
   const labels = [
     `<label for="tab-overview">Overview</label>`,
-    ...entities.map((entity) => `<label for="tab-${slug(entity.slug)}"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(entity.name)}</label>`),
+    ...entities.map((entity) => `<label for="tab-${slug(entity.slug)}"><span class="dot e-${slug(entity.slug)}"></span>${escapeHtml(shortName(entity.name))}</label>`),
   ].join("");
   const panels = [
     overviewPanel(entities, list, items, months, today),
