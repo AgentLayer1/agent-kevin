@@ -43,6 +43,39 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.5.2] - 2026-09-28
+
+### Changed
+- **PR work moves into the `engineer` skill.** `pr-review` and `pr-walkthrough` are retired as
+  skills and become three engineer playbooks on one shared PR foundation (resolve the PR, prior
+  context, understand the change, a local build in a worktree): `/engineer review <n>` for a
+  teammate's PR, `/engineer replies <n>` for the review on your own (fixes left uncommitted,
+  replies drafted), and `/engineer walkthrough <n>` to present or record your own. The review
+  lanes now apply the engineer principles, and still never post to GitHub. `adversarial-review`
+  stays its own skill, since it reviews plans and documents as well as code.
+- Review lanes gain three checks: a fallback that can re-send an instruction the first path may
+  already have carried out, pre-existing internal-name leaks in code the PR touches, and no
+  internal partner or vendor name inside a suggested user-visible string. Understanding the
+  change now reads any chat thread the PR body cites.
+- The init and templates wording, the dashboard cheatsheet, the reports category dot, the GitHub
+  pack walk, and the README docs map (Second-model review under Modules) point at the engineer
+  PR playbooks.
+- SOUL's Writing Style drops the em-dash rule.
+
+### Fixed
+- The SessionStart banner shows the status-line warning only when no upgrade is due, instead of
+  both lines for one fix, and upgrade's "Already up to date" exit now re-points the status line
+  too (before, the banner sent a current home to upgrade, which stopped before that step).
+- The secrets round-trip tests skip when a command sandbox refuses reads on a secrets store,
+  instead of reporting six failures unrelated to the change under test.
+
+### Upgrade
+- `settings: mandatory` — in `permissions.allow`, remove `Skill(agent-kevin:pr-review)` and `Skill(agent-kevin:pr-walkthrough)` if present; `Skill(agent-kevin:engineer)` covers PR work now.
+- `template/AGENTS.md: mandatory` — the memory-routing row, the `reports/reviews/` tree comment, and "Where Your Code Lives" name the engineer PR playbooks instead of the retired skills.
+- `template/IDENTITY.md: optional` — the Operational Pattern "Code" line names the engineer skill for all code work, including PR reviews, replies, and walkthroughs.
+- `template/SOUL.md: optional` — Writing Style drops the em-dash rule.
+- `manual: none` — `/agent-kevin:pr-review <n>` is now `/agent-kevin:engineer review <n>` (or `replies <n>` on your own PR), and `/agent-kevin:pr-walkthrough <n>` is `/agent-kevin:engineer walkthrough <n>`. Plain asks ("review 142", "walk me through my PR") route there on their own.
+
 ## [0.5.1] - 2026-09-26
 
 ### Added
