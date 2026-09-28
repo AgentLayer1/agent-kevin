@@ -43,6 +43,61 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.5.3] - 2026-09-29
+
+### Added
+- **`tax` skill.** Bookkeeping and tax compliance for the operator's companies and personal
+  return, laid out like `engineer`: a router over eight playbooks (setup, calendar, capture,
+  close, estimate, accountant, optimize, year-end), a help card, and a Malaysia reference with
+  every obligation, penalty and lever tied to its statute. Entity profiles list obligations as a
+  period plus a due rule; the calendar turns each one inside its lead window into a dated task.
+  A tax dashboard prices what is owed right now, shows each company's books month by month with
+  what is left to collect, and shows a withheld individual's filing balance and unused reliefs.
+  It never files, pays, or sends anything, and never transcribes a residential address.
+- **`focus` skill and `focus_write` tool.** `/focus` renders `<HOME>/focus.html` across every
+  project, `/focus <project>` renders `projects/<slug>/focus.html`: up to three things today,
+  work carried over, due work nobody planned, the roadmap's slipped and in-flight milestones,
+  this week's and this month's goals with progress, and the PRs and reviews waiting on the
+  operator. `/focus add` turns a line, a list, or a GitHub or Slack link into a planned task;
+  `/focus plan` picks today's three. Slack is used when a Slack server is connected, skipped
+  silently otherwise. Each page embeds what it shows as JSON in a `focus-data` block, the same
+  data `focus_write` returns, and every dashboard rebuild re-renders the pages that exist. The
+  home page appears in the dashboard as Focus, and each project page links from its project card.
+- **Task horizons.** A task can carry the day, week, or month it is planned for (`2026-09-28`,
+  `2026-W40`, `2026-10`, or `later`); the tools and CLI accept `today`, `week`, `next-week`,
+  `month` and `later`. Once the period ends the task reads as carried over, with no rollover job.
+  `task_query` filters by lane.
+- `task_scan` gains a `dueSoon` bucket (open work due in the next 14 days), surfaced by sync,
+  quick-pulse and both briefings. Sync nudges a monthly tax close that is missing.
+- `github_pr_list` takes `author`, `reviewRequested` and `search` filters and returns
+  `mergeable`, so one call answers "what is mine" and another "what am I holding up".
+- A roadmap check script (`skills/roadmap/scripts/check.ts`) that every roadmap write ends with.
+
+### Changed
+- **Roadmap data is inline JSON.** A roadmap page carries its data in a
+  `<script type="application/json" id="roadmap-data">` block with dated periods, so the focus
+  page can read milestones without running the page. The template and the roadmap skill write
+  this form, and existing roadmaps migrate on upgrade (see below).
+- The morning brief's Today section is the focus page's Today lane. Standup takes Next from it
+  and gains a week frame: Monday proposes and plans the week's goals, and Friday scores them.
+  Where-am-i triage points an overwhelmed operator at `/focus plan`.
+- Written frontmatter stays flat and valid YAML: `report_write` rejects nested values,
+  `adversarial-review` records repos, heads and paths as flat lists, the task writer escapes
+  quotes in titles, and `knowledge_lint` flags a nested frontmatter value.
+- The manual and the Xcode rule say a `sandbox.excludedCommands` entry matches only the bare
+  command, so a leading `cd … &&` or a trailing redirect sends it back into the sandbox.
+
+### Fixed
+- `bun test` from the repo root no longer writes fixture homes into the checkout; a root
+  `bunfig.toml` preloads the throwaway test home.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.5.3.ts (moves each `roadmap.html` in the home and under `projects/<slug>/` to an inline `roadmap-data` JSON block). A page is replaced only when both versions render the same DOM with not one pixel different; any other page is left untouched and keeps working, and the report names it. Before/after screenshots stay under `.kevin/updates/roadmap-json-<stamp>/`.
+- `settings: mandatory` — upgrade's baseline reconcile adds `mcp__plugin_agent-kevin_kevin__focus_write`, `Skill(agent-kevin:focus)` and `Skill(agent-kevin:tax)` to `permissions.allow`. Applied automatically; every addition is named in the report.
+- `template/AGENTS.md: mandatory` — Conventions gains "Frontmatter values are flat"; Platform's sandbox paragraph gains one sentence on comparing a blocked command with the last run that worked.
+- `manual: optional` — Xcode pack homes only: `.claude/rules/xcode.md` gains the bullet "An excluded command must be the whole command line" after the two shell exceptions. Add it by hand; homes without the pack skip this.
+- `manual: optional` — tax deadlines: run `/agent-kevin:tax setup` to create an entity profile per company and for yourself; nothing is created until you do.
+
 ## [0.5.2] - 2026-09-28
 
 ### Changed
