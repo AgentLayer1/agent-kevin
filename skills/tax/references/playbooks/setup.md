@@ -1,0 +1,16 @@
+# Setup
+
+**You own getting every entity's obligations right before a single deadline is tracked.** First run, a new entity, or a fact that changes which obligations apply (payroll starts, SST registration, a new FYE).
+
+1. **Find or create the project.** `$PROJECTS/tax/` with `entities/`, `receipts/`, `ledger/`, `closes/`, `estimates/`, `reviews/`, `tasks/`. If `$PROJECTS/tax/` exists but has no tax README, ask before adopting it.
+2. **List the entities.** Each company the operator owns or runs, plus the operator as an individual. One profile per entity; the slug is short and stable (`acme`, `acme-labs`, `personal`).
+3. **Interview per entity** with AskUserQuestion, and pull facts already on file first (tax letters, filed forms, earlier notes) so you only ask for gaps. Collect what the country reference's *Entity facts* section lists: legal name, registration and tax numbers, FYE, the date operations began, SME status inputs (paid-up capital, foreign ownership), payroll, indirect-tax registration, imported services, tax agent, where source documents live. Record a fact you could not confirm as `null` with an open question in the body, never a guess.
+4. **Write `entities/<slug>.md`.** Frontmatter keys: `name`, `kind` (`company` | `individual`), `country`, `registration`, `tax_id`, `employer_id`, `fye` (`MM-DD`), `commenced`, `sme`, `tax_agent`, `documents`, `close` (`monthly` | `none`), `obligations`. The body holds the facts with their sources and the open questions.
+5. **Propose the obligations.** From the country reference's obligation catalog, pick the ones this entity's facts trigger and show them as a table (obligation, rule in words, next due date, why it applies). Nothing is added until the operator confirms. Copy each confirmed entry's YAML as written, then:
+   - set `from:` to the first period Kevin should track (normally the current open period), so deadlines already handled before setup are not raised as overdue;
+   - tune `lead:` only when the operator wants earlier warning.
+6. **One-off obligations become plain tasks**, not recurring entries: a new company's first estimate within three months of starting operations, a registration, a late filing being cured. Give each a due date and an `entity:<slug>` label.
+7. **Write or refresh `$PROJECTS/tax/README.md`:** the entity table (name, profile link, tax agent, FYE) and how the project works.
+8. **Run [calendar](calendar.md)** so the first deadlines exist as tasks and the dashboard renders.
+
+**Reply:** the entities set up, each one's obligations with the next due date, the open questions for the operator or tax agent, and the tasks created.
