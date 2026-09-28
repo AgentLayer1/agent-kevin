@@ -350,7 +350,7 @@ const CATEGORY_DOT: Record<string, string> = {
   plans: 'plans',
   radar: 'where-am-i',
   api: 'api-collections',
-  reviews: 'pr-review'
+  reviews: 'engineer'
 };
 
 const pageToday = (snap: StatusSnapshot): string => {
@@ -1060,12 +1060,12 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: 'Reviewing a PR',
-    say: `/${plugin}:pr-review <number>`,
-    what: 'Verified findings with paste-ready comments for a teammate’s PR; reply drafts and uncommitted fixes for your own. Reports land in reports/reviews/.'
+    say: `/${plugin}:engineer review <number>`,
+    what: 'Verified findings with paste-ready comments for a teammate’s PR; `engineer replies <number>` drafts replies and uncommitted fixes for your own. Reports land in reports/reviews/.'
   },
   {
     when: 'Presenting or recording your own PR',
-    say: `/${plugin}:pr-walkthrough <number>`,
+    say: `/${plugin}:engineer walkthrough <number>`,
     what: 'Standup script, diff tour in scroll order, the questions reviewers will ask with receipts, and a scene-by-scene recording runbook for your PR. Lands in reports/reviews/.'
   },
   {

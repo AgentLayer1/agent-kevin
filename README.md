@@ -29,7 +29,7 @@ Kevin is a portable, file-based personal AI assistant that plugs into the agent 
 It is not a chat wrapper. It is an operating system for personal AI:
 
 - A **57-tool MCP server** for tasks, knowledge compilation, reports, home history, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
-- A **42-skill library** covering onboarding, version history, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
+- A **40-skill library** covering onboarding, version history, project lifecycle, daily / weekly / monthly cadences, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
 - **Opt-in packs** (SEO, Browser, Database, GitHub, API, Xcode) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
 - **You drive.** Every bundled skill waits for you to invoke it; Kevin acts when you ask, never on its own.
@@ -83,7 +83,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 | [Platform](https://agentlayer.one/docs/platform) | The agent home · The brain · Capture · Sync · History · Self-evolution · Seed bundles · Multiple agents |
 | [Agent](https://agentlayer.one/docs/agent) | Hosts · Claude Code · Codex · Hooks · Configuration · Tasks · Daily rhythm · Architecture |
 | [Modules](https://agentlayer.one/docs/modules) | Plan and run · Build and ship · Reach and see · Brain and memory · Skills · MCP tools · Browser · SEO · Accounts |
-| [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Worktrees · Specs and plans · Coding rules · Verification · API collections · Releases |
+| [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Second-model review · Worktrees · Specs and plans · Coding rules · Verification · API collections · Releases |
 | [Reference](https://agentlayer.one/docs/reference/cli) | CLI · Upgrades · Naming · Changelog |
 | [Workstation](https://agentlayer.one/docs/workstation) | The rig: Ghostty · cmux · editor and tools |
 | [About](https://agentlayer.one/docs/about/privacy) | Privacy · Platforms · FAQ · History · Contributing |

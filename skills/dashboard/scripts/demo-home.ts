@@ -122,7 +122,7 @@ Ace is Acme's private company agent. It pairs with engineering on real tickets, 
 ## Operational Pattern
 
 - **Briefings.** The morning brief carries priorities plus signal-topic and industry news; the evening wrap is a today-only delta.
-- **Code.** The engineer skill for platform work, pr-review for teammates' PRs.
+- **Code.** The engineer skill for platform work and teammates' PRs.
 - **Review loop.** Ace implements; a second model reviews on one dossier, and Ace verifies every finding against the code.
 `
 );
@@ -765,7 +765,7 @@ Access reviews 3 of 5 done; the Okta checklist is drafted.
     category: 'reviews',
     slug: 'pr-212-exporter-rounding',
     title: 'PR #212 (jordan): exporter rounding fix, approve with one fix',
-    skill: 'pr-review',
+    skill: 'engineer',
     status: 'findings',
     emoji: '🟠',
     body: '# PR #212\n\nOne finding: the regression test replays 40 of the 41 invoices.\n'

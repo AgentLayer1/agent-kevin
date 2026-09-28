@@ -203,7 +203,7 @@ are:
 
 Standup also has the operator walk their open PRs. For each open PR of theirs with no
 `pr-<n>-walkthrough` report under `<HOME>/reports/reviews/`, add one prep line to the update's
-tail (not to `Next`; it is a standup input, not a plan): `🎤 prep: /pr-walkthrough <n>`.
+tail (not to `Next`; it is a standup input, not a plan): `🎤 prep: /engineer walkthrough <n>`.
 
 Rules for this section, because it's the easiest place to write something useless:
 
