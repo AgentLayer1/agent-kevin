@@ -235,6 +235,14 @@ describe("renderDashboard", () => {
     expect(html).not.toContain('<div class="hero-figure">RM 0</div>');
   });
 
+  test("an unpriced personal year asks to confirm a household relief without pricing it at RM 0", () => {
+    const dir = scratch();
+    write(dir, "entities/ada.md", "---\nname: Personal\nkind: individual\ncountry: my\nfye: 12-31\nclose: none\n---\n\n## Obligations\n\n```yaml\n[]\n```\n");
+    const html = renderDashboard(dir, "2026-10-08");
+    expect(html).toContain("Confirm</span>");
+    expect(html).not.toContain("up to RM 0");
+  });
+
   test("switches tabs with CSS alone: one radio and one panel per entity plus the overview", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile);

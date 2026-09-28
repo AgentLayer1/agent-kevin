@@ -263,7 +263,7 @@ const reliefTable = (view: PersonalView): string =>
         line.status === ReliefStatus.Full
           ? `<span class="tag done"><span aria-hidden="true">✓</span> Claimed</span>`
           : line.status === ReliefStatus.Unconfirmed
-            ? `<span class="tag soon"><span aria-hidden="true">?</span> Confirm · up to ${money(line.worth)}</span>`
+            ? `<span class="tag soon"><span aria-hidden="true">?</span> Confirm${line.worth > 0 ? ` · up to ${money(line.worth)}` : ""}</span>`
             : `<span class="tag upcoming">${line.worth > 0 ? `up to ${money(line.worth)} off` : "open"}</span>`;
       return `<tr><td class="relief-name">${escapeHtml(line.title)}</td><td class="relief-bar"><span class="hbar-track"><span class="hbar-fill ink" style="width:${width.toFixed(1)}%"></span></span><span class="relief-amount">${money(line.claimed)} of ${money(line.cap)}</span></td><td class="state">${note}</td></tr>`;
     })
