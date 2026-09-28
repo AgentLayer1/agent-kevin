@@ -14,16 +14,16 @@ Never more than twelve in one sitting. Past that the author is reading, not rehe
 
 ## Phrasing the question
 
-Say who asks, then ask it the way they would, using the names on the threads and the team: `<lead>: is dropping the API pool to 25 a concern?` · `<reviewer>: so the throttle is 800 per team now?` · `Bugbot said the env override is never read. Is it?` The name is not decoration: the author who has heard the question in that voice does not freeze when the voice is real.
+Say who asks, then ask it the way they would, using the names on the threads and the team: `<lead>: is dropping the cache TTL to 30 seconds a concern?` · `<reviewer>: so the limit is 600 requests per account now?` · `Bugbot said the env override is never read. Is it?` The name is not decoration: the author who has heard the question in that voice does not freeze when the voice is real.
 
 ## Building the options
 
 Three or four. Exactly one is right. The right one is the doc's answer **reworded**: same claim, different sentence, so recognising the doc's phrasing does not pass the test. The distractors are the things someone in the room actually believes, in order of usefulness:
 
-1. **The stale claim.** What the PR body, an old commit message, or an earlier reply said and the code no longer does. (For a pool-size PR: "api 50, worker 25, `DATABASE_POOL_MAX` overrides both.")
-2. **The reviewer's original suggestion.** What the thread proposed before the author's answer. (`worker.kill()` so `exitedAfterDisconnect` gates the refork.)
-3. **The pre-PR behavior.** How it worked on the default branch, stated as if it were still true. (The ORM disconnects in `onModuleDestroy`, before the server drains.)
-4. **The answer that sounds right and is not.** A generic best practice that does not apply here. (A shared Redis counter for the throttle.)
+1. **The stale claim.** What the PR body, an old commit message, or an earlier reply said and the code no longer does. (For a rate-limit PR: "reads 600, writes 100, `RATE_LIMIT_MAX` overrides both.")
+2. **The reviewer's original suggestion.** What the thread proposed before the author's answer. (Retry inside the middleware, so a limited request waits instead of failing.)
+3. **The pre-PR behavior.** How it worked on the default branch, stated as if it were still true. (The limiter counts per IP, so two accounts behind one proxy share a budget.)
+4. **The answer that sounds right and is not.** A generic best practice that does not apply here. (A shared Redis counter for the limit.)
 
 Rules that keep it honest:
 

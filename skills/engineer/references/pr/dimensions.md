@@ -41,6 +41,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 - Double effects: any external call without an idempotency key or a marker written before the call; a side effect that runs twice on retry.
 - Ledger-style invariants: every movement has its counterpart record; amounts reconcile across legs; fees or counters are not double-applied; enums cover the new path.
 - Gates: a path that reaches an external service before a required check clears, a new evaluator skipped or defaulted to pass, an exemption list widened, provenance dropped.
+- Fallbacks: a fallback path that can retry or reroute an instruction the first path may already have carried out.
 - Derived status: a status derivation changed, a write removed from one service while another still reads it, environment gating that keys on anything other than the canonical production flag.
 - Authorization: a route without a permission or role guard, a public-route decorator on something that self-authenticates, a permission resolver that widens (`in` on an object walks the prototype), a tenant or team scope check that moved or disappeared. For auth and value paths the diff must let a reviewer see **by inspection** that the safety checks did not move; if the change needed them to move, the change is wrong-shaped.
 - Thresholds and reporting: limits, deadline math, and report triggers changed without a test pinning the boundary.
@@ -50,7 +51,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 **Reads:** [boundary discipline](../principles/boundary-discipline.md)
 
 - Secrets and PII in logs: interpolated API keys, tokens, signatures, emails, names, document contents into a log string or an exception message. Static message plus structured context is the convention; use the repo's redaction helper if it has one.
-- Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only. Absolute machine paths leak the host's layout; user-facing output shows repo-relative paths.
+- Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only; scrub pre-existing leaks in the code the PR touches. Absolute machine paths leak the host's layout; user-facing output shows repo-relative paths.
 - Input validation: DTO fields without validation decorators, `any`-typed request bodies, string IDs passed straight into a query, enum fields typed as `string`.
 - Injection: raw SQL with interpolation, shell commands built from input, HTML rendered from a third-party payload without sanitizing.
 - Webhook trust: an inbound webhook handled without signature verification, a signature check that runs after the side effect, replay without an event-id dedupe.

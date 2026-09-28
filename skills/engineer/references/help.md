@@ -48,7 +48,7 @@ Read-only against GitHub: every output is a report in `reports/reviews/` you pas
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "review PR 531" | **pr review** | The change explained, seven lanes held to the principles, every finding verified, paste-ready comments at `file:line` |
+| "review PR 142" | **pr review** | The change explained, seven lanes held to the principles, every finding verified, paste-ready comments at `file:line` |
 | "reply to the comments on my PR" | **pr replies** | Each thread judged against the code, accurate ones fixed uncommitted, a reply for every thread in scroll order |
 | "prep my PR for standup" | **pr walkthrough** | A standup script, the diff tour, the questions with receipts, a recording runbook; `--rehearse` quizzes you |
 

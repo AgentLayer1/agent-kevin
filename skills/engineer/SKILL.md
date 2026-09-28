@@ -74,9 +74,9 @@ Pull requests share one [foundation](references/pr/foundation.md) (resolve the P
 
 | Task | Playbook |
 |---|---|
-| A teammate's PR: "review 531", `/engineer review 531` | [pr review](references/playbooks/pr-review.md) |
-| The review on your own PR: "reply to the comments", `/engineer replies 531` | [pr replies](references/playbooks/pr-replies.md) |
-| Present or record your own PR: "prep my PR for standup", `/engineer walkthrough 531` | [pr walkthrough](references/playbooks/pr-walkthrough.md) |
+| A teammate's PR: "review 142", `/engineer review 142` | [pr review](references/playbooks/pr-review.md) |
+| The review on your own PR: "reply to the comments", `/engineer replies 142` | [pr replies](references/playbooks/pr-replies.md) |
+| Present or record your own PR: "prep my PR for standup", `/engineer walkthrough 142` | [pr walkthrough](references/playbooks/pr-walkthrough.md) |
 
 Cross-cutting references:
 

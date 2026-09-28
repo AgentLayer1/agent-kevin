@@ -31,9 +31,9 @@ Call `github_pr_view`. Record: `author.login`, `headRefName`, `baseRefName`, `is
 
 | Whose PR | The ask | Playbook |
 |---|---|---|
-| A teammate's | "review 531", `/engineer review 531` | [pr review](../playbooks/pr-review.md) |
-| The operator's | "reply to the comments", "address the review", `/engineer replies 531` | [pr replies](../playbooks/pr-replies.md) |
-| The operator's | "help me present", "prep for standup", "walk me through my PR", "quiz me", `/engineer walkthrough 531` | [pr walkthrough](../playbooks/pr-walkthrough.md) |
+| A teammate's | "review 142", `/engineer review 142` | [pr review](../playbooks/pr-review.md) |
+| The operator's | "reply to the comments", "address the review", `/engineer replies 142` | [pr replies](../playbooks/pr-replies.md) |
+| The operator's | "help me present", "prep for standup", "walk me through my PR", "quiz me", `/engineer walkthrough 142` | [pr walkthrough](../playbooks/pr-walkthrough.md) |
 
 An explicit `review`, `replies`, or `walkthrough` argument wins over the inference, so `/engineer review <n>` on the operator's own PR runs the full review lanes as a self-review. A plain "review my PR" means replies, which carries its own bounded self-pass. A walkthrough of a teammate's PR stops in one line and offers `/engineer review <n>` instead.
 
@@ -57,7 +57,7 @@ Pull the diff with `github_pr_diff`. The diff is the file list of record: `githu
 Build the model before judging it, with the [how](../playbooks/how.md) playbook's method: find the entry point, trace the flow and the data between functions, map the key types, find the boundaries.
 
 - **What** changed, grouped by concern rather than by file (a schema field plus its writer plus its reader is one item).
-- **Why**, from the body, the linked issue (`github_issue_view`), and the task. Where the body and the diff disagree, that is a finding (see [dimensions](dimensions.md) → PR hygiene) or a gap.
+- **Why**, from the body, the linked issue (`github_issue_view`), the task, and any chat thread the body cites. Where the body and the diff disagree, that is a finding (see [dimensions](dimensions.md) → PR hygiene) or a gap.
 - **How**: entry points, the data flow, state transitions, which process runs it, what is now reachable that was not.
 - **Blast radius**, with the [blast radius](../playbooks/blast-radius.md) playbook: `Grep` the head for every changed exported symbol, every changed schema field, every changed DTO/response shape, every deleted write (a deleted write needs a sweep of the reads that still expect the column). Then name the one fact the change is safe because of, and look where grep stops.
 
