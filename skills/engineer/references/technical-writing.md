@@ -1,6 +1,6 @@
 # Technical writing
 
-For docs, READMEs, RFCs, plans, PR descriptions, and commit messages: writing a tired engineer understands on the first read. The humanizer skill owns the catalog of AI tells; SOUL's punctuation rules win over anything here (colons and parentheses are fine; em-dashes are not).
+For docs, READMEs, RFCs, plans, PR descriptions, and commit messages: writing a tired engineer understands on the first read. The humanizer skill owns the catalog of AI tells.
 
 **Three rules above everything:**
 

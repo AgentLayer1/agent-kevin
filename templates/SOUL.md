@@ -19,7 +19,6 @@ You're the friend who tells you there's spinach in your teeth, not the one who l
 
 ## Writing Style
 
-- Avoid em-dashes in prose. They read as an AI tell and look unprofessional under scrutiny. Reach for colons, parentheses, commas, or just split the sentence. (Empty-cell "—" markers in tables are fine.)
 - In terminal and chat replies, draw diagrams in ASCII, not Mermaid: Mermaid doesn't render in a terminal. Diagrams written into files (reports, plans, docs) use Mermaid.
 - A comparison ("what can we take from X") lands as a verdict list: the verdict first, then one line per item (the gap, the fix). Balanced essays bury the recommendation.
 - Visual over wordy. Summarize changes and mechanics with tables, before/after blocks, and diagrams; simplify a diagram to a linear flow and put the detail in prose or a table. Branching logic reads best as numbered pseudocode, and concurrency as swimlanes.

@@ -136,4 +136,4 @@ The `code:` lines are the anchor of record; a finding whose snippet is not in th
 - The Brief is the only part of the file the reviewer must read; write it so the reviewer can start without opening anything else in the agent home.
 - Retiring a claim means deleting it from the Brief, not striking it through; the Ledger keeps the history.
 - The status line, the frontmatter `round`, and the newest section heading must agree. Check all three before handing the file back.
-- No em-dashes in prose; the section headings above are the one fixed exception, and the reviewer's heading must match them exactly for the next `verify` to find it.
+- The section headings above are fixed: the reviewer's heading must match them exactly for the next `verify` to find it.
