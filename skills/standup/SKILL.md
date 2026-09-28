@@ -1,7 +1,7 @@
 ---
 name: standup
 description: Build the operator's standup update in the three parts a standup has — what they did in the last 24h (merged PRs, prod actions taken by hand, investigations that left no commit, tasks filed), what they're picking up next, and what's blocked or needs a decision from someone in the room. Derives all three from git, PRs, session transcripts and the task board rather than asking. Crosses the day boundary a standup does, and flags older work a skipped run may have left unsaid. Use when the operator says "standup is coming up", "what have I done", "what did I do yesterday", "summarise my work for standup", "I need my update", or invokes /agent-kevin:standup. Accepts an hours override (`/agent-kevin:standup 48`).
-allowed-tools: Bash, Read, Glob, mcp__plugin_agent-kevin_kevin__github_pr_list, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__report_write
+allowed-tools: Bash, Read, Glob, mcp__plugin_agent-kevin_kevin__github_pr_list, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__focus_write, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write
 ---
 
 # standup — did, next, blocked
@@ -132,7 +132,9 @@ falls back to the cwd and audits the wrong repo as "nothing uncommitted".
 window crosses midnight, so "today" alone drops a task closed yesterday evening) plus
 `{status:"active"}` and open P0/P1 (act two), and `task_scan` for overdue/blocked (act three).
 Also read `<HOME>/projects/TASKS.md` → `## Weekly Goals`, which is what makes a long active list
-rankable. Tasks created or touched inside the window are output too:
+rankable. When the focus page is set up (`<HOME>/focus.html` exists), call `focus_write` with no
+arguments: its Today, carried-over and week lanes are what the operator already planned. Tasks
+created or touched inside the window are output too:
 
 ```bash
 find "${KEVIN_HOME:-$AGENT_HOME}/projects" -path '*/tasks/*' -name '*.md' -newermt '<ISO>'
@@ -190,8 +192,9 @@ The forward half is not a second gather; it's read off what act one already prod
 board queries. Deriving beats asking: the operator called this skill because they don't want to
 assemble the update themselves.
 
-**Next — at most three, and each must be evidence-backed.** In priority order, the candidates
-are:
+**Next — at most three, and each must be evidence-backed.** When the focus page has a Today lane,
+that lane is Next, in its order: the operator already chose it. Otherwise, in priority order, the
+candidates are:
 
 1. **The obvious continuation of in-flight work** — a PR that came back with review comments, a
    branch built but unpushed, a plan written but not coded. Strongest signal there is, because
@@ -316,6 +319,24 @@ Rules:
   which is most days.
 - **Prose is for the room.** No internal file paths; task ids and PR numbers instead. If a
   teammate wouldn't recognise the noun, rename it.
+
+## Monday and Friday — the week frame
+
+Standup is where the week gets set and scored, so on those two days the card gains one section.
+Skip it on a quiet week the operator says doesn't need one.
+
+- **Monday: set the week.** Propose two or three week goals, starting from the roadmap milestones
+  `focus_write` returns under `roadmap` (slipped first), then the carried-over lane, the week lane,
+  the Weekly Goals, and the in-flight work in `Did`. Each goal names its task and what done
+  looks like. Confirm with one `AskUserQuestion` (multi-select), then `task_update` each chosen task
+  to `horizon: week`. Add `## This week` above `Next`, one line per goal: **the deliverable**, what
+  done means.
+- **Friday: score the week.** Score every task `focus_write` returns under `planned.week` (planned
+  for the week or one of its days, archived ones included), giving ✅ done, 🟡 partial (active,
+  moved), or ❌ missed, with one clause of why for every miss. Ask where each open one goes: next
+  week (`horizon: next-week`), later, or dropped (cancel it). Apply the answers with `task_update`.
+  Add `## Week score` above `Next`. The misses are the useful part, because they show where the
+  week was overcommitted or stuck; say them plainly.
 
 ## Step 6 — persist
 

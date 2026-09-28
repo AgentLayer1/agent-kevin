@@ -93,6 +93,10 @@ export const FOLDERS = {
   get DATA() {
     return dataRoot();
   },
+  /** Each focus page's last queue pull: queue.json for the home page, queue.<slug>.json per project. */
+  get FOCUS_QUEUES() {
+    return resolve(dataRoot(), 'focus');
+  },
   get CONFIG() {
     return resolve(dataRoot(), 'config');
   },
@@ -181,6 +185,10 @@ export const FILES = {
    *  dashboard links it as the first surface. */
   get ROADMAP() {
     return resolve(homeRoot(), 'roadmap.html');
+  },
+  /** Home-wide focus page (focus skill); a project's own sits at projects/<slug>/focus.html. */
+  get FOCUS() {
+    return resolve(homeRoot(), 'focus.html');
   },
   get KNOWLEDGE_STATE() {
     return resolve(dataRoot(), 'knowledge.json');

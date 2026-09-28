@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  Focus dashboard shell. focus-render.ts fills the {{TOKEN}} slots with pre-escaped HTML.
+  Hard rule: zero external requests (system fonts, inline SVG only, no JS).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🎯</text></svg>">
+<style>
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #2b323c;
+  --hairline: rgba(139, 148, 158, 0.18);
+  --text: #c9d1d9;
+  --bright: #e6edf3;
+  --dim: #8b949e;
+  --faint: #5c6570;
+  --accent: #ffd866;
+  --green: #3fb950;
+  --amber: #d29922;
+  --red: #f85149;
+  --cyan: #56d4dd;
+  --serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0; min-height: 100vh; color: var(--text);
+  font: 16px/1.5 var(--serif);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(1200px 420px at 50% -120px, rgba(255, 216, 102, 0.09), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--bg);
+}
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--accent); }
+main { max-width: 720px; margin: 0 auto; padding: 56px 28px 80px; }
+
+/* ── masthead ─────────────────────────────────────────────────────── */
+.kicker {
+  font: 600 11px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--accent);
+  display: flex; gap: 14px; align-items: center;
+}
+.kicker::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255, 216, 102, .5), transparent); }
+h1 {
+  margin: 18px 0 6px; font: 400 clamp(38px, 7vw, 56px)/1.02 var(--serif); color: var(--bright); letter-spacing: -.015em;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.subline { font: 12px/1.6 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.subline b { color: var(--text); font-weight: 600; }
+
+/* ── lanes on a timeline ──────────────────────────────────────────── */
+.lanes { margin-top: 44px; border-left: 1px solid var(--hairline); padding-left: 26px; }
+section { position: relative; margin: 0 0 40px; animation: rise .45s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+section::before {
+  content: ''; position: absolute; left: -31px; top: 4px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--faint);
+}
+section.now::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(255, 216, 102, .12); }
+section.warn::before { border-color: var(--amber); }
+@keyframes rise { from { transform: translateY(8px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { section { animation: none; } }
+
+.lane-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.lane-head h2 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+section.now .lane-head h2 { color: var(--accent); }
+.count { font: 11px/1 var(--mono); color: var(--faint); }
+.rule { flex: 1; height: 1px; background: var(--hairline); }
+
+/* ── rows ─────────────────────────────────────────────────────────── */
+ol, ul { list-style: none; margin: 0; padding: 0; }
+.row { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; padding: 9px 0; border-top: 1px solid var(--hairline); }
+.row:first-child { border-top: none; }
+.mark { font: italic 400 22px/1.1 var(--serif); color: var(--faint); text-align: right; padding-top: 1px; }
+.today .mark { color: var(--accent); font-size: 30px; line-height: .95; }
+.title { color: var(--bright); font-size: 17px; line-height: 1.35; }
+.today .title { font-size: 20px; }
+.meta { grid-column: 2; margin-top: 3px; font: 11.5px/1.5 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.meta a { color: var(--cyan); }
+.proj { color: hsl(var(--h) 55% 68%); }
+.pri { padding: 0 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--dim); }
+.pri.p0 { color: var(--red); border-color: rgba(248, 81, 73, .45); }
+.pri.p1 { color: var(--amber); border-color: rgba(210, 153, 34, .45); }
+.blocked { color: var(--red); }
+.late { color: var(--amber); }
+.row.done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: rgba(139, 148, 158, .5); }
+.row.done .mark { color: var(--green); font-style: normal; font-size: 18px; }
+.carried { margin-top: 14px; padding: 10px 14px 4px; border-left: 2px solid var(--amber); background: rgba(210, 153, 34, .05); border-radius: 0 6px 6px 0; }
+.carried h3 { margin: 0 0 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--amber); }
+.carried .mark { font-size: 16px; color: var(--amber); }
+.from { color: var(--amber); }
+/* ── roadmap ──────────────────────────────────────────────────────── */
+.roadmap .mark { font: 400 13px/1.9 var(--mono); color: var(--accent); font-style: normal; }
+.roadmap .slipped .mark, .roadmap .slipped .title { color: var(--amber); }
+.chip { font: 600 11px/1 var(--mono); color: var(--accent); border: 1px solid rgba(255, 216, 102, .35); border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 3px; }
+.doings { grid-column: 2; margin-top: 4px; }
+.doing { font: 12px/1.6 var(--mono); color: var(--text); }
+.carried.due { border-left-color: var(--red); background: rgba(248, 81, 73, .05); }
+.carried.due h3, .carried.due .mark, .carried.due .late { color: var(--red); }
+
+/* ── goals + progress ─────────────────────────────────────────────── */
+.goals { margin: 0 0 12px; }
+.goals li { position: relative; padding: 3px 0 3px 22px; font-style: italic; color: var(--text); }
+.goals li::before { content: '◆'; position: absolute; left: 2px; top: 5px; font: normal 9px/1.8 var(--mono); color: var(--accent); }
+.progress { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; font: 11px/1 var(--mono); color: var(--dim); }
+.bar { flex: 1; max-width: 260px; height: 4px; border-radius: 2px; background: var(--hairline); overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ffe9a3); border-radius: 2px; }
+
+/* ── external items ───────────────────────────────────────────────── */
+.items .row { grid-template-columns: 34px 1fr; }
+.dot { width: 8px; height: 8px; border-radius: 50%; margin: 8px 0 0 auto; background: var(--faint); }
+.dot.good { background: var(--green); }
+.dot.warn { background: var(--amber); }
+.dot.bad { background: var(--red); }
+.items .title { font-size: 16px; }
+.subhead { font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin: 18px 0 6px; }
+.subhead:first-of-type { margin-top: 0; }
+
+/* ── quiet states ─────────────────────────────────────────────────── */
+.empty { font-style: italic; color: var(--dim); padding: 4px 0; }
+.empty code, footer code { font: 12px var(--mono); color: var(--accent); font-style: normal; }
+details > summary { cursor: pointer; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary .lane-head h2::after { content: ' ▸'; color: var(--faint); }
+details[open] > summary .lane-head h2::after { content: ' ▾'; }
+
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--hairline); font: 11.5px/1.8 var(--mono); color: var(--faint); }
+footer code { font-size: 11.5px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Focus · {{SCOPE}}</div>
+  <h1>{{DATE_LONG}}</h1>
+  <div class="subline">{{SUBLINE}}</div>
+  <div class="lanes">
+{{BODY}}
+  </div>
+  <footer>{{FOOTER}}</footer>
+</main>
+{{DATA}}
+</body>
+</html>

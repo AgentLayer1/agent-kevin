@@ -191,7 +191,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         done: 5,
         updatedAt: '2026-06-10',
         description: 'Agentic personal AI operating system.',
-        roadmap: ''
+        roadmap: '',
+        focus: ''
       }
     ],
     overdueList: [],
@@ -483,6 +484,18 @@ describe('renderDashboardHtml', () => {
     );
     expect(html).toContain(
       `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/roadmap.html')}">Project roadmap</a>`
+    );
+  });
+
+  test('a project card links its own focus page when it has one', () => {
+    const base = makeSnapshot();
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        tasks: { ...base.tasks, byProject: [{ ...base.tasks.byProject[0], focus: 'projects/life-os/focus.html' }] }
+      })
+    );
+    expect(html).toContain(
+      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/focus.html')}">Project focus</a>`
     );
   });
 

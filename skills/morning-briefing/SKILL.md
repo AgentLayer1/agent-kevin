@@ -2,7 +2,7 @@
 name: morning-briefing
 description: Tailored morning brief — today's priorities, drafted artifacts, goals delta, per-project pulse, stale callout, signal-topic news, geopolitical news, and one concrete first move. Run when you sit down at the start of the day.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__web_search, Read, Glob, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__focus_write, mcp__plugin_agent-kevin_kevin__web_search, Read, Glob, Bash
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
@@ -22,6 +22,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
    - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / due-soon (`dueSoon`, the next 14 days) / stale / blocked surfacing. A dated deadline in `dueSoon` belongs in `🎯 Today` when it's within a week or needs the operator's input first
+   - **Focus lanes**, when `<HOME>/focus.html` exists: `mcp__plugin_agent-kevin_kevin__focus_write` with no arguments. It re-renders the focus page and returns today, carried over, the week and month lanes, and the roadmap milestones in flight.
 5. **Tax owed** — when `<HOME>/projects/tax/entities/` exists, run the tax skill's engine (`bun "${CLAUDE_PLUGIN_ROOT}/skills/tax/scripts/calendar.ts" liability`) and carry one line into `🎯 Today`: the total owed now across entities (only the known ones, with "not priced" named for the rest, never RM 0 for an unknown) and the monthly set-aside. Skip silently when there is no tax project.
 6. **Goals** — read `<HOME>/projects/TASKS.md` `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap.
 7. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `mcp__plugin_agent-kevin_kevin__web_search` calls in parallel** — the plugin's Perplexity-backed tool, **not** Claude's built-in `WebSearch` (the bare name `web_search` below always means this MCP tool; it returns raw dated sources with `recency`/`domains`/`country` filters, no pre-synthesis). One call per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
@@ -69,6 +70,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
   • <task-id> <P-level> — <crisp "why now"; deadline, dependency unlock, or fresh blocker>
   • <task-id> ...
   (3–6 bullets; mix P0/P1 active + the one P0 you should drop everything for. Inline-code task IDs.)
+  (With the focus page set up, this section is its Today lane in order, then carried-over items marked ↻ with the day they slipped from. An empty Today lane gets three proposals and a first move of `/focus plan`.)
 
 📦 Drafted
   • <project-slug> — <what moved yesterday/overnight that isn't a closed task: PRs, inbox captures, knowledge concepts, status flips, decisions>

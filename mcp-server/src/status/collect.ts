@@ -297,6 +297,8 @@ export interface ProjectLoad {
   description: string;
   /** HOME-relative path to the project's own roadmap.html; '' when it has none. */
   roadmap: string;
+  /** HOME-relative path to the project's own focus.html; '' when it has none. */
+  focus: string;
 }
 
 export interface TaskRef {
@@ -364,9 +366,8 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
-  /** Convention-discovered standalone pages: the HOME-root roadmap.html
-   *  first, then each project's dashboard.html and roadmap.html. Empty
-   *  renders nothing. */
+  /** Convention-discovered standalone pages: the HOME-root roadmap.html and
+   *  focus.html, then each project's dashboard.html. Empty renders nothing. */
   surfaces: SurfaceLink[];
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };
@@ -773,10 +774,10 @@ const OPEN_STATUSES = new Set(['open', 'active', 'blocked']);
 /** First plain paragraph of a project README (frontmatter skipped). */
 const projectDescription = (project: string): string => firstParagraph(resolve(FOLDERS.PROJECTS, project, 'README.md'));
 
-/** Same convention as the HOME-root north star, one level down: a project's own
- *  roadmap lives at `projects/<slug>/roadmap.html`. '' when absent. */
-const projectRoadmap = (project: string): string => {
-  const path = resolve(FOLDERS.PROJECTS, project, 'roadmap.html');
+/** Same convention as the HOME-root north star and focus page, one level down: a project's
+ *  own roadmap.html or focus.html sits at its root and links from its card. '' when absent. */
+const projectPage = (project: string, file: 'roadmap.html' | 'focus.html'): string => {
+  const path = resolve(FOLDERS.PROJECTS, project, file);
   return existsSync(path) ? relative(FOLDERS.HOME, path) : '';
 };
 
@@ -800,7 +801,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     done: 0,
     updatedAt: '',
     description: '',
-    roadmap: ''
+    roadmap: '',
+    focus: ''
   });
 
   // Seed every discovered project so those with no live tasks still render as
@@ -825,7 +827,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
       done:
         load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
       description: projectDescription(load.project),
-      roadmap: projectRoadmap(load.project)
+      roadmap: projectPage(load.project, 'roadmap.html'),
+      focus: projectPage(load.project, 'focus.html')
     }))
     // Most recently touched project first (by latest live-task `updated:`),
     // then by open-task count, then alphabetically. Quiet projects (no live
@@ -1115,7 +1118,7 @@ const collectLogs = (): StatusSnapshot['logs'] => {
 // ── identity parsing (IDENTITY.md / SOUL.md / USER.md — all best-effort) ──
 
 /** Value of a `**Label:** value` bullet anywhere in a markdown file. */
-const boldField = (file: string, label: string): string => {
+export const boldField = (file: string, label: string): string => {
   try {
     return (
       readFileSync(file, 'utf-8')
@@ -1743,7 +1746,7 @@ const goalLines = (heading: string): string[] =>
     .filter((line) => !/^_No .+_$/.test(line))
     .map(stripMarkdown);
 
-const collectGoals = (): StatusSnapshot['goals'] => ({
+export const collectGoals = (): StatusSnapshot['goals'] => ({
   weekly: goalLines('Weekly Goals'),
   monthly: goalLines('Monthly Goals'),
   yearly: goalLines('Yearly Goals')
@@ -1794,7 +1797,7 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   };
 };
 
-const titleize = (slug: string): string =>
+export const titleize = (slug: string): string =>
   slug
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -1807,12 +1810,13 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
   existsSync(absPath) ? [{ ...entry, href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath) }] : [];
 
 /** Surfaces are discovered by convention, never configured: the HOME-root
- *  roadmap.html (the north star, opened as a new tab) leads, followed by every
- *  project carrying a dashboard.html at its root. A project's own roadmap is
+ *  roadmap.html (the north star, opened as a new tab) leads, then the home focus
+ *  page, then every project's dashboard.html. A project's own roadmap or focus page is
  *  deliberately absent — it belongs on that project's card, not in a sidebar
  *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] => {
   const northStar = surfaceAt(FILES.ROADMAP, { title: 'Roadmap', icon: '🧭', appTab: true });
+  const focus = surfaceAt(FILES.FOCUS, { title: 'Focus', icon: '🎯', appTab: false });
   const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
     ? []
     : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
@@ -1825,7 +1829,7 @@ const collectSurfaces = (): SurfaceLink[] => {
           })
         )
         .sort((a, b) => a.title.localeCompare(b.title));
-  return [...northStar, ...projects];
+  return [...northStar, ...focus, ...projects];
 };
 
 const MAX_REPORTS = 60;

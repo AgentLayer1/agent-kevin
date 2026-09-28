@@ -94,7 +94,7 @@ const pathLink = (path: string, cls = 'plink'): string => {
 
 /** Stable hue per name (djb2 hash, full-width before the mod, so similar
  *  names land far apart) — used for project and skill badges. */
-const nameHue = (name: string): number => {
+export const nameHue = (name: string): number => {
   let hash = 5381;
   for (const ch of name) hash = ((hash * 33) ^ (ch.codePointAt(0) ?? 0)) >>> 0;
   return hash % 360;
@@ -532,14 +532,16 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
     .join('<span class="dim"> · </span>');
   // Through the opener app like every other link on the card: a relative
   // in-frame href is swallowed by Obsidian's HTML viewer.
-  const roadmapRow = load.roadmap
-    ? `<div class="row" data-row><span style="flex:none">🧭</span><span class="grow">${mdLink(snap, load.roadmap, 'Project roadmap')}</span></div>`
-    : '';
+  const pageRow = (path: string, icon: string, label: string): string =>
+    path
+      ? `<div class="row" data-row><span style="flex:none">${icon}</span><span class="grow">${mdLink(snap, path, label)}</span></div>`
+      : '';
+  const pageRows = pageRow(load.roadmap, '🧭', 'Project roadmap') + pageRow(load.focus, '🎯', 'Project focus');
   return `<details class="projcard" data-row><summary>
 <div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span><span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
 ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 160))}</div>` : ''}
 <div class="proj-progress"><span class="dim nowrap">☑ ${finished} / ${denominator}</span><div class="track"><span style="width:${pct}%;background:${color}"></span></div><span class="dim nowrap">${pct}%</span></div>
-</summary><div class="proj-tasks">${roadmapRow}${taskRows}</div></details>`;
+</summary><div class="proj-tasks">${pageRows}${taskRows}</div></details>`;
 };
 
 const pageTasks = (snap: StatusSnapshot): string => {

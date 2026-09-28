@@ -14,6 +14,7 @@ export const TOOL_MODULES = [
   'curl',
   'database',
   'database-fork',
+  'focus',
   'github',
   'google-page-speed',
   'google-search-console',
