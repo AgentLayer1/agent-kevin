@@ -457,12 +457,17 @@ export const position = (
       ? [`books are complete only through ${coverage}; months after it up to ${lastFullMonth} are not closed`]
       : []),
   ];
+  const reliefIds = new Set(rates.individual.reliefs.map((relief) => relief.id));
+  const strayReliefs = inPeriod.filter((row) => row.type === LedgerType.Relief && !reliefIds.has(row.category));
   const warnings = [
     ...(unconverted.length > 0
       ? [`${unconverted.length} foreign-currency row(s) have no amount_myr and are left out of the totals`]
       : []),
     ...(unlabelledPayments.length > 0
       ? [`${unlabelledPayments.length} tax payment(s) name no YA in their reference and are not counted as paid`]
+      : []),
+    ...(strayReliefs.length > 0
+      ? [`${strayReliefs.length} relief row(s) name no known relief in their category and are not counted`]
       : []),
     ...(entity.kind === EntityKind.Individual && entity.resident === null
       ? ["residence for this year is unconfirmed; computed as a resident"]

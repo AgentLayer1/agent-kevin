@@ -230,6 +230,13 @@ describe("position: personal view", () => {
     expect(result.personal?.taxOnUnwithheld).toBeCloseTo(withBusiness - withoutBusiness, 2);
   });
 
+  test("a relief row naming no known relief is left out and flagged", () => {
+    const rows = [...salaryYear(2000), row("2026-03-01", "relief", 800, { category: "lifestlye" })];
+    const result = position(person, rows, rates, "2026-06-30", null);
+    expect(result.personal?.reliefTotal).toBe(9000);
+    expect(result.warnings.join(" ")).toContain("1 relief row");
+  });
+
   test("a company has no personal view", () => {
     expect(position(company, [], rates, "2026-06-30", null).personal).toBeNull();
   });
