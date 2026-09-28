@@ -3,6 +3,7 @@
  */
 import type { TaskFile, TaskPriority, TaskType, ThreadEntry } from '@/shared/types';
 import { defineTool, type ToolDef } from '@/shared/types';
+import { HORIZON_BUCKETS, horizonBucket } from '@/tasks/horizon';
 import { appendThread, closeTask, createTask, updateTask } from '@/tasks/mutate';
 import { resolveTasks } from '@/tasks/resolve';
 import { findTaskById, queryTasks, scanAllTasks, scanArchivedTasks } from '@/tasks/scan';
@@ -12,6 +13,9 @@ const StatusEnum = z.enum(['open', 'active', 'blocked', 'done', 'cancelled']);
 const PriorityEnum = z.enum(['P0', 'P1', 'P2', 'P3']);
 const TypeEnum = z.enum(['task', 'bug', 'idea', 'epic']);
 const ThreadKindEnum = z.enum(['quote', 'info', 'warning']);
+const HorizonInput = z
+  .string()
+  .describe('today, week, next-week, month, later, or a period (2026-09-28, 2026-W40, 2026-10); stored as the period. Empty clears.');
 
 const slim = (t: TaskFile) => ({
   id: t.frontmatter.id,
@@ -22,6 +26,7 @@ const slim = (t: TaskFile) => ({
   project: t.frontmatter.project,
   assignee: t.frontmatter.assignee,
   due: t.frontmatter.due,
+  horizon: t.frontmatter.horizon,
   depends_on: t.frontmatter.depends_on,
   blocked_by: t.frontmatter.blocked_by,
   updated: t.frontmatter.updated,
@@ -31,24 +36,28 @@ const slim = (t: TaskFile) => ({
 export const tools: ToolDef[] = [
   defineTool({
     name: 'task_query',
-    description: 'List tasks across all projects, optionally filtered by status/priority/project/assignee.',
+    description: 'List tasks across all projects, optionally filtered by status/priority/project/assignee/horizon lane.',
     inputSchema: {
       status: StatusEnum.optional(),
       priority: PriorityEnum.optional(),
       project: z.string().optional(),
       assignee: z.string().optional(),
+      horizon: z
+        .enum(HORIZON_BUCKETS)
+        .optional()
+        .describe('Lane as of today: carried (a past period), today, week, month, later'),
       includeClosed: z.boolean().optional().describe('Include done/cancelled (default false)')
     },
-    handler: async ({ status, priority, project, assignee, includeClosed }) => {
+    handler: async ({ status, priority, project, assignee, horizon, includeClosed }) => {
       const filters: Record<string, string> = {};
       if (status) filters.status = status;
       if (priority) filters.priority = priority;
       if (project) filters.project = project;
       if (assignee) filters.assignee = assignee;
       const tasks = queryTasks(filters);
-      const filtered = includeClosed
-        ? tasks
-        : tasks.filter((t) => t.frontmatter.status !== 'done' && t.frontmatter.status !== 'cancelled');
+      const filtered = tasks
+        .filter((t) => includeClosed || (t.frontmatter.status !== 'done' && t.frontmatter.status !== 'cancelled'))
+        .filter((t) => !horizon || horizonBucket(t.frontmatter.horizon) === horizon);
       return { count: filtered.length, tasks: filtered.map(slim) };
     }
   }),
@@ -80,6 +89,7 @@ export const tools: ToolDef[] = [
       type: TypeEnum.optional(),
       labels: z.array(z.string()).optional(),
       due: z.string().optional().describe('YYYY-MM-DD'),
+      horizon: HorizonInput.optional(),
       depends_on: z.array(z.string()).optional()
     },
     handler: async (args) =>
@@ -92,6 +102,7 @@ export const tools: ToolDef[] = [
         type: (args.type ?? 'task') as TaskType,
         labels: args.labels ?? [],
         due: args.due ?? '',
+        horizon: args.horizon ?? '',
         depends_on: args.depends_on ?? []
       })
   }),
@@ -105,6 +116,7 @@ export const tools: ToolDef[] = [
       title: z.string().optional(),
       assignee: z.array(z.string()).optional(),
       due: z.string().optional(),
+      horizon: HorizonInput.optional(),
       blocked_by: z.string().optional(),
       labels: z.array(z.string()).optional()
     },

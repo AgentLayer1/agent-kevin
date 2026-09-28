@@ -16,6 +16,7 @@ const task = (id: string, project: string, updated: string): TaskFile => {
     created: '2026-01-01',
     updated,
     due: '',
+    horizon: '',
     depends_on: [],
     blocked_by: '',
     parent: '',

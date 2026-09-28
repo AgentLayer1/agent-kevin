@@ -17,6 +17,7 @@ const task = (id: string, due: string, status: TaskStatus = 'open'): TaskFile =>
     created: '2026-01-01',
     updated: daysAgoDate(0),
     due,
+    horizon: '',
     depends_on: [],
     blocked_by: '',
     parent: '',

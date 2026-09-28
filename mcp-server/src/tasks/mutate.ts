@@ -13,6 +13,7 @@ import { writeFileAtomic } from '@/shared/utils';
 import { existsSync, readFileSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { withDashboardBatch, writeDashboardSafe } from './dashboard';
+import { normalizeHorizon } from './horizon';
 import { buildTaskMap, rewriteLinks } from './link';
 import type { ScanResult } from './resolve';
 import { findTaskById, getNextId } from './scan';
@@ -127,6 +128,7 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
     ...(opts.type && { type: opts.type }),
     ...(opts.labels && { labels: opts.labels }),
     ...(opts.due && { due: opts.due }),
+    ...(opts.horizon && { horizon: normalizeHorizon(opts.horizon) }),
     ...(opts.depends_on && { depends_on: opts.depends_on }),
     ...(opts.blocked_by && { blocked_by: opts.blocked_by }),
     ...(opts.parent && { parent: opts.parent })
@@ -149,9 +151,14 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
 // ── Update ────────────────────────────────────────────────────────────
 // Surgical: only frontmatter is modified, body is untouched.
 
-export const updateTask = (id: string, fields: Partial<Omit<TaskFrontmatter, 'id' | 'schema' | 'created'>>): void => {
+export const updateTask = (
+  id: string,
+  requested: Partial<Omit<TaskFrontmatter, 'id' | 'schema' | 'created'>>
+): void => {
   const task = findTaskById(id);
   if (!task) throw new Error(`Task not found: ${id}`);
+  const fields =
+    requested.horizon === undefined ? requested : { ...requested, horizon: normalizeHorizon(requested.horizon) };
 
   // Validate status transitions
   if (fields.status && fields.status !== task.frontmatter.status) {

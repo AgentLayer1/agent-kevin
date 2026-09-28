@@ -153,8 +153,8 @@ Groups:
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
   task get <id>
-  task create --project=NAME --title=... --description=... [--priority=P2] [--type=task|bug|idea|epic] [--due=YYYY-MM-DD] [--labels=a,b] [--depends_on=id1,id2]
-  task update <id> [--status=X] [--priority=X] [--title=X] [--due=YYYY-MM-DD] [--blocked_by=X] [--labels=a,b]
+  task create --project=NAME --title=... --description=... [--priority=P2] [--type=task|bug|idea|epic] [--due=YYYY-MM-DD] [--horizon=today|week|next-week|month|later] [--labels=a,b] [--depends_on=id1,id2]
+  task update <id> [--status=X] [--priority=X] [--title=X] [--due=YYYY-MM-DD] [--horizon=X] [--blocked_by=X] [--labels=a,b]
   task close <id>
   task thread <id> --message=... [--type=quote|info|warning]
   task scan                         Resolve dependencies, surface overdue/stale/auto-* changes
@@ -372,6 +372,7 @@ async function run(): Promise<void> {
           type: (flag('type') as 'task' | 'bug' | 'idea' | 'epic') ?? 'task',
           labels: flagArr('labels'),
           due: flag('due') ?? '',
+          horizon: flag('horizon') ?? '',
           depends_on: flagArr('depends_on')
         });
         console.log(JSON.stringify(res, null, 2));
@@ -381,7 +382,7 @@ async function run(): Promise<void> {
         const id = args[0];
         if (!id) throw new Error('Usage: kevin task update <id> --field=value ...');
         const fields: Record<string, string | string[]> = {};
-        for (const k of ['status', 'priority', 'title', 'due', 'blocked_by']) {
+        for (const k of ['status', 'priority', 'title', 'due', 'horizon', 'blocked_by']) {
           const v = flag(k);
           if (v) fields[k] = v;
         }

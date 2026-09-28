@@ -111,6 +111,7 @@ export interface TaskFrontmatter {
   created: string;
   updated: string;
   due: string;
+  horizon: string;
   depends_on: string[];
   blocked_by: string;
   parent: string;
@@ -151,6 +152,7 @@ export interface CreateTaskOptions {
   type?: TaskType;
   labels?: string[];
   due?: string;
+  horizon?: string;
   depends_on?: string[];
   blocked_by?: string;
   parent?: string;
