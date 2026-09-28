@@ -1,0 +1,3 @@
+[test]
+# Same throwaway-home pin as mcp-server/bunfig.toml, so a run from the repo root can't write into the checkout.
+preload = ["./mcp-server/src/test.ts"]
