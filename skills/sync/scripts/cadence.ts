@@ -88,13 +88,18 @@ if ((reviewAgeDays >= 14 && hasNewFeedback) || (lastReview !== null && reviewAge
   due.push({ skill: "self-review", label: "Self-review", lastRun: selfReview.lastRun ?? null });
 }
 
-// The close records are the watermark: an entity is due when last month's record is missing.
+// The close records are the watermark: an entity is due when last month's record is missing. A
+// profile the tax engine refuses surfaces as its own item rather than dropping every other nudge.
 const taxDir = join(FOLDERS.PROJECTS, "tax");
 if (existsSync(join(taxDir, "entities"))) {
-  const closes = pendingCloses(taxDir, loadEntities(taxDir), todayDate());
-  if (closes.length > 0) {
-    const entities = closes.map((close) => close.entity).join(", ");
-    due.push({ skill: "tax", label: `Tax close for ${closes[0].month} (${entities})`, lastRun: null });
+  try {
+    const closes = pendingCloses(taxDir, loadEntities(taxDir), todayDate());
+    if (closes.length > 0) {
+      const entities = closes.map((close) => close.entity).join(", ");
+      due.push({ skill: "tax", label: `Tax close for ${closes[0].month} (${entities})`, lastRun: null });
+    }
+  } catch (error) {
+    due.push({ skill: "tax", label: `Fix the tax profile: ${error instanceof Error ? error.message : String(error)}`, lastRun: null });
   }
 }
 
