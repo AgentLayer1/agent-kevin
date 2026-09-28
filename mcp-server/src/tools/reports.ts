@@ -6,6 +6,8 @@ const CATEGORIES: [ReportCategory, ...ReportCategory[]] = ['briefings', 'plans',
 
 const STATUSES: [ReportStatus, ...ReportStatus[]] = ['clean', 'findings', 'critical', 'draft'];
 
+const FRONTMATTER_SCALAR = z.union([z.string(), z.number(), z.boolean()]);
+
 export const tools: ToolDef[] = [
   defineTool({
     name: 'report_write',
@@ -29,9 +31,11 @@ export const tools: ToolDef[] = [
         .describe('Optional status. Rendered as 🟢 clean · 🟠 findings · 🔴 critical · ⏳ draft in the index.'),
       tags: z.array(z.string()).optional().describe('Optional tags array stored in frontmatter.'),
       extra: z
-        .record(z.string(), z.unknown())
+        .record(z.string(), z.union([FRONTMATTER_SCALAR, z.null(), z.array(FRONTMATTER_SCALAR)]))
         .optional()
-        .describe('Skill-specific frontmatter keys appended after the standard ones.'),
+        .describe(
+          'Skill-specific frontmatter keys appended after the standard ones. Values are flat: a string, number, boolean, null, or a list of those. Structured data goes in the body.'
+        ),
       ext: z
         .enum(['.md', '.plan-spec.md'])
         .optional()

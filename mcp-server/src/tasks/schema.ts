@@ -58,10 +58,19 @@ const splitInlineArray = (inner: string): string[] => {
   const items: string[] = [];
   let buf = '';
   let quote: '"' | "'" | null = null;
+  let escaped = false;
   for (const ch of inner) {
     if (quote) {
-      if (ch === quote) quote = null;
-      else buf += ch;
+      if (escaped) {
+        buf += ch;
+        escaped = false;
+      } else if (quote === '"' && ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      } else {
+        buf += ch;
+      }
       continue;
     }
     if (ch === '"' || ch === "'") {
@@ -87,8 +96,16 @@ const parseYamlValue = (raw: string): string | string[] => {
     if (inner.trim() === '') return [];
     return splitInlineArray(inner);
   }
-  // Quoted string
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  // Double-quoted strings are written JSON-escaped; an older unescaped one still reads by stripping its quotes.
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return typeof parsed === 'string' ? parsed : trimmed.slice(1, -1);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
     return trimmed.slice(1, -1);
   }
   return trimmed;
@@ -254,11 +271,11 @@ const NEEDS_QUOTING = /[:\[\]{}#&*!|>'"%@`,?]/;
 export const serializeValue = (val: string | string[] | number): string => {
   if (Array.isArray(val)) {
     if (val.length === 0) return '[]';
-    const items = val.map((item) => (NEEDS_QUOTING.test(item) ? `"${item}"` : item));
+    const items = val.map((item) => (NEEDS_QUOTING.test(item) ? JSON.stringify(item) : item));
     return `[${items.join(', ')}]`;
   }
   if (typeof val === 'number') return String(val);
-  if (NEEDS_QUOTING.test(val)) return `"${val}"`;
+  if (NEEDS_QUOTING.test(val)) return JSON.stringify(val);
   return val;
 };
 

@@ -109,10 +109,13 @@ While a round is out, the target stays where the brief points. Work that cannot 
      body: <the dossier, no frontmatter>,
      tags: ['adversarial', '<branch, pr-<n>, working-tree, or artifact basename>', '<domain>', ...],
      extra: { round: 1, kind: '<pr · range · working-tree · paths>', task: '<id or null>',
-              repos: [{ name, path, base, head }, ...],     // code kinds
-              paths: [{ path, lines, sha }, ...] }          // paths kind
+              repos: ['<absolute path>', ...],            // code kinds
+              heads: ['<name> <base>..<head>', ...],       // code kinds, rewritten each round
+              paths: ['<absolute path>', ...] }            // paths kind; line counts and SHAs live in the brief
    });
    ```
+
+   Every `extra` value is a string, number, boolean, or a flat list of those: frontmatter renders as a property in Obsidian, and a nested value shows as raw JSON (the tool rejects it). Structured detail belongs in the body.
 
    Existing dossier: `Edit` in place. Never a second file for the same target.
 5. **Hand back.** The banner, the dossier path, the claims count, and the handoff in one fenced block per reviewer slot so `/copy` lifts it:
@@ -135,7 +138,7 @@ While a round is out, the target stays where the brief points. Work that cannot 
 4. **Write `## Round <n> — Disposition (Implementer)`** in the template's shape (the verdicts map onto the interrogate buckets: confirmed is act on, plausible is consider, inherited is noted, rejected is dismissed, each dismissal with its receipt): one sentence on the round's accuracy and the real catch, naming any defect two reviewers raised independently, the verdict table, the build and test results per repo after the fixes (`–` for a `paths` target with nothing to run), and what was not done this round. A reviewer claim that was wrong is corrected here, never by editing the Findings section.
 5. **Update the Ledger.** One row per finding of this round; earlier rows change state only when this round settled them.
 6. **Refresh the Brief.** New heads (or SHAs and mtimes) in the status line and the What-to-review table; a "fixes since round <n>" range per repo or artifact that changed; settled claims removed (a claim the reviewer marked `holds` retires only when the work it names has not changed since; otherwise it stays); every fix added as a claim with what would falsify it; the bug-classes paragraph extended with anything this round taught. Numbering continues from the last claim. Then append the empty `## Round <n+1> — Findings (Reviewer)` heading (one per slot) at the end of the file, so the next handoff line points at a heading that exists.
-7. **Frontmatter and index.** `round: <n+1>`, `heads` per repo or `paths` per artifact, `status: findings` while anything is open or `clean` when the Ledger has no open rows, `verdict: <one clause>`. Update the dossier's line in `<HOME>/reports/index.md` to the same status marker (⏳ draft · 🟠 findings · 🟢 clean). The status line, the frontmatter, the index line, and the newest heading must agree.
+7. **Frontmatter and index.** `round: <n+1>`, `heads` rewritten as one `<name> <base>..<head>` string per repo (a `paths` target's changes are recorded in the brief), `status: findings` while anything is open or `clean` when the Ledger has no open rows, `verdict: <one clause>`. Update the dossier's line in `<HOME>/reports/index.md` to the same status marker (⏳ draft · 🟠 findings · 🟢 clean). The status line, the frontmatter, the index line, and the newest heading must agree.
 8. **Hand back.** The banner, the round's verdict in one line, the fixes with their commits (or the suggested commit messages), what was rejected and why in one line each, what did not run, and the round `<n+1>` handoff block from `brief` step 5. Nothing else; do not repeat the disposition.
 
 ## Closing the loop

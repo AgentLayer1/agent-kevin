@@ -25,6 +25,13 @@ export type ReportCategory = 'briefings' | 'plans' | 'radar' | 'api' | 'reviews'
 
 export type ReportStatus = 'clean' | 'findings' | 'critical' | 'draft';
 
+/**
+ * A frontmatter value Obsidian's Properties can show: a scalar or a flat list of scalars. Structured
+ * data belongs in the body, since a nested value renders as raw JSON there.
+ */
+export type FrontmatterScalar = string | number | boolean | null;
+export type FrontmatterValue = FrontmatterScalar | Array<Exclude<FrontmatterScalar, null>>;
+
 export interface WriteReportInput {
   category: ReportCategory;
   slug: string;
@@ -35,7 +42,7 @@ export interface WriteReportInput {
   status?: ReportStatus;
   tags?: string[];
   /** Skill-specific frontmatter keys appended after the standard ones. */
-  extra?: Record<string, unknown>;
+  extra?: Record<string, FrontmatterValue>;
   /** Defaults to `.md`. Use `.plan-spec.md` for spec-shaped outputs. */
   ext?: '.md' | '.plan-spec.md';
 }
@@ -150,14 +157,11 @@ function yamlScalar(value: string): string {
   return value;
 }
 
-function yamlValue(value: unknown): string {
-  if (value === null || value === undefined) return 'null';
+function yamlValue(value: FrontmatterValue): string {
+  if (value === null) return 'null';
   if (typeof value === 'string') return yamlScalar(value);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) {
-    return `[${value.map(yamlValue).join(', ')}]`;
-  }
-  return JSON.stringify(value);
+  return `[${value.map(yamlValue).join(', ')}]`;
 }
 
 interface IndexEntry {

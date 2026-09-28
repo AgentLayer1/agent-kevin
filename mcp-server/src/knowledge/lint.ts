@@ -212,9 +212,23 @@ async function checkTransientMemoryRefs(articles: Map<string, string>): Promise<
   return issues;
 }
 
+const isNested = (value: unknown): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  (!Array.isArray(value) || value.some((item) => typeof item === 'object' && item !== null));
+
+const parsedFrontmatter = (block: string): Record<string, unknown> => {
+  try {
+    const data: unknown = Bun.YAML.parse(block);
+    return typeof data === 'object' && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+};
+
 /**
- * Detect link syntax inside YAML frontmatter values.
- * Cross-references belong in the body — frontmatter is plain scalars only.
+ * Detect link syntax and nested values inside YAML frontmatter.
+ * Cross-references and structured data belong in the body — frontmatter is plain scalars and flat lists only.
  */
 async function checkInvalidFrontmatter(articles: Map<string, string>): Promise<LintIssue[]> {
   const fmRe = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
@@ -223,6 +237,16 @@ async function checkInvalidFrontmatter(articles: Map<string, string>): Promise<L
   for (const [relPath, content] of articles) {
     const match = content.match(fmRe);
     if (!match) continue;
+    for (const [key, value] of Object.entries(parsedFrontmatter(match[1]))) {
+      if (isNested(value)) {
+        issues.push({
+          check: 'Invalid frontmatter',
+          severity: 'error',
+          message: `${relPath} frontmatter \`${key}:\` holds nested data — Obsidian shows it as raw JSON. Keep frontmatter to scalars and flat lists; move structured data to a fenced yaml block in the body.`,
+          file: relPath
+        });
+      }
+    }
     for (const line of match[1].split(/\r?\n/)) {
       const key = line.match(/^([A-Za-z_][A-Za-z0-9_-]*):/)?.[1];
       if (!key) continue;

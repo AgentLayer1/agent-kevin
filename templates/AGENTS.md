@@ -122,6 +122,7 @@ Drive tasks via the `task_*` MCP tools (the plugin's `kevin` server) inside a se
 - **File naming:** `lowercase-with-hyphens.md`
 - **Internal links:** `[[concepts/<slug>]]` or `[[user/<facet>]]` (Obsidian wikilinks, no .md extension)
 - **Frontmatter:** `title`, `sources`, `created`, `updated` on permanent articles (`user/`, `concepts/`)
+- **Frontmatter values are flat:** text, numbers, dates, booleans, or lists of those, the property types Obsidian shows. A list of objects or a nested map renders as raw JSON there, so structured data goes in a fenced `yaml` block in the body. This holds for every file written into the home: tasks, reports, profiles, articles.
 - **Dates:** ISO 8601 (YYYY-MM-DD)
 - **Style:** factual encyclopedia entries (user, concepts) or conversational summaries (memory)
 
