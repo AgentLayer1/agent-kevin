@@ -7,12 +7,12 @@ description: >
   wants an existing roadmap.html updated, even if they never say "roadmap". Wizard-style: interviews
   for the frame, mines the task board / project READMEs / git history for milestones, then renders
   from the house template.
-allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__browser_screenshot
+allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__run_upgrade
 ---
 
 # Roadmap
 
-Turn goals, tasks, and history into a roadmap surface worth staring at: a single self-contained HTML file where every phase or lane renders from one `ROADMAP` data object. The deliverable is a living document — built once, then edited surgically as reality moves.
+Turn goals, tasks, and history into a roadmap surface worth staring at: a single self-contained HTML file where every phase or lane renders from one JSON data block inline in the page (`<script type="application/json" id="roadmap-data">`), which the renderer parses into `ROADMAP`. Focus pages read the same block to see what the roadmap says is in flight, so its dates and statuses are load-bearing. The deliverable is a living document — built once, then edited surgically as reality moves.
 
 Three phases: **interview → harvest → render**. Don't skip the interview (a roadmap with the wrong frame is a rewrite, not an edit) and don't render before harvesting (a roadmap of invented milestones with guessed statuses is worse than none).
 
@@ -34,7 +34,7 @@ Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from conte
 - **Shape**: multi-lane north star (parallel bets, each with its own finish line) vs phased project roadmap (shipped history → planned quarters → long-term horizon). Recommend the one the context implies. See "Two shapes, one system" in `references/DESIGN.md`.
 - **Horizons**: offer concrete finish lines from their goals/deadlines (end of year, a launch, a season, an event) plus "you propose the cut". Multi-lane roadmaps can carry two horizons.
 - **Lanes/phases**: propose the set you inferred (from goal buckets or project epics) and let them prune or add. 3–5 lanes or 2–4 phases is the sweet spot.
-- **Where it lives**: the convention is `roadmap.html` at the root of whatever it covers — `<HOME>/roadmap.html` for the personal/company north star, `projects/<slug>/roadmap.html` for a project, the repo's docs dir for a client codebase. Both HOME-root and project roadmaps are auto-discovered by the dashboard at those exact paths, so don't invent a nested location. Offer the inferred path as the recommended option.
+- **Where it lives**: the convention is `roadmap.html` at the root of whatever it covers — `<HOME>/roadmap.html` for the personal/company north star, `projects/<slug>/roadmap.html` for a project, the repo's docs dir for a client codebase. Both HOME-root and project roadmaps are auto-discovered by the dashboard and read by focus pages at those exact paths, so don't invent a nested location. Offer the inferred path as the recommended option.
 
 **Round 2: texture (build from Round 1 answers)**
 - **Accent scheme**: offer the named presets — purple (template default; product/engineering), green (fresh/operational), gold (personal/north-star) — and let Other take a typed hue or brand color. Use option descriptions to convey the mood; DESIGN.md has the token sets and per-preset dark tints.
@@ -53,23 +53,30 @@ Fill the frame with real content. Milestones come from sources, not imagination:
 - **Goals blocks**: yearly/quarterly goals become outcome tiles and finish-line checks (the last period of a lane often is "the quarter check").
 - **The user's own words**: anything they dumped in the interview is first-class source material.
 
+Every period gets a `start` (and an `end` when it spans more than one day, week or month) from a real date the operator gave or confirmed: `2026-10-05`, `2026-W41` or `2026-10`. An undated period still renders, but focus pages can only see its `progress` items. Name the task ids a milestone covers in its item text (`Webhook receiver (ac-012)`): that link is how a focus page shows which tasks move a milestone forward.
+
 Rules: a `done` status needs evidence from this session (task frontmatter, git, or the user's word) — when unsure, downgrade to `planned` or ask. Milestone items are arc-level (≤ ~60 chars); detail stays on the task board. Route the two overflow streams per DESIGN.md's "overflow pair": harvested work that doesn't earn a period parks in the long-term horizon (the inbox for the next planning cycle), and shipped work that was never planned becomes unplanned wins, not a retrofitted milestone. When the ordering of milestones is deliberate, capture per-milestone `unlocks` lines — what shipping each one buys — so the sequence reads as a flywheel, not a list.
 
 ## Phase 3 · Render
 
 1. Read `references/DESIGN.md`, then `references/template.html`; glance at `references/example.png` to see a full-featured build. The template is the aesthetic contract; compose its sections, don't redesign it.
-2. Copy the template's markup and renderers wholesale; replace the palette tokens (both themes), the header copy, the footer, the localStorage key (`<slug>-roadmap-theme`), and the `ROADMAP` data object. Sections render in object order — arrange them to tell the story (north band → lanes → meta, or history → future → horizon).
+2. Copy the template's markup and renderers wholesale; replace the palette tokens (both themes), the header copy, the footer, the localStorage key (`<slug>-roadmap-theme`), and the contents of the `roadmap-data` block. The block is strict JSON: quoted keys, no comments, no trailing commas, and every `</` inside a string written `<\/` so it can't end the script. Sections render in object order — arrange them to tell the story (north band → lanes → meta, or history → future → horizon).
 3. Write to the path settled in Round 1. Creating alongside an existing roadmap for the same subject means a new versioned name, never an overwrite.
-4. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff. In full-page shots, below-fold cards sit at opacity 0 mid entry-animation and read as blank sections — pass `css: ".ms, .bcard { animation: none !important; opacity: 1 !important; transform: none !important; }"` before concluding a section is broken.
-5. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
+4. **Data check**: `bun "$PLUGIN_ROOT/skills/roadmap/scripts/check.ts" <path>` (`$PLUGIN_ROOT` is `${CLAUDE_PLUGIN_ROOT}`, or this skill's base directory two levels up under Codex). It fails on JSON that won't parse, a raw `</`, an unknown status, or a date that doesn't parse or ends before it starts. It warns on undated milestones and on items focus pages would skip. Fix every error before the render check; an undated "ongoing" strip is fine.
+5. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff. In full-page shots, below-fold cards sit at opacity 0 mid entry-animation and read as blank sections — pass `css: ".ms, .bcard { animation: none !important; opacity: 1 !important; transform: none !important; }"` before concluding a section is broken.
+6. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
 
-   For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit the `ROADMAP` object in the file, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card, plus a Surfaces entry in the sidebar); no config, no manual registration.
+   For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit its `roadmap-data` block, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card); no config, no manual registration.
 
 ## Iterating
 
-An existing roadmap is a living document — updates are **surgical edits to the `ROADMAP` object**, never a regeneration. "Mark M3 shipped", "add a lane", "push the launch a month" are targeted `Edit` calls on data entries; the markup and renderers don't change. Regeneration loses hand-tuned copy and the user's mental map of the page.
+An existing roadmap is a living document — updates are **surgical edits to the `roadmap-data` block**, never a regeneration. "Mark M3 shipped", "add a lane", "push the launch a month" are targeted `Edit` calls on data entries; the markup and renderers don't change. Regeneration loses hand-tuned copy and the user's mental map of the page.
 
-When statuses are being refreshed wholesale (a planning-cadence pass), re-harvest from ground truth first — task frontmatter and git, not memory — then edit the deltas. Re-run the render check after any edit that touched the object's structure.
+When statuses are being refreshed wholesale (a planning-cadence pass), re-harvest from ground truth first — task frontmatter and git, not memory — then edit the deltas. Run the data check after every edit, and the render check after any edit that touched the data's structure.
+
+**Dating an undated roadmap.** A roadmap moved to JSON by the 0.5.3 upgrade has free-text period names and no dates. When the operator asks to date it, or a focus page says a roadmap is undated, propose a `start`/`end` for each period from its name and its section's `range`, show them as one table, and write only what the operator confirms. A period whose dates you can't infer with confidence goes into the question, never a guess.
+
+**A roadmap still on a `const ROADMAP = {` literal** was either created before 0.5.3 or left untouched by its migration (the report says why: a render that changed between runs, a value JSON can't hold). Never convert it by hand. Fix what the reason names, if anything, then call `run_upgrade` with `{ version: "0.5.3" }`: it converts every such page in the home, replacing each only after its render matches, and skips the rest.
 
 A structural rethink (different shape, different horizons) is a new build: re-run the wizard seeded with the current file's data.
 
@@ -78,6 +85,6 @@ A structural rethink (different shape, different horizons) is a new build: re-ru
 - **Skipping the wizard** because the request seems complete. "Make me a roadmap for the app" still leaves shape, horizon, and palette open; one round minimum.
 - **Inflated statuses.** One ⏳ that should be 📋 makes the reader distrust every ✅. Ground truth or downgrade.
 - **Task-list altitude.** Copying task titles verbatim into milestone items produces a cramped task board with worse ergonomics. Summarize the arc; the board keeps the detail.
-- **Silent render failures.** The Write succeeding is not the page working. Screenshot every time, including after edits.
+- **Silent render failures.** The Write succeeding is not the page working. Run the data check and screenshot every time, including after edits.
 - **Redesigning the template.** New needs compose existing sections. If the design system genuinely can't express something, extend the template file deliberately and note it for the next roadmap.
 - **Overwriting a living roadmap.** The existing file may carry hand edits the sources don't know about. Update mode edits data in place; a rebuild needs the user's explicit go.

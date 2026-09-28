@@ -21,6 +21,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { BrowserType } from 'playwright';
 
 export interface PageLike {
   goto: (url: string, opts?: { waitUntil?: 'load' | 'networkidle' | 'domcontentloaded' }) => Promise<unknown>;
@@ -60,6 +61,30 @@ export interface ChromiumLike {
 export interface AcquiredContext {
   context: BrowserContextLike;
   close: () => Promise<void>;
+}
+
+/**
+ * The playwright chromium, checked for its binary. `PLAYWRIGHT_BROWSERS_PATH=0` is set by whatever
+ * launches the server (the Claude manifest, the home's Codex registration) so playwright resolves the
+ * browser inside the plugin's own `node_modules/playwright/.local-browsers/`, the postinstall location.
+ */
+export async function getChromium(): Promise<BrowserType> {
+  let chromium: BrowserType;
+  try {
+    ({ chromium } = await import('playwright'));
+  } catch {
+    throw new Error(
+      'playwright package is not installed. Run `cd $CLAUDE_PLUGIN_ROOT/mcp-server && bun install` from a normal terminal.'
+    );
+  }
+  const binaryPath = chromium.executablePath();
+  if (!binaryPath || !existsSync(binaryPath)) {
+    throw new Error(
+      "Chromium binary is missing — the plugin's postinstall didn't complete. " +
+        'Run `cd $CLAUDE_PLUGIN_ROOT/mcp-server && PLAYWRIGHT_BROWSERS_PATH=0 bunx playwright install chromium` from a normal terminal (outside Claude Code) so the download bypasses the sandbox.'
+    );
+  }
+  return chromium;
 }
 
 const MISSING_DEPS_RE = /shared librar|missing dependencies|libnss|libgbm|libatk|libasound/i;

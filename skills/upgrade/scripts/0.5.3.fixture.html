@@ -337,7 +337,7 @@
     <div>
       <div class="eyebrow">Acme · Signal over noise</div>
       <h1>The <em>Roadmap</em></h1>
-      <p class="lede">A living plan. Everything renders from the <code>roadmap-data</code> JSON block at the bottom of this file — edit the data, reload.</p>
+      <p class="lede">A living plan. Everything renders from the <code>ROADMAP</code> object at the bottom of this file — edit the data, reload.</p>
     </div>
     <div class="legend">
       <span><span class="ico">✅</span>Shipped</span>
@@ -349,381 +349,13 @@
   <div id="render"></div>
 
   <footer class="note">
-    <strong>How to read this.</strong> Each section is a phase or lane with its own timeline and finish line. Detail lives on the task board; this page tracks the arc. Edit the <code>roadmap-data</code> JSON block below and reload; no build step.
+    <strong>How to read this.</strong> Each section is a phase or lane with its own timeline and finish line. Detail lives on the task board; this page tracks the arc. Edit the <code>ROADMAP</code> object below and reload; no build step.
   </footer>
 </div>
 
-<script type="application/json" id="roadmap-data">
-{
-  "north": {
-    "kind": "north",
-    "label": "The North Star · what the year is actually for",
-    "outcomes": [
-      {
-        "icon": "🚀",
-        "label": "Launch complete",
-        "desc": "Checkout to activation live for real customers",
-        "when": "End of Q2"
-      },
-      {
-        "icon": "📈",
-        "label": "Growth engine",
-        "desc": "Content and referral loops running weekly",
-        "when": "End of Q3"
-      },
-      {
-        "icon": "🤖",
-        "label": "AI-multiplied team",
-        "desc": "Agent-authored PRs merging routinely",
-        "when": "End of year"
-      },
-      {
-        "icon": "🧘",
-        "label": "Ops calm",
-        "desc": "Support and monitoring leaning on automation",
-        "when": "End of year"
-      }
-    ]
-  },
-  "h1": {
-    "kind": "timeline",
-    "title": "H1 — Foundation & Launch",
-    "tag": "done",
-    "tagLabel": "Shipped",
-    "range": "Jan – Jun",
-    "sub": "monorepo to a launch-ready funnel, with AI in the loop",
-    "periods": [
-      {
-        "name": "Jan – Feb",
-        "start": "2026-01",
-        "end": "2026-02",
-        "milestones": [
-          {
-            "chip": "M1",
-            "title": "Scaffolding & auth",
-            "items": [
-              {
-                "text": "Monorepo — API + web, CI pipeline",
-                "status": "done"
-              },
-              {
-                "text": "Auth + email verification",
-                "status": "done"
-              }
-            ]
-          },
-          {
-            "chip": "M2",
-            "title": "Design system",
-            "items": [
-              {
-                "text": "Acme design tokens + UI package",
-                "status": "done"
-              },
-              {
-                "text": "Marketing homepage + pricing",
-                "status": "done"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "Mar – Apr",
-        "start": "2026-03",
-        "end": "2026-04",
-        "milestones": [
-          {
-            "chip": "M3",
-            "title": "Checkout",
-            "items": [
-              {
-                "text": "Plan catalog + quote orchestration",
-                "status": "done"
-              },
-              {
-                "text": "3-step funnel: plan → configure → pay",
-                "status": "done"
-              }
-            ],
-            "unlocks": "revenue path live · activation next"
-          },
-          {
-            "chip": "M4",
-            "title": "Member dashboard",
-            "items": [
-              {
-                "text": "Portal: usage, billing, payment methods",
-                "status": "done"
-              },
-              {
-                "text": "Card-decline recovery + cart repair",
-                "status": "done"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "May – Jun",
-        "start": "2026-05",
-        "end": "2026-06",
-        "milestones": [
-          {
-            "chip": "M5",
-            "title": "Activation",
-            "items": [
-              {
-                "text": "Post-checkout activation + auto sign-in",
-                "status": "done"
-              },
-              {
-                "text": "Device-compatibility gate",
-                "status": "done"
-              }
-            ]
-          },
-          {
-            "chip": "M6",
-            "title": "Launch prep",
-            "items": [
-              {
-                "text": "Legal pages + FAQ",
-                "status": "done"
-              },
-              {
-                "text": "Structured logging → observability stack",
-                "status": "progress"
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "unplanned": [
-      {
-        "title": "Error taxonomy everywhere",
-        "note": "One error shape (code + status), API → web"
-      },
-      {
-        "title": "Provider anti-corruption layer",
-        "note": "Vendor wire types kept private behind the service"
-      }
-    ],
-    "outcomes": [
-      {
-        "icon": "🚀",
-        "label": "Launch-ready funnel",
-        "desc": "Plan → checkout → activation → self-serve"
-      },
-      {
-        "icon": "🔒",
-        "label": "Payments safe",
-        "desc": "No card data at rest, decline recovery"
-      },
-      {
-        "icon": "🧰",
-        "label": "Platform to build on",
-        "desc": "Typed contracts + design tokens"
-      },
-      {
-        "icon": "🤖",
-        "label": "AI in the loop",
-        "desc": "Agent workflow embedded in the team"
-      }
-    ]
-  },
-  "q3": {
-    "kind": "timeline",
-    "title": "Q3 — Stabilize & Grow",
-    "tag": "plan",
-    "tagLabel": "Planning",
-    "range": "Jul – Sep",
-    "sub": "finish the launch surface, harden the perimeter, start the growth loops",
-    "variant": "future",
-    "outcomesLabel": "What Q3 delivers",
-    "periods": [
-      {
-        "name": "July",
-        "start": "2026-07",
-        "milestones": [
-          {
-            "chip": "M7",
-            "title": "Launch features",
-            "items": [
-              {
-                "text": "Promo codes at checkout",
-                "status": "progress"
-              },
-              {
-                "text": "Referral program v1",
-                "status": "planned"
-              }
-            ]
-          },
-          {
-            "chip": "M8",
-            "title": "Webhook hardening",
-            "items": [
-              {
-                "text": "Vendor webhook receiver + auth guard",
-                "status": "progress"
-              }
-            ],
-            "unlocks": "provider events trusted · automation next"
-          }
-        ]
-      },
-      {
-        "name": "August",
-        "start": "2026-08",
-        "milestones": [
-          [
-            {
-              "chip": "M9",
-              "title": "Content loop",
-              "items": [
-                {
-                  "text": "Content pipeline: draft → review → publish",
-                  "status": "planned"
-                }
-              ]
-            },
-            {
-              "chip": "M10",
-              "title": "Email loop",
-              "items": [
-                {
-                  "text": "Email onboarding automation",
-                  "status": "planned"
-                }
-              ]
-            }
-          ]
-        ]
-      },
-      {
-        "name": "September",
-        "start": "2026-09",
-        "milestones": [
-          {
-            "chip": "M11",
-            "title": "Security baseline",
-            "items": [
-              {
-                "text": "Session-inactivity auto-logout",
-                "status": "planned"
-              },
-              {
-                "text": "MFA",
-                "status": "planned"
-              }
-            ]
-          },
-          {
-            "chip": "M12",
-            "title": "Quarter check",
-            "items": [
-              {
-                "text": "Growth loops running weekly without hand-holding",
-                "status": "planned"
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "outcomes": [
-      {
-        "icon": "🧹",
-        "label": "Clean core",
-        "desc": "Webhooks, env, providers refactored"
-      },
-      {
-        "icon": "📈",
-        "label": "Loops live",
-        "desc": "Content + referral shipping weekly"
-      },
-      {
-        "icon": "🔐",
-        "label": "Hardened",
-        "desc": "Auto-logout, MFA, guarded webhooks"
-      },
-      {
-        "icon": "📊",
-        "label": "Measured",
-        "desc": "Funnel metrics on one dashboard"
-      }
-    ]
-  },
-  "meta": {
-    "kind": "cards",
-    "title": "🧩 Meta Projects — the machinery behind the lanes",
-    "range": "ongoing",
-    "sub": "long arcs, high level — details live on the task board, not here",
-    "cards": [
-      {
-        "theme": "Company brain",
-        "items": [
-          {
-            "text": "Conventions + ADRs feeding the agent",
-            "status": "progress"
-          },
-          {
-            "text": "House patterns greppable, not tribal",
-            "status": "planned"
-          }
-        ]
-      },
-      {
-        "theme": "Agent workflow",
-        "items": [
-          {
-            "text": "Worktree parallel workflow proven",
-            "status": "done"
-          },
-          {
-            "text": "Agent-authored PRs merging routinely",
-            "status": "progress"
-          }
-        ]
-      }
-    ]
-  },
-  "longterm": {
-    "kind": "cards",
-    "title": "Long-Term Goals",
-    "tag": "plan",
-    "tagLabel": "Horizon",
-    "range": "next year →",
-    "sub": "parked deliberately — big bets to revisit each planning cycle",
-    "variant": "future",
-    "cols": 3,
-    "cards": [
-      {
-        "theme": "Mobile app",
-        "note": "Concept exists; only scaffolding in the repo today",
-        "focus": true
-      },
-      {
-        "theme": "Own the billing stack",
-        "note": "Shrink the vendor dependency in-house"
-      },
-      {
-        "theme": "Sub-accounts",
-        "note": "Account hierarchy — owners managing members under one bill"
-      }
-    ]
-  }
-}
-</script>
 <script>
   /* =========================================================================
-     ROADMAP — parsed from the roadmap-data JSON block above, the single source
-     of truth. Sections render in object order. Inside that block write every
-     </ as <\/ so no string can end the script early.
-     Focus pages read the block too: `start` / `end` date a period, and task ids
-     named in a milestone's text (ac-012) link it to the task board.
+     ROADMAP — single source of truth. Sections render in object order.
        kind: "north"    → outcomes band only (the year's finish lines, page top)
              "timeline" → periods over a directional rail (the workhorse)
              "cards"    → card-grid strip (meta projects, long-term horizon)
@@ -731,9 +363,7 @@
                          unplanned?, outcomes?, outcomesLabel? }
        tag: 'done' | 'plan' | 'moon' (green finish-line accent)
        variant: "future" recolors the rail to the cool "planned" accent
-       period: { name, start, end?, milestones: [topRow, bottomRow?] }
-       start / end: 2026-10-05 (day), 2026-W41 (ISO week) or 2026-10 (month);
-       end defaults to start. A section may carry them instead of its periods.
+       period: { name, milestones: [topRow, bottomRow?] }
        each row is one milestone or an array of milestones — an array stacks
        the cards in that slot, joined by a short dashed link (busy months)
        milestone: { chip, title, items: [{ text, status }], unlocks? }
@@ -744,7 +374,146 @@
                       cards: [{ theme, note?, items?, focus? }] }
      North section: { label, outcomes: [{ icon, label, desc, when? }] }
      ========================================================================= */
-  const ROADMAP = JSON.parse(document.getElementById("roadmap-data").textContent);
+  const ROADMAP = {
+    north: {
+      kind: "north",
+      label: "The North Star · what the year is actually for",
+      outcomes: [
+        { icon: "🚀", label: "Launch complete", desc: "Checkout to activation live for real customers", when: "End of Q2" },
+        { icon: "📈", label: "Growth engine", desc: "Content and referral loops running weekly", when: "End of Q3" },
+        { icon: "🤖", label: "AI-multiplied team", desc: "Agent-authored PRs merging routinely", when: "End of year" },
+        { icon: "🧘", label: "Ops calm", desc: "Support and monitoring leaning on automation", when: "End of year" },
+      ],
+    },
+
+    h1: {
+      kind: "timeline",
+      title: "H1 — Foundation & Launch",
+      tag: "done", tagLabel: "Shipped",
+      range: "Jan – Jun",
+      sub: "monorepo to a launch-ready funnel, with AI in the loop",
+      periods: [
+        { name: "Jan – Feb", milestones: [
+          { chip: "M1", title: "Scaffolding & auth", items: [
+            { text: "Monorepo — API + web, CI pipeline", status: "done" },
+            { text: "Auth + email verification", status: "done" },
+          ]},
+          { chip: "M2", title: "Design system", items: [
+            { text: "Acme design tokens + UI package", status: "done" },
+            { text: "Marketing homepage + pricing", status: "done" },
+          ]},
+        ]},
+        { name: "Mar – Apr", milestones: [
+          { chip: "M3", title: "Checkout", items: [
+            { text: "Plan catalog + quote orchestration", status: "done" },
+            { text: "3-step funnel: plan → configure → pay", status: "done" },
+          ], unlocks: "revenue path live · activation next" },
+          { chip: "M4", title: "Member dashboard", items: [
+            { text: "Portal: usage, billing, payment methods", status: "done" },
+            { text: "Card-decline recovery + cart repair", status: "done" },
+          ]},
+        ]},
+        { name: "May – Jun", milestones: [
+          { chip: "M5", title: "Activation", items: [
+            { text: "Post-checkout activation + auto sign-in", status: "done" },
+            { text: "Device-compatibility gate", status: "done" },
+          ]},
+          { chip: "M6", title: "Launch prep", items: [
+            { text: "Legal pages + FAQ", status: "done" },
+            { text: "Structured logging → observability stack", status: "progress" },
+          ]},
+        ]},
+      ],
+      unplanned: [
+        { title: "Error taxonomy everywhere", note: "One error shape (code + status), API → web" },
+        { title: "Provider anti-corruption layer", note: "Vendor wire types kept private behind the service" },
+      ],
+      outcomes: [
+        { icon: "🚀", label: "Launch-ready funnel", desc: "Plan → checkout → activation → self-serve" },
+        { icon: "🔒", label: "Payments safe", desc: "No card data at rest, decline recovery" },
+        { icon: "🧰", label: "Platform to build on", desc: "Typed contracts + design tokens" },
+        { icon: "🤖", label: "AI in the loop", desc: "Agent workflow embedded in the team" },
+      ],
+    },
+
+    q3: {
+      kind: "timeline",
+      title: "Q3 — Stabilize & Grow",
+      tag: "plan", tagLabel: "Planning",
+      range: "Jul – Sep",
+      sub: "finish the launch surface, harden the perimeter, start the growth loops",
+      variant: "future",
+      outcomesLabel: "What Q3 delivers",
+      periods: [
+        { name: "July", milestones: [
+          { chip: "M7", title: "Launch features", items: [
+            { text: "Promo codes at checkout", status: "progress" },
+            { text: "Referral program v1", status: "planned" },
+          ]},
+          { chip: "M8", title: "Webhook hardening", items: [
+            { text: "Vendor webhook receiver + auth guard", status: "progress" },
+          ], unlocks: "provider events trusted · automation next" },
+        ]},
+        { name: "August", milestones: [
+          [
+            { chip: "M9", title: "Content loop", items: [
+              { text: "Content pipeline: draft → review → publish", status: "planned" },
+            ]},
+            { chip: "M10", title: "Email loop", items: [
+              { text: "Email onboarding automation", status: "planned" },
+            ]},
+          ],
+        ]},
+        { name: "September", milestones: [
+          { chip: "M11", title: "Security baseline", items: [
+            { text: "Session-inactivity auto-logout", status: "planned" },
+            { text: "MFA", status: "planned" },
+          ]},
+          { chip: "M12", title: "Quarter check", items: [
+            { text: "Growth loops running weekly without hand-holding", status: "planned" },
+          ]},
+        ]},
+      ],
+      outcomes: [
+        { icon: "🧹", label: "Clean core", desc: "Webhooks, env, providers refactored" },
+        { icon: "📈", label: "Loops live", desc: "Content + referral shipping weekly" },
+        { icon: "🔐", label: "Hardened", desc: "Auto-logout, MFA, guarded webhooks" },
+        { icon: "📊", label: "Measured", desc: "Funnel metrics on one dashboard" },
+      ],
+    },
+
+    meta: {
+      kind: "cards",
+      title: "🧩 Meta Projects — the machinery behind the lanes",
+      range: "ongoing",
+      sub: "long arcs, high level — details live on the task board, not here",
+      cards: [
+        { theme: "Company brain", items: [
+          { text: "Conventions + ADRs feeding the agent", status: "progress" },
+          { text: "House patterns greppable, not tribal", status: "planned" },
+        ]},
+        { theme: "Agent workflow", items: [
+          { text: "Worktree parallel workflow proven", status: "done" },
+          { text: "Agent-authored PRs merging routinely", status: "progress" },
+        ]},
+      ],
+    },
+
+    longterm: {
+      kind: "cards",
+      title: "Long-Term Goals",
+      tag: "plan", tagLabel: "Horizon",
+      range: "next year →",
+      sub: "parked deliberately — big bets to revisit each planning cycle",
+      variant: "future",
+      cols: 3,
+      cards: [
+        { theme: "Mobile app", note: "Concept exists; only scaffolding in the repo today", focus: true },
+        { theme: "Own the billing stack", note: "Shrink the vendor dependency in-house" },
+        { theme: "Sub-accounts", note: "Account hierarchy — owners managing members under one bill" },
+      ],
+    },
+  };
 
   /* status → indicator emoji */
   const STATUS_ICON = { done: "✅", progress: "⏳", planned: "📋" };

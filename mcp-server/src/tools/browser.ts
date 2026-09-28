@@ -19,12 +19,12 @@
  */
 
 import { BROWSER } from '@/config';
-import { acquireContext, withBrowserLaunch, type ChromiumLike, type PageLike } from '@/shared/browser-deps';
+import { acquireContext, getChromium, withBrowserLaunch, type PageLike } from '@/shared/browser-deps';
 import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { log } from '@/shared/log';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { marked } from 'marked';
-import { existsSync, mkdirSync, rmdirSync } from 'node:fs';
+import { mkdirSync, rmdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -38,31 +38,6 @@ const StepSchema = z.object({
 });
 
 type Step = z.infer<typeof StepSchema>;
-
-async function getChromium(): Promise<ChromiumLike> {
-  // `PLAYWRIGHT_BROWSERS_PATH=0` is set by whatever launches the server (the Claude manifest,
-  // the home's Codex registration) so playwright resolves
-  // the browser binary inside the plugin's own `node_modules/playwright/.local-browsers/`
-  // (matching the postinstall location). No runtime env mutation needed here.
-
-  let chromium: ChromiumLike;
-  try {
-    const mod: { chromium: ChromiumLike } = await import('playwright');
-    chromium = mod.chromium;
-  } catch {
-    throw new Error(
-      'playwright package is not installed. Run `cd $CLAUDE_PLUGIN_ROOT/mcp-server && bun install` from a normal terminal.'
-    );
-  }
-  const binaryPath = chromium.executablePath();
-  if (!binaryPath || !existsSync(binaryPath)) {
-    throw new Error(
-      "Chromium binary is missing — the plugin's postinstall didn't complete. " +
-        'Run `cd $CLAUDE_PLUGIN_ROOT/mcp-server && PLAYWRIGHT_BROWSERS_PATH=0 bunx playwright install chromium` from a normal terminal (outside Claude Code) so the download bypasses the sandbox.'
-    );
-  }
-  return chromium;
-}
 
 function captureFilename(action: string, ext: string, name?: string): string {
   mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
