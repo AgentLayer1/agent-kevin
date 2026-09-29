@@ -124,8 +124,6 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat.good .num { color: var(--green); }
 .stat .lab { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .cap { color: var(--dim); font-size: 10.5px; margin-top: 1px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jumped { animation: jumped 1.4s ease-out; border-radius: 6px; }
-@keyframes jumped { from { box-shadow: inset 0 0 0 999px rgba(255, 216, 102, 0.07); } to { box-shadow: inset 0 0 0 999px transparent; } }
 
 {{FOCUS_CSS}}
 
@@ -621,9 +619,13 @@ kbd {
     const target = section ? document.getElementById(section) : null;
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target.classList.remove('jumped');
+    // A faded glow, set inline: a CSS animation would lose to a section's own entrance animation
+    // and replay whenever its tab is shown again; a transition does neither.
+    target.style.transition = 'none';
+    target.style.boxShadow = 'inset 0 0 0 999px rgba(255, 216, 102, 0.07)';
     void target.offsetWidth;
-    target.classList.add('jumped');
+    target.style.transition = 'box-shadow 1.4s ease-out';
+    target.style.boxShadow = 'inset 0 0 0 999px rgba(255, 216, 102, 0)';
   };
   // Click-driven (not <a href="#…">): Obsidian's HTML viewer swallows anchor
   // navigation, so nav items are plain elements routed by hand. The hash is
