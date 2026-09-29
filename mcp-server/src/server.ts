@@ -14,8 +14,9 @@ import { log } from '@/shared/log';
 import { runtimeDirName } from '@/shared/naming';
 import { existsSync } from 'node:fs';
 import type { ToolDef } from '@/shared/types';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from '@modelcontextprotocol/server';
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
+import { z } from 'zod';
 import { TOOL_MODULES } from './tools/modules';
 
 // Tool modules load from the shared TOOL_MODULES list so registration and
@@ -47,7 +48,7 @@ for (const tool of TOOLS) {
   const toolLog = log.with(() => `tool:${tool.name}`);
   server.registerTool(
     tool.name,
-    { description: tool.description, inputSchema: tool.inputSchema, _meta: tool.meta },
+    { description: tool.description, inputSchema: z.object(tool.inputSchema), _meta: tool.meta },
     async (args) => {
       toolLog.debug('dispatch', args);
       try {
