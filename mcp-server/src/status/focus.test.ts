@@ -51,6 +51,7 @@ const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusI
   today: TODAY,
   generatedAt: '09:12',
   markdownUrl: 'obsidian://open?path={path}',
+  timeZone: 'UTC',
   ...overrides
 });
 
@@ -134,9 +135,9 @@ describe('renderFocusHtml', () => {
     expect(html).toContain(`href="obsidian://open?path=${encodeURIComponent('/home/alex/projects/acme/tasks/ac-001.md')}"`);
   });
 
-  test('without a pull the queue says how to get one; with one it lists each item and its age', () => {
+  test('without a pull the queue says how to get one; with one it lists each item and when it was pulled', () => {
     expect(renderFocusHtml(buildFocusView(inputs([])))).toContain('No pull yet');
-    const fetchedAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    const fetchedAt = '2026-09-28T09:47:00Z';
     const html = renderFocusHtml(
       buildFocusView(
         inputs([], {
@@ -146,23 +147,51 @@ describe('renderFocusHtml', () => {
               {
                 label: 'My pull requests',
                 empty: 'None open.',
-                items: [{ title: '#42 Invoice export', url: 'https://github.com/acme/app/pull/42', detail: 'approved · clean', tone: 'good' }]
+                items: [{ title: '#42 Invoice export', url: 'https://github.com/acme/app/pull/42', detail: 'approved · clean', tone: 'good' }],
+                unavailable: ''
               },
-              { label: 'Reviews I owe', empty: 'Nothing waiting on you.', items: [] },
+              { label: 'Reviews I owe', empty: 'Nothing waiting on you.', items: [], unavailable: '' },
               {
                 label: 'Replies I owe',
                 empty: 'Inbox clear.',
-                items: [{ title: 'Jordan asked about the export date', url: '', detail: '#support · 2d', tone: 'warn' }]
+                items: [{ title: 'Jordan asked about the export date', url: '', detail: '#support · 2d', tone: 'warn' }],
+                unavailable: ''
               }
             ]
           }
         })
       )
     );
-    expect(html).toContain('queue as of 5m ago');
+    expect(html).toContain('queue pulled 09:47');
     expect(html).toContain('<a href="https://github.com/acme/app/pull/42" target="_blank" rel="noopener">#42 Invoice export</a>');
     expect(html).toContain('Nothing waiting on you.');
     expect(html).toContain('<span class="dot warn"></span>');
+  });
+});
+
+describe('queue sources that could not be read', () => {
+  test('say so once per group and are never counted as items', () => {
+    const view = buildFocusView(
+      inputs([], {
+        snapshot: {
+          fetchedAt: '2026-09-27T23:10:00Z',
+          groups: [
+            { label: 'My pull requests', empty: 'None open.', items: [], unavailable: "GitHub can't read 2 repos: web, ops" },
+            {
+              label: 'Reviews I owe',
+              empty: 'Nothing waiting on you.',
+              items: [{ title: '#7 Retry policy', url: '', detail: 'sam · 1d', tone: 'warn' }],
+              unavailable: ''
+            }
+          ]
+        }
+      })
+    );
+    const html = renderFocusHtml(view).replace(/<script type="application\/json"[\s\S]*<\/script>/, '');
+    expect(html).toContain('<p class="unavailable">GitHub can&#39;t read 2 repos: web, ops</p>');
+    expect(html).not.toContain('None open.');
+    expect(html).toMatch(/<h2>Queue<\/h2><span class="count">1<\/span>/);
+    expect(view.queuePulled).toBe('Sun 27 · 23:10');
   });
 });
 
@@ -256,7 +285,26 @@ describe('roadmap milestones', () => {
     );
     expect(project.roadmap.milestones.map((item) => item.title)).toEqual(['Undated but moving']);
     expect(project.roadmap.notices).toEqual([
-      'projects/ops/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.'
+      'projects/ops/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.',
+      "projects/ops/roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
+    ]);
+  });
+
+  test('a roadmap that names no task ids flags no gaps, and says so once', () => {
+    const view = buildFocusView(
+      inputs([], {
+        roadmaps: [
+          {
+            source: 'roadmap.html',
+            read: { kind: 'data', raw: '', data: { s: { start: '2026-09', items: [{ text: 'Docs', status: 'progress' }] } } },
+            linkedOnly: false
+          }
+        ]
+      })
+    );
+    expect(view.roadmap.milestones.map((item) => item.gap)).toEqual([false]);
+    expect(view.roadmap.notices).toEqual([
+      "roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
     ]);
   });
 });
@@ -326,7 +374,10 @@ describe('focus pages on disk', () => {
     const { view } = writeFocusPage('acme');
     expect(view.roadmap).toMatchObject({
       milestones: [{ title: 'Lane', source: 'projects/acme/roadmap.html' }],
-      notices: ['projects/acme/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.']
+      notices: [
+        'projects/acme/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.',
+        "projects/acme/roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
+      ]
     });
     expect(readFileSync(focusPagePath('acme'), 'utf-8')).toContain('⏳ Invoice export');
     [own, root, focusPagePath('acme')].forEach((path) => rmSync(path, { force: true }));

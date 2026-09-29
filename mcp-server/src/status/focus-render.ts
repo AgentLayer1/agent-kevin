@@ -95,27 +95,14 @@ const itemRow = (item: FocusItem): string => {
   }</li>`;
 };
 
-const itemGroup = ({ label, empty: none, items }: FocusGroup): string =>
-  `<div class="subhead">${esc(label)} · ${items.length}</div>${items.length ? `<ul>${items.map(itemRow).join('')}</ul>` : empty(esc(none))}`;
+const itemGroup = ({ label, empty: none, items, unavailable }: FocusGroup): string =>
+  `<div class="subhead">${esc(label)} · ${items.length}</div>${
+    unavailable ? `<p class="unavailable">${esc(unavailable)}</p>` : ''
+  }${items.length ? `<ul>${items.map(itemRow).join('')}</ul>` : unavailable ? '' : empty(esc(none))}`;
 
 /** The slash command for this page; add takes its project from the ask, so it never names one. */
 const command = (view: FocusView, mode = ''): string =>
   `<code>${esc(['/focus', mode, mode === 'add' ? '' : view.project].filter(Boolean).join(' '))}</code>`;
-
-const snapshotAge = (view: FocusView): string => {
-  if (!view.snapshot) {
-    return '';
-  }
-  const fetched = new Date(view.snapshot.fetchedAt);
-  if (Number.isNaN(fetched.getTime())) {
-    return view.snapshot.fetchedAt;
-  }
-  const minutes = Math.max(0, Math.round((Date.now() - fetched.getTime()) / 60_000));
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  return minutes < 48 * 60 ? `${Math.round(minutes / 60)}h ago` : `${Math.round(minutes / 1440)}d ago`;
-};
 
 const callout = (
   view: FocusView,
@@ -226,13 +213,12 @@ export const renderFocusHtml = (view: FocusView): string => {
   const todayCount = view.lanes.today.length;
   const weekOpen = view.planned.week.open.length;
   const weekDone = view.planned.week.done.length;
-  const age = snapshotAge(view);
   const subline = [
     `<span>Week <b>${weekNumber}</b> · ${esc(monthName)}</span>`,
     `<span><b>${todayCount}</b> today</span>`,
     view.lanes.carried.length ? `<span><b>${view.lanes.carried.length}</b> carried over</span>` : '',
     `<span><b>${weekDone}/${weekOpen + weekDone}</b> this week</span>`,
-    age ? `<span>queue as of ${esc(age)}</span>` : ''
+    view.queuePulled ? `<span>queue pulled ${esc(view.queuePulled)}</span>` : ''
   ].filter(Boolean);
   const body = [
     todaySection(view),

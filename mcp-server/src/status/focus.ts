@@ -5,7 +5,7 @@
  * are read live; the queue comes from the snapshot the focus skill writes per page, because it
  * needs the network.
  */
-import { FILES, FOLDERS, MARKDOWN_URL } from '@/config';
+import { FILES, FOLDERS, MARKDOWN_URL, TIMEZONE } from '@/config';
 import { plainText, readRoadmapFile, roadmapMilestones, type RoadmapMilestone, type RoadmapRead } from '@/roadmap/data';
 import { agentDisplayName } from '@/shared/agent-name';
 import { nowTime, todayDate } from '@/shared/date';
@@ -54,6 +54,7 @@ export interface FocusInputs {
   today: string;
   generatedAt: string;
   markdownUrl: string;
+  timeZone: string;
 }
 
 const OPEN = new Set(['open', 'active', 'blocked']);
@@ -110,9 +111,27 @@ const roadmapNotice = ({ source, read }: FocusRoadmapSource, milestones: Roadmap
   if (read.kind === 'invalid') {
     return [`${source} has a roadmap-data block that isn't valid JSON (${read.error}).`];
   }
-  return milestones.some((milestone) => milestone.window)
-    ? []
-    : [`${source} has no dates, so only its in-progress items show here. /roadmap can date it.`];
+  return [
+    ...(milestones.some((milestone) => milestone.window)
+      ? []
+      : [`${source} has no dates, so only its in-progress items show here. /roadmap can date it.`]),
+    ...(milestones.length && !milestones.some((milestone) => milestone.taskIds.length)
+      ? [`${source} names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them.`]
+      : [])
+  ];
+};
+
+/** The pull time in the operator's zone, with the day when it wasn't today. */
+const pulledLabel = (fetchedAt: string, today: string, timeZone: string): string => {
+  const pulled = new Date(fetchedAt);
+  if (Number.isNaN(pulled.getTime())) {
+    return fetchedAt;
+  }
+  const time = pulled.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' });
+  const day = pulled.toLocaleDateString('sv-SE', { timeZone });
+  return day === today
+    ? time
+    : `${pulled.toLocaleDateString('en-GB', { timeZone, weekday: 'short', day: 'numeric' })} · ${time}`;
 };
 
 const buildRoadmap = (inputs: FocusInputs): FocusView['roadmap'] => {
@@ -124,8 +143,9 @@ const buildRoadmap = (inputs: FocusInputs): FocusView['roadmap'] => {
     roadmap,
     all: roadmap.read.kind === 'data' ? roadmapMilestones(roadmap.read.data) : []
   }));
-  const milestones = walked.flatMap(({ roadmap: { source, linkedOnly }, all }) =>
-    all
+  const milestones = walked.flatMap(({ roadmap: { source, linkedOnly }, all }) => {
+    const linksTasks = all.some((milestone) => milestone.taskIds.length > 0);
+    return all
       .filter((milestone) => !linkedOnly || milestone.taskIds.some((id) => projectIds.has(id)))
       .flatMap((milestone) => {
         const state = milestoneState(milestone.items, milestone.window, inputs.today);
@@ -146,12 +166,12 @@ const buildRoadmap = (inputs: FocusInputs): FocusView['roadmap'] => {
               .filter((item) => item.status === 'progress')
               .map((item) => plainText(item.text)),
             tasks,
-            gap: !tasks.some((task) => OPEN.has(task.status)),
+            gap: linksTasks && !tasks.some((task) => OPEN.has(task.status)),
             source
           }
         ];
-      })
-  );
+      });
+  });
   return {
     milestones: [
       ...milestones.filter((item) => item.state === 'slipped'),
@@ -215,7 +235,8 @@ export const buildFocusView = (inputs: FocusInputs): FocusView => {
     dueUnplanned,
     roadmap: buildRoadmap(inputs),
     snapshot: inputs.snapshot,
-    markdownUrl: inputs.markdownUrl
+    markdownUrl: inputs.markdownUrl,
+    queuePulled: inputs.snapshot ? pulledLabel(inputs.snapshot.fetchedAt, inputs.today, inputs.timeZone) : ''
   };
 };
 
@@ -286,7 +307,8 @@ export const collectFocusView = (project = ''): FocusView => {
     today: todayDate(),
     generatedAt: nowTime(),
     home: FOLDERS.HOME,
-    markdownUrl: MARKDOWN_URL
+    markdownUrl: MARKDOWN_URL,
+    timeZone: TIMEZONE
   });
 };
 

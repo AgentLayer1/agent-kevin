@@ -16,7 +16,9 @@ export const FocusItemSchema = z.object({
 export const FocusGroupSchema = z.object({
   label: z.string().min(1),
   empty: z.string().default('Nothing here.'),
-  items: z.array(FocusItemSchema).default([])
+  items: z.array(FocusItemSchema).default([]),
+  /** Why part or all of this source couldn't be read; shown once, never counted as an item. */
+  unavailable: z.string().default('')
 });
 
 export const FocusSnapshotSchema = z.object({
@@ -96,6 +98,8 @@ export type FocusData = z.infer<typeof FocusDataSchema>;
 export interface FocusView extends FocusData {
   home: string;
   markdownUrl: string;
+  /** When the queue was pulled, in the operator's time: `09:47`, or `Mon 28 · 09:47` on another day; '' with no pull. */
+  queuePulled: string;
 }
 
 /** The page's data, with what only the renderer needs stripped. */
