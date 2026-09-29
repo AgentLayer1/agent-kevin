@@ -113,18 +113,19 @@ export const readFocusData = (html: string): FocusData | null => {
   return parsed?.success ? parsed.data : null;
 };
 
-const formatUtcDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
+/** A `YYYY-MM-DD` date in words, read as a calendar day so no time zone shifts it. */
+export const formatDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
 
 /** Where a task was planned, short: `Fri 25`, `W39`, `Aug`. */
 export const horizonLabel = (horizon: string): string => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(horizon)) {
-    return formatUtcDate(horizon, { weekday: 'short', day: 'numeric' });
+    return formatDate(horizon, { weekday: 'short', day: 'numeric' });
   }
   if (/^\d{4}-W\d{2}$/.test(horizon)) {
     return horizon.slice(5);
   }
-  return /^\d{4}-\d{2}$/.test(horizon) ? formatUtcDate(`${horizon}-01`, { month: 'short' }) : horizon;
+  return /^\d{4}-\d{2}$/.test(horizon) ? formatDate(`${horizon}-01`, { month: 'short' }) : horizon;
 };
 
 /** Where a task stands in the plan, in words: `today`, `week`, `carried over`, `not planned`, or its closed status. */

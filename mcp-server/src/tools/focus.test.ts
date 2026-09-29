@@ -52,7 +52,7 @@ describe('focus_write', () => {
     expect(dashboard).not.toContain('data-href="projects/ops/focus.html"');
 
     const home = await call({});
-    expect(home.path).toBe(`${FILES.DASHBOARD}#today/focus`);
+    expect(home.path).toBe(FILES.DASHBOARD);
     expect(FocusDataSchema.parse(home)).toMatchObject({ project: '', snapshot: null });
     expect(readFocusData(readFileSync(FILES.DASHBOARD, 'utf-8'))).toMatchObject({ project: '' });
     expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);

@@ -346,7 +346,7 @@ describe('renderDashboardHtml', () => {
   });
 
   test("today opens on Focus, drawn with the focus page's lanes and stylesheet, and the Plan tab is gone", () => {
-    const task = (id: string, horizon: string, status: 'active' | 'open' = 'active') => ({
+    const task = (id: string, horizon: string, status: 'active' | 'open' = 'active', due = '') => ({
       frontmatter: {
         schema: 1,
         id,
@@ -359,7 +359,7 @@ describe('renderDashboardHtml', () => {
         labels: [],
         created: '2026-06-01',
         updated: '2026-06-01',
-        due: '',
+        due,
         horizon,
         depends_on: [],
         blocked_by: '',
@@ -374,7 +374,11 @@ describe('renderDashboardHtml', () => {
     const focus = buildFocusView({
       project: '',
       home: '/tmp/home',
-      tasks: [task('lo-101', '2026-06-15'), task('lo-102', '2026-06-12', 'open')],
+      tasks: [
+        task('lo-101', '2026-06-15'),
+        task('lo-102', '2026-06-12', 'open'),
+        task('lo-103', '', 'open', '2026-03-24')
+      ],
       goals: { weekly: ['Ship the radar'], monthly: [] },
       roadmaps: [],
       snapshot: {
@@ -401,6 +405,7 @@ describe('renderDashboardHtml', () => {
     expect(today).toContain('from Fri 12');
     expect(today).toContain('GitHub can&#39;t read 2 repos');
     expect(today).toContain('pulled 08:30');
+    expect(today).toContain('<span class="lab">due, not planned</span></div><div class="cap">83d overdue</div>');
     expect(readFocusData(html)?.lanes.today.map((item) => item.id)).toEqual(['lo-101']);
     expect(html).toContain('.focusview .lanes {');
     expect(html).not.toContain('{{FOCUS_CSS}}');

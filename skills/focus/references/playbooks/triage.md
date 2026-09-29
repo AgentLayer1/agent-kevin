@@ -34,8 +34,8 @@ whole field before choosing — short cells, reasoning stays in the interview:
 
 | # | Session | Why now | Tending |
 |---|---------|---------|---------|
-| 1 | ❓ MDEC application response | replies drafted, due Aug 14 | review & approve |
-| 2 | ❓ Payments query grammar PR | asked which option 46m ago | answer its question |
+| 1 | ❓ Vendor security questionnaire | answers drafted, due Aug 14 | review & approve |
+| 2 | ❓ Invoice export PR | asked which option 46m ago | answer its question |
 | 3 | ✅ Radar feature | done, context going cold | skim & close out |
 ```
 

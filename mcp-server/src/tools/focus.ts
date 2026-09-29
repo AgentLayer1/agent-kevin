@@ -34,7 +34,7 @@ export const tools: ToolDef[] = [
       const page = project ? writeFocusPage(project) : null;
       await rebuildDashboards();
       const view = page ? page.view : collectFocusView('');
-      return { path: page ? page.path : `${FILES.DASHBOARD}#today/focus`, ...focusData(view) };
+      return { path: page ? page.path : FILES.DASHBOARD, ...focusData(view) };
     }
   })
 ];

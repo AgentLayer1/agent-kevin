@@ -1,9 +1,9 @@
 /**
- * Focus pages: one engineer's priorities for today, this week and this month. The home page
- * (`<HOME>/focus.html`) spans every project; a project page (`projects/<slug>/focus.html`) holds
- * that project alone. A page that exists re-renders on every dashboard rebuild. Tasks and goals
- * are read live; the queue comes from the snapshot the focus skill writes per page, because it
- * needs the network.
+ * Focus: one engineer's priorities for today, this week and this month. The home view spans every
+ * project and is the dashboard's Today tab; a project page (`projects/<slug>/focus.html`) holds that
+ * project alone and re-renders on every dashboard rebuild once it exists. Tasks and goals are read
+ * live; the queue comes from the snapshot the focus skill writes per scope, because it needs the
+ * network.
  */
 import { FILES, FOLDERS, MARKDOWN_URL, TIMEZONE } from '@/config';
 import { plainText, readRoadmapFile, roadmapMilestones, type RoadmapMilestone, type RoadmapRead } from '@/roadmap/data';

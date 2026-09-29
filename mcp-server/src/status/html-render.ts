@@ -405,11 +405,7 @@ const focusStats = (snap: StatusSnapshot): string => {
       num: focus.dueUnplanned.length,
       label: 'due, not planned',
       tone: focus.dueUnplanned.length ? 'bad' : '',
-      caption: !earliestDue
-        ? 'none'
-        : earliestDue === focus.today
-          ? 'due today'
-          : `oldest due ${horizonLabel(earliestDue)}`,
+      caption: earliestDue ? dueLabel(earliestDue, focus.today).text : 'none',
       nav
     },
     {
@@ -636,7 +632,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
       num: tasks.overdueList.length,
       label: 'overdue',
       tone: tasks.overdueList.length ? 'bad' : 'good',
-      caption: oldestOverdue ? `oldest ${oldestOverdue}` : 'none',
+      caption: oldestOverdue ? `oldest ${dueLabel(oldestOverdue, today).text}` : 'none',
       nav: 'tasks/agenda'
     },
     { num: dueToday.length, label: 'due today', tone: dueToday.length ? 'warn' : '', nav: 'tasks/agenda' },
@@ -976,7 +972,7 @@ const pageBrain = (snap: StatusSnapshot): string => {
       {
         num: lint.present ? lint.errors + lint.warnings : '—',
         label: 'lint issues',
-        tone: lint.errors ? 'bad' : lint.warnings ? 'warn' : 'good',
+        tone: !lint.present ? '' : lint.errors ? 'bad' : lint.warnings ? 'warn' : 'good',
         caption: lint.present ? `${lint.errors} errors · ${lint.warnings} warnings` : 'not run yet',
         nav: 'brain/lint'
       },

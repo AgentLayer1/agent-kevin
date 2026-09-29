@@ -626,6 +626,9 @@ kbd {
   };
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', () => goto(el.dataset.nav));
+    el.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); goto(el.dataset.nav); }
+    });
   });
   // Surface links: same-frame location.assign is the ONLY navigation Obsidian's
   // HTML viewer permits (verified 2026-07-26 via nav-test.html — relative

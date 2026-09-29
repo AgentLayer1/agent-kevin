@@ -82,7 +82,7 @@ and added the grilling-interview behavior, all in the plugin source. The last re
 reported both skills upgraded, so this is at a clean stopping point unless you want to
 test-drive the new flow.
 
-↳ `claude --resume b7bf6ce8-79dd-429d-b9a7-a643a6dcda1e`
+↳ `claude --resume 0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d`
 
 ## 🕐 Earlier today
 

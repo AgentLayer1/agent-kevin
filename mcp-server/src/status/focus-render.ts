@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   focusData,
+  formatDate,
   horizonLabel,
   taskStanding,
   type FocusGroup,
@@ -24,11 +25,6 @@ export const FOCUS_CSS = readFileSync(new URL('focus-lanes.css', import.meta.url
 
 const fill = (slots: Record<string, string>): string =>
   TEMPLATE.replace(/\{\{(\w+)\}\}/g, (_match, token: string) => slots[token] ?? '');
-
-const utcDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
-
-const formatDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
-  utcDate(date).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
 
 const taskLink = (view: FocusView, task: FocusTask): string =>
   `<a href="${esc(view.markdownUrl.replace('{path}', encodeURIComponent(resolve(view.home, task.path))))}">${esc(task.id)}</a>`;

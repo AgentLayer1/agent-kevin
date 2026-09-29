@@ -70,7 +70,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
   • <task-id> <P-level> — <crisp "why now"; deadline, dependency unlock, or fresh blocker>
   • <task-id> ...
   (3–6 bullets; mix P0/P1 active + the one P0 you should drop everything for. Inline-code task IDs.)
-  (With the focus page set up, this section is its Today lane in order, then carried-over items marked ↻ with the day they slipped from. An empty Today lane gets three proposals and a first move of `/focus plan`.)
+  (This section is focus's Today lane in order, then carried-over items marked ↻ with the day they slipped from. An empty Today lane gets three proposals and a first move of `/focus plan`.)
 
 📦 Drafted
   • <project-slug> — <what moved yesterday/overnight that isn't a closed task: PRs, inbox captures, knowledge concepts, status flips, decisions>
