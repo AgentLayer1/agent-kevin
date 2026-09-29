@@ -312,6 +312,13 @@ describe("renderDashboard", () => {
     expect(() => renderDashboard(dir, "2026-10-08")).toThrow("booked_through");
   });
 
+  test("a malformed money cell stops the render with the ledger file and row named", () => {
+    const dir = scratch();
+    write(dir, "entities/acme.md", profile.replace("kind: company", "kind: company\ncountry: my"));
+    write(dir, "ledger/acme/2026.csv", "date,type,counterparty,country,currency,amount,tax,reference,category,file,flags,notes\n2026-07-31,opening,Acme accountant,MY,MYR,RM 50000,0,management accounts to Jul,,,,\n");
+    expect(() => renderDashboard(dir, "2026-09-20")).toThrow("ledger/acme/2026.csv row 2");
+  });
+
   test("a partial close leaves the year unpriced, never RM 0", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile.replace("kind: company", "kind: company\ncountry: my"));

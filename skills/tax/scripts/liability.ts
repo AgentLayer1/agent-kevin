@@ -246,9 +246,20 @@ export const parseCsv = (text: string): Record<string, string>[] => {
   return body.map((cells) => Object.fromEntries(header.map((key, i) => [key.trim(), (cells[i] ?? "").trim()])));
 };
 
-const toNumber = (value: string | undefined): number => {
-  const parsed = Number((value ?? "").replaceAll(",", ""));
-  return Number.isFinite(parsed) ? parsed : 0;
+/**
+ * A money cell as a number: blank is 0, a plain number with thousands commas is read, and anything
+ * else ("RM 100000") throws rather than silently becoming 0.
+ */
+const toNumber = (value: string | undefined, column: string): number => {
+  const text = (value ?? "").trim();
+  if (text === "") {
+    return 0;
+  }
+  const parsed = Number(text.replaceAll(",", ""));
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${column} "${text}" is not a number`);
+  }
+  return parsed;
 };
 
 export const toLedgerRow = (record: Record<string, string>): LedgerRow => ({
@@ -256,9 +267,9 @@ export const toLedgerRow = (record: Record<string, string>): LedgerRow => ({
   type: record.type ?? "",
   counterparty: record.counterparty ?? "",
   currency: (record.currency ?? "MYR").toUpperCase() || "MYR",
-  amount: toNumber(record.amount),
-  amountMyr: record.amount_myr ? toNumber(record.amount_myr) : null,
-  tax: toNumber(record.tax),
+  amount: toNumber(record.amount, "amount"),
+  amountMyr: record.amount_myr?.trim() ? toNumber(record.amount_myr, "amount_myr") : null,
+  tax: toNumber(record.tax, "tax"),
   reference: record.reference ?? "",
   category: record.category ?? "",
   flags: (record.flags ?? "")
@@ -275,7 +286,15 @@ export const loadLedger = (taxDir: string, slug: string): LedgerRow[] => {
   return readdirSync(dir)
     .filter((file) => file.endsWith(".csv"))
     .sort()
-    .flatMap((file) => parseCsv(readFileSync(join(dir, file), "utf8")).map(toLedgerRow));
+    .flatMap((file) =>
+      parseCsv(readFileSync(join(dir, file), "utf8")).map((record, i) => {
+        try {
+          return toLedgerRow(record);
+        } catch (error) {
+          throw new Error(`ledger/${slug}/${file} row ${i + 2}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      })
+    );
 };
 
 const pad = (n: number): string => String(n).padStart(2, "0");
@@ -419,12 +438,16 @@ export const position = (
       : period.start.slice(0, 7);
   const activeMonths = monthsBetween(activeStart, period.end.slice(0, 7));
   const inPeriod = rows.filter((row) => row.date >= period.start && row.date <= period.end && row.date <= today);
-  const opening = inPeriod
-    .filter((row) => row.type === LedgerType.Opening)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .at(-1);
+  // An opening is a company's management-accounts profit to date; on a personal return it would
+  // replace salary and PCB it never summarised, so it is ignored there and flagged.
+  const openings = inPeriod.filter((row) => row.type === LedgerType.Opening);
+  const isCompany = entity.kind === EntityKind.Company;
+  const ignoredOpenings = isCompany ? [] : openings;
+  const opening = isCompany ? [...openings].sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
   const counted = opening === undefined ? inPeriod : inPeriod.filter((row) => row.date > opening.date);
-  const unconverted = counted.filter((row) => row.type !== LedgerType.Statement && myr(row) === null);
+  const unconverted = counted.filter(
+    (row) => row.type !== LedgerType.Statement && row.type !== LedgerType.Opening && myr(row) === null
+  );
   const amountOf = (types: Set<string>, keep: (row: LedgerRow) => boolean = () => true): number =>
     sum(counted.filter((row) => types.has(row.type) && keep(row)).map((row) => myr(row) ?? 0));
 
@@ -435,7 +458,7 @@ export const position = (
   const openingProfit = opening === undefined ? 0 : (myr(opening) ?? 0);
   const business = openingProfit + income - expenses;
   const pcb = sum(counted.filter((row) => row.type === LedgerType.Salary).map((row) => row.tax));
-  const payments = rows.filter((row) => row.type === LedgerType.TaxPayment);
+  const payments = rows.filter((row) => row.type === LedgerType.TaxPayment && row.date <= today);
   const paymentsForYa = sum(payments.filter((row) => yaOf(row.reference) === period.ya).map((row) => myr(row) ?? 0));
   const unlabelledPayments = payments.filter((row) => yaOf(row.reference) === null);
   const paid = paymentsForYa + pcb;
@@ -560,6 +583,9 @@ export const position = (
       : []),
     ...(unlabelledPayments.length > 0
       ? [`${unlabelledPayments.length} tax payment(s) name no YA in their reference and are not counted as paid`]
+      : []),
+    ...(ignoredOpenings.length > 0
+      ? [`${ignoredOpenings.length} opening row(s) ignored: an opening figure is a company's management accounts, not a personal return`]
       : []),
     ...(strayReliefs.length > 0
       ? [`${strayReliefs.length} relief row(s) name no known relief in their category and are not counted`]

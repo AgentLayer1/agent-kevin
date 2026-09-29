@@ -119,6 +119,12 @@ describe("position: company", () => {
     expect(result.warnings.join(" ")).toContain("name no YA");
   });
 
+  test("a tax payment dated after the day being viewed is not yet paid", () => {
+    const rows = [row("2026-01-31", "opening", 100000), row("2026-12-15", "tax-payment", 24000, { reference: "YA 2026 balance" })];
+    expect(position(company, rows, rates, "2026-02-01", null).paid).toBe(0);
+    expect(position(company, rows, rates, "2026-12-15", null).paid).toBe(24000);
+  });
+
   test("a foreign amount without its MYR value is left out and flagged, never guessed", () => {
     const rows = [row("2026-02-10", "sales-invoice", 1000, { currency: "USD" }), row("2026-02-11", "sales-invoice", 2000, { currency: "USD", amountMyr: 9400 })];
     const result = position(company, rows, rates, "2026-02-20", null, ["2026-01"]);
@@ -344,9 +350,24 @@ describe("position: personal view", () => {
     expect(position(person, salaryYear(3000), rates, "2026-07-02", null).known).toBe(true);
   });
 
+  test("an opening row on a personal return is ignored and flagged, keeping salary and PCB", () => {
+    const rows = [row("2026-01-31", "salary", 20000, { tax: 3000 }), row("2026-02-28", "salary", 20000, { tax: 3000 }), row("2026-02-28", "opening", 10000)];
+    const result = position(person, rows, rates, "2026-02-28", null);
+    expect(result.employment).toBe(40000);
+    expect(result.paid).toBe(6000);
+    expect(result.warnings.join(" ")).toContain("1 opening row(s) ignored");
+  });
+
   test("a company has no personal view", () => {
     expect(position(company, [], rates, "2026-06-30", null).personal).toBeNull();
   });
+});
+
+test("a money cell that is not a plain number is refused, never read as 0", () => {
+  expect(() => toLedgerRow({ date: "2026-08-31", type: "opening", amount: "RM 100000" })).toThrow('amount "RM 100000" is not a number');
+  expect(() => toLedgerRow({ date: "2026-08-31", type: "sales-invoice", amount: "1000", currency: "USD", amount_myr: "USD 4300" })).toThrow("amount_myr");
+  expect(toLedgerRow({ date: "2026-08-31", type: "sales-invoice", amount: "100,000.50", tax: "" }).amount).toBe(100000.5);
+  expect(toLedgerRow({ date: "2026-08-31", type: "statement", amount: "" }).amount).toBe(0);
 });
 
 test("parseCsv reads quoted commas, doubled quotes and an optional amount_myr column", () => {
