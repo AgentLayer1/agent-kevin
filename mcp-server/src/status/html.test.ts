@@ -1,7 +1,24 @@
 import { describe, expect, test } from 'bun:test';
 import type { StatusSnapshot, TaskRef } from './collect';
+import { buildFocusView } from './focus';
+import { readFocusData } from './focus-data';
 // html-render is pure by design (see its header), so this suite needs no filesystem or HOME.
 import { PAGES, escapeHtml, renderDashboardHtml } from './html-render';
+
+const emptyFocus = buildFocusView({
+  project: '',
+  home: '/tmp/home',
+  tasks: [],
+  goals: { weekly: [], monthly: [] },
+  roadmaps: [],
+  snapshot: null,
+  self: new Set(['user']),
+  operator: 'Alex',
+  today: '2026-06-15',
+  generatedAt: '09:00',
+  markdownUrl: 'obsidian://open?path={path}',
+  timeZone: 'UTC'
+});
 
 const taskRef = (overrides: Partial<TaskRef> = {}): TaskRef => ({
   id: 'lo-001',
@@ -271,6 +288,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   ],
   reportsTotal: 12,
   radarLatest: null,
+  focus: emptyFocus,
   changelog: [],
   health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: true },
   ...overrides
@@ -324,6 +342,74 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72');
     expect(html).toContain('<div class="radar-meta">');
     expect(html).toContain('>lo-001</a> A task');
+  });
+
+  test('today opens on Focus, with its stats deep-linking there, and the Plan tab is gone', () => {
+    const task = (id: string, horizon: string, status: 'active' | 'open' = 'active') => ({
+      frontmatter: {
+        schema: 1,
+        id,
+        title: `Focus task ${id}`,
+        type: 'task' as const,
+        status,
+        priority: 'P1' as const,
+        project: 'life-os',
+        assignee: ['user'],
+        labels: [],
+        created: '2026-06-01',
+        updated: '2026-06-01',
+        due: '',
+        horizon,
+        depends_on: [],
+        blocked_by: '',
+        parent: '',
+        closed: ''
+      },
+      description: '',
+      checklist: [],
+      thread: [],
+      filePath: `/tmp/home/projects/life-os/tasks/${id}.md`
+    });
+    const focus = buildFocusView({
+      project: '',
+      home: '/tmp/home',
+      tasks: [task('lo-101', '2026-06-15'), task('lo-102', '2026-06-12', 'open')],
+      goals: { weekly: ['Ship the radar'], monthly: [] },
+      roadmaps: [],
+      snapshot: {
+        fetchedAt: '2026-06-15T08:30:00Z',
+        groups: [{ label: 'My pull requests', empty: 'None open.', items: [], unavailable: "GitHub can't read 2 repos" }]
+      },
+      self: new Set(['user']),
+      operator: 'Alex',
+      today: '2026-06-15',
+      generatedAt: '09:00',
+      markdownUrl: 'obsidian://open?path={path}',
+      timeZone: 'UTC'
+    });
+    const html = renderDashboardHtml(makeSnapshot({ focus }));
+    const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
+    expect(today).toContain('<button class="subtab active" data-subtab="focus">Focus</button>');
+    expect(today).not.toContain('data-subtab="plan"');
+    expect(today).toContain('data-nav="today/focus"');
+    expect(today).toContain('<span class="fmark">1</span><span class="tid nowrap">');
+    expect(today).toContain('Focus task lo-101');
+    expect(today).toContain('from Fri 12');
+    expect(today).toContain("GitHub can&#39;t read 2 repos");
+    expect(today).toContain('pulled 08:30');
+    expect(readFocusData(html)?.lanes.today.map((item) => item.id)).toEqual(['lo-101']);
+  });
+
+  test('tasks agenda leads with what is in flight, lists each task once, and its stats open the right tab', () => {
+    const base = makeSnapshot();
+    const html = renderDashboardHtml(base);
+    const tasksPage = html.slice(html.indexOf('data-page="tasks"'), html.indexOf('data-page="projects"'));
+    expect(tasksPage).toContain('▶ In flight');
+    expect(tasksPage).toContain('data-nav="tasks/attention"');
+    base.tasks.activeList.forEach((ref) => {
+      const agenda = tasksPage.slice(0, tasksPage.indexOf('data-subpanel="attention"'));
+      expect(agenda.split(`>${ref.id}</a>`).length - 1).toBe(1);
+    });
   });
 
   test('brain page carries threads, decisions, concepts, and the memory tab', () => {

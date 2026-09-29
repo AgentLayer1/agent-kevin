@@ -330,17 +330,15 @@ describe('project page', () => {
 });
 
 describe('focus pages on disk', () => {
-  test('only pages the skill created re-render, a project dashboard.html is never touched, and only the home page is a surface', async () => {
+  test('only project pages the skill created re-render, a project dashboard.html is never touched, and none is a surface', async () => {
     mkdirSync(join(FOLDERS.PROJECTS, 'acme', 'tasks'), { recursive: true });
     const dashboard = join(FOLDERS.PROJECTS, 'acme', 'dashboard.html');
     writeFileSync(dashboard, '<p>hand-made</p>');
-    const home = focusPagePath();
     const page = focusPagePath('acme');
-    rmSync(home, { force: true });
     rmSync(page, { force: true });
     writeFocusPagesSafe();
-    expect(existsSync(home)).toBe(false);
     expect(existsSync(page)).toBe(false);
+    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
 
     writeFocusPage('acme');
     const archived = join(FOLDERS.PROJECTS, 'acme', 'tasks', 'archive');
@@ -351,18 +349,18 @@ describe('focus pages on disk', () => {
     );
     writeFocusPagesSafe();
     expect(readFileSync(page, 'utf-8')).toContain('Shipped already');
-    expect(existsSync(home)).toBe(false);
+    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
     expect(readFileSync(dashboard, 'utf-8')).toBe('<p>hand-made</p>');
     rmSync(join(archived, 'ac-901-shipped.md'), { force: true });
 
-    writeFocusPage();
-    const { surfaces, tasks } = await collectStatus();
-    expect(surfaces).toContainEqual({ title: 'Focus', icon: '🎯', appTab: false, href: 'focus.html' });
+    const { surfaces, tasks, focus } = await collectStatus();
+    expect(surfaces.map((surface) => surface.title)).not.toContain('Focus');
+    expect(focus.project).toBe('');
     expect(surfaces).toContainEqual({ title: 'Acme', icon: '📊', appTab: false, href: 'projects/acme/dashboard.html' });
     expect(surfaces.map((surface) => surface.href)).not.toContain('projects/acme/focus.html');
     expect(tasks.byProject.find((load) => load.project === 'acme')?.focus).toBe('projects/acme/focus.html');
 
-    [home, page, dashboard].forEach((path) => rmSync(path, { force: true }));
+    [page, dashboard].forEach((path) => rmSync(path, { force: true }));
   });
 
   test("a project page reads its own roadmap, and the root's legacy page adds no notice there", () => {
@@ -381,6 +379,11 @@ describe('focus pages on disk', () => {
     });
     expect(readFileSync(focusPagePath('acme'), 'utf-8')).toContain('⏳ Invoice export');
     [own, root, focusPagePath('acme')].forEach((path) => rmSync(path, { force: true }));
+  });
+
+  test('the home scope has no page of its own; it lives in the dashboard', () => {
+    expect(() => focusPagePath('')).toThrow('lives in the dashboard');
+    expect(() => writeFocusPage('')).toThrow('lives in the dashboard');
   });
 
   test('a slug that is not a project folder is refused before it becomes a path', () => {

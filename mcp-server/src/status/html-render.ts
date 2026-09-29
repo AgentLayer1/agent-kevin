@@ -28,6 +28,7 @@ import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import type { HistoryState } from '@/home/history';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
+import { jsonBlock } from '@/shared/json-block';
 import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
 import type {
   ContextGroup,
@@ -41,6 +42,14 @@ import type {
   StatusSnapshot,
   TaskRef
 } from './collect';
+import {
+  focusData,
+  horizonLabel,
+  taskStanding,
+  type FocusData,
+  type FocusMilestone,
+  type FocusTask
+} from './focus-data';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
 
 const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8');
@@ -145,10 +154,24 @@ const infoTip = (text: string, end = false): string => {
   return `<span class="tip${end ? ' tip-end' : ''}" tabindex="0" role="note"><span class="tip-i" aria-hidden="true">i</span><span class="tip-text">${body}</span></span>`;
 };
 
-const stat = (num: number | string, label: string, cls = ''): string =>
-  `<div class="stat"><div class="num ${cls}">${esc(String(num))}</div><div class="lab">${esc(label)}</div></div>`;
+interface StatTile {
+  num: number | string;
+  label: string;
+  tone?: 'bad' | 'warn' | 'good' | '';
+  /** One quiet line under the label: the oldest, the next, the breakdown. */
+  caption?: string;
+  /** `page/sub` the tile opens, e.g. `tasks/agenda`. */
+  nav?: string;
+}
 
-const statStrip = (stats: string[]): string => `<div class="statstrip">${stats.join('')}</div>`;
+const statTile = ({ num, label, tone = '', caption = '', nav = '' }: StatTile): string =>
+  `<div class="stat${tone ? ` ${tone}` : ''}${nav ? ' link' : ''}"${
+    nav ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Open ${esc(nav.replace('/', ' › '))}"` : ''
+  }><div class="num">${esc(String(num))}</div><div class="lab">${esc(label)}</div>${
+    caption ? `<div class="cap">${esc(caption)}</div>` : ''
+  }</div>`;
+
+const statStrip = (tiles: StatTile[]): string => `<div class="statstrip">${tiles.map(statTile).join('')}</div>`;
 
 const flexBar = (segments: Array<{ value: number; color: string }>): string =>
   `<div class="flexbar">${segments
@@ -268,7 +291,7 @@ const taskGroup = (title: string, refs: TaskRef[], snap: StatusSnapshot, options
  *  and wires the same client filter (`data-catchips` → `data-catfilter`),
  *  matched against each row's `data-cat` (the project). Busiest projects first;
  *  hidden when there's only one project to filter between. */
-const projectFilterChips = (refs: TaskRef[]): string => {
+const projectFilterChips = (refs: readonly { project: string }[]): string => {
   const counts = refs.reduce<Record<string, number>>((acc, ref) => {
     acc[ref.project] = (acc[ref.project] ?? 0) + 1;
     return acc;
@@ -353,32 +376,216 @@ const CATEGORY_DOT: Record<string, string> = {
   reviews: 'engineer'
 };
 
+// ── focus (Today) ─────────────────────────────────────────────────────
+
+/** One task in a focus lane; `data-cat` lets the project chips narrow it. */
+const focusTaskRow = (
+  snap: StatusSnapshot,
+  task: FocusTask,
+  options: { mark?: string; note?: string; done?: boolean } = {}
+): string => {
+  const due = options.done ? { text: '', cls: '' } : dueLabel(task.due, snap.runtime.isoDate);
+  return `<div class="frow${options.done ? ' done' : ''}" data-row data-cat="${esc(task.project)}">${
+    options.mark ? `<span class="fmark">${esc(options.mark)}</span>` : ''
+  }<span class="tid nowrap">${mdLink(snap, task.path, task.id)}</span><span class="ttl">${esc(task.title)}</span>${
+    options.note ? `<span class="meta warn">${esc(options.note)}</span>` : ''
+  }${task.status === 'blocked' ? `<span class="meta bad" title="${esc(task.blockedBy)}">blocked</span>` : ''}${
+    due.text ? `<span class="meta ${due.cls}">${esc(due.text)}</span>` : ''
+  }${projChip(task.project)}<span class="pri ${esc(task.priority.toLowerCase())}">${esc(task.priority)}</span></div>`;
+};
+
+const focusGroup = (title: string, tone: string, rows: string[]): string =>
+  rows.length ? `<h3 class="group${tone ? ` ${tone}` : ''}">${esc(title)} · ${rows.length}</h3>${rows.join('')}` : '';
+
+const focusProgress = (done: number, total: number): string =>
+  total
+    ? `<div class="proj-progress fprog"><span class="dim nowrap">${done} of ${total} done</span><div class="track"><span style="width:${Math.round(
+        (done / total) * 100
+      )}%;background:var(--accent)"></span></div></div>`
+    : '';
+
+const focusMilestoneRow = (snap: StatusSnapshot, milestone: FocusMilestone): string => {
+  const slipped = milestone.state === 'slipped';
+  const tasks = milestone.tasks
+    .map(
+      (task) =>
+        `<span class="meta">${mdLink(snap, task.path, task.id)} ${esc(taskStanding(task, snap.runtime.isoDate))}</span>`
+    )
+    .join('');
+  const doing = milestone.inProgress.map((text) => `<div class="fdoing">⏳ ${esc(text)}</div>`).join('');
+  return `<div class="fms${slipped ? ' slipped' : ''}" data-row data-cat="*"><div class="frow">${
+    milestone.chip ? `<span class="chip fchip">${esc(milestone.chip)}</span>` : ''
+  }<span class="ttl">${esc(milestone.title)} <span class="dim">· ${esc(milestone.section)}</span></span><span class="meta">${milestone.done}/${milestone.total} done</span>${
+    slipped && milestone.window ? `<span class="meta warn">ended ${esc(milestone.window.end)}</span>` : ''
+  }${tasks}${milestone.gap ? '<span class="meta bad">no open task</span>' : ''}</div>${doing}</div>`;
+};
+
+const focusQueue = (snap: StatusSnapshot): string => {
+  const { snapshot, queuePulled } = snap.focus;
+  if (!snapshot) {
+    return hint(`Nothing pulled yet. Run /${snap.runtime.pluginName}:focus to fetch what's waiting on you.`);
+  }
+  const groups = snapshot.groups
+    .map(
+      (group) =>
+        `<h3 class="group">${esc(group.label)} · ${group.items.length}</h3>${
+          group.unavailable ? `<div class="hint warn">${esc(group.unavailable)}</div>` : ''
+        }${
+          group.items.length
+            ? group.items
+                .map(
+                  (item) =>
+                    `<div class="frow" data-row data-cat="*"><span class="fdot ${esc(item.tone)}"></span><span class="ttl">${
+                      item.url ? extLink(item.url, item.title) : esc(item.title)
+                    }</span>${item.detail ? `<span class="meta">${esc(item.detail)}</span>` : ''}</div>`
+                )
+                .join('')
+            : group.unavailable
+              ? ''
+              : hint(group.empty)
+        }`
+    )
+    .join('');
+  return section('Waiting on you', `pulled ${queuePulled}`, groups || hint('No queue groups in the last pull.'));
+};
+
+const focusTab = (snap: StatusSnapshot): string => {
+  const { focus } = snap;
+  const row = (task: FocusTask, options: { mark?: string; note?: string; done?: boolean } = {}) =>
+    focusTaskRow(snap, task, options);
+  const todayRows = [
+    ...focus.lanes.today.map((task, index) => row(task, { mark: String(index + 1) })),
+    ...focus.done.today.map((task) => row(task, { mark: '✓', done: true }))
+  ];
+  const today =
+    (todayRows.length
+      ? todayRows.join('')
+      : hint(`Nothing set for today. Run /${snap.runtime.pluginName}:focus plan to pick up to three.`)) +
+    focusGroup(
+      '↻ Carried over',
+      'warn',
+      focus.lanes.carried.map((task) => row(task, { mark: '↻', note: `from ${horizonLabel(task.horizon)}` }))
+    ) +
+    focusGroup(
+      '! Due, not planned',
+      'bad',
+      focus.dueUnplanned.map((task) => row(task, { mark: '!' }))
+    );
+  const period = (goals: string[], open: FocusTask[], done: FocusTask[], planned: FocusData['planned']['week']) => {
+    const body =
+      (goals.length ? `<ul class="plain fgoals">${goals.map((goal) => `<li>${esc(goal)}</li>`).join('')}</ul>` : '') +
+      focusProgress(planned.done.length, planned.open.length + planned.done.length) +
+      [...open.map((task) => row(task)), ...done.map((task) => row(task, { mark: '✓', done: true }))].join('');
+    return body || hint('Nothing planned yet.');
+  };
+  const { milestones, notices } = focus.roadmap;
+  const roadmap =
+    milestones.length || notices.length
+      ? section(
+          'Roadmap',
+          `${milestones.length} in flight`,
+          milestones.map((milestone) => focusMilestoneRow(snap, milestone)).join('') +
+            notices.map((notice) => hint(notice)).join('')
+        )
+      : '';
+  const later = focus.lanes.later.map((task) => row(task));
+  const unplanned = focus.unplanned.map((task) => row(task));
+  const fold = (title: string, rows: string[]) =>
+    rows.length
+      ? `<details class="ffold"><summary><h3 class="group">${esc(title)} · ${rows.length}</h3></summary>${rows.join('')}</details>`
+      : '';
+  const tasks = [
+    ...focus.lanes.today,
+    ...focus.lanes.carried,
+    ...focus.dueUnplanned,
+    ...focus.lanes.week,
+    ...focus.lanes.month,
+    ...focus.lanes.later,
+    ...focus.unplanned
+  ];
+  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks)}${[
+    section('Today', `${focus.lanes.today.length} of 3`, today),
+    roadmap,
+    section(
+      'This week',
+      focus.week.slice(5),
+      period(focus.weekGoals, focus.lanes.week, focus.done.week, focus.planned.week)
+    ),
+    section(
+      'This month',
+      new Date(`${focus.today}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' }),
+      period(focus.monthGoals, focus.lanes.month, focus.done.month, focus.planned.month)
+    ),
+    focusQueue(snap),
+    fold('🔭 Later', later) + fold('♾ Not planned', unplanned)
+  ].join('')}</div>`;
+};
+
+/** Today's header: the day as focus sees it, each tile opening the Focus tab. */
+const focusStats = (snap: StatusSnapshot): string => {
+  const { focus } = snap;
+  const weekTotal = focus.planned.week.open.length + focus.planned.week.done.length;
+  const slipped = focus.roadmap.milestones.filter((milestone) => milestone.state === 'slipped').length;
+  const gaps = focus.roadmap.milestones.filter((milestone) => milestone.gap).length;
+  const waiting = focus.snapshot?.groups.reduce((total, group) => total + group.items.length, 0) ?? 0;
+  const oldest = focus.lanes.carried.map((task) => task.horizon).sort()[0];
+  const earliestDue = focus.dueUnplanned.map((task) => task.due).sort()[0];
+  const nav = 'today/focus';
+  return statStrip([
+    {
+      num: `${focus.lanes.today.length}/3`,
+      label: 'today',
+      tone: focus.lanes.today.length ? 'good' : 'warn',
+      caption: focus.done.today.length
+        ? `${focus.done.today.length} done`
+        : focus.lanes.today.length
+          ? 'planned'
+          : 'not planned yet',
+      nav
+    },
+    {
+      num: focus.lanes.carried.length,
+      label: 'carried over',
+      tone: focus.lanes.carried.length ? 'warn' : '',
+      caption: oldest ? `oldest from ${horizonLabel(oldest)}` : 'none',
+      nav
+    },
+    {
+      num: focus.dueUnplanned.length,
+      label: 'due, not planned',
+      tone: focus.dueUnplanned.length ? 'bad' : '',
+      caption: earliestDue ? `since ${earliestDue}` : 'none',
+      nav
+    },
+    {
+      num: `${focus.planned.week.done.length}/${weekTotal}`,
+      label: 'this week',
+      caption: `${focus.weekGoals.length} goal${focus.weekGoals.length === 1 ? '' : 's'}`,
+      nav
+    },
+    {
+      num: focus.roadmap.milestones.length,
+      label: 'roadmap in flight',
+      tone: slipped ? 'warn' : '',
+      caption: slipped ? `${slipped} slipped` : gaps ? `${gaps} with no task` : 'all moving',
+      nav
+    },
+    {
+      num: focus.snapshot ? waiting : '—',
+      label: 'waiting on you',
+      tone: waiting ? 'warn' : '',
+      caption: focus.snapshot ? `pulled ${focus.queuePulled}` : 'not pulled yet',
+      nav
+    }
+  ]);
+};
+
 const pageToday = (snap: StatusSnapshot): string => {
-  const { tasks, runtime, compile, knowledge, goals } = snap;
+  const { tasks, runtime, goals } = snap;
   const today = runtime.isoDate;
   const hour = parseInt(runtime.time.slice(0, 2), 10) || 0;
   const part = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
   const name = snap.operator.name ? `, ${esc(snap.operator.name)}` : '';
-
-  const dueToday = tasks.queue.filter((ref) => ref.due === today && ref.status !== 'blocked');
-  // Blocked tasks live in "Waiting on" — keep them out of the due lists.
-  const dueWeek = tasks.queue.filter((ref) => {
-    if (!ref.due || ref.status === 'blocked') return false;
-    const days = daysBetween(today, ref.due);
-    return days > 0 && days <= 7;
-  });
-  const overdueIds = new Set(tasks.overdueList.map((ref) => ref.id));
-  const active = tasks.activeList.filter((ref) => !overdueIds.has(ref.id) && ref.due !== today);
-  const blocked = tasks.queue.filter((ref) => ref.status === 'blocked' && ref.blockedBy);
-
-  const stats = statStrip([
-    stat(tasks.overdueList.length, 'overdue', tasks.overdueList.length ? 'bad' : ''),
-    stat(dueToday.length, 'due today', dueToday.length ? 'warn' : ''),
-    stat(tasks.active, 'in flight', tasks.active ? 'good' : ''),
-    stat(dueWeek.length, 'due this week'),
-    stat(compile.pending, 'pending compile', compile.pending ? 'warn' : ''),
-    stat(knowledge.inboxItems, 'inbox items')
-  ]);
 
   const goalCard = (icon: string, label: string, lines: string[]): string =>
     `<div class="goalcard"><h3 class="group"><span class="gicon">${icon}</span>${esc(label)}</h3>${
@@ -390,26 +597,6 @@ const pageToday = (snap: StatusSnapshot): string => {
     goalCard('🗓', 'Weekly', goals.weekly) +
     goalCard('🎯', 'Monthly', goals.monthly) +
     goalCard('🧭', 'Yearly', goals.yearly);
-
-  const focus =
-    [
-      taskGroup('⏰ Overdue', tasks.overdueList, snap),
-      taskGroup('📅 Due today', dueToday, snap),
-      taskGroup('🚀 In flight', active, snap)
-    ].join('') || hint('Nothing due, nothing overdue, nothing in flight. Clear runway.');
-
-  const waiting = blocked.length
-    ? table(
-        [],
-        blocked
-          .slice(0, 8)
-          .map((ref) => [
-            `<span class="nowrap">${mdLink(snap, ref.path, ref.id)}</span>`,
-            `<span class="dim">${esc(truncate(ref.blockedBy, 110))}</span>`,
-            projChip(ref.project)
-          ])
-      )
-    : hint('Nothing explicitly waiting on anyone.');
 
   // The grounding feed covers the last ~24h so it survives midnight: sessions
   // and tasks carry date-only stamps (today + yesterday); reports have times
@@ -457,16 +644,6 @@ const pageToday = (snap: StatusSnapshot): string => {
         ].join('')
       : hint('Nothing yet today — it all lands here as you work.');
 
-  const plan = [
-    section('Focus', '', focus),
-    section(
-      'Next 7 days',
-      `${dueWeek.length} due`,
-      dueWeek.length ? dueWeek.map((ref) => taskRow(ref, snap)).join('') : hint('Nothing due this week.')
-    ),
-    section('Waiting on', `${tasks.blocked} blocked`, waiting)
-  ].join('');
-
   // Headlines harvested from recent briefings, grouped by briefing day.
   const newsByDate = new Map<string, typeof snap.news>();
   for (const item of snap.news) {
@@ -493,9 +670,9 @@ const pageToday = (snap: StatusSnapshot): string => {
     'today',
     `Good ${part}${name} <span class="accent">✨</span>`,
     `${snap.runtime.date} · here's where everything stands.`,
-    stats +
+    focusStats(snap) +
       subTabs([
-        { id: 'plan', label: 'Plan', body: plan },
+        { id: 'focus', label: 'Focus', body: focusTab(snap) },
         { id: 'activity', label: `Ongoing · ${activityCount}`, body: activity },
         { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/TASKS.md', goalsBody) },
         {
@@ -548,7 +725,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
   const { tasks } = snap;
   const today = snap.runtime.isoDate;
 
-  const horizon = (ref: TaskRef): string => {
+  const dueBucket = (ref: TaskRef): string => {
     if (!ref.due) return 'someday';
     const days = daysBetween(today, ref.due);
     if (days < 0) return 'overdue';
@@ -558,11 +735,13 @@ const pageTasks = (snap: StatusSnapshot): string => {
     return 'later';
   };
   const groups = new Map<string, TaskRef[]>();
-  for (const ref of tasks.queue) {
-    const key = horizon(ref);
+  // In-flight tasks lead the agenda and carry their own due label, so each task appears once.
+  for (const ref of tasks.queue.filter((item) => item.status !== 'active')) {
+    const key = dueBucket(ref);
     groups.set(key, [...(groups.get(key) ?? []), ref]);
   }
   const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue)}${[
+    taskGroup('▶ In flight', tasks.activeList, snap),
     taskGroup('⏰ Overdue', groups.get('overdue') ?? [], snap),
     taskGroup('📅 Today', groups.get('today') ?? [], snap),
     taskGroup('🗓 This week', groups.get('week') ?? [], snap),
@@ -592,15 +771,64 @@ const pageTasks = (snap: StatusSnapshot): string => {
     ...tasks.staleList
   ])}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
 
+  const dueToday = tasks.queue.filter((ref) => ref.due === today);
+  const dueWeek = tasks.queue.filter(
+    (ref) => ref.due && daysBetween(today, ref.due) > 0 && daysBetween(today, ref.due) <= 7
+  );
+  const oldestOverdue = tasks.overdueList.map((ref) => ref.due).sort()[0];
+  const stats = statStrip([
+    {
+      num: tasks.overdueList.length,
+      label: 'overdue',
+      tone: tasks.overdueList.length ? 'bad' : 'good',
+      caption: oldestOverdue ? `oldest ${oldestOverdue}` : 'none',
+      nav: 'tasks/agenda'
+    },
+    { num: dueToday.length, label: 'due today', tone: dueToday.length ? 'warn' : '', nav: 'tasks/agenda' },
+    { num: dueWeek.length, label: 'due this week', caption: 'next 7 days', nav: 'tasks/agenda' },
+    {
+      num: tasks.activeList.length,
+      label: 'in flight',
+      tone: tasks.activeList.length ? 'good' : '',
+      nav: 'tasks/agenda'
+    },
+    { num: blocked.length, label: 'blocked', tone: blocked.length ? 'bad' : '', nav: 'tasks/attention' },
+    {
+      num: tasks.stale,
+      label: 'going stale',
+      tone: tasks.stale ? 'warn' : '',
+      caption: 'no update in 7d',
+      nav: 'tasks/attention'
+    }
+  ]);
+
   return page(
     'tasks',
     'Tasks',
-    `${tasks.queue.length} open tasks across ${tasks.projects} projects.`,
-    subTabs([
-      { id: 'agenda', label: 'Agenda', body: agenda },
-      { id: 'attention', label: `Needs attention · ${blocked.length + tasks.stale}`, body: attention }
-    ])
+    `${tasks.queue.length} open tasks across ${tasks.projects} projects, by deadline.`,
+    stats +
+      subTabs([
+        { id: 'agenda', label: 'Agenda', body: agenda },
+        { id: 'attention', label: `Needs attention · ${blocked.length + tasks.stale}`, body: attention }
+      ])
   );
+};
+
+const projectStats = (snap: StatusSnapshot): string => {
+  const loads = snap.tasks.byProject;
+  const weekAgo = new Date(Date.parse(`${snap.runtime.isoDate}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+  const moving = loads.filter((load) => load.updatedAt >= weekAgo).length;
+  const quiet = loads.filter((load) => load.total === 0).length;
+  const stuck = loads.filter((load) => load.blocked > 0).length;
+  const done = loads.reduce((total, load) => total + load.done, 0);
+  const all = loads.reduce((total, load) => total + load.total + load.done, 0);
+  return statStrip([
+    { num: loads.length, label: 'projects', caption: `${loads.length - quiet} with live tasks` },
+    { num: moving, label: 'moving', tone: moving ? 'good' : '', caption: 'updated in 7 days' },
+    { num: stuck, label: 'with blockers', tone: stuck ? 'bad' : '', caption: 'a blocked task', nav: 'tasks/attention' },
+    { num: quiet, label: 'quiet', caption: 'no live tasks' },
+    { num: all ? `${Math.round((done / all) * 100)}%` : '—', label: 'done overall', caption: `${done} of ${all} tasks` }
+  ]);
 };
 
 const pageProjects = (snap: StatusSnapshot): string =>
@@ -608,7 +836,7 @@ const pageProjects = (snap: StatusSnapshot): string =>
     'projects',
     'Projects',
     `${snap.tasks.byProject.length} projects — click one to see its tasks.`,
-    `<div data-filterbox>${filterInput('filter projects…')}${snap.tasks.byProject
+    `${projectStats(snap)}<div data-filterbox>${filterInput('filter projects…')}${snap.tasks.byProject
       .map((load) => projectCard(load, snap))
       .join('')}</div>`
   );
@@ -629,6 +857,33 @@ const resumedChip = (sessionRef: StatusSnapshot['sessions'][number]): string =>
   sessionRef.firstSeen && sessionRef.firstSeen !== sessionRef.lastSeen
     ? `<span class="chip" title="resumed session — started ${esc(sessionRef.firstSeen)}">↩ since ${esc(sessionRef.firstSeen)}</span>`
     : '';
+
+const sessionStats = (snap: StatusSnapshot): string => {
+  const today = snap.runtime.isoDate;
+  const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+  const conversations = snap.sessions.filter((sessionRef) => !sessionRef.isCommand);
+  const todayCount = conversations.filter((sessionRef) => sessionRef.lastSeen === today).length;
+  const weekCount = conversations.filter((sessionRef) => sessionRef.lastSeen >= weekAgo).length;
+  const resumed = conversations.filter(
+    (sessionRef) => sessionRef.firstSeen < sessionRef.lastSeen && sessionRef.lastSeen >= weekAgo
+  ).length;
+  const radar = snap.radarLatest;
+  return statStrip([
+    { num: todayCount, label: 'sessions today', tone: todayCount ? 'good' : '', nav: 'sessions/history' },
+    {
+      num: weekCount,
+      label: 'last 7 days',
+      caption: resumed ? `${resumed} resumed` : 'none resumed',
+      nav: 'sessions/history'
+    },
+    {
+      num: radar ? radar.sessions.length : '—',
+      label: 'on the radar',
+      caption: radar ? `as of ${radar.date === today ? radar.time : `${radar.date} ${radar.time}`}` : 'no radar yet',
+      nav: 'sessions/radar'
+    }
+  ]);
+};
 
 const pageSessions = (snap: StatusSnapshot): string => {
   const week = snap.knowledge.sessionsWeek;
@@ -674,7 +929,8 @@ const pageSessions = (snap: StatusSnapshot): string => {
     'sessions',
     'Sessions',
     `What you and ${snap.persona.name} worked on, captured automatically.`,
-    section('Volume', 'last 7 days', volume) +
+    sessionStats(snap) +
+      section('Volume', 'last 7 days', volume) +
       subTabs([
         { id: 'radar', label: '🛰️ Recent', body: radarTab(snap) },
         { id: 'history', label: '🕘 History', body: recent },
@@ -847,18 +1103,48 @@ const pageBrain = (snap: StatusSnapshot): string => {
     'brain',
     'Brain',
     `${snap.persona.name}'s living memory of your world — compiled from every session.`,
-    subTabs([
-      { id: 'context', label: 'Context', body: buildContextBody(snap) },
-      { id: 'memory', label: 'Memory', body: memory },
-      { id: 'threads', label: 'Threads', body: threads },
+    statStrip([
       {
-        id: 'concepts',
-        label: `Concepts · ${knowledge.concepts}`,
-        body: `<div data-filterbox>${filterInput('filter concepts…')}${concepts}</div>`
+        num: compile.pending,
+        label: 'pending compile',
+        tone: compile.pending ? 'warn' : 'good',
+        caption: `last compiled ${relTime(compile.lastCompiled)}`,
+        nav: 'brain/pipeline'
       },
-      { id: 'pipeline', label: 'Pipeline', body: pipeline },
-      { id: 'lint', label: `Lint · ${lint.errors + lint.warnings + lint.suggestions}`, body: lintBody }
-    ])
+      {
+        num: knowledge.inboxItems,
+        label: 'inbox items',
+        tone: knowledge.inboxItems ? 'warn' : '',
+        caption: 'waiting to compile',
+        nav: 'brain/pipeline'
+      },
+      {
+        num: lint.present ? lint.errors + lint.warnings : '—',
+        label: 'lint issues',
+        tone: lint.errors ? 'bad' : lint.warnings ? 'warn' : 'good',
+        caption: lint.present ? `${lint.errors} errors · ${lint.warnings} warnings` : 'not run yet',
+        nav: 'brain/lint'
+      },
+      {
+        num: knowledge.concepts,
+        label: 'concepts',
+        caption: `${knowledge.learnings} learnings`,
+        nav: 'brain/concepts'
+      },
+      { num: knowledge.activeThreads, label: 'active threads', nav: 'brain/threads' }
+    ]) +
+      subTabs([
+        { id: 'context', label: 'Context', body: buildContextBody(snap) },
+        { id: 'memory', label: 'Memory', body: memory },
+        { id: 'threads', label: 'Threads', body: threads },
+        {
+          id: 'concepts',
+          label: `Concepts · ${knowledge.concepts}`,
+          body: `<div data-filterbox>${filterInput('filter concepts…')}${concepts}</div>`
+        },
+        { id: 'pipeline', label: 'Pipeline', body: pipeline },
+        { id: 'lint', label: `Lint · ${lint.errors + lint.warnings + lint.suggestions}`, body: lintBody }
+      ])
   );
 };
 
@@ -1686,12 +1972,22 @@ const pageStatus = (snap: StatusSnapshot): string => {
   const missing = context.staticImports.filter((item) => !item.present);
 
   const stats = statStrip([
-    stat(health.overdue, 'overdue tasks', health.overdue ? 'bad' : 'good'),
-    stat(health.pendingCompiles, 'pending compiles', health.pendingCompiles ? 'warn' : 'good'),
-    stat(health.logErrors, 'log errors today', health.logErrors ? 'bad' : 'good'),
-    stat(health.missingImports, 'missing imports', health.missingImports ? 'bad' : 'good'),
-    stat(health.malformedTasks, 'unreadable tasks', health.malformedTasks ? 'bad' : 'good'),
-    stat(tasks.stale, 'stale · info only')
+    { num: health.overdue, label: 'overdue tasks', tone: health.overdue ? 'bad' : 'good', nav: 'tasks/agenda' },
+    {
+      num: health.pendingCompiles,
+      label: 'pending compiles',
+      tone: health.pendingCompiles ? 'warn' : 'good',
+      nav: 'brain/pipeline'
+    },
+    { num: health.logErrors, label: 'log errors today', tone: health.logErrors ? 'bad' : 'good', nav: 'system/logs' },
+    {
+      num: health.missingImports,
+      label: 'missing imports',
+      tone: health.missingImports ? 'bad' : 'good',
+      nav: 'brain/context'
+    },
+    { num: health.malformedTasks, label: 'unreadable tasks', tone: health.malformedTasks ? 'bad' : 'good' },
+    { num: tasks.stale, label: 'stale', caption: 'info only', nav: 'tasks/attention' }
   ]);
 
   const malformedBody =
@@ -1905,6 +2201,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     NAV: sidebarNav(snap) + sidebarSurfaces(snap),
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
-    FOOTER: footer
+    FOOTER: footer,
+    DATA: jsonBlock('focus-data', focusData(snap.focus), 'FOCUS')
   });
 };

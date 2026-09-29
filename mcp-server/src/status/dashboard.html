@@ -103,15 +103,60 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 
 /* ── stat strip ────────────────────────────────────────────────────── */
 .statstrip {
-  display: flex; flex-wrap: wrap; gap: 8px 34px;
-  margin: 20px 0 4px; padding: 14px 20px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px;
+  margin: 20px 0 4px;
 }
-.stat .num { font-size: 21px; font-weight: 600; color: var(--text); }
-.stat .num.bad { color: var(--red); }
-.stat .num.warn { color: var(--amber); }
-.stat .num.good { color: var(--green); }
-.stat .lab { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat {
+  position: relative; padding: 12px 14px 11px 16px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border); overflow: hidden;
+}
+.stat::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--border); }
+.stat.bad::before { background: var(--red); }
+.stat.warn::before { background: var(--amber); }
+.stat.good::before { background: var(--green); }
+.stat.link { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.stat.link:hover, .stat.link:focus-visible { border-color: var(--accent); background: var(--panel-2); outline: none; }
+.stat .num { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.15; }
+.stat.bad .num { color: var(--red); }
+.stat.warn .num { color: var(--amber); }
+.stat.good .num { color: var(--green); }
+.stat .lab { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.stat .cap { color: var(--dim); font-size: 11px; margin-top: 4px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── focus (Today) ─────────────────────────────────────────────────── */
+.frow { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--hairline); }
+.frow .tid { flex: none; min-width: 62px; }
+.frow .tid a { color: var(--accent); }
+.frow .ttl { flex: 1; min-width: 0; }
+.frow .meta { flex: none; font-size: 12px; color: var(--dim); }
+.frow .meta a { color: var(--cyan); }
+.frow .meta.bad { color: var(--red); }
+.frow .meta.warn { color: var(--amber); }
+.frow .pri { flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--dim); }
+.frow .pri.p0 { color: var(--red); }
+.frow .pri.p1 { color: var(--amber); }
+.frow.done .ttl { color: var(--dim); text-decoration: line-through; }
+.fmark { flex: none; width: 16px; text-align: right; color: var(--accent); font-weight: 600; }
+.frow.done .fmark { color: var(--green); }
+h3.group.warn { color: var(--amber); }
+h3.group.bad { color: var(--red); }
+.fms { border-bottom: 1px solid var(--hairline); padding-bottom: 4px; }
+.fms .frow { border-bottom: none; }
+.fms.slipped .ttl { color: var(--amber); }
+.fchip { flex: none; color: var(--accent); }
+.fdoing { font-size: 12px; color: var(--text); padding: 0 2px 4px 26px; }
+.fgoals { margin: 0 0 8px; }
+.fgoals li { font-style: italic; }
+.fprog { margin: 4px 0 8px; }
+.fdot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); align-self: center; }
+.fdot.good { background: var(--green); }
+.fdot.warn { background: var(--amber); }
+.fdot.bad { background: var(--red); }
+.hint.warn { color: var(--amber); font-style: normal; }
+details.ffold > summary { list-style: none; cursor: pointer; }
+details.ffold > summary::-webkit-details-marker { display: none; }
+details.ffold > summary h3.group::after { content: ' ▸'; color: var(--dim); }
+details.ffold[open] > summary h3.group::after { content: ' ▾'; }
 
 /* ── sections ──────────────────────────────────────────────────────── */
 .section { margin: 26px 0; }
@@ -670,7 +715,8 @@ kbd {
     const cat = box.querySelector('.catchip.active')?.dataset.catfilter || 'all';
     box.querySelectorAll('[data-row]').forEach((row) => {
       const okText = !q || row.textContent.toLowerCase().includes(q);
-      const okCat = cat === 'all' || row.dataset.cat === cat;
+      // `*` marks a row that belongs to every category (a roadmap milestone, a queue item).
+      const okCat = cat === 'all' || row.dataset.cat === cat || row.dataset.cat === '*';
       row.style.display = okText && okCat ? '' : 'none';
     });
     // Hide a section heading once every row beneath it is filtered out. Covers
@@ -793,5 +839,6 @@ kbd {
 
 })();
 </script>
+{{DATA}}
 </body>
 </html>

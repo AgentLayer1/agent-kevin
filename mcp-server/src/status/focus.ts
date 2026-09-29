@@ -254,7 +254,7 @@ const readJson = <T>(path: string, schema: z.ZodType<T>): T | null => {
 
 const SLUG = /^[a-z0-9][a-z0-9_-]*$/i;
 
-/** A project page's slug, checked before it becomes a path; '' is the home page. */
+/** A project slug, checked before it becomes a path; '' is the home scope, which lives in the dashboard. */
 const checkedProject = (project: string): string => {
   if (project && (!SLUG.test(project) || !existsSync(resolve(FOLDERS.PROJECTS, project)))) {
     throw new Error(`Unknown project: ${project} (directory not found under ${FOLDERS.PROJECTS})`);
@@ -262,8 +262,13 @@ const checkedProject = (project: string): string => {
   return project;
 };
 
-export const focusPagePath = (project = ''): string =>
-  project ? resolve(FOLDERS.PROJECTS, checkedProject(project), 'focus.html') : FILES.FOCUS;
+/** A project's own focus page; the home scope has none, it is the dashboard's Today view. */
+export const focusPagePath = (project: string): string => {
+  if (!project) {
+    throw new Error('The home focus view lives in the dashboard; only a project has its own focus page');
+  }
+  return resolve(FOLDERS.PROJECTS, checkedProject(project), 'focus.html');
+};
 
 const queuePath = (project: string): string =>
   resolve(FOLDERS.FOCUS_QUEUES, project ? `queue.${checkedProject(project)}.json` : 'queue.json');
@@ -312,8 +317,8 @@ export const collectFocusView = (project = ''): FocusView => {
   });
 };
 
-/** Render one focus page, creating it on first call. */
-export const writeFocusPage = (project = ''): { path: string; bytes: number; view: FocusView } => {
+/** Render a project's focus page, creating it on first call. */
+export const writeFocusPage = (project: string): { path: string; bytes: number; view: FocusView } => {
   const view = collectFocusView(project);
   const html = renderFocusHtml(view);
   const path = focusPagePath(project);
@@ -321,9 +326,11 @@ export const writeFocusPage = (project = ''): { path: string; bytes: number; vie
   return { path, bytes: Buffer.byteLength(html), view };
 };
 
-/** Scopes whose page already exists: '' for the home page, then project slugs. */
+/** Projects whose focus page already exists. */
 export const existingFocusPages = (): string[] =>
-  ['', ...discoverProjects().filter((slug) => SLUG.test(slug))].filter((project) => existsSync(focusPagePath(project)));
+  discoverProjects()
+    .filter((slug) => SLUG.test(slug))
+    .filter((project) => existsSync(focusPagePath(project)));
 
 /** Rebuild hook: re-render every page the focus skill has created, never throw. */
 export const writeFocusPagesSafe = (): void => {
@@ -331,7 +338,7 @@ export const writeFocusPagesSafe = (): void => {
     try {
       writeFocusPage(project);
     } catch (err) {
-      log.warn(`focus page rebuild failed for ${project || 'home'}`, err);
+      log.warn(`focus page rebuild failed for ${project}`, err);
     }
   });
 };

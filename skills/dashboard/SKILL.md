@@ -1,6 +1,6 @@
 ---
 name: dashboard
-description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's plan and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on.
+description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on.
 allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:where-am-i), Bash
 ---
 
@@ -59,12 +59,15 @@ open "<path from step 2>"
 
 ## Pages
 
-`today` (plan / goals / today-so-far / news) · `tasks` (agenda / needs
-attention) · `projects` · `sessions` · `brain` (threads / memory / concepts /
-pipeline / lint) · `reports` · `capabilities` (cheatsheet / skills / tools /
-commands / reflexes) · `persona` · `system` (context / settings / logs) ·
-`profile` (reached via the operator card) · `status` (reached via the health
-badge). Sub-tabs deep-link: `dashboard.html#tasks/attention`.
+`today` (focus / ongoing / goals / news) · `tasks` (agenda / needs
+attention) · `projects` · `sessions` · `brain` (context / memory / threads /
+concepts / pipeline / lint) · `reports` · `capabilities` (cheatsheet / skills /
+tools / commands / reflexes) · `persona` · `system` (settings / logs /
+changelog) · `profile` (reached via the operator card) · `status` (reached via
+the health badge). Today opens on Focus, the home focus view (the focus skill
+renders it and `dashboard.html` embeds its data as a `focus-data` block). Each
+page's header tiles open the tab that explains them. Sub-tabs deep-link:
+`dashboard.html#today/focus`, `#tasks/attention`.
 
 ## Notes
 

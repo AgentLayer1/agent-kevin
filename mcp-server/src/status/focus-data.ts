@@ -1,4 +1,5 @@
 import { readJsonBlock } from '@/shared/json-block';
+import { horizonBucket } from '@/tasks/horizon';
 import { z } from 'zod';
 
 export const FOCUS_TONES = ['good', 'warn', 'bad', 'dim'] as const;
@@ -110,4 +111,27 @@ export const readFocusData = (html: string): FocusData | null => {
   const block = readJsonBlock(html, 'focus-data');
   const parsed = block?.kind === 'data' ? FocusDataSchema.safeParse(block.data) : null;
   return parsed?.success ? parsed.data : null;
+};
+
+const formatUtcDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
+
+/** Where a task was planned, short: `Fri 25`, `W39`, `Aug`. */
+export const horizonLabel = (horizon: string): string => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(horizon)) {
+    return formatUtcDate(horizon, { weekday: 'short', day: 'numeric' });
+  }
+  if (/^\d{4}-W\d{2}$/.test(horizon)) {
+    return horizon.slice(5);
+  }
+  return /^\d{4}-\d{2}$/.test(horizon) ? formatUtcDate(`${horizon}-01`, { month: 'short' }) : horizon;
+};
+
+/** Where a task stands in the plan, in words: `today`, `week`, `carried over`, `not planned`, or its closed status. */
+export const taskStanding = (task: FocusTask, today: string): string => {
+  if (task.status === 'done' || task.status === 'cancelled') {
+    return task.status;
+  }
+  const bucket = horizonBucket(task.horizon, today);
+  return bucket === 'carried' ? 'carried over' : (bucket ?? 'not planned');
 };

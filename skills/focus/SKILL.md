@@ -24,7 +24,7 @@ Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_cr
 
 | Call | Page | Holds |
 |---|---|---|
-| `/focus` | `<HOME>/focus.html` | every project, plus the Weekly and Monthly Goals |
+| `/focus` | the dashboard's Today → Focus tab (`dashboard.html#today/focus`) | every project, plus the Weekly and Monthly Goals |
 | `/focus <project>` | `<HOME>/projects/<project>/focus.html` | that project's tasks only |
 
 **Roadmaps feed the page.** The home page reads `<HOME>/roadmap.html`. A project page reads its own `projects/<slug>/roadmap.html`, plus the root roadmap's milestones that name one of the project's task ids. The Roadmap section lists milestones that are slipped (their period ended with items open) or in flight (an item in progress, or their period covers today). It shows each one's linked tasks and flags a milestone no open task names. `focus_write` returns them under `roadmap`. A roadmap still on a script literal, or one with no dates, gets a one-line notice instead of silence.

@@ -186,10 +186,6 @@ export const FILES = {
   get ROADMAP() {
     return resolve(homeRoot(), 'roadmap.html');
   },
-  /** Home-wide focus page (focus skill); a project's own sits at projects/<slug>/focus.html. */
-  get FOCUS() {
-    return resolve(homeRoot(), 'focus.html');
-  },
   get KNOWLEDGE_STATE() {
     return resolve(dataRoot(), 'knowledge.json');
   },

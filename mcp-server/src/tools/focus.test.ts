@@ -43,7 +43,7 @@ describe('focus_write', () => {
     const html = readFileSync(page, 'utf-8');
     expect(html).toContain('Rotate the storage keys');
     expect(readFocusData(html)).toEqual(first);
-    expect(existsSync(FILES.FOCUS)).toBe(false);
+    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
 
     const second = FocusDataSchema.parse(await call({ project: 'ops' }));
     expect(second.snapshot?.fetchedAt).toBe(first.snapshot?.fetchedAt);
@@ -52,10 +52,12 @@ describe('focus_write', () => {
     expect(dashboard).not.toContain('data-href="projects/ops/focus.html"');
 
     const home = await call({});
-    expect(home.path).toBe(FILES.FOCUS);
+    expect(home.path).toBe(`${FILES.DASHBOARD}#today/focus`);
     expect(FocusDataSchema.parse(home)).toMatchObject({ project: '', snapshot: null });
+    expect(readFocusData(readFileSync(FILES.DASHBOARD, 'utf-8'))).toMatchObject({ project: '' });
+    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
 
-    [page, FILES.FOCUS].forEach((path) => rmSync(path, { force: true }));
+    rmSync(page, { force: true });
     rmSync(FOLDERS.FOCUS_QUEUES, { recursive: true, force: true });
   });
 

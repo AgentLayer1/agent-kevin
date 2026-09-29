@@ -2,11 +2,12 @@
  * Pure renderer for the focus dashboard: FocusView in, a self-contained HTML page out.
  */
 import { jsonBlock } from '@/shared/json-block';
-import { horizonBucket } from '@/tasks/horizon';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   focusData,
+  horizonLabel,
+  taskStanding,
   type FocusGroup,
   type FocusItem,
   type FocusMilestone,
@@ -25,17 +26,6 @@ const utcDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 const formatDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
   utcDate(date).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
 
-/** Where a carried-over task was planned: `Fri 25`, `W39`, `Aug`. */
-const periodLabel = (horizon: string): string => {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(horizon)) {
-    return formatDate(horizon, { weekday: 'short', day: 'numeric' });
-  }
-  if (/^\d{4}-W\d{2}$/.test(horizon)) {
-    return horizon.slice(5);
-  }
-  return /^\d{4}-\d{2}$/.test(horizon) ? formatDate(`${horizon}-01`, { month: 'short' }) : horizon;
-};
-
 const taskLink = (view: FocusView, task: FocusTask): string =>
   `<a href="${esc(view.markdownUrl.replace('{path}', encodeURIComponent(resolve(view.home, task.path))))}">${esc(task.id)}</a>`;
 
@@ -50,7 +40,7 @@ const taskRow = (view: FocusView, task: FocusTask, options: RowOptions): string 
     taskLink(view, task),
     !view.project && `<span class="proj" style="--h:${nameHue(task.project)}">${esc(task.project)}</span>`,
     `<span class="pri ${esc(task.priority.toLowerCase())}">${esc(task.priority)}</span>`,
-    options.from && `<span class="from">from ${esc(periodLabel(task.horizon))}</span>`,
+    options.from && `<span class="from">from ${esc(horizonLabel(task.horizon))}</span>`,
     task.due &&
       `<span class="${task.due < view.today ? 'late' : ''}">due ${esc(formatDate(task.due, { day: 'numeric', month: 'short' }))}</span>`,
     task.status === 'blocked' &&
@@ -149,15 +139,6 @@ const periodSection = (
   return section(index, '', laneHead(label, open.length), body);
 };
 
-/** Where a linked task stands, in the page's own words. */
-const taskStanding = (view: FocusView, task: FocusTask): string => {
-  if (task.status === 'done' || task.status === 'cancelled') {
-    return task.status;
-  }
-  const bucket = horizonBucket(task.horizon, view.today);
-  return bucket === 'carried' ? 'carried over' : (bucket ?? 'not planned');
-};
-
 const milestoneRow = (view: FocusView, milestone: FocusMilestone): string => {
   const slipped = milestone.state === 'slipped';
   const meta = [
@@ -166,7 +147,7 @@ const milestoneRow = (view: FocusView, milestone: FocusMilestone): string => {
     slipped &&
       milestone.window &&
       `<span class="late">window ended ${esc(formatDate(milestone.window.end, { day: 'numeric', month: 'short' }))}</span>`,
-    ...milestone.tasks.map((task) => `<span>${taskLink(view, task)} ${esc(taskStanding(view, task))}</span>`),
+    ...milestone.tasks.map((task) => `<span>${taskLink(view, task)} ${esc(taskStanding(task, view.today))}</span>`),
     milestone.gap && '<span class="blocked">no open task behind it</span>'
   ].filter((part): part is string => Boolean(part));
   const doing = milestone.inProgress.map((text) => `<div class="doing">⏳ ${esc(text)}</div>`).join('');

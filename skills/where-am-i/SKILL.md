@@ -205,8 +205,8 @@ review). Never send input to the chosen session yourself — triage delivers the
 to the work, it doesn't do the work.
 
 Triage ranks sessions, not the day. When the operator sounds overwhelmed ("too much going
-on", "I'm lost"), close with one line pointing at the plan: the Focus page's path when
-`<HOME>/focus.html` exists, and `/focus plan` to cut today to three.
+on", "I'm lost"), close with one line pointing at the plan: the dashboard's Today → Focus view, and `/focus plan`
+to cut today to three.
 
 ## Checkpoint mode — `/where-am-i checkpoint`
 

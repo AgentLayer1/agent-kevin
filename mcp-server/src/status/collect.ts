@@ -42,6 +42,8 @@ import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { collectFocusView } from './focus';
+import type { FocusView } from './focus-data';
 
 export interface SettingsLayer {
   label: string;
@@ -464,6 +466,8 @@ export interface StatusSnapshot {
   reports: ReportRef[];
   reportsTotal: number;
   radarLatest: RadarLatest | null;
+  /** The home focus view: the dashboard's Today tab, and the focus-data block it embeds. */
+  focus: FocusView;
   /** Parsed CHANGELOG.md entries (newest first) for the System → Changelog tab. */
   changelog: ChangelogEntry[];
   health: Health;
@@ -1810,13 +1814,12 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
   existsSync(absPath) ? [{ ...entry, href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath) }] : [];
 
 /** Surfaces are discovered by convention, never configured: the HOME-root
- *  roadmap.html (the north star, opened as a new tab) leads, then the home focus
- *  page, then every project's dashboard.html. A project's own roadmap or focus page is
+ *  roadmap.html (the north star, opened as a new tab) leads, then every
+ *  project's dashboard.html. A project's own roadmap or focus page is
  *  deliberately absent — it belongs on that project's card, not in a sidebar
  *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] => {
   const northStar = surfaceAt(FILES.ROADMAP, { title: 'Roadmap', icon: '🧭', appTab: true });
-  const focus = surfaceAt(FILES.FOCUS, { title: 'Focus', icon: '🎯', appTab: false });
   const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
     ? []
     : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
@@ -1829,7 +1832,7 @@ const collectSurfaces = (): SurfaceLink[] => {
           })
         )
         .sort((a, b) => a.title.localeCompare(b.title));
-  return [...northStar, ...focus, ...projects];
+  return [...northStar, ...projects];
 };
 
 const MAX_REPORTS = 60;
@@ -1872,6 +1875,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     reports: allReports.slice(0, MAX_REPORTS),
     reportsTotal: allReports.length,
     radarLatest: await collectRadarLatest(allReports),
+    focus: collectFocusView(''),
     changelog: parseChangelog()
   };
   return { ...base, health: computeHealth(base) };
