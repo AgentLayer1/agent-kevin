@@ -216,7 +216,7 @@ describe('queue sources that could not be read', () => {
     expect(html).toContain('<p class="unavailable">GitHub can&#39;t read 2 repos: web, ops</p>');
     expect(html).not.toContain('None open.');
     expect(html).toMatch(/<h2>Queue<\/h2><span class="count">1<\/span>/);
-    expect(view.queuePulled).toBe('Sun 27 · 23:10');
+    expect(view.queuePulled).toEqual({ day: 'Sun 27', time: '23:10' });
   });
 });
 

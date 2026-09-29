@@ -122,16 +122,16 @@ const roadmapNotice = ({ source, read }: FocusRoadmapSource, milestones: Roadmap
 };
 
 /** The pull time in the operator's zone, with the day when it wasn't today. */
-const pulledLabel = (fetchedAt: string, today: string, timeZone: string): string => {
+const pulledAt = (fetchedAt: string, today: string, timeZone: string): FocusView['queuePulled'] => {
   const pulled = new Date(fetchedAt);
   if (Number.isNaN(pulled.getTime())) {
-    return fetchedAt;
+    return { day: '', time: fetchedAt };
   }
-  const time = pulled.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' });
-  const day = pulled.toLocaleDateString('sv-SE', { timeZone });
-  return day === today
-    ? time
-    : `${pulled.toLocaleDateString('en-GB', { timeZone, weekday: 'short', day: 'numeric' })} · ${time}`;
+  const sameDay = pulled.toLocaleDateString('sv-SE', { timeZone }) === today;
+  return {
+    day: sameDay ? '' : pulled.toLocaleDateString('en-GB', { timeZone, weekday: 'short', day: 'numeric' }),
+    time: pulled.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' })
+  };
 };
 
 const buildRoadmap = (inputs: FocusInputs): FocusView['roadmap'] => {
@@ -236,7 +236,7 @@ export const buildFocusView = (inputs: FocusInputs): FocusView => {
     roadmap: buildRoadmap(inputs),
     snapshot: inputs.snapshot,
     markdownUrl: inputs.markdownUrl,
-    queuePulled: inputs.snapshot ? pulledLabel(inputs.snapshot.fetchedAt, inputs.today, inputs.timeZone) : ''
+    queuePulled: inputs.snapshot ? pulledAt(inputs.snapshot.fetchedAt, inputs.today, inputs.timeZone) : null
   };
 };
 

@@ -295,6 +295,16 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   ...overrides
 });
 
+/** Every stat tile that counts something names a section that exists, so clicking it lands there. */
+const expectTilesLand = (html: string): void => {
+  const tiles = [...html.matchAll(/data-nav="([^"]+)"[^>]*><div class="top"><span class="num">([^<]+)</g)];
+  expect(tiles.length).toBeGreaterThan(0);
+  const missing = tiles
+    .map(([, nav, num]) => ({ section: nav.split('/')[2], count: parseInt(num, 10) }))
+    .filter(({ section, count }) => section && count > 0 && !html.includes(`id="${section}"`));
+  expect(missing).toEqual([]);
+};
+
 describe('renderDashboardHtml', () => {
   test('renders every page, nav items for visible ones, and one document shell', () => {
     const html = renderDashboardHtml(makeSnapshot());
@@ -398,8 +408,9 @@ describe('renderDashboardHtml', () => {
     const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
     expect(today).toContain('<button class="subtab active" data-subtab="focus">Focus</button>');
     expect(today).not.toContain('data-subtab="plan"');
-    expect(today).toContain('data-nav="today/focus"');
-    expect(today).toContain('<div class="focusview"><div class="lanes"><section class="now today');
+    expect(today).toContain('data-nav="today/focus/focus-carried"');
+    expectTilesLand(html);
+    expect(today).toContain('<div class="focusview"><div class="lanes"><section id="focus-today" class="now today');
     expect(today).toContain('<li class="row" data-row data-cat="life-os"><span class="mark">1</span>');
     expect(today).toContain('Focus task lo-101');
     expect(today).toContain('from Fri 12');
@@ -416,11 +427,25 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(base);
     const tasksPage = html.slice(html.indexOf('data-page="tasks"'), html.indexOf('data-page="projects"'));
     expect(tasksPage).toContain('▶ In flight');
-    expect(tasksPage).toContain('data-nav="tasks/attention"');
+    expect(tasksPage).toContain('data-nav="tasks/attention/attention-blocked"');
+    expectTilesLand(html);
     base.tasks.activeList.forEach((ref) => {
       const agenda = tasksPage.slice(0, tasksPage.indexOf('data-subpanel="attention"'));
       expect(agenda.split(`>${ref.id}</a>`).length - 1).toBe(1);
     });
+  });
+
+  test('in-flight tasks run soonest deadline first, undated last', () => {
+    const base = makeSnapshot();
+    const activeList = [
+      taskRef({ id: 'lo-201', due: '' }),
+      taskRef({ id: 'lo-202', due: '2026-12-31' }),
+      taskRef({ id: 'lo-203', due: '2026-06-12' })
+    ];
+    const html = renderDashboardHtml(makeSnapshot({ tasks: { ...base.tasks, activeList } }));
+    const order = ['lo-203', 'lo-202', 'lo-201'].map((id) => html.indexOf(`>${id}</a>`));
+    expect(order.every((index) => index > 0)).toBe(true);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
   });
 
   test('brain page carries threads, decisions, concepts, and the memory tab', () => {

@@ -60,8 +60,8 @@ const taskList = (view: FocusView, open: FocusTask[], done: FocusTask[], numbere
 const laneHead = (label: string, count: number): string =>
   `<div class="lane-head"><h2>${esc(label)}</h2><span class="count">${count}</span><span class="rule"></span></div>`;
 
-const section = (index: number, cls: string, head: string, inner: string): string =>
-  `<section class="${cls}" style="--i:${index}" data-rowgroup>${head}${inner}</section>`;
+const section = (index: number, id: string, cls: string, head: string, inner: string): string =>
+  `<section id="${id}" class="${cls}" style="--i:${index}" data-rowgroup>${head}${inner}</section>`;
 
 const collapsible = (index: number, label: string, count: number, inner: string): string =>
   `<section style="--i:${index}"><details><summary>${laneHead(label, count)}</summary>${inner}</details></section>`;
@@ -96,6 +96,7 @@ const command = (view: FocusView, mode = ''): string =>
 
 const callout = (
   view: FocusView,
+  id: string,
   cls: string,
   label: string,
   tasks: FocusTask[],
@@ -103,7 +104,7 @@ const callout = (
   from: boolean
 ): string =>
   tasks.length
-    ? `<div class="${cls}" data-rowgroup><h3>${esc(label)} · ${tasks.length}</h3><ol>${tasks
+    ? `<div id="${id}" class="${cls}" data-rowgroup><h3>${esc(label)} · ${tasks.length}</h3><ol>${tasks
         .map((task) => taskRow(view, task, { mark, from }))
         .join('')}</ol></div>`
     : '';
@@ -115,15 +116,16 @@ const todaySection = (view: FocusView): string => {
       ? taskList(view, open, view.done.today, true)
       : empty(`Nothing set for today. Run ${command(view, 'plan')} to pick up to three.`);
   const blocks =
-    callout(view, 'carried', 'Carried over', carried, '↻', true) +
-    callout(view, 'carried due', 'Due, not planned', view.dueUnplanned, '!', false);
+    callout(view, 'focus-carried', 'carried', 'Carried over', carried, '↻', true) +
+    callout(view, 'focus-due', 'carried due', 'Due, not planned', view.dueUnplanned, '!', false);
   const warn = carried.length || view.dueUnplanned.length ? ' warn' : '';
-  return section(0, `now today${warn}`, laneHead('Today', open.length), list + blocks);
+  return section(0, 'focus-today', `now today${warn}`, laneHead('Today', open.length), list + blocks);
 };
 
 const periodSection = (
   view: FocusView,
   index: number,
+  id: string,
   label: string,
   goals: string[],
   open: FocusTask[],
@@ -136,7 +138,7 @@ const periodSection = (
     goals.length || tasks || total
       ? goalList(goals) + progress(planned.done.length, total) + tasks
       : empty('Nothing planned yet.');
-  return section(index, '', laneHead(label, open.length), body);
+  return section(index, id, '', laneHead(label, open.length), body);
 };
 
 const milestoneRow = (view: FocusView, milestone: FocusMilestone): string => {
@@ -168,6 +170,7 @@ const roadmapSection = (view: FocusView): string => {
     : empty('Nothing on the roadmap is in flight.');
   return section(
     1,
+    'focus-roadmap',
     slipped ? 'warn' : '',
     laneHead('Roadmap', milestones.length),
     list + notices.map((notice) => empty(esc(notice))).join('')
@@ -178,6 +181,7 @@ const queueSection = (view: FocusView): string => {
   if (!view.snapshot) {
     return section(
       4,
+      'focus-queue',
       '',
       laneHead('Queue', 0),
       empty(`No pull yet. Run ${command(view)} to fetch what's waiting on you.`)
@@ -185,7 +189,9 @@ const queueSection = (view: FocusView): string => {
   }
   const { groups } = view.snapshot;
   const count = groups.reduce((total, group) => total + group.items.length, 0);
-  return groups.length ? section(4, 'items', laneHead('Queue', count), groups.map(itemGroup).join('')) : '';
+  return groups.length
+    ? section(4, 'focus-queue', 'items', laneHead('Queue', count), groups.map(itemGroup).join(''))
+    : '';
 };
 
 /** The lanes on their timeline: Today, Roadmap, the week and month, the queue, then Later and Not planned. */
@@ -194,10 +200,20 @@ export const renderFocusLanes = (view: FocusView): string => {
   return [
     todaySection(view),
     roadmapSection(view),
-    periodSection(view, 2, 'This week', view.weekGoals, view.lanes.week, view.done.week, view.planned.week),
+    periodSection(
+      view,
+      2,
+      'focus-week',
+      'This week',
+      view.weekGoals,
+      view.lanes.week,
+      view.done.week,
+      view.planned.week
+    ),
     periodSection(
       view,
       3,
+      'focus-month',
       `This month · ${monthName}`,
       view.monthGoals,
       view.lanes.month,
@@ -224,7 +240,9 @@ export const renderFocusHtml = (view: FocusView): string => {
     `<span><b>${view.lanes.today.length}</b> today</span>`,
     view.lanes.carried.length ? `<span><b>${view.lanes.carried.length}</b> carried over</span>` : '',
     `<span><b>${weekDone}/${weekOpen + weekDone}</b> this week</span>`,
-    view.queuePulled ? `<span>queue pulled ${esc(view.queuePulled)}</span>` : ''
+    view.queuePulled
+      ? `<span>queue pulled ${esc([view.queuePulled.day, view.queuePulled.time].filter(Boolean).join(' · '))}</span>`
+      : ''
   ].filter(Boolean);
   const weekday = formatDate(view.today, { weekday: 'long' });
   return fill({

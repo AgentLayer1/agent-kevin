@@ -99,8 +99,8 @@ export type FocusData = z.infer<typeof FocusDataSchema>;
 export interface FocusView extends FocusData {
   home: string;
   markdownUrl: string;
-  /** When the queue was pulled, in the operator's time: `09:47`, or `Mon 28 · 09:47` on another day; '' with no pull. */
-  queuePulled: string;
+  /** When the queue was pulled, in the operator's time; `day` (`Mon 28`) is '' when it was today. Null with no pull. */
+  queuePulled: { day: string; time: string } | null;
 }
 
 /** The page's data, with what only the renderer needs stripped. */

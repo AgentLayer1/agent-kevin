@@ -124,6 +124,8 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat.good .num { color: var(--green); }
 .stat .lab { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .cap { color: var(--dim); font-size: 10.5px; margin-top: 1px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jumped { animation: jumped 1.4s ease-out; border-radius: 6px; }
+@keyframes jumped { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
 
 {{FOCUS_CSS}}
 
@@ -606,14 +608,22 @@ kbd {
     pages.forEach((p) => p.classList.toggle('active', p.dataset.page === page));
     navItems.forEach((a) => a.classList.toggle('active', a.dataset.nav === page));
   };
+  // `page/sub/section`: a stat tile names the section it counts, which scrolls into view
+  // and flashes, so a tile on its own tab still visibly lands somewhere.
   const open = (spec) => {
-    const [name, sub] = (spec || '').split('/');
+    const [name, sub, section] = (spec || '').split('/');
     show(name);
     if (!sub) return;
     const active = document.querySelector('.page.active');
     active?.querySelectorAll('.subtab').forEach((button) => {
       if (button.dataset.subtab === sub) button.click();
     });
+    const target = section ? document.getElementById(section) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.remove('jumped');
+    void target.offsetWidth;
+    target.classList.add('jumped');
   };
   // Click-driven (not <a href="#…">): Obsidian's HTML viewer swallows anchor
   // navigation, so nav items are plain elements routed by hand. The hash is

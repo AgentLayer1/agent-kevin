@@ -139,13 +139,13 @@ interface StatTile {
   tone?: 'bad' | 'warn' | 'good' | '';
   /** One quiet line under the label: the oldest, the next, the breakdown. */
   caption?: string;
-  /** `page/sub` the tile opens, e.g. `tasks/agenda`. */
+  /** Where the tile leads: `page/sub`, plus `/<element id>` to scroll to the section it counts. */
   nav?: string;
 }
 
 const statTile = ({ num, label, tone = '', caption = '', nav = '' }: StatTile): string =>
   `<div class="stat${tone ? ` ${tone}` : ''}${nav ? ' link' : ''}"${
-    nav ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Open ${esc(nav.replace('/', ' › '))}"` : ''
+    nav ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Show ${esc(label)}"` : ''
   }><div class="top"><span class="num">${esc(String(num))}</span><span class="lab">${esc(label)}</span></div>${
     caption ? `<div class="cap">${esc(caption)}</div>` : ''
   }</div>`;
@@ -260,9 +260,17 @@ const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {
   )}">${esc(ref.priority)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody"><div class="tb-meta">${items.join('')}</div>${note}</div></details>`;
 };
 
-const taskGroup = (title: string, refs: TaskRef[], snap: StatusSnapshot, options: TaskRowOptions = {}): string =>
+const taskGroup = (
+  title: string,
+  refs: TaskRef[],
+  snap: StatusSnapshot,
+  options: TaskRowOptions = {},
+  id = ''
+): string =>
   refs.length
-    ? `<h3 class="group">${esc(title)} · ${refs.length}</h3>${refs.map((ref) => taskRow(ref, snap, options)).join('')}`
+    ? `<h3 class="group"${id ? ` id="${id}"` : ''}>${esc(title)} · ${refs.length}</h3>${refs
+        .map((ref) => taskRow(ref, snap, options))
+        .join('')}`
     : '';
 
 /** Project filter chips for the Tasks page — All + one per project present in
@@ -381,7 +389,7 @@ const focusStats = (snap: StatusSnapshot): string => {
   const waiting = focus.snapshot?.groups.reduce((total, group) => total + group.items.length, 0) ?? 0;
   const oldest = focus.lanes.carried.map((task) => task.horizon).sort()[0];
   const earliestDue = focus.dueUnplanned.map((task) => task.due).sort()[0];
-  const nav = 'today/focus';
+  const nav = (section: string) => `today/focus/focus-${section}`;
   return statStrip([
     {
       num: `${focus.lanes.today.length}/3`,
@@ -392,41 +400,41 @@ const focusStats = (snap: StatusSnapshot): string => {
         : focus.lanes.today.length
           ? 'planned'
           : 'not planned yet',
-      nav
+      nav: nav('today')
     },
     {
       num: focus.lanes.carried.length,
       label: 'carried over',
       tone: focus.lanes.carried.length ? 'warn' : '',
       caption: oldest ? `oldest from ${horizonLabel(oldest)}` : 'none',
-      nav
+      nav: nav('carried')
     },
     {
       num: focus.dueUnplanned.length,
       label: 'due, not planned',
       tone: focus.dueUnplanned.length ? 'bad' : '',
       caption: earliestDue ? dueLabel(earliestDue, focus.today).text : 'none',
-      nav
+      nav: nav('due')
     },
     {
       num: `${focus.planned.week.done.length}/${weekTotal}`,
       label: 'this week',
       caption: `${focus.weekGoals.length} goal${focus.weekGoals.length === 1 ? '' : 's'}`,
-      nav
+      nav: nav('week')
     },
     {
       num: focus.roadmap.milestones.length,
       label: 'milestones',
       tone: slipped ? 'warn' : '',
       caption: slipped ? `${slipped} slipped` : gaps ? `${gaps} with no task` : 'all moving',
-      nav
+      nav: nav('roadmap')
     },
     {
       num: focus.snapshot ? waiting : '—',
       label: 'waiting on you',
       tone: waiting ? 'warn' : '',
-      caption: focus.snapshot ? `pulled ${focus.queuePulled}` : 'not pulled yet',
-      nav
+      caption: focus.queuePulled ? `pulled ${focus.queuePulled.day || focus.queuePulled.time}` : 'not pulled yet',
+      nav: nav('queue')
     }
   ]);
 };
@@ -592,10 +600,16 @@ const pageTasks = (snap: StatusSnapshot): string => {
     groups.set(key, [...(groups.get(key) ?? []), ref]);
   }
   const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue)}${[
-    taskGroup('▶ In flight', tasks.activeList, snap),
-    taskGroup('⏰ Overdue', groups.get('overdue') ?? [], snap),
-    taskGroup('📅 Due today', groups.get('today') ?? [], snap),
-    taskGroup('🗓 Due this week', groups.get('week') ?? [], snap),
+    taskGroup(
+      '▶ In flight',
+      [...tasks.activeList].sort((left, right) => (left.due || '9999').localeCompare(right.due || '9999')),
+      snap,
+      {},
+      'agenda-active'
+    ),
+    taskGroup('⏰ Overdue', groups.get('overdue') ?? [], snap, {}, 'agenda-overdue'),
+    taskGroup('📅 Due today', groups.get('today') ?? [], snap, {}, 'agenda-today'),
+    taskGroup('🗓 Due this week', groups.get('week') ?? [], snap, {}, 'agenda-week'),
     taskGroup('📆 Due this month', groups.get('month') ?? [], snap),
     taskGroup('🔭 Due later', groups.get('later') ?? [], snap),
     taskGroup('♾ No due date', groups.get('someday') ?? [], snap)
@@ -613,43 +627,70 @@ const pageTasks = (snap: StatusSnapshot): string => {
       ref.blockedBy || `depends on ${ref.dependsOn.join(', ') || '?'}`
     )}</span>${projChip(ref.project)}</div>`;
   const attentionBody =
-    (blocked.length ? `<h3 class="group">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}` : '') +
+    (blocked.length
+      ? `<h3 class="group" id="attention-blocked">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}`
+      : '') +
     (tasks.staleList.length
-      ? `<h3 class="group">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
+      ? `<h3 class="group" id="attention-stale">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
       : '');
   const attention = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([
     ...blocked,
     ...tasks.staleList
   ])}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
 
-  const dueToday = tasks.queue.filter((ref) => ref.due === today);
-  const dueWeek = tasks.queue.filter(
-    (ref) => ref.due && daysBetween(today, ref.due) > 0 && daysBetween(today, ref.due) <= 7
-  );
+  // Counted from the agenda's own buckets, so a tile's number is what its group lists
+  // plus the in-flight tasks that share its deadline.
+  const due = (key: string) => ({
+    listed: groups.get(key)?.length ?? 0,
+    active: tasks.activeList.filter((ref) => dueBucket(ref) === key).length
+  });
+  const inFlight = (count: number) => (count ? `${count} in flight` : '');
+  // A deadline whose tasks are all in flight has no group of its own; its tile lands on In flight.
+  const lands = (bucket: { listed: number; active: number }, id: string) =>
+    `tasks/agenda/${!bucket.listed && bucket.active ? 'agenda-active' : id}`;
+  const overdue = due('overdue');
+  const dueToday = due('today');
+  const dueWeek = due('week');
   const oldestOverdue = tasks.overdueList.map((ref) => ref.due).sort()[0];
   const stats = statStrip([
     {
-      num: tasks.overdueList.length,
+      num: overdue.listed + overdue.active,
       label: 'overdue',
-      tone: tasks.overdueList.length ? 'bad' : 'good',
+      tone: overdue.listed + overdue.active ? 'bad' : 'good',
       caption: oldestOverdue ? `oldest ${dueLabel(oldestOverdue, today).text}` : 'none',
-      nav: 'tasks/agenda'
+      nav: lands(overdue, 'agenda-overdue')
     },
-    { num: dueToday.length, label: 'due today', tone: dueToday.length ? 'warn' : '', nav: 'tasks/agenda' },
-    { num: dueWeek.length, label: 'due this week', caption: 'next 7 days', nav: 'tasks/agenda' },
+    {
+      num: dueToday.listed + dueToday.active,
+      label: 'due today',
+      tone: dueToday.listed + dueToday.active ? 'warn' : '',
+      caption: inFlight(dueToday.active),
+      nav: lands(dueToday, 'agenda-today')
+    },
+    {
+      num: dueWeek.listed + dueWeek.active,
+      label: 'due this week',
+      caption: inFlight(dueWeek.active) || 'next 7 days',
+      nav: lands(dueWeek, 'agenda-week')
+    },
     {
       num: tasks.activeList.length,
       label: 'in flight',
       tone: tasks.activeList.length ? 'good' : '',
-      nav: 'tasks/agenda'
+      nav: 'tasks/agenda/agenda-active'
     },
-    { num: blocked.length, label: 'blocked', tone: blocked.length ? 'bad' : '', nav: 'tasks/attention' },
+    {
+      num: blocked.length,
+      label: 'blocked',
+      tone: blocked.length ? 'bad' : '',
+      nav: 'tasks/attention/attention-blocked'
+    },
     {
       num: tasks.stale,
       label: 'going stale',
       tone: tasks.stale ? 'warn' : '',
       caption: 'no update in 7d',
-      nav: 'tasks/attention'
+      nav: 'tasks/attention/attention-stale'
     }
   ]);
 
@@ -676,7 +717,13 @@ const projectStats = (snap: StatusSnapshot): string => {
   return statStrip([
     { num: loads.length, label: 'projects', caption: `${loads.length - quiet} with live tasks` },
     { num: moving, label: 'moving', tone: moving ? 'good' : '', caption: 'updated in 7 days' },
-    { num: stuck, label: 'with blockers', tone: stuck ? 'bad' : '', caption: 'a blocked task', nav: 'tasks/attention' },
+    {
+      num: stuck,
+      label: 'with blockers',
+      tone: stuck ? 'bad' : '',
+      caption: 'a blocked task',
+      nav: 'tasks/attention/attention-blocked'
+    },
     { num: quiet, label: 'quiet', caption: 'no live tasks' },
     { num: all ? `${Math.round((done / all) * 100)}%` : '—', label: 'done overall', caption: `${done} of ${all} tasks` }
   ]);
@@ -731,7 +778,7 @@ const sessionStats = (snap: StatusSnapshot): string => {
       num: radar ? radar.sessions.length : '—',
       label: 'on the radar',
       caption: radar ? `as of ${radar.date === today ? radar.time : `${radar.date} ${radar.time}`}` : 'no radar yet',
-      nav: 'sessions/radar'
+      nav: 'sessions/radar/sessions-radar'
     }
   ]);
 };
@@ -842,7 +889,7 @@ const radarTab = (snap: StatusSnapshot): string => {
   // Filter input sits outside `.section` so it gets the same top spacing as the
   // History tab's filterbox; `.flush` tightens the section's top margin to 8px
   // so the gap below the bar matches History's first heading too.
-  return `<div data-filterbox>${filterInput('filter sessions…')}<div class="section flush"><h2>Latest radar<i></i>${meta}</h2><div class="radar-md">${latest.html}</div></div></div>${more}`;
+  return `<div data-filterbox>${filterInput('filter sessions…')}<div class="section flush" id="sessions-radar"><h2>Latest radar<i></i>${meta}</h2><div class="radar-md">${latest.html}</div></div></div>${more}`;
 };
 
 const pageBrain = (snap: StatusSnapshot): string => {
@@ -1823,7 +1870,12 @@ const pageStatus = (snap: StatusSnapshot): string => {
   const missing = context.staticImports.filter((item) => !item.present);
 
   const stats = statStrip([
-    { num: health.overdue, label: 'overdue tasks', tone: health.overdue ? 'bad' : 'good', nav: 'tasks/agenda' },
+    {
+      num: health.overdue,
+      label: 'overdue tasks',
+      tone: health.overdue ? 'bad' : 'good',
+      nav: 'tasks/agenda/agenda-overdue'
+    },
     {
       num: health.pendingCompiles,
       label: 'pending compiles',
@@ -1838,7 +1890,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
       nav: 'brain/context'
     },
     { num: health.malformedTasks, label: 'unreadable tasks', tone: health.malformedTasks ? 'bad' : 'good' },
-    { num: tasks.stale, label: 'stale', caption: 'info only', nav: 'tasks/attention' }
+    { num: tasks.stale, label: 'stale', caption: 'info only', nav: 'tasks/attention/attention-stale' }
   ]);
 
   const malformedBody =
