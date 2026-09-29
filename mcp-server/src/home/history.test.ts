@@ -40,12 +40,16 @@ const makeHome = (parent: string, name = 'Ada'): string => {
   return home;
 };
 
-const settingsOf = (home: string) =>
-  JSON.parse(readFileSync(join(home, '.claude', 'settings.local.json'), 'utf-8')) as {
-    env?: Record<string, string>;
-    permissions?: { allow?: string[]; additionalDirectories?: string[] };
-    sandbox?: { filesystem?: { allowWrite?: string[]; denyRead?: string[] } };
-  };
+interface Settings {
+  env?: Record<string, string>;
+  permissions?: { allow?: string[]; additionalDirectories?: string[] };
+  sandbox?: { filesystem?: { allowWrite?: string[]; denyRead?: string[] } };
+}
+
+const readSettings = (home: string, file: string): Settings =>
+  JSON.parse(readFileSync(join(home, '.claude', file), 'utf-8')) as Settings;
+const settingsOf = (home: string): Settings => readSettings(home, 'settings.local.json');
+const projectSettingsOf = (home: string): Settings => readSettings(home, 'settings.json');
 
 const commitCount = (home: string): number => Number(git(home, 'rev-list', '--count', 'HEAD'));
 
@@ -75,15 +79,15 @@ describe('setupHistory', () => {
     expect(existsSync(join(home, '.claude', 'settings.local.json'))).toBe(false);
   });
 
-  test('a synced home keeps its history in the local state folder, recorded with both grants', () => {
+  test('a synced home keeps its history in the local state folder, recorded locally with both grants in the project', () => {
     const home = makeHome(syncedRoot);
     const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
     expect(historyStatus(home, historyEnv).historyFolder).toBe(gitDir);
     const result = setupHistory(home, {}, historyEnv);
     expect(result.outcome).toBe('turned-on');
     expect(readFileSync(join(home, '.git'), 'utf-8')).toBe(`gitdir: ${gitDir}\n`);
-    expect(settingsOf(home)).toEqual({
-      env: { AGENT_HOME_GIT_DIR: gitDir },
+    expect(settingsOf(home)).toEqual({ env: { AGENT_HOME_GIT_DIR: gitDir } });
+    expect(projectSettingsOf(home)).toEqual({
       permissions: { additionalDirectories: [gitDir] },
       sandbox: { filesystem: { allowWrite: [gitDir] } }
     });
@@ -126,21 +130,46 @@ describe('setupHistory', () => {
 
   test("keeps the operator's own settings entries", () => {
     const home = makeHome(syncedRoot);
+    write(join(home, '.claude', 'settings.local.json'), JSON.stringify({ env: { AGENT_CODE_PATH: '/code/acme' } }));
     write(
-      join(home, '.claude', 'settings.local.json'),
+      join(home, '.claude', 'settings.json'),
       JSON.stringify({
-        env: { AGENT_CODE_PATH: '/code/acme' },
         permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code'] },
         sandbox: { filesystem: { allowWrite: ['/code'], denyRead: ['.kevin/secrets'] } }
       })
     );
     setupHistory(home, {}, historyEnv);
     const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
-    expect(settingsOf(home)).toEqual({
-      env: { AGENT_CODE_PATH: '/code/acme', AGENT_HOME_GIT_DIR: gitDir },
+    expect(settingsOf(home)).toEqual({ env: { AGENT_CODE_PATH: '/code/acme', AGENT_HOME_GIT_DIR: gitDir } });
+    expect(projectSettingsOf(home)).toEqual({
       permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code', gitDir] },
       sandbox: { filesystem: { allowWrite: ['/code', gitDir], denyRead: ['.kevin/secrets'] } }
     });
+  });
+
+  test('grants an earlier release recorded in the local settings move to the project settings', () => {
+    const home = makeHome(syncedRoot);
+    setupHistory(home, {}, historyEnv);
+    const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
+    write(
+      join(home, '.claude', 'settings.local.json'),
+      JSON.stringify({
+        env: { AGENT_HOME_GIT_DIR: gitDir },
+        permissions: { additionalDirectories: [gitDir] },
+        sandbox: { filesystem: { allowWrite: ['/code', gitDir] } }
+      })
+    );
+    rmSync(join(home, '.claude', 'settings.json'));
+    expect(setupHistory(home, {}, historyEnv)).toMatchObject({ outcome: 'already-on', settingsChanged: true });
+    expect(settingsOf(home)).toEqual({
+      env: { AGENT_HOME_GIT_DIR: gitDir },
+      sandbox: { filesystem: { allowWrite: ['/code'] } }
+    });
+    expect(projectSettingsOf(home)).toEqual({
+      permissions: { additionalDirectories: [gitDir] },
+      sandbox: { filesystem: { allowWrite: [gitDir] } }
+    });
+    expect(setupHistory(home, {}, historyEnv).settingsChanged).toBe(false);
   });
 
   test('sets a repo-local identity when the machine has none', () => {
@@ -312,10 +341,10 @@ describe('leftovers from the pre-release review', () => {
     const adopted = setupHistory(home, {}, historyEnv);
     expect(adopted).toMatchObject({ outcome: 'already-on', settingsChanged: true });
     expect(commitCount(home)).toBe(1);
-    const settings = settingsOf(home);
-    expect(settings.env?.AGENT_HOME_GIT_DIR).toBe(handMoved);
-    expect(settings.permissions?.additionalDirectories).toContain(handMoved);
-    expect(settings.sandbox?.filesystem?.allowWrite).toContain(handMoved);
+    expect(settingsOf(home).env?.AGENT_HOME_GIT_DIR).toBe(handMoved);
+    const grants = projectSettingsOf(home);
+    expect(grants.permissions?.additionalDirectories).toContain(handMoved);
+    expect(grants.sandbox?.filesystem?.allowWrite).toContain(handMoved);
     expect(setupHistory(home, {}, historyEnv).settingsChanged).toBe(false);
   });
 

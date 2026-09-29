@@ -1,6 +1,6 @@
 /**
  * home_history — MCP wrapper around @/home/history. It runs outside the Bash sandbox, which refuses
- * to create `.git` at the working-directory root, and writes the home's `settings.local.json`
+ * to create `.git` at the working-directory root, and writes the home's settings record and
  * grants itself so the merge is deterministic. The `history` skill owns the conversation.
  */
 import { FOLDERS } from '@/config';
@@ -17,7 +17,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'home_history',
     description:
-      "Version history for this agent home. `status` reports on/off, where it's kept, the last snapshot, and, for a synced home, the local folder setup will use; its only write puts back a .git link a synced folder deleted (`restored`). `setup` turns it on (in place, or kept outside a cloud-synced folder with its path and sandbox grants recorded in .claude/settings.local.json) and makes the first snapshot; idempotent. When it records new grants on a home wired for Codex, it regenerates the Codex wiring too and returns that report as `codex`. A home whose version history is set up some other way is left alone. Runs outside the Bash sandbox.",
+      "Version history for this agent home. `status` reports on/off, where it's kept, the last snapshot, and, for a synced home, the local folder setup will use; its only write puts back a .git link a synced folder deleted (`restored`). `setup` turns it on (in place, or kept outside a cloud-synced folder with its path recorded in .claude/settings.local.json and its directory and sandbox grants in .claude/settings.json) and makes the first snapshot; idempotent. When it records new grants on a home wired for Codex, it regenerates the Codex wiring too and returns that report as `codex`. A home whose version history is set up some other way is left alone. Runs outside the Bash sandbox.",
     inputSchema: {
       action: z.enum(['status', 'setup']),
       name: z.string().optional().describe("setup: the operator's name, used only when this machine has no git identity."),

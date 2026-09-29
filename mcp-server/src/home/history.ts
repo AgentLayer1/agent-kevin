@@ -138,8 +138,9 @@ type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const readSettings = (home: string): Json => {
-  const path = localSettingsPath(home);
+const projectSettingsPath = (home: string): string => join(home, '.claude', 'settings.json');
+
+const readSettings = (path: string): Json => {
   if (!existsSync(path)) {
     return {};
   }
@@ -163,27 +164,70 @@ const child = (parent: Json, key: string): Json => {
 const stringList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
+/** Write the settings file at `path` when `edit` changes it. Returns whether it wrote. */
+const updateSettings = (path: string, edit: (settings: Json) => void): boolean => {
+  const settings = readSettings(path);
+  const before = JSON.stringify(settings);
+  edit(settings);
+  if (JSON.stringify(settings) === before) {
+    return false;
+  }
+  writeFileAtomic(path, JSON.stringify(settings, null, 2) + '\n');
+  return true;
+};
+
 /** The grant pair init writes for the code root: Read/Edit/Write tools, then sandboxed Bash. */
 const GRANT_PATHS: readonly (readonly string[])[] = [
   ['permissions', 'additionalDirectories'],
   ['sandbox', 'filesystem', 'allowWrite']
 ];
 
-/** Record the split location with its grants, keeping the operator's entries. Returns whether the file changed. */
-const recordLocation = (home: string, gitDir: string): boolean => {
-  const settings = readSettings(home);
-  const before = JSON.stringify(settings);
-  child(settings, 'env')[HOME_GIT_DIR_KEY] = gitDir;
-  GRANT_PATHS.forEach((path) => {
-    const owner = path.slice(0, -1).reduce<Json>((node, key) => child(node, key), settings);
-    const key = path[path.length - 1] ?? '';
-    owner[key] = [...new Set([...stringList(owner[key]), gitDir])];
-  });
-  if (JSON.stringify(settings) === before) {
+/** Remove `entry` from the list at `path`, pruning a list or object the removal left empty. Returns whether it removed. */
+const dropEntry = (node: Json, path: readonly string[], entry: string): boolean => {
+  const [key, ...rest] = path;
+  if (key === undefined) {
     return false;
   }
-  writeFileAtomic(localSettingsPath(home), JSON.stringify(settings, null, 2) + '\n');
+  const value = node[key];
+  if (rest.length === 0) {
+    if (!Array.isArray(value) || !value.includes(entry)) {
+      return false;
+    }
+    const kept = value.filter((item) => item !== entry);
+    if (kept.length === 0) {
+      delete node[key];
+    } else {
+      node[key] = kept;
+    }
+    return true;
+  }
+  if (!isObject(value) || !dropEntry(value, rest, entry)) {
+    return false;
+  }
+  if (Object.keys(value).length === 0) {
+    delete node[key];
+  }
   return true;
+};
+
+/**
+ * Record the split location in the local settings and its grants in the project settings, keeping
+ * the operator's entries. Grants an earlier release wrote to the local settings move over. Returns
+ * whether either file changed.
+ */
+const recordLocation = (home: string, gitDir: string): boolean => {
+  const local = updateSettings(localSettingsPath(home), (settings) => {
+    child(settings, 'env')[HOME_GIT_DIR_KEY] = gitDir;
+    GRANT_PATHS.forEach((path) => dropEntry(settings, path, gitDir));
+  });
+  const project = updateSettings(projectSettingsPath(home), (settings) =>
+    GRANT_PATHS.forEach((path) => {
+      const owner = path.slice(0, -1).reduce<Json>((node, key) => child(node, key), settings);
+      const key = path[path.length - 1] ?? '';
+      owner[key] = [...new Set([...stringList(owner[key]), gitDir])];
+    })
+  );
+  return local || project;
 };
 
 /** A path git printed, in this platform's own form (Git for Windows prints `C:/…`). */
@@ -272,12 +316,12 @@ const pinWorkingCopy = (home: string): void => {
 
 /** Drop the recorded location, keeping every other setting. */
 const forgetRecord = (home: string): void => {
-  const settings = readSettings(home);
-  const env = settings.env;
-  if (isObject(env) && HOME_GIT_DIR_KEY in env) {
-    delete env[HOME_GIT_DIR_KEY];
-    writeFileAtomic(localSettingsPath(home), JSON.stringify(settings, null, 2) + '\n');
-  }
+  updateSettings(localSettingsPath(home), (settings) => {
+    const env = settings.env;
+    if (isObject(env)) {
+      delete env[HOME_GIT_DIR_KEY];
+    }
+  });
 };
 
 /**

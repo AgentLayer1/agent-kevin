@@ -46,7 +46,7 @@ describe('home_history tool', () => {
     expect(withoutCodex).toMatchObject({ settingsChanged: true, codexWired: false });
     expect(withoutCodex.codex).toBeUndefined();
 
-    writeFileSync(resolve(HOME, '.claude', 'settings.local.json'), JSON.stringify({ env: { AGENT_HOME_GIT_DIR: GIT_DIR } }));
+    writeFileSync(resolve(HOME, '.claude', 'settings.json'), '{}\n');
     mkdirSync(resolve(HOME, '.codex'), { recursive: true });
     writeFileSync(resolve(HOME, '.codex', 'config.toml'), '');
     const regranted = await setup();
