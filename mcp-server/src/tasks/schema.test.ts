@@ -31,6 +31,16 @@ describe('frontmatter round trip', () => {
     expect(() => Bun.YAML.parse(block)).not.toThrow();
   });
 
+  test('a list item with a tab or newline comes back unchanged', () => {
+    const labels = ['work:\tfinance', 'note:a\nb', 'plain', 'C:\\dir'];
+    expect(parseFrontmatter(task('x', labels))?.labels).toEqual(labels);
+  });
+
+  test('an older unescaped list item with a backslash still reads', () => {
+    const raw = task('x', []).replace('labels: []', 'labels: ["C:\\dir", ok]');
+    expect(parseFrontmatter(raw)?.labels).toEqual(['C:dir', 'ok']);
+  });
+
   test('an older unescaped title still reads', () => {
     const raw = task('x', []).replace('title: x', 'title: "Build a "voice of Ada" profile"');
     expect(parseFrontmatter(raw)?.title).toBe('Build a "voice of Ada" profile');

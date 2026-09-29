@@ -55,27 +55,47 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
  * Split a YAML inline array body (between [ and ]) into items,
  * respecting single- and double-quoted strings so quoted commas don't split items.
  */
+const decodeQuoted = (raw: string, fallback: string): string => {
+  try {
+    const parsed: unknown = JSON.parse(`"${raw}"`);
+    return typeof parsed === 'string' ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const splitInlineArray = (inner: string): string[] => {
   const items: string[] = [];
   let buf = '';
+  let raw = '';
+  let quotedFrom = 0;
   let quote: '"' | "'" | null = null;
   let escaped = false;
   for (const ch of inner) {
     if (quote) {
       if (escaped) {
         buf += ch;
+        raw += ch;
         escaped = false;
       } else if (quote === '"' && ch === '\\') {
+        raw += ch;
         escaped = true;
       } else if (ch === quote) {
+        // A double-quoted item is written JSON-escaped (\t, \n); decode it the way scalars are.
+        if (quote === '"') {
+          buf = buf.slice(0, quotedFrom) + decodeQuoted(raw, buf.slice(quotedFrom));
+        }
         quote = null;
       } else {
         buf += ch;
+        raw += ch;
       }
       continue;
     }
     if (ch === '"' || ch === "'") {
       quote = ch;
+      raw = '';
+      quotedFrom = buf.length;
       continue;
     }
     if (ch === ',') {
