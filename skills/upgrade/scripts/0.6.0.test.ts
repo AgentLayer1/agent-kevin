@@ -51,3 +51,38 @@ describe('0.6.0 home focus page retirement', () => {
     expect(readFileSync(join(home, 'projects/acme/focus.html'), 'utf-8')).toBe(GENERATED);
   });
 });
+
+describe('0.6.0 retired skill grants', () => {
+  const settings = (allow: string[]) =>
+    `${JSON.stringify({ model: 'opus', permissions: { allow, ask: ['Skill(agent-kevin:standup)'] } }, null, 2)}\n`;
+
+  test('drops exactly the two retired grants, keeps everything else in order, then is a no-op', () => {
+    const home = makeHome({
+      '.claude/settings.json': settings([
+        'Skill(agent-kevin:dashboard)',
+        'Skill(agent-kevin:standup)',
+        'Skill(agent-kevin:focus)',
+        'Skill(agent-kevin:where-am-i)',
+        'Skill(other:standup)'
+      ])
+    });
+    expect(run(home)).toMatchObject({
+      grantsDropped: ['Skill(agent-kevin:standup)', 'Skill(agent-kevin:where-am-i)']
+    });
+    const after = JSON.parse(readFileSync(join(home, '.claude/settings.json'), 'utf-8'));
+    expect(after).toEqual({
+      model: 'opus',
+      permissions: {
+        allow: ['Skill(agent-kevin:dashboard)', 'Skill(agent-kevin:focus)', 'Skill(other:standup)'],
+        ask: ['Skill(agent-kevin:standup)']
+      }
+    });
+    const before = readFileSync(join(home, '.claude/settings.json'), 'utf-8');
+    expect(run(home)).toMatchObject({ grantsDropped: [] });
+    expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(before);
+  });
+
+  test('a home without settings is a no-op', () => {
+    expect(run(makeHome())).toMatchObject({ ok: true, grantsDropped: [] });
+  });
+});
