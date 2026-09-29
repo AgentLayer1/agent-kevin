@@ -107,7 +107,7 @@ export interface PendingClose {
 const DEFAULT_LEAD_DAYS = 21;
 const MONTHS_AROUND = 36;
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
-const MONTH_RE = /^\d{4}-\d{2}$/;
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 const lastDayOf = (year: number, month: number): number => new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -232,7 +232,7 @@ const monthField = (slug: string, data: Record<string, unknown>, field: string):
     return null;
   }
   if (typeof raw !== "string" || !MONTH_RE.test(raw)) {
-    throw new Error(`entities/${slug}.md: ${field} must be a quoted "YYYY-MM"`);
+    throw new Error(`entities/${slug}.md: ${field} must be a quoted "YYYY-MM" with a month from 01 to 12`);
   }
   return raw;
 };
@@ -262,11 +262,11 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     const id = isRecord(invalid) && typeof invalid.id === "string" ? invalid.id : JSON.stringify(invalid);
     throw new Error(`entities/${slug}.md: obligation ${id} is malformed (needs id, title, period, due)`);
   }
-  const unquotedBound = obligations
+  const badBound = obligations
     .filter(isObligation)
     .find((item) => [item.from, item.until].some((bound) => bound !== undefined && (typeof bound !== "string" || !MONTH_RE.test(bound))));
-  if (unquotedBound !== undefined) {
-    throw new Error(`entities/${slug}.md: obligation ${unquotedBound.id} needs from and until as quoted "YYYY-MM" (YAML reads an unquoted 2026-07 as a number)`);
+  if (badBound !== undefined) {
+    throw new Error(`entities/${slug}.md: obligation ${badBound.id} needs from and until as a quoted "YYYY-MM" with a month from 01 to 12 (YAML reads an unquoted 2026-07 as a number)`);
   }
   const listedAccounts = yamlBlock(raw, "Accounts");
   const accounts: unknown[] = Array.isArray(listedAccounts) ? listedAccounts : [];

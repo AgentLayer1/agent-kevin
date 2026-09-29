@@ -152,6 +152,14 @@ describe("parseEntity", () => {
   });
 });
 
+test("parseEntity refuses an impossible month in a bound or in booked_through", () => {
+  ['"2026-13"', '"2026-00"', '"2026-99"'].forEach((month) => {
+    expect(() => parseEntity("acme", profile.replace('from: "2026-07" }', `from: ${month} }`))).toThrow("form-c");
+    expect(() => parseEntity("acme", profile.replace("close: monthly", `close: monthly\nbooked_through: ${month}`))).toThrow("booked_through");
+  });
+  expect(parseEntity("acme", profile.replace("close: monthly", 'close: monthly\nbooked_through: "2026-12"')).bookedThrough).toBe("2026-12");
+});
+
 test("parseEntity refuses an unquoted from or until month instead of dropping every deadline", () => {
   const unquoted = profile.replace('from: "2026-07" }', "from: 2026-07 }");
   expect(unquoted).not.toBe(profile);
