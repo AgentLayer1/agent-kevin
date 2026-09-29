@@ -603,6 +603,16 @@ const tasks: DemoTask[] = [
     updated: -1
   },
   {
+    id: 'gr-014',
+    project: 'growth',
+    slug: 'board-activation-numbers',
+    title: 'Send the board the activation funnel numbers',
+    status: 'open',
+    priority: 'P1',
+    due: 0,
+    updated: -1
+  },
+  {
     id: 'gr-009',
     project: 'growth',
     slug: 'onboarding-email-rework',

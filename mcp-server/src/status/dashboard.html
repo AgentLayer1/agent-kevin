@@ -103,11 +103,12 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 
 /* ── stat strip ────────────────────────────────────────────────────── */
 .statstrip {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px;
-  margin: 20px 0 4px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;
+  margin: 16px 0 2px;
 }
 .stat {
-  position: relative; padding: 12px 14px 11px 16px; border-radius: 10px;
+  position: relative; padding: 7px 12px 7px 14px; border-radius: 8px;
+  display: flex; flex-direction: column; justify-content: center;
   background: var(--panel); border: 1px solid var(--border); overflow: hidden;
 }
 .stat::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--border); }
@@ -116,12 +117,13 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat.good::before { background: var(--green); }
 .stat.link { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .stat.link:hover, .stat.link:focus-visible { border-color: var(--accent); background: var(--panel-2); outline: none; }
-.stat .num { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.15; }
+.stat .top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.stat .num { flex: none; font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .stat.bad .num { color: var(--red); }
 .stat.warn .num { color: var(--amber); }
 .stat.good .num { color: var(--green); }
-.stat .lab { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
-.stat .cap { color: var(--dim); font-size: 11px; margin-top: 4px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .lab { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .cap { color: var(--dim); font-size: 10.5px; margin-top: 1px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 {{FOCUS_CSS}}
 

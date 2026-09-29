@@ -146,7 +146,7 @@ interface StatTile {
 const statTile = ({ num, label, tone = '', caption = '', nav = '' }: StatTile): string =>
   `<div class="stat${tone ? ` ${tone}` : ''}${nav ? ' link' : ''}"${
     nav ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Open ${esc(nav.replace('/', ' › '))}"` : ''
-  }><div class="num">${esc(String(num))}</div><div class="lab">${esc(label)}</div>${
+  }><div class="top"><span class="num">${esc(String(num))}</span><span class="lab">${esc(label)}</span></div>${
     caption ? `<div class="cap">${esc(caption)}</div>` : ''
   }</div>`;
 
@@ -405,7 +405,11 @@ const focusStats = (snap: StatusSnapshot): string => {
       num: focus.dueUnplanned.length,
       label: 'due, not planned',
       tone: focus.dueUnplanned.length ? 'bad' : '',
-      caption: earliestDue ? `since ${earliestDue}` : 'none',
+      caption: !earliestDue
+        ? 'none'
+        : earliestDue === focus.today
+          ? 'due today'
+          : `oldest due ${horizonLabel(earliestDue)}`,
       nav
     },
     {
@@ -416,7 +420,7 @@ const focusStats = (snap: StatusSnapshot): string => {
     },
     {
       num: focus.roadmap.milestones.length,
-      label: 'roadmap in flight',
+      label: 'milestones',
       tone: slipped ? 'warn' : '',
       caption: slipped ? `${slipped} slipped` : gaps ? `${gaps} with no task` : 'all moving',
       nav
