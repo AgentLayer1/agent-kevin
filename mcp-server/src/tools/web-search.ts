@@ -45,7 +45,11 @@ export const tools: ToolDef[] = [
     },
     handler: async ({ query, max_results, recency, domains, country, max_tokens_per_page }) => {
       const key = env('PERPLEXITY_API_KEY');
-      if (!key) throw new Error('PERPLEXITY_API_KEY env var not set');
+      if (!key) {
+        throw new Error(
+          "PERPLEXITY_API_KEY env var not set. Perplexity is optional: use the host's built-in web search instead."
+        );
+      }
 
       const body: PerplexityRequestBody = {
         query,

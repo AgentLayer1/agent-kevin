@@ -101,7 +101,7 @@ mcp__plugin_agent-kevin_kevin__gsc_inspect https://example.com/topic-keyword-c
 - ✅ "What queries drove traffic last week?" → `query`
 - ✅ "Is this URL indexed?" → `inspect`
 - ✅ "Why is this page losing rank?" → `query` with `--dim=page` for traffic trend, then `inspect` for technical issues
-- ❌ "What should I write about?" — GSC tells you what you're *already* ranking for. Use Perplexity for broader topic research.
+- ❌ "What should I write about?" — GSC tells you what you're *already* ranking for. Use web search for broader topic research.
 - ❌ Real-time traffic or analytics (sessions, bounce rate) — that's GA4 territory, not Search Console.
 
 ## Setup note

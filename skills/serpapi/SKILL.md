@@ -12,7 +12,7 @@ Live SERP ground-truth for SEO diagnosis. Requires `SERPAPI_KEY` (paid plan at h
 
 ## ⚠️ Cost awareness
 
-Each call consumes one search from the SerpAPI plan. Use it when the question genuinely needs live Google SERP data — ranking diagnosis, SERP-feature detection, intent analysis, competitor ranking snapshot. Don't use it to answer questions that GSC already answers (what *we* rank for, our own CTR, impressions) or that Perplexity can answer (topic research, summarised web knowledge).
+Each call consumes one search from the SerpAPI plan. Use it when the question genuinely needs live Google SERP data — ranking diagnosis, SERP-feature detection, intent analysis, competitor ranking snapshot. Don't use it to answer questions that GSC already answers (what *we* rank for, our own CTR, impressions) or that web search can answer (topic research, summarised web knowledge).
 
 ## ⚠️ Don't use playwright for SERPs
 
@@ -119,5 +119,5 @@ jq -n --slurpfile d /tmp/d.json --slurpfile m /tmp/m.json \
 - ✅ "What do users search for next?" → `related_searches`.
 - ✅ "What questions should a piece of content answer?" → `related_questions` (PAA).
 - ❌ "What's our traffic / CTR / indexing status?" — that's GSC, not SERP.
-- ❌ "Tell me about X" — use Perplexity. SerpAPI is SERP structure, not content synthesis.
+- ❌ "Tell me about X" — use web search. SerpAPI is SERP structure, not content synthesis.
 - ❌ "Is this page fast?" — that's `google-page-speed`.

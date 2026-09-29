@@ -1552,13 +1552,13 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt), plants the non-secret `GSC_SITE_URL` placeholder in `settings.local.json`, and ensures `.kevin/secrets/.env` exists for the secret keys you'll add via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
 >
 > - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
-> - ☑ Browser pack **(recommended)** (perplexity search + browser screenshot/pdf/record + browser-flows)
+> - ☑ Browser pack **(recommended)** (browser screenshot/pdf/record + browser-flows + optional Perplexity search)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub pack **(recommended when you gave a code path)** (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward`, which is what keeps your checkouts current on every `/agent-kevin:sync`; needs `GITHUB_TOKEN` **and** the `gh` CLI)
 > - ☐ Xcode pack (build, test, run and debug Apple apps + Swift packages through Apple's headless Xcode MCP server, with the sandbox and permission posture the toolchain needs; Xcode 27+, no API key)
 > - ☐ Third-party libraries (aaron-he-zhu SEO/GEO skills, coreyhaines31 marketing playbooks, others)
 
-Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity just waits on a key). Leave the others unticked; the user ticks any they want.
+Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity is optional: briefings use the built-in web search until a key is added). Leave the others unticked; the user ticks any they want.
 
 **Never show the Xcode row on Windows, WSL2 or Linux** — render it only when `$KEVIN_OS` = `macos`. Apple's toolchain doesn't exist on those hosts, so drop the row entirely rather than offering a pack that can only fail; a Windows operator should never see it as a choice. Leave it unticked even on macOS: plenty of Mac operators never open Xcode, and the pack asks for two manual steps (a sandbox exclusion and a sudo enablement) that are wasted on them.
 
@@ -1612,7 +1612,7 @@ For `<WORLD_ROW>`, from Step 5d: what landed, e.g. `✅ Your world    3 projects
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; fill PERPLEXITY_API_KEY in .kevin/secrets/.env), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .kevin/updates/xcode-sandbox.md and the sudo enablement)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; PERPLEXITY_API_KEY in .kevin/secrets/.env is optional), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .kevin/updates/xcode-sandbox.md and the sudo enablement)">`
 
 For `<HISTORY_ROW>`: history turned on → `✅ History      on, kept in <gitDir> (a snapshot every sync)`; declined, or git not installed → `⏳ History      off — turn it on any time with /agent-kevin:history`; stopped before the first snapshot (setup reported `refused` or `failed`) → `⏳ History      not started — finish it with /agent-kevin:history`; the folder already had version history set up some other way (`managed-by-you`) → `✅ History      your own setup, left as it is`; its saved history is gone (`history-missing`) and the operator chose not to start over → `⏳ History      not started — start a new one with /agent-kevin:history`.
 
@@ -1631,7 +1631,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > **Fill any secret/env values.** Two files, by sensitivity:
 > - **Secrets → `<HOME_DIR>/.kevin/secrets/.env`** (0600, deny-gated, gitignored; Kevin loads it into the environment at boot). If you ticked SEO / Browser / Database at Step 8, the walk created this file — add the lines you need (it's deny-gated, so you fill it yourself):
->   - `PERPLEXITY_API_KEY` — Browser pack (sign up at https://perplexity.ai/settings/api)
+>   - `PERPLEXITY_API_KEY` — Browser pack, optional: briefings use the built-in web search without it; the key adds recency and country filters (sign up at https://perplexity.ai/settings/api)
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
 >   - `AGENT_DB_<NAME>` — Database pack: one Postgres connection string per line

@@ -104,6 +104,11 @@ and prompts per optional one. The new template files are the source of truth for
   the one `bun install` command for your terminal when they aren't, the normal state after a
   marketplace install. It used to mention the install only at the end, after steps that already
   needed the plugin's server.
+- The Perplexity key is optional. Without `PERPLEXITY_API_KEY`, the morning brief (and the sync
+  that runs it) searches through the host's built-in web search, with the time window and
+  country written into the query and undated results dropped. The key still adds recency,
+  domain and country filters and dated results. Init and configure-skills present it as an
+  optional part of the Browser pack, and the tool's missing-key error points at the fallback.
 
 ### Removed
 - The `standup` and `where-am-i` skills, now `/focus standup` and `/focus where-am-i`. Reports

@@ -76,7 +76,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > **Which pack(s) to configure?** Tick any combination.
 >
 > - ☐ SEO — 6 SEO skills + the `google-search-audit` composite (already loaded; this walks API key + permission setup)
-> - ☐ Browser **(recommended)** — Perplexity research + Playwright tool permissions
+> - ☐ Browser **(recommended)** — Playwright tool permissions + optional Perplexity search (briefings fall back to the built-in web search without it)
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno visual client or plain curl scripts). No keys or permissions; this walks the adapter setup.
@@ -172,7 +172,7 @@ Fill SERPAPI_KEY + OPENPAGERANK_API_KEY in <HOME>/.kevin/secrets/.env, GSC_SITE_
 ### A.2b — Browser pack walk
 
 The Browser pack has two pieces, each independently activatable:
-1. **Perplexity** — grant `web_search` permission + ensure `PERPLEXITY_API_KEY` placeholder.
+1. **Perplexity (optional)** — grant `web_search` permission + ensure `PERPLEXITY_API_KEY` placeholder. Without it, the briefings search through the host's built-in web search; the key adds recency, domain and country filters and dated results.
 2. **Playwright + browser-flows** — grant `browser_{screenshot,pdf,record}` + `browser_flows` permissions (no key; Chromium runs locally).
 
 Neither is pre-granted by `/init` anymore — they only land when the user activates the matching piece.
@@ -182,7 +182,7 @@ Neither is pre-granted by `/init` anymore — they only land when the user activ
 `AskUserQuestion`:
 
 > **Activate Perplexity search?**
-> Adds `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` and ensures `.kevin/secrets/.env` exists. You add the `PERPLEXITY_API_KEY=<value>` line via your editor after this completes (sign up at https://perplexity.ai/settings/api). The tool stays callable but returns "missing env var" until you fill it.
+> Adds `mcp__plugin_agent-kevin_kevin__web_search` to `permissions.allow` and ensures `.kevin/secrets/.env` exists. You add the `PERPLEXITY_API_KEY=<value>` line via your editor after this completes (sign up at https://perplexity.ai/settings/api). Optional: until you fill it, the tool returns "missing env var" and briefings use the host's built-in web search, which has no recency or country filter.
 >
 > - Yes — grant permission + ensure placeholder
 > - Skip (no permission grant, no placeholder)
@@ -692,7 +692,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 > **Which pack's configuration to remove?**
 > - SEO (clears API keys + permissions; skill files stay loaded but tool calls will error)
-> - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled but goes inert without the key. Playwright tools stay since they're built-in)
+> - Browser (removes the Perplexity API key from `.kevin/secrets/.env`; the MCP server stays plugin-bundled; briefings fall back to the built-in web search. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
 > - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
 > - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
