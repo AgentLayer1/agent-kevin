@@ -2,7 +2,7 @@
 name: weekly-goals
 description: Set this week's goals — reads the full task board + recent sessions, then interviews you (2-3 rounds) before drafting. Writes the goals block in TASKS.md. Run on Sunday or Monday.
 disable-model-invocation: true
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_create, AskUserQuestion, Read, Write, Edit, Glob, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Write, Edit, Glob, Bash
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
@@ -63,44 +63,9 @@ Output to the user as a draft, then offer to write it into `<HOME>/projects/TASK
 
 ## Persist
 
-If the user confirms, edit `<HOME>/projects/TASKS.md` and **replace only the `## Weekly Goals` block inside the `<!-- GOALS:START -->...<!-- GOALS:END -->` markers**. Leave `## Monthly Goals` (also inside the markers) and everything outside the markers untouched — the task-list sections are auto-rebuilt by Kevin and will be overwritten on the next mutation.
+If the user confirms, apply the goals through the focus skill's [Apply the week](../focus/references/playbooks/week.md#apply-the-week) procedure, so the week's tasks and the Weekly Goals block in `TASKS.md` are the same list. It plans each goal's task for the week, writes the `## Weekly Goals` block, snapshots it with `report_write` (`skill: 'weekly-goals'` here), and stamps the cadence watermark, in that order. Carry the "In flight" and "Explicitly NOT this week" lines into the snapshot body, not the block.
 
-Replace from `## Weekly Goals` up to (but not including) the next `##` heading or `<!-- GOALS:END -->` with:
-
-```markdown
-## Weekly Goals — Week of <YYYY-MM-DD>
-
-<the "This week" block above>
-
-_Set <YYYY-MM-DD>. Next review: <next Sunday>._
-```
-
-After updating `TASKS.md`, **also persist a snapshot** via the
-`mcp__plugin_agent-kevin_kevin__report_write` MCP tool so this week's goals
-survive when `TASKS.md` is overwritten next Sunday:
-
-```
-report_write({
-  category: 'briefings',
-  slug: 'weekly-goals',
-  title: <e.g. 'Weekly goals — Week of 2026-05-25'>,
-  skill: 'weekly-goals',
-  body: <the full goals block + wins/in-flight/defer rationale as shown to the user>,
-  status: 'draft'
-});
-```
-
-Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) to the operator alongside the TASKS.md update.
-
-## Stamp the cadence watermark
-
-So `sync` knows weekly goals were just set and stops nudging until next week, record today's date. Do this **only after the goals are actually written** — a skipped or aborted interview must leave the watermark untouched so it stays due:
-
-```bash
-bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/watermark.ts" weekly-goals "<YYYY-MM-DD>"
-```
-
-Substitute `<YYYY-MM-DD>` with today's date (the same date stamped in the goals block). Read-modify-write preserves the sibling skills' watermarks.
+Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPath` — so it's command-clickable in any terminal) to the operator alongside the TASKS.md update. A skipped or aborted interview writes nothing and leaves the watermark untouched, so the cadence stays due.
 
 ## Anti-patterns
 

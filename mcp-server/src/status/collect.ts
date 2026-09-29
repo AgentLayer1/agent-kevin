@@ -86,7 +86,7 @@ export interface ReportRef {
   category: string;
 }
 
-/** The most recent radar (where-am-i) digest, pre-rendered to HTML for the
+/** The most recent radar digest, pre-rendered to HTML for the
  *  Sessions page Radar tab. Null when no radar report exists yet. */
 export interface RadarLatest {
   date: string;

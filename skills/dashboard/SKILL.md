@@ -1,7 +1,7 @@
 ---
 name: dashboard
-description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on.
-allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:where-am-i), Bash
+description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (the focus skill's where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on.
+allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:focus), Bash
 ---
 
 # Dashboard
@@ -15,15 +15,15 @@ A refresh is intentionally light. Almost everything the dashboard shows — task
 reports, git activity, knowledge stats, compile state, logs — is read live from
 disk every time the `dashboard` tool runs, so it's always current with no extra
 step. The one piece of derived state the tool does NOT regenerate is the session
-radar (the latest Claude Code sessions), so a refresh runs `where-am-i` first to
+radar (the latest Claude Code sessions), so a refresh runs the focus skill's `where-am-i` playbook first to
 freshen that, then regenerates. It deliberately skips the heavy `sync` work
 (compile, flywheel, briefing, prune, lint-fix) — `sync` owns those and finishes
 with these same two steps.
 
 ## Run
 
-1. **Freshen the session radar** — invoke the `where-am-i` skill (via the Skill
-   tool, default 24h window). It owns the radar end to end: scans the latest
+1. **Freshen the session radar** — invoke the `focus` skill with `where-am-i`
+   (via the Skill tool, default 24h window). It owns the radar end to end: scans the latest
    sessions, writes the per-session summaries, and persists the report to
    `reports/radar/`. One source of truth — don't reimplement its steps here.
 
@@ -74,7 +74,7 @@ page's header tiles open the tab that explains them. Sub-tabs deep-link:
 - Near-pure: the `dashboard` tool never mutates knowledge or task files
   (`projects/TASKS.md` is a derived view, rebuilt from frontmatter). The only
   write a refresh makes is the where-am-i radar report in `reports/radar/`,
-  written by the `where-am-i` skill (step 1) — and that step is skipped when a
+  written by the focus skill's `where-am-i` playbook (step 1) — and that step is skipped when a
   fresh one already exists.
 - Secrets are redacted at the source (`••••`); never un-redact them.
 - Markdown links open via the configured opener app: set the `MARKDOWN_URL`

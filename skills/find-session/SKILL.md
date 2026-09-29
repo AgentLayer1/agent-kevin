@@ -1,6 +1,6 @@
 ---
 name: find-session
-description: Find a specific past Claude Code session by what it worked on — a branch, a PR number, a worktree, a bug, a feature, a task id — and hand back its resume command. Content search over all transcript history, not a time-boxed list. Use when the operator asks "find the session that…", "which session was working on/with X", "give me the session that did X", "what session was I fixing X in", "search my sessions for X", or "resume the session about X". Complements where-am-i (the recent-sessions radar) — reach for this when the operator names WHAT the session did rather than WHEN it ran.
+description: Find a specific past Claude Code session by what it worked on — a branch, a PR number, a worktree, a bug, a feature, a task id — and hand back its resume command. Content search over all transcript history, not a time-boxed list. Use when the operator asks "find the session that…", "which session was working on/with X", "give me the session that did X", "what session was I fixing X in", "search my sessions for X", or "resume the session about X". Complements the focus skill's where-am-i playbook (the recent-sessions radar) — reach for this when the operator names WHAT the session did rather than WHEN it ran.
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
@@ -34,7 +34,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/find_session.ts" "<term>" "<term2>" ...
 
 - **No time window by default** — the whole transcript history is searched. Add
   `--hours <n>` only when the operator anchors it in time ("last week's session").
-- Scope semantics match where-am-i: the script derives the default roots itself (the launch
+- Scope semantics match the focus skill's where-am-i playbook: the script derives the default roots itself (the launch
   cwd, the agent HOME, and the code tree); `--scope` overrides with comma-separated roots,
   sessions launched in or beneath any of them. Zero matches → retry with `--scope all`
   before declaring it not found.
@@ -55,7 +55,7 @@ the session that did the work. Weigh, first match wins ties:
 3. **cwd roamed into a matching worktree** — a session whose `cwds` include
    `<repo>-<slug>` did hands-on work there; nothing else produces that trail.
 4. **Hit concentration** — many hits in a session *not* explained by 1–3 usually means a
-   reporting session. `slash_commands` names them (`/sync`, `/standup`, a briefing); a
+   reporting session. `slash_commands` names them (`/sync`, `/focus standup`, a briefing); a
    high-hit session that is just a skill run is a mention, not the work.
 
 Traps, learned the hard way:

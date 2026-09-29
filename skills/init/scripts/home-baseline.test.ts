@@ -8,7 +8,7 @@ const SCRIPT = resolve(import.meta.dir, 'home-baseline.ts');
 const TEMPLATE = readFileSync(resolve(import.meta.dir, '..', '..', '..', 'templates', '.gitignore'), 'utf-8');
 const MISSING_GRANTS = [
   'Skill(agent-kevin:dashboard)',
-  'Skill(agent-kevin:where-am-i)',
+  'Skill(agent-kevin:focus)',
   'Skill(agent-kevin:humanizer)',
   'Skill(agent-kevin:setup-worktree)',
   'Skill(agent-kevin:plan-spec)',
@@ -160,7 +160,7 @@ describe('home-baseline settings', () => {
     const missing = run(home).settings.allowMissing;
     expect(missing).not.toContain('Skill(agent-kevin:plan-spec)');
     expect(missing).not.toContain('Skill(agent-kevin:humanizer)');
-    expect(missing).toContain('Skill(agent-kevin:where-am-i)');
+    expect(missing).toContain('Skill(agent-kevin:focus)');
   });
 
   test('backfills an ask guard even when the entry sits in allow, never when it sits in deny', () => {

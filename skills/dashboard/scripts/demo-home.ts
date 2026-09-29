@@ -713,7 +713,7 @@ const reports: DemoReport[] = [
     category: 'radar',
     slug: 'where-am-i',
     title: 'Where am I: 3 sessions across 24h',
-    skill: 'where-am-i',
+    skill: 'focus',
     status: 'clean',
     emoji: '🟢',
     body: `> Launch-week prep across three threads: billing reconciliation, the load-test harness, and SOC 2 evidence.

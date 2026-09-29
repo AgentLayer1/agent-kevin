@@ -371,7 +371,7 @@ const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews'] 
 const CATEGORY_DOT: Record<string, string> = {
   briefings: 'morning-briefing',
   plans: 'plans',
-  radar: 'where-am-i',
+  radar: 'focus',
   api: 'api-collections',
   reviews: 'engineer'
 };
@@ -966,7 +966,7 @@ const locationsTab = (snap: StatusSnapshot): string => {
     : hint('No working directories captured yet.');
 };
 
-/** Recent (radar) tab — the latest where-am-i digest rendered inline, plus a
+/** Recent (radar) tab — the latest radar digest rendered inline, plus a
  *  pointer to earlier radars in the Reports log. The digest groups sessions
  *  into cards (title + time-ago, summary, resume badge); `.radar-md` styles the
  *  rendered markdown to match. */
@@ -974,7 +974,7 @@ const radarTab = (snap: StatusSnapshot): string => {
   const latest: RadarLatest | null = snap.radarLatest;
   const plugin = snap.runtime.pluginName;
   if (!latest) {
-    return hint(`No radar captured yet — run /${plugin}:where-am-i (or a sync) to snapshot your sessions.`);
+    return hint(`No radar captured yet — run /${plugin}:focus where-am-i (or a sync) to snapshot your sessions.`);
   }
   const radarCount = snap.reports.filter((report) => report.category === 'radar').length;
   // Footer below the divider: the digest's stats line, then the radar-count note.
@@ -1302,7 +1302,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: 'Feeling lost',
-    say: `/${plugin}:where-am-i`,
+    say: `/${plugin}:focus where-am-i`,
     what: 'Radar of your recent sessions — what each was about, where it left off, how to resume it.'
   },
   {

@@ -1,6 +1,6 @@
 /**
  * HTML sanitizer for untrusted markup the dashboard renders inline (currently
- * the where-am-i radar digest; reusable for any future inline-HTML surface).
+ * the focus skill's where-am-i radar digest; reusable for any future inline-HTML surface).
  *
  * DOMPurify needs a real DOM to walk, and linkedom is too thin for it (no
  * `document.implementation.createHTMLDocument`, so DOMPurify silently no-ops).

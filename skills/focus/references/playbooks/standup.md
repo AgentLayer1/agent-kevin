@@ -1,10 +1,4 @@
----
-name: standup
-description: Build the operator's standup update in the three parts a standup has — what they did in the last 24h (merged PRs, prod actions taken by hand, investigations that left no commit, tasks filed), what they're picking up next, and what's blocked or needs a decision from someone in the room. Derives all three from git, PRs, session transcripts and the task board rather than asking. Crosses the day boundary a standup does, and flags older work a skipped run may have left unsaid. Use when the operator says "standup is coming up", "what have I done", "what did I do yesterday", "summarise my work for standup", "I need my update", or invokes /agent-kevin:standup. Accepts an hours override (`/agent-kevin:standup 48`).
-allowed-tools: Bash, Read, Glob, mcp__plugin_agent-kevin_kevin__github_pr_list, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__focus_write, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write
----
-
-# standup — did, next, blocked
+# Standup — did, next, blocked (`/focus standup [hours]`)
 
 The operator is about to speak to other people. A standup is three parts and the update carries
 all three:
@@ -21,7 +15,7 @@ the room can act on, and they're the half a status report leaves out.
 
 This is not the evening briefing. Four differences, and together they're why the skill exists:
 
-| | `evening-briefing` | `standup` |
+| | `evening-briefing` | standup |
 |---|---|---|
 | Window | strict today-only | **last 24h**, so it crosses the day boundary |
 | Audience | the operator | the operator's teammates |
@@ -44,7 +38,7 @@ glob matches nothing, so `ls .../*-standup.md` fails instead of falling through 
 **The window is 24 hours.** Not "since the last report" — a missing report means the skill
 didn't run, which is not the same event as standup not happening. Most of the time standup
 happened anyway and the work is already spoken for, so anchoring on the report would make the
-operator re-announce days of it. Only an explicit `/agent-kevin:standup 48` widens the window.
+operator re-announce days of it. Only an explicit `/agent-kevin:focus standup 48` widens the window.
 
 That file still earns its lookup, for one thing: it tells you whether there's a **gap**. Read
 its `created:` and compare against the 24h boundary.
@@ -77,7 +71,7 @@ named gap in the output, never a guess.
 **1. Sessions** — the only source that sees uncommitted work, investigations, and prod actions:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}/skills/where-am-i/scripts/list_sessions.ts" --hours <N>
+bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours <N>
 ```
 
 The script derives the roots itself: the launch cwd, the agent HOME
@@ -192,7 +186,7 @@ The forward half is not a second gather; it's read off what act one already prod
 board queries. Deriving beats asking: the operator called this skill because they don't want to
 assemble the update themselves.
 
-**Next — at most three, and each must be evidence-backed.** When the focus page has a Today lane,
+**Next — at most three, and each must be evidence-backed.** When the focus Today lane has tasks,
 that lane is Next, in its order: the operator already chose it. Otherwise, in priority order, the
 candidates are:
 
@@ -322,21 +316,10 @@ Rules:
 
 ## Monday and Friday — the week frame
 
-Standup is where the week gets set and scored, so on those two days the card gains one section.
-Skip it on a quiet week the operator says doesn't need one.
-
-- **Monday: set the week.** Propose two or three week goals, starting from the roadmap milestones
-  `focus_write` returns under `roadmap` (slipped first), then the carried-over lane, the week lane,
-  the Weekly Goals, and the in-flight work in `Did`. Each goal names its task and what done
-  looks like. Confirm with one `AskUserQuestion` (multi-select), then `task_update` each chosen task
-  to `horizon: week`. Add `## This week` above `Next`, one line per goal: **the deliverable**, what
-  done means.
-- **Friday: score the week.** Score every task `focus_write` returns under `planned.week` (planned
-  for the week or one of its days, archived ones included), giving ✅ done, 🟡 partial (active,
-  moved), or ❌ missed, with one clause of why for every miss. Ask where each open one goes: next
-  week (`horizon: next-week`), later, or dropped (cancel it). Apply the answers with `task_update`.
-  Add `## Week score` above `Next`. The misses are the useful part, because they show where the
-  week was overcommitted or stuck; say them plainly.
+Standup is where the week gets set and scored, so on those two days the card gains one section:
+Monday runs [set the week](week.md#set-the-week-monday-or-plan-the-week) and adds `## This week`
+above `Next`; Friday runs [score the week](week.md#score-the-week-friday-or-score-the-week) and adds
+`## Week score` above `Next`. Skip it on a quiet week the operator says doesn't need one.
 
 ## Step 6 — persist
 
@@ -348,7 +331,7 @@ report_write({
   category: 'briefings',
   slug: 'standup',
   title: <e.g. 'Standup — 3 shipped, acme double-send found, port-status PR opened'>,
-  skill: 'standup',
+  skill: 'focus',
   body: <the full update, no frontmatter — exactly what was shown in chat>,
   status: <'critical' if a finding needs the room today, 'findings' normally, 'clean' if the window was quiet>
 });

@@ -131,7 +131,7 @@ offer, and before any drop the operator asks for by name, list the last day's se
 project, because a session launched from the agent home still works inside a worktree:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}/skills/where-am-i/scripts/list_sessions.ts" --hours 24 --scope all
+bun "${CLAUDE_PLUGIN_ROOT}/skills/focus/scripts/list_sessions.ts" --hours 24 --scope all
 ```
 
 A worktree is **in use** when a session's `cwd` is its path or anything under it (`acme-billing`

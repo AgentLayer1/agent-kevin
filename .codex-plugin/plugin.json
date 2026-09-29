@@ -35,7 +35,7 @@
     "defaultPrompt": [
       "Who are you and what's on my task list?",
       "$quick-pulse",
-      "$standup"
+      "$focus"
     ]
   }
 }

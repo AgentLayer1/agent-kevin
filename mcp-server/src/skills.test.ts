@@ -66,7 +66,7 @@ describe('skills', () => {
   });
 });
 
-describe.each(['engineer', 'tax'])('%s help', (skill) => {
+describe.each(['engineer', 'focus', 'tax'])('%s help', (skill) => {
   test('lists every playbook the router names', () => {
     const router = readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf-8');
     const help = readFileSync(join(SKILLS, skill, 'references', 'help.md'), 'utf-8').toLowerCase();
