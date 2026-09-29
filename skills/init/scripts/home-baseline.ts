@@ -2,8 +2,9 @@
 /**
  * The part of init's Step 7 baseline that no template merge reaches: the home's `.gitignore`
  * (reconciled against `templates/.gitignore`), the `permissions.allow` / `permissions.ask`
- * entries, `plansDirectory` and the Haiku-tier model. `--write` writes the `.gitignore` (without
- * it, a dry run); settings are only reported, for the caller to merge.
+ * entries, the Python guard in `permissions.deny`, the uv sandbox grants, `plansDirectory` and
+ * the Haiku-tier model. `--write` writes the `.gitignore` (without it, a dry run); settings are
+ * only reported, for the caller to merge.
  *
  * Usage: home-baseline.ts --home <dir> [--write]
  */
@@ -42,6 +43,11 @@ const baselineAllow = jsonBlockAfter<{ permissions: { allow: string[] } }>(
   'Concrete approach: `Read` the existing file'
 ).permissions.allow;
 const baselineAsk = jsonBlockAfter<string[]>('Baseline `permissions.ask`');
+const baselinePythonDeny = jsonBlockAfter<string[]>('Baseline Python guard `permissions.deny`');
+const baselineUvSandbox = jsonBlockAfter<{
+  filesystem: { allowWrite: string[] };
+  network: { allowedDomains: string[] };
+}>('Baseline uv sandbox grants');
 const haikuModel = /`env\.ANTHROPIC_DEFAULT_HAIKU_MODEL` = `"([^"]+)"`/.exec(skill)?.[1];
 if (!haikuModel) {
   throw new Error('init SKILL.md no longer names the ANTHROPIC_DEFAULT_HAIKU_MODEL baseline');
@@ -52,6 +58,7 @@ interface HomeSettings {
   env?: Record<string, string>;
   plansDirectory?: string;
   permissions?: Partial<Record<'allow' | 'ask' | 'deny', string[]>>;
+  sandbox?: { filesystem?: { allowWrite?: string[] }; network?: { allowedDomains?: string[] } };
 }
 const settingsPath = join(home, '.claude', 'settings.json');
 const settings: HomeSettings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf-8')) : {};
@@ -59,6 +66,9 @@ const listed = (...lists: ('allow' | 'ask' | 'deny')[]) =>
   new Set(lists.flatMap((list) => settings.permissions?.[list] ?? []));
 const decidedForAllow = listed('allow', 'ask', 'deny');
 const decidedForAsk = listed('ask', 'deny');
+const decidedForDeny = listed('allow', 'ask', 'deny');
+const missingFrom = (present: string[] | undefined, wanted: string[]) =>
+  wanted.filter((entry) => !(present ?? []).includes(entry));
 const currentHaiku = settings.env?.ANTHROPIC_DEFAULT_HAIKU_MODEL;
 
 const configuredReports = resolveEnv('AGENT_REPORTS');
@@ -72,6 +82,11 @@ process.stdout.write(
       settings: {
         allowMissing: baselineAllow.filter((entry) => !decidedForAllow.has(entry)),
         askMissing: baselineAsk.filter((entry) => !decidedForAsk.has(entry)),
+        denyMissing: baselinePythonDeny.filter((entry) => !decidedForDeny.has(entry)),
+        sandboxMissing: {
+          allowWrite: missingFrom(settings.sandbox?.filesystem?.allowWrite, baselineUvSandbox.filesystem.allowWrite),
+          allowedDomains: missingFrom(settings.sandbox?.network?.allowedDomains, baselineUvSandbox.network.allowedDomains)
+        },
         plansDirectory: settings.plansDirectory === undefined ? defaultPlans : null,
         haikuModel: !currentHaiku || retiredHaikuModels.includes(currentHaiku) ? haikuModel : null
       }

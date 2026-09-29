@@ -173,6 +173,31 @@ describe('home-baseline settings', () => {
     expect(askMissing).not.toContain('Bash(gh pr merge *)');
   });
 
+  test('backfills the Python guard into deny unless the operator already decided the entry', () => {
+    expect(fresh.denyMissing).toContain('Bash(pip install*)');
+    const home = scratchHome({
+      settings: { permissions: { allow: ['Bash(pip3 install*)'], deny: ['Bash(rm -rf *)', 'Bash(pip install*)'] } }
+    });
+    const { denyMissing } = run(home).settings;
+    expect(denyMissing).not.toContain('Bash(pip install*)');
+    expect(denyMissing).not.toContain('Bash(pip3 install*)');
+    expect(denyMissing).toContain('Bash(python3 -m pip install*)');
+  });
+
+  test('backfills the uv sandbox grants a home lacks, keeping its own entries', () => {
+    expect(fresh.sandboxMissing).toEqual({
+      allowWrite: ['~/.cache/uv'],
+      allowedDomains: ['pypi.org', 'files.pythonhosted.org']
+    });
+    const home = scratchHome({
+      settings: { sandbox: { filesystem: { allowWrite: ['~/.cache/uv'] }, network: { allowedDomains: ['github.com'] } } }
+    });
+    expect(run(home).settings.sandboxMissing).toEqual({
+      allowWrite: [],
+      allowedDomains: ['pypi.org', 'files.pythonhosted.org']
+    });
+  });
+
   test('plansDirectory follows the reports root and never overrides an existing value', () => {
     expect(fresh.plansDirectory).toBe('./reports/plans');
     const relocated = join(tmpdir(), 'elsewhere', 'reports');

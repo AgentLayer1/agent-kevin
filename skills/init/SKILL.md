@@ -84,7 +84,7 @@ Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
 
 **Resolve the plugin checkout.** `$PLUGIN_ROOT` is the directory this skill loaded from: two levels above the skill's base directory (the `Base directory for this skill:` line under Claude Code, the `<skill>` block's `<path>` under Codex). Under Claude Code that is the same path as `${CLAUDE_PLUGIN_ROOT}`; wherever a later step says `${CLAUDE_PLUGIN_ROOT}`, use `$PLUGIN_ROOT`.
 
-**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all four hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. On macOS both `git` and `python3` come with the Xcode Command Line Tools (`xcode-select --install`); neither needs Homebrew. `gh` is **conditional**: nothing else uses it, but every GitHub-pack tool shells out to it — including `github_fast_forward`, which is what keeps the code checkouts current during `/agent-kevin:sync`. It is not bundled with Claude Code or this plugin, so on macOS it means Homebrew (`brew install gh`). Probing it here turns a mid-session throw into a note the operator can act on before they tick the pack. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
+**Check prerequisites — bail early if a show-stopper is missing.** Kevin's MCP server, all four hooks, and the CLI launch via `bun`, so it's a hard requirement; `git` backs the version-controlled knowledge tree, the session git-activity context, and worktrees. `python3` is **optional but recommended** — Kevin is TypeScript-first, but some tooling and integrations still reach for Python, so having it on PATH avoids friction later. `uv` is **recommended** alongside it: the manual runs Python scripts through `uv run --with <packages>`, and without `uv` the agent is left with `pip`, which the Python guard below denies. On macOS both `git` and `python3` come with the Xcode Command Line Tools (`xcode-select --install`); neither needs Homebrew. `gh` is **conditional**: nothing else uses it, but every GitHub-pack tool shells out to it — including `github_fast_forward`, which is what keeps the code checkouts current during `/agent-kevin:sync`. It is not bundled with Claude Code or this plugin, so on macOS it means Homebrew (`brew install gh`). Probing it here turns a mid-session throw into a note the operator can act on before they tick the pack. `poppler` is **optional** as well: the Read tool renders PDF pages through its `pdftoppm` binary, so install it (macOS `brew install poppler`, Linux `poppler-utils`) if you want Kevin to read PDF files. On **native Windows**, Kevin runs through **Git Bash** (the shell Claude Code uses for its Bash tool) — that's the supported Windows path and supplies the POSIX environment Kevin's commands assume; **WSL2** also works if you prefer a full Linux userland.
 
 ```bash
 # Probe FUNCTIONALLY, never with `command -v`. On macOS /usr/bin/git and
@@ -98,6 +98,7 @@ MISSING=()
 bun --version >/dev/null 2>&1 || MISSING+=("bun  — runs Kevin's MCP server, hooks, and CLI · https://bun.sh")
 git --version >/dev/null 2>&1 || MISSING+=("git  — version-controls your knowledge tree, powers worktrees · https://git-scm.com")
 python3 --version >/dev/null 2>&1 || echo "NOTE: python3 not found (optional but recommended — occasionally needed for tooling/interop even though Kevin is TypeScript-first)."
+uv --version >/dev/null 2>&1 || echo "NOTE: uv not found (recommended — the manual runs Python scripts through 'uv run --with <packages>', a throwaway environment per run, so no Python on this machine gets packages installed: https://docs.astral.sh/uv)."
 command -v pdftoppm >/dev/null 2>&1 || echo "NOTE: pdftoppm not found (optional — install poppler so the Read tool can render PDFs: macOS 'brew install poppler', Linux 'poppler-utils')."
 command -v gh >/dev/null 2>&1 || echo "NOTE: gh not found (needed ONLY if you activate the GitHub pack at Step 8 — that pack's tools, including the sync code-refresh, shell out to it: macOS 'brew install gh', https://cli.github.com)."
 
@@ -884,6 +885,18 @@ OS-specific tail — append the block matching `$KEVIN_OS`:
 
 For `unknown`, write the core only (no tail). The OS tail is best-effort wallet-folder coverage — names vary by app version, so don't treat absence as a guarantee.
 
+Baseline Python guard `permissions.deny` — **always written** (unioned with whatever the operator already has), unlike the core list above, which yields to a curated global one. A script that needs a library sends the agent to `pip install`: Homebrew's Python refuses it until someone adds `--break-system-packages`, and anything installed with `--user` into Apple's Python stays in `~/Library/Python` for good. The manual's Toolchain line routes Python through `uv run --with <packages>` instead, a throwaway environment per run, and these entries enforce it:
+
+```json
+[
+  "Bash(pip install*)",
+  "Bash(pip3 install*)",
+  "Bash(python -m pip install*)",
+  "Bash(python3 -m pip install*)",
+  "Bash(uv pip install*--system*)"
+]
+```
+
 Baseline `permissions.ask` — **always written** (unioned with whatever the operator already has), unlike `deny` which yields to a curated global list:
 
 ```json
@@ -1010,6 +1023,19 @@ unsetting) on Claude Code v2.1.187+, and is ignored on older versions. Both the 
 and sandbox layers are needed. (Sandbox is unavailable on native Windows — there the
 Read-tool deny is the only layer; flag that secrets aren't OS-protected on Windows.)
 
+Baseline uv sandbox grants — **always written** into the project `sandbox`, merged with the
+full block above when that is written too. Claude Code combines sandbox lists across settings
+files, so they also reach a home whose sandbox is switched on globally. Without them every
+`uv run` fails with `Failed to initialize cache at ~/.cache/uv`, and its package downloads
+stop at a network prompt:
+
+```json
+{
+  "filesystem": { "allowWrite": ["~/.cache/uv"] },
+  "network": { "allowedDomains": ["pypi.org", "files.pythonhosted.org"] }
+}
+```
+
 **Reaching the code tree when it lives outside the home.** Under the convention the home is a standalone vault and repos live in a separate tree, so a session launched in the home reaches code across a directory boundary. Two grants make that work, and both are needed — they cover different tools:
 
 ```bash
@@ -1054,12 +1080,12 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "<\"1\" if global doesn't set it, else omit this key>",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<\"claude-sonnet-5-5\" — always written; an existing project value is kept unless an earlier release wrote it>"
   },
-  "sandbox": "<full baseline sandbox block above if global.sandbox.enabled !== true, else omit>",
+  "sandbox": "<the uv sandbox grants above, always; merged with the full baseline sandbox block when global.sandbox.enabled !== true>",
   "enabledPlugins": {
     "agent-kevin@<MARKETPLACE>": true
   },
   "permissions": {
-    "deny": "<full baseline deny list above if global has no permissions.deny, else omit>",
+    "deny": "<the Python guard above, always; plus the full baseline deny list when global has no permissions.deny>",
     "ask": "<the full baseline ask list above — always written, unioned with any existing entries>",
     "additionalDirectories": "<[CODE_ROOT] when the code tree is outside the home — see above; omit the key otherwise>",
     "allow": [

@@ -245,6 +245,7 @@ Each lives in full in the `engineer` skill, beside a playbook per code task. Rea
 - **Node.js:** managed via `fnm`. Corepack enabled.
 - **Package manager:** `pnpm` always. Never suggest npm or yarn.
 - **Bun** is acceptable for small, local projects that are new.
+- **Python:** run scripts with `uv run --with <packages>`, a throwaway environment per run. Never `pip install`, `--break-system-packages`, or `uv pip install --system`; no system or Homebrew Python gets packages.
 - **One runtime per app and per monorepo:** Bun for scripts, Node for Next.js; never mix runtimes in one app for a feature.
 - **Shell:** {{SHELL}}.
 - **Swift:** Xcode + Swift Package Manager.

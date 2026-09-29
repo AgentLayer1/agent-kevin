@@ -470,8 +470,9 @@ rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME
 ```
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
-writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries, its
-`plansDirectory` and its Haiku-tier model once, and no template merge touches them, so a home
+writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries, its Python
+guard in `permissions.deny`, its uv sandbox grants, its `plansDirectory` and its Haiku-tier model
+once, and no template merge touches them, so a home
 that missed one stays behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
 cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
 unconditionally, never via a CHANGELOG block, so a home that skipped releases still converges:
@@ -486,11 +487,15 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   in `ask` or `deny` is their decision and is never granted; `remove_worktree` is never listed.
   The `ask` entries are the only gate that survives auto mode's classifier, so a home missing
   them has no enforced checkpoint before a push or an outbound request.
+- **`settings.denyMissing`** is the Python guard (`pip install` and friends) to add to
+  `permissions.deny`; an entry the operator already placed in any list is theirs and is skipped.
+- **`settings.sandboxMissing`** holds `allowWrite` and `allowedDomains` entries to add under
+  `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.
 
-Read `$HOME_DIR/.claude/settings.json` once, union both lists and set `plansDirectory` and the
+Read `$HOME_DIR/.claude/settings.json` once, union every list above and set `plansDirectory` and the
 Haiku-tier model in one in-memory merge, and write it with the Write tool, same as Step 7 does; no
 `jq`. Never remove or reorder an operator's entry.
 
