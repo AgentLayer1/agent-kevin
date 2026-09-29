@@ -152,6 +152,29 @@ describe("parseEntity", () => {
   });
 });
 
+test("parseEntity refuses a section written as a mapping instead of a list", () => {
+  const mapping = profile.replace('- { id: form-c,', '{ id: form-c,').replace(/\n- \{ id: instalment[^\n]*/, "");
+  expect(() => parseEntity("acme", mapping)).toThrow("## Obligations must be a list");
+  expect(() => parseEntity("acme", profile.replace("## Obligations", "## Accounts\n\n```yaml\nid: main\nname: Main\n```\n\n## Obligations"))).toThrow("## Accounts must be a list");
+});
+
+test("parseEntity refuses an obligation id used twice", () => {
+  const twice = profile.replace("- { id: instalment,", "- { id: form-c,");
+  expect(() => parseEntity("acme", twice)).toThrow("form-c appears twice");
+});
+
+test("parseEntity reads only the exact section heading, never a prefixed one", () => {
+  const archived = profile.replace("## Obligations", "## Obligations archive\n\n```yaml\n- { id: old, title: Old, period: { months: 12, anchor: fye }, due: { from: end, months: 1, day: 1 } }\n```\n\n## Obligations");
+  expect(parseEntity("acme", archived).obligations.map((item) => item.id)).toEqual(["form-c", "instalment"]);
+});
+
+test("parseEntity refuses a year end that is not a real date, including 02-29", () => {
+  ["02-29", "13-01", "04-31", "1231"].forEach((fye) => {
+    expect(() => parseEntity("acme", profile.replace("fye: 12-31", `fye: "${fye}"`))).toThrow("fye must be a real");
+  });
+  expect(parseEntity("acme", profile.replace("fye: 12-31", 'fye: "02-28"')).fye).toBe("02-28");
+});
+
 test("parseEntity refuses an impossible month in a bound or in booked_through", () => {
   ['"2026-13"', '"2026-00"', '"2026-99"'].forEach((month) => {
     expect(() => parseEntity("acme", profile.replace('from: "2026-07" }', `from: ${month} }`))).toThrow("form-c");

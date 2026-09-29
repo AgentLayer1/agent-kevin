@@ -140,6 +140,11 @@ describe("parseClose", () => {
     expect(record.gaps[0]).toEqual({ date: "2026-10-03", account: "main", amount: 450.5, currency: "MYR", direction: "out", need: "receipt", note: "Transfer" });
   });
 
+  test("a gaps block written as a single mapping stops the run instead of reading as no gaps", () => {
+    const raw = "---\nstatus: closed\n---\n\n## Gaps\n\n```yaml\ndate: \"2026-10-03\"\namount: 1\ndirection: out\nneed: receipt\n```\n";
+    expect(() => parseClose("closes/acme/2026-10.md", raw)).toThrow("## Gaps must be a list");
+  });
+
   test("a malformed gap stops the run with the file named", () => {
     const raw = "---\nstatus: partial\n---\n\n## Gaps\n\n```yaml\n- { date: \"2026-10-03\", amount: 1, direction: sideways, need: receipt }\n```\n";
     expect(() => parseClose("closes/acme/2026-10.md", raw)).toThrow("closes/acme/2026-10.md");

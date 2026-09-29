@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { frontmatterOf, yamlBlock } from "./calendar";
+import { frontmatterOf, listBlock } from "./calendar";
 
 /**
  * Monthly close records at closes/<slug>/<YYYY-MM>.md: flat frontmatter plus the open gaps in a
@@ -43,8 +43,7 @@ const isGap = (value: unknown): value is Gap =>
  */
 export const parseClose = (file: string, raw: string): CloseRecord => {
   const data = frontmatterOf(raw) ?? {};
-  const listed = yamlBlock(raw, "Gaps");
-  const gaps: unknown[] = Array.isArray(listed) ? listed : [];
+  const gaps = listBlock(file, raw, "Gaps");
   if (gaps.some((gap) => !isGap(gap))) {
     throw new Error(`${file}: every gap needs date, amount, direction (in or out) and need (receipt, invoice or explanation)`);
   }

@@ -217,10 +217,37 @@ export const frontmatterOf = (raw: string): Record<string, unknown> | null => {
  * The parsed fenced yaml block under a `## <heading>` section of a markdown body, or null when the
  * section or its block is absent. Structured data lives here because frontmatter stays flat.
  */
-export const yamlBlock = (raw: string, heading: string): unknown => {
-  const pattern = new RegExp(`^## ${escapeRegExp(heading)}[^\\n]*\\n(?:(?!^## )[\\s\\S])*?^\`\`\`ya?ml\\r?\\n([\\s\\S]*?)^\`\`\``, "m");
+const yamlBlock = (raw: string, heading: string): unknown => {
+  const pattern = new RegExp(`^## ${escapeRegExp(heading)}[ \\t]*\\r?\\n(?:(?!^## )[\\s\\S])*?^\`\`\`ya?ml\\r?\\n([\\s\\S]*?)^\`\`\``, "m");
   const block = raw.match(pattern)?.[1];
   return block === undefined ? null : Bun.YAML.parse(block);
+};
+
+/**
+ * The list under `## <heading>`: empty when the section or its block is absent, and an error naming
+ * the file when the block holds anything but a list (an entry written without its leading dash).
+ */
+export const listBlock = (file: string, raw: string, heading: string): unknown[] => {
+  const parsed = yamlBlock(raw, heading);
+  if (parsed === null || parsed === undefined) {
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${file}: the yaml block under ## ${heading} must be a list, one entry per "- " line`);
+  }
+  return parsed;
+};
+
+const FYE_RE = /^(\d{2})-(\d{2})$/;
+
+// A non-leap year, so 29 February is refused: a year that ends on the last day of February is 02-28.
+const isFye = (fye: string): boolean => {
+  const match = fye.match(FYE_RE);
+  if (match === null) {
+    return false;
+  }
+  const [month, day] = [Number(match[1]), Number(match[2])];
+  return month >= 1 && month <= 12 && day >= 1 && day <= new Date(Date.UTC(2025, month, 0)).getUTCDate();
 };
 
 const isAccount = (value: unknown): value is Account =>
@@ -255,12 +282,20 @@ export const parseEntity = (slug: string, raw: string): Entity => {
   if ("obligations" in data) {
     throw new Error(`entities/${slug}.md: move obligations out of the frontmatter into the yaml block under ## Obligations`);
   }
-  const parsed = yamlBlock(raw, "Obligations");
-  const obligations: unknown[] = Array.isArray(parsed) ? parsed : [];
+  const obligations = listBlock(`entities/${slug}.md`, raw, "Obligations");
   const invalid = obligations.find((item) => !isObligation(item));
   if (invalid !== undefined) {
     const id = isRecord(invalid) && typeof invalid.id === "string" ? invalid.id : JSON.stringify(invalid);
     throw new Error(`entities/${slug}.md: obligation ${id} is malformed (needs id, title, period, due)`);
+  }
+  const ids = obligations.filter(isObligation).map((item) => item.id);
+  const duplicate = ids.find((id, i) => ids.indexOf(id) !== i);
+  if (duplicate !== undefined) {
+    throw new Error(`entities/${slug}.md: obligation ${duplicate} appears twice under ## Obligations; each id must be unique`);
+  }
+  const fye = typeof data.fye === "string" ? data.fye : "12-31";
+  if (!isFye(fye)) {
+    throw new Error(`entities/${slug}.md: fye must be a real "MM-DD" date (use 02-28 for a year that ends on the last day of February)`);
   }
   const badBound = obligations
     .filter(isObligation)
@@ -268,8 +303,7 @@ export const parseEntity = (slug: string, raw: string): Entity => {
   if (badBound !== undefined) {
     throw new Error(`entities/${slug}.md: obligation ${badBound.id} needs from and until as a quoted "YYYY-MM" with a month from 01 to 12 (YAML reads an unquoted 2026-07 as a number)`);
   }
-  const listedAccounts = yamlBlock(raw, "Accounts");
-  const accounts: unknown[] = Array.isArray(listedAccounts) ? listedAccounts : [];
+  const accounts = listBlock(`entities/${slug}.md`, raw, "Accounts");
   if (accounts.some((item) => !isAccount(item))) {
     throw new Error(`entities/${slug}.md: every entry under ## Accounts needs an id and a name`);
   }
@@ -279,7 +313,7 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     name: typeof data.name === "string" ? data.name : slug,
     kind: data.kind === EntityKind.Individual ? EntityKind.Individual : EntityKind.Company,
     country: typeof data.country === "string" ? data.country : "my",
-    fye: typeof data.fye === "string" ? data.fye : "12-31",
+    fye,
     close: data.close === "monthly" ? "monthly" : "none",
     sme: data.sme === true,
     resident: typeof data.resident === "boolean" ? data.resident : null,
