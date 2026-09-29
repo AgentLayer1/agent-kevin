@@ -1,5 +1,6 @@
 import { writeReport, type ReportCategory, type ReportStatus } from '@/reports';
 import { defineTool, type ToolDef } from '@/shared/types';
+import { writeDashboardSafe } from '@/tasks/dashboard';
 import { z } from 'zod';
 
 const CATEGORIES: [ReportCategory, ...ReportCategory[]] = ['briefings', 'plans', 'radar', 'api', 'reviews'];
@@ -43,6 +44,8 @@ export const tools: ToolDef[] = [
     },
     handler: async (args) => {
       const result = await writeReport(args);
+      // The dashboard shows reports (the Reports log, the radar, news), so a new one re-renders it.
+      writeDashboardSafe();
       return {
         path: result.path,
         relPath: result.relPath,

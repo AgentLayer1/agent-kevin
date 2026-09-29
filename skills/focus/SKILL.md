@@ -70,7 +70,7 @@ When the operator names *what* a past session worked on (a branch, a PR, a bug) 
 | `later` | Later |
 | empty | Not planned |
 
-Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task mutation re-renders the dashboard and each project focus page, so there is no save step. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
+Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task change, `focus_write` call and `report_write` re-renders the dashboard and each project focus page, so no playbook has a save step, and nothing it does can start another skill. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
 
 **Where it shows.**
 
