@@ -30,8 +30,6 @@ One procedure, so the week's tasks and `TASKS.md` never drift apart:
 
    1. <project>: <the deliverable> (<task id>) — <what done means>
    2. …
-
-   _Set <YYYY-MM-DD>. Next review: <Friday>._
    ```
 
 3. **Snapshot it**, so the week survives when `TASKS.md` is overwritten next week:

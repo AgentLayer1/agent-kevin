@@ -1743,12 +1743,12 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
   return sessions;
 };
 
-/** Goal lines under a TASKS.md heading. The scaffold's italic `_No … yet_`
- *  placeholders are dropped so unset goals render the dashboard's own hint. */
+/** Goal lines under a TASKS.md heading, without their list markers. The scaffold's
+ *  italic `_No … yet_` placeholders are dropped so unset goals render the dashboard's own hint. */
 const goalLines = (heading: string): string[] =>
   sectionLines(resolve(FOLDERS.PROJECTS, 'TASKS.md'), heading)
     .filter((line) => !/^_No .+_$/.test(line))
-    .map(stripMarkdown);
+    .map((line) => stripMarkdown(line.replace(/^(?:[-*+]|\d+[.)])\s+/, '')));
 
 export const collectGoals = (): StatusSnapshot['goals'] => ({
   weekly: goalLines('Weekly Goals'),

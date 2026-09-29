@@ -5,7 +5,7 @@ import { FOLDERS } from '@/config';
 import type { TaskFile, TaskFrontmatter } from '@/shared/types';
 import { roadmapDataBlock } from '@/roadmap/data';
 import { todayDate } from '@/shared/date';
-import { collectStatus } from './collect';
+import { collectGoals, collectStatus } from './collect';
 import { buildFocusView, focusPagePath, writeFocusPage, writeFocusPagesSafe, type FocusInputs } from './focus';
 import { focusData, readFocusData } from './focus-data';
 import { renderFocusHtml } from './focus-render';
@@ -97,7 +97,7 @@ describe('week and month progress', () => {
     ])
   );
 
-  test("work pulled into today still counts toward the week and month it belongs to", () => {
+  test('work pulled into today still counts toward the week and month it belongs to', () => {
     expect(view.planned.week.done.map((item) => item.id)).toEqual(['ac-001', 'ac-003']);
     expect(view.planned.week.open.map((item) => item.id)).toEqual(['ac-002']);
     expect(view.planned.month.open.map((item) => item.id)).toEqual(['ac-005', 'ac-002']);
@@ -132,7 +132,9 @@ describe('renderFocusHtml', () => {
     const html = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })])));
     expect(html).toContain('<em>Monday</em>, 28 September');
     expect(html).toContain('<span class="mark">1</span><span class="title">Task ac-001</span>');
-    expect(html).toContain(`href="obsidian://open?path=${encodeURIComponent('/home/alex/projects/acme/tasks/ac-001.md')}"`);
+    expect(html).toContain(
+      `href="obsidian://open?path=${encodeURIComponent('/home/alex/projects/acme/tasks/ac-001.md')}"`
+    );
   });
 
   test('without a pull the queue says how to get one; with one it lists each item and when it was pulled', () => {
@@ -147,14 +149,23 @@ describe('renderFocusHtml', () => {
               {
                 label: 'My pull requests',
                 empty: 'None open.',
-                items: [{ title: '#42 Invoice export', url: 'https://github.com/acme/app/pull/42', detail: 'approved · clean', tone: 'good' }],
+                items: [
+                  {
+                    title: '#42 Invoice export',
+                    url: 'https://github.com/acme/app/pull/42',
+                    detail: 'approved · clean',
+                    tone: 'good'
+                  }
+                ],
                 unavailable: ''
               },
               { label: 'Reviews I owe', empty: 'Nothing waiting on you.', items: [], unavailable: '' },
               {
                 label: 'Replies I owe',
                 empty: 'Inbox clear.',
-                items: [{ title: 'Jordan asked about the export date', url: '', detail: '#support · 2d', tone: 'warn' }],
+                items: [
+                  { title: 'Jordan asked about the export date', url: '', detail: '#support · 2d', tone: 'warn' }
+                ],
                 unavailable: ''
               }
             ]
@@ -163,7 +174,9 @@ describe('renderFocusHtml', () => {
       )
     );
     expect(html).toContain('queue pulled 09:47');
-    expect(html).toContain('<a href="https://github.com/acme/app/pull/42" target="_blank" rel="noopener">#42 Invoice export</a>');
+    expect(html).toContain(
+      '<a href="https://github.com/acme/app/pull/42" target="_blank" rel="noopener">#42 Invoice export</a>'
+    );
     expect(html).toContain('Nothing waiting on you.');
     expect(html).toContain('<span class="dot warn"></span>');
   });
@@ -176,7 +189,12 @@ describe('queue sources that could not be read', () => {
         snapshot: {
           fetchedAt: '2026-09-27T23:10:00Z',
           groups: [
-            { label: 'My pull requests', empty: 'None open.', items: [], unavailable: "GitHub can't read 2 repos: web, ops" },
+            {
+              label: 'My pull requests',
+              empty: 'None open.',
+              items: [],
+              unavailable: "GitHub can't read 2 repos: web, ops"
+            },
             {
               label: 'Reviews I owe',
               empty: 'Nothing waiting on you.',
@@ -228,11 +246,22 @@ describe('roadmap milestones', () => {
           name: 'This week',
           start: '2026-W40',
           milestones: [
-            { chip: 'M2', title: 'Current', items: [{ text: 'Export', status: 'planned' }, { text: 'Import', status: 'done' }] },
+            {
+              chip: 'M2',
+              title: 'Current',
+              items: [
+                { text: 'Export', status: 'planned' },
+                { text: 'Import', status: 'done' }
+              ]
+            },
             { chip: 'M3', title: 'Finished', items: [{ text: 'Keys', status: 'done' }] }
           ]
         },
-        { name: 'Next', start: '2026-10', milestones: [{ chip: 'M4', title: 'Future', items: [{ text: 'Later', status: 'planned' }] }] }
+        {
+          name: 'Next',
+          start: '2026-10',
+          milestones: [{ chip: 'M4', title: 'Future', items: [{ text: 'Later', status: 'planned' }] }]
+        }
       ]
     },
     horizon: { cards: [{ theme: 'Undated but moving', items: [{ text: '<b>Docs</b> (op-001)', status: 'progress' }] }] }
@@ -278,7 +307,11 @@ describe('roadmap milestones', () => {
       inputs([task('ac-001', { horizon: TODAY }), task('op-001', { project: 'ops' })], {
         project: 'ops',
         roadmaps: [
-          { source: 'projects/ops/roadmap.html', read: { kind: 'data', raw: '', data: { a: { items: [{ text: 'x', status: 'planned' }] } } }, linkedOnly: false },
+          {
+            source: 'projects/ops/roadmap.html',
+            read: { kind: 'data', raw: '', data: { a: { items: [{ text: 'x', status: 'planned' }] } } },
+            linkedOnly: false
+          },
           { source: 'roadmap.html', read: { kind: 'data', raw: '', data: roadmap }, linkedOnly: true }
         ]
       })
@@ -296,7 +329,11 @@ describe('roadmap milestones', () => {
         roadmaps: [
           {
             source: 'roadmap.html',
-            read: { kind: 'data', raw: '', data: { s: { start: '2026-09', items: [{ text: 'Docs', status: 'progress' }] } } },
+            read: {
+              kind: 'data',
+              raw: '',
+              data: { s: { start: '2026-09', items: [{ text: 'Docs', status: 'progress' }] } }
+            },
             linkedOnly: false
           }
         ]
@@ -311,7 +348,9 @@ describe('roadmap milestones', () => {
 
 describe('project page', () => {
   const view = buildFocusView(
-    inputs([task('ac-001', { horizon: TODAY }), task('op-001', { horizon: TODAY, project: 'ops' })], { project: 'acme' })
+    inputs([task('ac-001', { horizon: TODAY }), task('op-001', { horizon: TODAY, project: 'ops' })], {
+      project: 'acme'
+    })
   );
 
   test('holds only its project, names it, and leaves the home-wide goals off', () => {
@@ -326,6 +365,33 @@ describe('project page', () => {
   test('a pull with no groups hides the queue', () => {
     const html = renderFocusHtml({ ...view, snapshot: { fetchedAt: new Date().toISOString(), groups: [] } });
     expect(html).not.toContain('Queue');
+  });
+});
+
+describe('weekly goals from TASKS.md', () => {
+  test('read without their list markers, as the week playbook writes them', () => {
+    const file = join(FOLDERS.PROJECTS, 'TASKS.md');
+    const before = existsSync(file) ? readFileSync(file, 'utf-8') : null;
+    mkdirSync(FOLDERS.PROJECTS, { recursive: true });
+    writeFileSync(
+      file,
+      '<!-- GOALS:START -->\n## Weekly Goals — Week of 2026-09-28\n\n1. acme: Ship the invoice export (ac-101) — live for all tenants\n2. acme: Close the audit gaps (ac-102) — evidence filed\n\n## Monthly Goals\n\n- **Launch** the billing cutover\n<!-- GOALS:END -->\n'
+    );
+    try {
+      expect(collectGoals()).toMatchObject({
+        weekly: [
+          'acme: Ship the invoice export (ac-101) — live for all tenants',
+          'acme: Close the audit gaps (ac-102) — evidence filed'
+        ],
+        monthly: ['Launch the billing cutover']
+      });
+    } finally {
+      if (before === null) {
+        rmSync(file, { force: true });
+      } else {
+        writeFileSync(file, before);
+      }
+    }
   });
 });
 
@@ -367,7 +433,10 @@ describe('focus pages on disk', () => {
     mkdirSync(join(FOLDERS.PROJECTS, 'acme', 'tasks'), { recursive: true });
     const own = join(FOLDERS.PROJECTS, 'acme', 'roadmap.html');
     const root = join(FOLDERS.HOME, 'roadmap.html');
-    writeFileSync(own, `<body>${roadmapDataBlock({ a: { title: 'Lane', items: [{ text: 'Invoice export', status: 'progress' }] } })}</body>`);
+    writeFileSync(
+      own,
+      `<body>${roadmapDataBlock({ a: { title: 'Lane', items: [{ text: 'Invoice export', status: 'progress' }] } })}</body>`
+    );
     writeFileSync(root, '<script>const ROADMAP = { a: 1 };</script>');
     const { view } = writeFocusPage('acme');
     expect(view.roadmap).toMatchObject({

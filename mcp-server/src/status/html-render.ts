@@ -743,10 +743,10 @@ const pageTasks = (snap: StatusSnapshot): string => {
   const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue)}${[
     taskGroup('▶ In flight', tasks.activeList, snap),
     taskGroup('⏰ Overdue', groups.get('overdue') ?? [], snap),
-    taskGroup('📅 Today', groups.get('today') ?? [], snap),
-    taskGroup('🗓 This week', groups.get('week') ?? [], snap),
-    taskGroup('📆 This month', groups.get('month') ?? [], snap),
-    taskGroup('🔭 Later', groups.get('later') ?? [], snap),
+    taskGroup('📅 Due today', groups.get('today') ?? [], snap),
+    taskGroup('🗓 Due this week', groups.get('week') ?? [], snap),
+    taskGroup('📆 Due this month', groups.get('month') ?? [], snap),
+    taskGroup('🔭 Due later', groups.get('later') ?? [], snap),
     taskGroup('♾ No due date', groups.get('someday') ?? [], snap)
   ].join('')}</div>`;
 
