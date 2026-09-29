@@ -1,7 +1,7 @@
 ---
 name: upgrade
 description: Apply pending HOME migrations after a plugin code update. `/plugin update` refreshes plugin code (skills, hooks, MCP server, templates) but never touches a home's scaffolded files (AGENTS.md, SOUL.md, settings, rules) or runs bun install. This skill reads the CHANGELOG's Upgrade blocks from the home's recorded baseline up to the installed version, backs up, runs bun install when needed, auto-applies functionality-critical changes, and asks before touching anything you may have personalized. Use when the SessionStart banner / dashboard shows "upgrade available" or "enable update tracking", or the user says "upgrade kevin", "apply the update", "I just ran /plugin update".
-allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__ping, mcp__plugin_agent-kevin_kevin__run_upgrade, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history
+allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__ping, mcp__plugin_agent-kevin_kevin__run_upgrade, mcp__plugin_agent-kevin_kevin__codex_setup
 ---
 
 # Upgrade — apply pending HOME migrations
@@ -526,16 +526,6 @@ own line and is kept. Same write discipline as the `ask` backfill above (in-memo
 Write tool, no `jq`, and the permission-error fallback to a `manual:` note). A changed entry shows
 on relaunch; say so in the Step 6 report. The subagent panel needs nothing here: the plugin ships
 its own `subagentStatusLine`.
-
-**Settle the history grants (built-in invariant, every run).** A home whose history lives outside
-it records the folder in `settings.local.json` (`env.AGENT_HOME_GIT_DIR`) and grants it in
-`settings.json` (`permissions.additionalDirectories`, `sandbox.filesystem.allowWrite`); earlier
-releases wrote the grants to `settings.local.json`. Call `home_history` with `action: "status"`,
-and when it returns `state: "on"` with `layout: "split"`, call it again with `action: "setup"`. On a
-history that is already on, setup only records: it adds any missing grant to `settings.json`, moves
-the old ones out of `settings.local.json`, and regenerates the Codex wiring when it changed a file.
-`settingsChanged: true` is one line in the Step 6 report; any other state is left to the history
-skill and stays silent here.
 
 **Check the user-global auto-mode block (built-in invariant, every run).** The recommended
 block lives in the init skill's auto-mode section, and it moves with the plugin (0.4.0 added

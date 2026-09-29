@@ -167,7 +167,7 @@ const inProgressOp = (home: string): boolean => {
 };
 
 const GRANT_HINT =
-  "git could not write to the repo. If history was turned on in this session, start a new session first, since the new write grant may only apply from the next launch. Otherwise, if this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.json so the sandbox can commit.";
+  "git could not write to the repo. If history was turned on in this session, start a new session first, since the new write grant may only apply from the next launch. Otherwise, if this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.local.json so the sandbox can commit.";
 
 export const commitBrain = (home: string): BrainCommitResult => {
   const result = (status: BrainCommitStatus, extra: Partial<BrainCommitResult> = {}): BrainCommitResult => ({
