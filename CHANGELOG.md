@@ -46,6 +46,15 @@ and prompts per optional one. The new template files are the source of truth for
 ## [0.6.0] - 2026-09-29
 
 ### Added
+- **Init asks about your world.** A new step (5d) asks what you're working on, what should land
+  this year, and which company the agent works for, the same ground the website wizard covers.
+  Each project gets its folder and README, goals land in `knowledge/concepts/roadmap-draft.md`
+  for the roadmap skill, and the company in `knowledge/concepts/company-profile.md` with its
+  website read. It then opens the documents drop: the LinkedIn profile saved as PDF (LinkedIn
+  blocks automated reads, so this is how career history arrives), a résumé, company one-pagers.
+  Init reads what's about you and the company into the knowledge base straight away, and the
+  first compile absorbs the rest. A seed bundle skips the first three questions, since it
+  carries them.
 - **Python runs through uv.** The manual's Toolchain section routes Python scripts through
   `uv run --with <packages>`, a throwaway environment per run, so no system or Homebrew Python
   gets packages. Init always writes a pip guard to `permissions.deny` (even when the operator's

@@ -1,6 +1,6 @@
 ---
 name: init
-description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
+description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., your projects, goals, company and documents, and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
@@ -451,12 +451,12 @@ Otherwise, parse URLs (split on whitespace + newlines, filter to anything that l
 **Authwalled domains — never fetch.** `linkedin.com`, `x.com`/`twitter.com`, `facebook.com`, `instagram.com` serve a login wall or bot-block to anonymous requests, so a fetch is a guaranteed error — don't attempt it. If any pasted URL matches, ask for an export instead (plain chat, one message covering all matches):
 
 > **LinkedIn/X block automated reads** — but your own export is richer data anyway.
-> - LinkedIn: open your profile → **More → Save to PDF**, then paste the file path here.
+> - LinkedIn: open your profile → **More → Save to PDF**. You'll drop it into your documents folder in a moment (Step 5d), where <AGENT_NAME> reads it.
 > - Other authwalled sites: paste the relevant text directly.
 >
-> Reply with the path/text, or `skip` to drop those URLs.
+> Reply with the text, or `skip` to drop those URLs.
 
-`Read` the provided file (PDFs work) or take the pasted text, and synthesise it through the same facet routing below, citing the original profile URL as the source. On `skip`, note it in the log and continue.
+Take any pasted text and synthesise it through the same facet routing below, citing the original profile URL as the source. The LinkedIn PDF is read at Step 5d, which asks for it whether or not a LinkedIn URL was pasted here. On `skip`, note it in the log and continue.
 
 For every remaining URL, `WebFetch` and synthesise into staged content:
 
@@ -527,6 +527,44 @@ If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUs
 And if `~/.claude/settings.json` has a `sandbox.filesystem.allowWrite` array, mirror those two paths into it too — otherwise Claude Code's sandbox blocks the writes regardless of `permissions.allow`.
 
 If both paths are inside `<HOME>`, no extra grants needed (the home dir's `.` is already on the writable list).
+
+---
+
+## Step 5d — Your world: projects, goals, company, documents
+
+The wizard on the AgentLayer site asks these; init asks them too, so a home started without a seed bundle doesn't wake up knowing only a name and a timezone. Every part is optional. When Step 1c staged a seed bundle, skip parts 1–3 (the bundle carries its company profile, roadmap and projects) and ask part 4 only.
+
+Ask in plain chat (not `AskUserQuestion`, the answers are freeform), one message:
+
+> **Tell me about your world** — answer any, skip any:
+> 1. **What are you working on right now?** Name the projects, comma-separated.
+> 2. **What should land this year?** A few goals, with a rough when if you have one.
+> 3. **Is this agent for work?** The company, its website, what it does, and your role.
+
+Parse the reply leniently and stage, without writing yet (Step 7 writes them after the scaffold, never over an existing file at the same path):
+
+- **Projects** → one `<PROJECTS>/<slug>/README.md` and `tasks/` each, using the README template in `${CLAUDE_PLUGIN_ROOT}/skills/create-project/SKILL.md` step 3 (read it; don't restate it here). Naming them here is the operator's go, so skip that skill's confirmation. Derive each slug and prefix the way it says, and fill Current Focus from anything the operator said about the project.
+- **Goals** → `<KNOWLEDGE>/concepts/roadmap-draft.md`, a `| When | Milestone |` table, noting that `/agent-kevin:roadmap` renders it into `roadmap.html`.
+- **Company** → `<KNOWLEDGE>/concepts/company-profile.md`: company, website, what it does, the operator's role. `WebFetch` the website (public pages only, the Step 5 rules) and add what it says about the company, citing the URL.
+
+Both concept files get the permanent-article frontmatter (`title`, `sources`, `created`, `updated`) and a line each under `## Concepts` in `knowledge/index.md`.
+
+Then the documents. `mkdir -p "<KNOWLEDGE>/raw/inbox"` and ask (plain chat):
+
+> 4. **Anything a new hire would read?** Drop files into `<KNOWLEDGE>/raw/inbox/` (in Finder: **Go → Go to Folder**, paste the path):
+>    - **Your LinkedIn profile:** on linkedin.com open your profile → **More → Save to PDF**. LinkedIn blocks automated reads, so this PDF is how <AGENT_NAME> gets your career history.
+>    - Your résumé or bio, a company profile or pitch deck, one-pagers, an org chart, a glossary.
+>    - PDF, Markdown or plain text; export Word, Pages and Google Docs files as PDF first.
+>
+> Say `done` when they're in, or `skip`.
+
+On `done`, `ls` the inbox and `Read` each file (PDF pages render through poppler; if a PDF read fails with an install hint, relay it and move on). Route what you read:
+
+- **About the operator** (LinkedIn PDF, résumé, bio) → the user facets, with the same routing and rules as Step 5 (`career.md` and `skills.md` for roles and skills, `profile.md` for the bio), citing the file name as the source.
+- **About the company** → the staged `company-profile.md`, citing the file.
+- **Anything else** → leave it for the first compile.
+
+Leave every file in the inbox either way: the first `/agent-kevin:knowledge-compile` absorbs them in full and archives them. Count them for Step 9.
 
 ---
 
@@ -1414,6 +1452,8 @@ Cross-project task dashboard: [projects/TASKS.md](../projects/TASKS.md).
 
 Substitute `<NAME>` with the operator's name from Step 4a and `<YYYY-MM-DD>` with today's date. The Reports link points at a path that doesn't exist until `report_write` runs once — Obsidian renders the unresolved link gracefully, and the file materialises on first use.
 
+**Write Step 5d's staged files.** Each project's `README.md` and `tasks/`, `concepts/company-profile.md` and `concepts/roadmap-draft.md`, skipping any path that already exists. Add each concept's bullet under `## Concepts` in `knowledge/index.md` when it isn't there yet, including in an index this step left alone: one appended line is not a rewrite. The `## Projects` table needs no edit; the first compile regenerates it from `projects/`.
+
 **Write `knowledge/memory/index.md` — strict preservation.** This is the highest-stakes file in the tree — months of `/agent-kevin:knowledge-compile` output (Active Threads, Recent Decisions, Learnings) live here.
 
 - File missing OR file body is empty/whitespace-only → write the master-index scaffold with empty placeholder sections.
@@ -1558,6 +1598,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Status line   .claude/settings.json → `kevin statusline` (model · folder · branch / context · cost · time · rate limits; shows on relaunch)
 > `<CODEX_HOOKS_ROW>`
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
+> `<WORLD_ROW>`
 > ✅ Indexes       knowledge/index.md · knowledge/memory/index.md · projects/TASKS.md
 > ✅ Dashboard     dashboard.html — open it in any browser; rebuilt by every sync or `/agent-kevin:dashboard`
 > ✅ Concepts      4 seeded: karpathy-wiki · markdown-native-task-management · self-evolution-loop · audit-premise-decay
@@ -1566,6 +1607,8 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
 For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules) · user-level keys: .kevin/updates/codex-user-config.md`; otherwise omit the row.
+
+For `<WORLD_ROW>`, from Step 5d: what landed, e.g. `✅ Your world    3 projects · roadmap draft · company profile · 4 documents in the inbox`; when every part was skipped → `⏳ Your world    nothing yet — drop documents into <KNOWLEDGE>/raw/inbox/ any time and run /agent-kevin:knowledge-compile`.
 
 For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
@@ -1627,6 +1670,8 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > Once the plugin is loaded, try:
 >
+> - `/agent-kevin:knowledge-compile` — absorb the documents in your inbox (list this first when Step 5d left any there)
+> - `/agent-kevin:roadmap` — turn the roadmap draft into `roadmap.html` (only when Step 5d staged one)
 > - `/agent-kevin:dashboard` — open the Agent OS dashboard (your whole setup on one page)
 > - `/agent-kevin:configure-skills` — configure skill packs (SEO, Browser) or author a custom skill
 > - `/agent-kevin:create-project` — start your first project
