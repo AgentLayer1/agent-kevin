@@ -470,9 +470,9 @@ rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME
 ```
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
-writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries, its Python
-guard in `permissions.deny`, its uv sandbox grants, its `plansDirectory` and its Haiku-tier model
-once, and no template merge touches them, so a home
+writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` / `permissions.deny`
+entries, its sandbox, its `plansDirectory` and its Haiku-tier model once, and no template merge
+touches them, so a home
 that missed one stays behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
 cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
 unconditionally, never via a CHANGELOG block, so a home that skipped releases still converges:
@@ -487,8 +487,14 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   in `ask` or `deny` is their decision and is never granted; `remove_worktree` is never listed.
   The `ask` entries are the only gate that survives auto mode's classifier, so a home missing
   them has no enforced checkpoint before a push or an outbound request.
-- **`settings.denyMissing`** is the Python guard (`pip install` and friends) to add to
-  `permissions.deny`; an entry the operator already placed in any list is theirs and is skipped.
+- **`settings.denyMissing`** is what to add to `permissions.deny`: the Python guard always, and
+  init's core deny list while the user settings carry no deny list of their own. An entry the
+  operator already placed in any list is theirs and is skipped, so moving one to `ask` or `allow`
+  is how they opt out.
+- **`settings.sandboxBlock`** is init's sandbox block, reported when neither the user settings
+  enable the sandbox nor the project sets `sandbox.enabled` either way; `null` otherwise and on
+  native Windows. Deep-merge it into the project `sandbox` (existing values win, lists union), so
+  a home whose sandbox came from user settings that later turned it off gets it back.
 - **`settings.sandboxMissing`** holds `allowWrite` and `allowedDomains` entries to add under
   `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one.

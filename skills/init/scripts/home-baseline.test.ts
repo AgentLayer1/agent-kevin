@@ -29,11 +29,18 @@ const scratchHome = (files: { gitignore?: string; settings?: object } = {}): str
   }
   return dir;
 };
+const claudeDirWith = (settings: object = {}): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'home-baseline-claude-'));
+  dirs.push(dir);
+  writeFileSync(join(dir, 'settings.json'), JSON.stringify(settings));
+  return dir;
+};
 const run = (home: string, extra: string[] = [], reports?: string) => {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => key !== 'KEVIN_REPORTS' && key !== 'AGENT_REPORTS')
   );
-  const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, ...extra], {
+  const claudeDir = extra.includes('--claude-dir') ? [] : ['--claude-dir', claudeDirWith()];
+  const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, ...claudeDir, ...extra], {
     encoding: 'utf-8',
     env: reports ? { ...env, AGENT_REPORTS: reports } : env
   });
@@ -182,6 +189,26 @@ describe('home-baseline settings', () => {
     expect(denyMissing).not.toContain('Bash(pip install*)');
     expect(denyMissing).not.toContain('Bash(pip3 install*)');
     expect(denyMissing).toContain('Bash(python3 -m pip install*)');
+  });
+
+  test('backfills the core deny list only while the user settings carry no deny list of their own', () => {
+    expect(fresh.denyMissing).toEqual(expect.arrayContaining(['Bash(sudo *)', 'Read(~/.ssh/id_*)', 'Bash(pip install*)']));
+    const curated = run(scratchHome(), ['--claude-dir', claudeDirWith({ permissions: { deny: ['Bash(make *)'] } })]);
+    expect(curated.settings.denyMissing).not.toContain('Bash(sudo *)');
+    expect(curated.settings.denyMissing).toContain('Bash(pip install*)');
+  });
+
+  test('reports the sandbox block only when neither the home nor the user settings decide it', () => {
+    if (process.platform === 'win32') {
+      expect(fresh.sandboxBlock).toBeNull();
+      return;
+    }
+    expect(fresh.sandboxBlock).toMatchObject({ enabled: true, allowUnsandboxedCommands: false });
+    expect(fresh.sandboxBlock.filesystem).not.toHaveProperty('allowWrite');
+    const userOn = ['--claude-dir', claudeDirWith({ sandbox: { enabled: true } })];
+    expect(run(scratchHome(), userOn).settings.sandboxBlock).toBeNull();
+    expect(run(scratchHome({ settings: { sandbox: { enabled: false } } })).settings.sandboxBlock).toBeNull();
+    expect(run(scratchHome({ settings: { sandbox: { network: { allowedDomains: ['pypi.org'] } } } })).settings.sandboxBlock).not.toBeNull();
   });
 
   test('backfills the uv sandbox grants a home lacks, keeping its own entries', () => {

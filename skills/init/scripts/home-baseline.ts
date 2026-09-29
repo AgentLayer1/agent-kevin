@@ -2,13 +2,15 @@
 /**
  * The part of init's Step 7 baseline that no template merge reaches: the home's `.gitignore`
  * (reconciled against `templates/.gitignore`), the `permissions.allow` / `permissions.ask`
- * entries, the Python guard in `permissions.deny`, the uv sandbox grants, `plansDirectory` and
- * the Haiku-tier model. `--write` writes the `.gitignore` (without it, a dry run); settings are
- * only reported, for the caller to merge.
+ * entries, the `permissions.deny` list, the sandbox, `plansDirectory` and the Haiku-tier model.
+ * The core deny list and the sandbox block are gap-filled against the user settings, the same
+ * test init applies. `--write` writes the `.gitignore` (without it, a dry run); settings are only
+ * reported, for the caller to merge.
  *
- * Usage: home-baseline.ts --home <dir> [--write]
+ * Usage: home-baseline.ts --home <dir> [--claude-dir <dir>] [--write]
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
@@ -25,6 +27,7 @@ if (!homeFlag) {
   process.exit(2);
 }
 const home = resolve(homeFlag);
+const claudeDir = resolve(flag('claude-dir') ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'));
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
 
 const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'), runtimeDirName());
@@ -44,6 +47,22 @@ const baselineAllow = jsonBlockAfter<{ permissions: { allow: string[] } }>(
 ).permissions.allow;
 const baselineAsk = jsonBlockAfter<string[]>('Baseline `permissions.ask`');
 const baselinePythonDeny = jsonBlockAfter<string[]>('Baseline Python guard `permissions.deny`');
+const baselineCoreDeny = jsonBlockAfter<string[]>('Cross-platform core (always written)');
+const osTailAnchors: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: '`macos`:',
+  linux: '`linux` / `wsl`:',
+  win32: '`windows` (Git Bash'
+};
+const osTailAnchor = osTailAnchors[process.platform];
+const baselineOsDeny = osTailAnchor ? jsonBlockAfter<string[]>(osTailAnchor) : [];
+const rawSandbox = jsonBlockAfter<{ filesystem: Record<string, unknown> } & Record<string, unknown>>(
+  'Baseline `sandbox` block to write'
+);
+// The block's allowWrite is a placeholder for the code root, which only init's interview knows.
+const baselineSandbox = {
+  ...rawSandbox,
+  filesystem: Object.fromEntries(Object.entries(rawSandbox.filesystem).filter(([key]) => key !== 'allowWrite'))
+};
 const baselineUvSandbox = jsonBlockAfter<{
   filesystem: { allowWrite: string[] };
   network: { allowedDomains: string[] };
@@ -58,10 +77,17 @@ interface HomeSettings {
   env?: Record<string, string>;
   plansDirectory?: string;
   permissions?: Partial<Record<'allow' | 'ask' | 'deny', string[]>>;
-  sandbox?: { filesystem?: { allowWrite?: string[] }; network?: { allowedDomains?: string[] } };
+  sandbox?: { enabled?: boolean; filesystem?: { allowWrite?: string[] }; network?: { allowedDomains?: string[] } };
 }
-const settingsPath = join(home, '.claude', 'settings.json');
-const settings: HomeSettings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf-8')) : {};
+const readSettings = (path: string): HomeSettings =>
+  existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : {};
+const settings = readSettings(join(home, '.claude', 'settings.json'));
+const userSettings = readSettings(join(claudeDir, 'settings.json'));
+const userCuratesDeny = (userSettings.permissions?.deny ?? []).length > 0;
+const baselineDeny = userCuratesDeny
+  ? baselinePythonDeny
+  : [...baselineCoreDeny, ...baselineOsDeny, ...baselinePythonDeny];
+const sandboxDecided = settings.sandbox?.enabled !== undefined || userSettings.sandbox?.enabled === true;
 const listed = (...lists: ('allow' | 'ask' | 'deny')[]) =>
   new Set(lists.flatMap((list) => settings.permissions?.[list] ?? []));
 const decidedForAllow = listed('allow', 'ask', 'deny');
@@ -82,7 +108,8 @@ process.stdout.write(
       settings: {
         allowMissing: baselineAllow.filter((entry) => !decidedForAllow.has(entry)),
         askMissing: baselineAsk.filter((entry) => !decidedForAsk.has(entry)),
-        denyMissing: baselinePythonDeny.filter((entry) => !decidedForDeny.has(entry)),
+        denyMissing: baselineDeny.filter((entry) => !decidedForDeny.has(entry)),
+        sandboxBlock: process.platform === 'win32' || sandboxDecided ? null : baselineSandbox,
         sandboxMissing: {
           allowWrite: missingFrom(settings.sandbox?.filesystem?.allowWrite, baselineUvSandbox.filesystem.allowWrite),
           allowedDomains: missingFrom(settings.sandbox?.network?.allowedDomains, baselineUvSandbox.network.allowedDomains)

@@ -85,6 +85,12 @@ and prompts per optional one. The new template files are the source of truth for
 - Claude Code 2.1.284 or newer is required, the release Sonnet 5.5 behind the Haiku-tier remap was
   verified on: init and upgrade stop below it with `claude update`, and the SessionStart banner
   warns until the host is updated.
+- Upgrade re-checks init's core deny list and sandbox block on every run, with the same test init
+  uses: when the user settings carry no deny list, or neither they nor the project turn the
+  sandbox on, the home gets the baseline back. A home that relied on user settings the operator
+  later changed no longer runs unguarded, and a home set up before these baselines catches up. A
+  project that sets `sandbox.enabled` either way is left alone, and an entry moved to `ask` or
+  `allow` stays out of `deny`.
 
 ### Removed
 - The `standup` and `where-am-i` skills, now `/focus standup` and `/focus where-am-i`. Reports
@@ -109,6 +115,7 @@ and prompts per optional one. The new template files are the source of truth for
 - `script: required` — run skills/upgrade/scripts/0.6.0.ts (removes the generated home `focus.html`, which the dashboard's Today → Focus view replaces). A `focus.html` without the `focus-data` block is hand-made and is left in place; the report names it. Project focus pages are untouched. It also drops the dead `Skill(agent-kevin:standup)` and `Skill(agent-kevin:where-am-i)` grants from `.claude/settings.json` `permissions.allow` (the settings merge only adds, so the removal lives here); every other entry keeps its place.
 - `settings: mandatory` — upgrade's baseline reconcile sets `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` to `claude-sonnet-5-5` in `.claude/settings.json` when the home has none or still has `claude-sonnet-4-6`; any other model the operator chose is kept. Applied automatically.
 - `settings: mandatory` — upgrade's baseline reconcile adds the Python guard (`Bash(pip install*)` and its variants) to `permissions.deny`, and `~/.cache/uv` plus `pypi.org` and `files.pythonhosted.org` to the project `sandbox`, when the home lacks them; an entry the operator already placed in allow or ask is kept as theirs. Applied automatically.
+- `settings: mandatory` — the same reconcile writes init's core deny list into `permissions.deny` when the user settings have no deny list, and init's sandbox block into the project `sandbox` when neither the user settings enable the sandbox nor the project sets `sandbox.enabled` (skipped on native Windows). Existing values win and lists union. Applied automatically.
 - `template/AGENTS.md: mandatory` — the memory-routing row and the `reports/radar/` tree comment name the focus skill's standup and where-am-i playbooks instead of the retired skills, and Toolchain gains the Python line (`uv run --with`, never pip).
 - `manual: none` — `/agent-kevin:standup` is now `/agent-kevin:focus standup`, and `/agent-kevin:where-am-i` is `/agent-kevin:focus where-am-i`. Plain asks ("standup is coming up", "where am I") route there on their own.
 
