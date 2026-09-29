@@ -115,6 +115,10 @@ fi
 if [ "$KEVIN_OS" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
   echo "NOTE: Homebrew not found — needed only to install gh/poppler if you want them (https://brew.sh)."
 fi
+# Init itself calls the plugin's server (dashboard, history, Codex wiring), and only
+# `bun install` puts all of its packages in place: Bun's auto-install skips the patched
+# Playwright and the Chromium download in postinstall.
+test -d "${CLAUDE_PLUGIN_ROOT}/mcp-server/node_modules" || echo "DEPS_MISSING"
 printf 'MISSING: %s\n' "${MISSING[@]}"
 ```
 
@@ -139,6 +143,16 @@ Act on the result **before** anything else:
   > `<each MISSING line>`
   >
   > Install them, then re-run `/agent-kevin:init` — it's idempotent and picks up where you left off.
+
+- **`DEPS_MISSING`** (and `bun` not in `MISSING`) — the plugin's packages were never installed, which is the normal state after `/plugin install` from a marketplace. Substitute the real `${CLAUDE_PLUGIN_ROOT}` path and **STOP**; the sandbox can't write to the plugin folder, so this runs in the operator's own terminal:
+
+  > 🛑 **One-time install first** (~150 MB, most of it the browser the web tools use). In a normal terminal, not this session, run:
+  >
+  > ```bash
+  > cd "<PLUGIN_ROOT>/mcp-server" && bun install
+  > ```
+  >
+  > Then `/exit`, relaunch from this folder, and run `/agent-kevin:init` again. The relaunch is what connects the plugin's server.
 
 - **Nothing missing** — surface any optional `NOTE`s (if present) as one-line FYIs and continue.
 
@@ -1592,14 +1606,6 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > ```
 >
 > **Do not set this if you have, or might later have, more than one agent-kevin home** (say a work agent and a personal one). It's machine-wide and it wins outright over launch-directory resolution, so it captures *every* session for one home and makes the others unreachable. With multiple homes, isolation comes from where you launch, and the pin actively breaks it. Same rule for any other `KEVIN_*` var in user-level settings: one value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names. (Whatever you choose is visible on the dashboard's System → Environment page, with a tooltip explaining it.)
->
-> **One-time MCP-server install.** Kevin's MCP server runs from the plugin directory and needs its node_modules. From a separate terminal (or after `/exit`), run:
->
-> ```bash
-> cd <PLUGIN_PATH>/mcp-server && bun install
-> ```
->
-> (where `<PLUGIN_PATH>` is the absolute path of the plugin — same as `${CLAUDE_PLUGIN_ROOT}` during this init.) This pulls Chromium for Playwright (~150MB) and is required even if you installed via `/plugin marketplace add`. Skip if you've already done it for another Kevin home.
 >
 > **Then relaunch.** The plugin registration in `.claude/settings.json` only takes effect on a fresh session. Exit now (`/exit` or Ctrl+D) and relaunch:
 >

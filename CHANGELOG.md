@@ -91,6 +91,10 @@ and prompts per optional one. The new template files are the source of truth for
   later changed no longer runs unguarded, and a home set up before these baselines catches up. A
   project that sets `sandbox.enabled` either way is left alone, and an entry moved to `ask` or
   `allow` stays out of `deny`.
+- Init checks that the plugin's packages are installed before it asks anything, and stops with
+  the one `bun install` command for your terminal when they aren't, the normal state after a
+  marketplace install. It used to mention the install only at the end, after steps that already
+  needed the plugin's server.
 
 ### Removed
 - The `standup` and `where-am-i` skills, now `/focus standup` and `/focus where-am-i`. Reports
