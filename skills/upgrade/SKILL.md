@@ -470,9 +470,9 @@ rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME
 ```
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
-writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries and its
-`plansDirectory` once, and no template merge touches them, so a home that missed one stays
-behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
+writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` entries, its
+`plansDirectory` and its Haiku-tier model once, and no template merge touches them, so a home
+that missed one stays behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
 cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
 unconditionally, never via a CHANGELOG block, so a home that skipped releases still converges:
 
@@ -487,10 +487,12 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   The `ask` entries are the only gate that survives auto mode's classifier, so a home missing
   them has no enforced checkpoint before a push or an outbound request.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
+- **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
+  home has none or one an earlier release wrote; `null` when it is current or the operator's own.
 
-Read `$HOME_DIR/.claude/settings.json` once, union both lists and set `plansDirectory` in one
-in-memory merge, and write it with the Write tool, same as Step 7 does; no `jq`. Never remove or
-reorder an operator's entry.
+Read `$HOME_DIR/.claude/settings.json` once, union both lists and set `plansDirectory` and the
+Haiku-tier model in one in-memory merge, and write it with the Write tool, same as Step 7 does; no
+`jq`. Never remove or reorder an operator's entry.
 
 If the write fails with a permission error, the operator's sandbox protects
 `settings.json` from agent writes (a correct posture, and the default in some setups).

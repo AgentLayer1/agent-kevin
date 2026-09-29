@@ -180,4 +180,13 @@ describe('home-baseline settings', () => {
     const home = scratchHome({ settings: { plansDirectory: './.claude/plans' } });
     expect(run(home).settings.plansDirectory).toBeNull();
   });
+
+  test('haikuModel sets a missing or retired Haiku-tier model and keeps an operator choice', () => {
+    const haikuOf = (env?: object) => run(scratchHome({ settings: env ? { env } : {} })).settings.haikuModel;
+    expect(fresh.haikuModel).toBe('claude-sonnet-5-5');
+    expect(haikuOf({ CLAUDE_CODE_NO_FLICKER: '1' })).toBe('claude-sonnet-5-5');
+    expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-sonnet-4-6' })).toBe('claude-sonnet-5-5');
+    expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-sonnet-5-5' })).toBeNull();
+    expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5' })).toBeNull();
+  });
 });
