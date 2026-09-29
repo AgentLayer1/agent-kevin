@@ -120,6 +120,13 @@ describe('renderFocusHtml', () => {
     expect(html).not.toMatch(/url\(["']?https?:/);
   });
 
+  test('the page inlines the shared lanes stylesheet the dashboard uses', () => {
+    const html = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })])));
+    expect(html).toContain('<main class="focusview">');
+    expect(html).toContain('.focusview .lanes {');
+    expect(html).not.toContain('{{');
+  });
+
   test('the page embeds its data with task paths relative to the home', () => {
     const view = buildFocusView(inputs([task('ac-001', { horizon: TODAY })]));
     const data = readFocusData(renderFocusHtml(view));

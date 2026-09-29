@@ -3,7 +3,8 @@ import type { StatusSnapshot, TaskRef } from './collect';
 import { buildFocusView } from './focus';
 import { readFocusData } from './focus-data';
 // html-render is pure by design (see its header), so this suite needs no filesystem or HOME.
-import { PAGES, escapeHtml, renderDashboardHtml } from './html-render';
+import { escapeHtml } from './html-primitives';
+import { PAGES, renderDashboardHtml } from './html-render';
 
 const emptyFocus = buildFocusView({
   project: '',
@@ -344,7 +345,7 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('>lo-001</a> A task');
   });
 
-  test('today opens on Focus, with its stats deep-linking there, and the Plan tab is gone', () => {
+  test("today opens on Focus, drawn with the focus page's lanes and stylesheet, and the Plan tab is gone", () => {
     const task = (id: string, horizon: string, status: 'active' | 'open' = 'active') => ({
       frontmatter: {
         schema: 1,
@@ -378,7 +379,9 @@ describe('renderDashboardHtml', () => {
       roadmaps: [],
       snapshot: {
         fetchedAt: '2026-06-15T08:30:00Z',
-        groups: [{ label: 'My pull requests', empty: 'None open.', items: [], unavailable: "GitHub can't read 2 repos" }]
+        groups: [
+          { label: 'My pull requests', empty: 'None open.', items: [], unavailable: "GitHub can't read 2 repos" }
+        ]
       },
       self: new Set(['user']),
       operator: 'Alex',
@@ -392,12 +395,15 @@ describe('renderDashboardHtml', () => {
     expect(today).toContain('<button class="subtab active" data-subtab="focus">Focus</button>');
     expect(today).not.toContain('data-subtab="plan"');
     expect(today).toContain('data-nav="today/focus"');
-    expect(today).toContain('<span class="fmark">1</span><span class="tid nowrap">');
+    expect(today).toContain('<div class="focusview"><div class="lanes"><section class="now today');
+    expect(today).toContain('<li class="row" data-row data-cat="life-os"><span class="mark">1</span>');
     expect(today).toContain('Focus task lo-101');
     expect(today).toContain('from Fri 12');
-    expect(today).toContain("GitHub can&#39;t read 2 repos");
+    expect(today).toContain('GitHub can&#39;t read 2 repos');
     expect(today).toContain('pulled 08:30');
     expect(readFocusData(html)?.lanes.today.map((item) => item.id)).toEqual(['lo-101']);
+    expect(html).toContain('.focusview .lanes {');
+    expect(html).not.toContain('{{FOCUS_CSS}}');
   });
 
   test('tasks agenda leads with what is in flight, lists each task once, and its stats open the right tab', () => {

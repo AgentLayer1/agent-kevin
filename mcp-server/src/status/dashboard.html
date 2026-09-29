@@ -123,40 +123,7 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat .lab { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 .stat .cap { color: var(--dim); font-size: 11px; margin-top: 4px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── focus (Today) ─────────────────────────────────────────────────── */
-.frow { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--hairline); }
-.frow .tid { flex: none; min-width: 62px; }
-.frow .tid a { color: var(--accent); }
-.frow .ttl { flex: 1; min-width: 0; }
-.frow .meta { flex: none; font-size: 12px; color: var(--dim); }
-.frow .meta a { color: var(--cyan); }
-.frow .meta.bad { color: var(--red); }
-.frow .meta.warn { color: var(--amber); }
-.frow .pri { flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--dim); }
-.frow .pri.p0 { color: var(--red); }
-.frow .pri.p1 { color: var(--amber); }
-.frow.done .ttl { color: var(--dim); text-decoration: line-through; }
-.fmark { flex: none; width: 16px; text-align: right; color: var(--accent); font-weight: 600; }
-.frow.done .fmark { color: var(--green); }
-h3.group.warn { color: var(--amber); }
-h3.group.bad { color: var(--red); }
-.fms { border-bottom: 1px solid var(--hairline); padding-bottom: 4px; }
-.fms .frow { border-bottom: none; }
-.fms.slipped .ttl { color: var(--amber); }
-.fchip { flex: none; color: var(--accent); }
-.fdoing { font-size: 12px; color: var(--text); padding: 0 2px 4px 26px; }
-.fgoals { margin: 0 0 8px; }
-.fgoals li { font-style: italic; }
-.fprog { margin: 4px 0 8px; }
-.fdot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); align-self: center; }
-.fdot.good { background: var(--green); }
-.fdot.warn { background: var(--amber); }
-.fdot.bad { background: var(--red); }
-.hint.warn { color: var(--amber); font-style: normal; }
-details.ffold > summary { list-style: none; cursor: pointer; }
-details.ffold > summary::-webkit-details-marker { display: none; }
-details.ffold > summary h3.group::after { content: ' ▸'; color: var(--dim); }
-details.ffold[open] > summary h3.group::after { content: ' ▾'; }
+{{FOCUS_CSS}}
 
 /* ── sections ──────────────────────────────────────────────────────── */
 .section { margin: 26px 0; }
@@ -730,6 +697,11 @@ kbd {
         sibling = sibling.nextElementSibling;
       }
       heading.style.display = anyVisible ? '' : 'none';
+    });
+    // A focus lane or callout whose rows are all filtered out goes too; one with no rows (a hint) stays.
+    box.querySelectorAll('[data-rowgroup]').forEach((group) => {
+      const rows = [...group.querySelectorAll('[data-row]')];
+      group.style.display = rows.length && rows.every((row) => row.style.display === 'none') ? 'none' : '';
     });
   };
   document.querySelectorAll('[data-filterbox]').forEach((box) => {

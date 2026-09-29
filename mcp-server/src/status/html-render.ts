@@ -42,15 +42,10 @@ import type {
   StatusSnapshot,
   TaskRef
 } from './collect';
-import {
-  focusData,
-  horizonLabel,
-  taskStanding,
-  type FocusData,
-  type FocusMilestone,
-  type FocusTask
-} from './focus-data';
+import { focusData, horizonLabel } from './focus-data';
+import { FOCUS_CSS, renderFocusLanes } from './focus-render';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
+import { escapeHtml, nameHue } from './html-primitives';
 
 const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8');
 
@@ -70,14 +65,6 @@ export const PAGES = [
   { id: 'system', icon: '⚙️', label: 'System' },
   { id: 'status', icon: '🩺', label: 'Status', hidden: true }
 ] as const;
-
-export const escapeHtml = (text: string): string =>
-  text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
 const esc = escapeHtml;
 
@@ -99,14 +86,6 @@ const mdLink = (snap: StatusSnapshot, rel: string, text: string, cls = ''): stri
 const pathLink = (path: string, cls = 'plink'): string => {
   const abs = path.startsWith('~') ? path.replace('~', homedir()) : path;
   return `<a class="${cls}" href="file://${esc(encodeURI(abs))}">${esc(tildifyHome(abs))}</a>`;
-};
-
-/** Stable hue per name (djb2 hash, full-width before the mod, so similar
- *  names land far apart) — used for project and skill badges. */
-export const nameHue = (name: string): number => {
-  let hash = 5381;
-  for (const ch of name) hash = ((hash * 33) ^ (ch.codePointAt(0) ?? 0)) >>> 0;
-  return hash % 360;
 };
 
 const projectColor = (name: string): string => `hsl(${nameHue(name)}, 55%, 62%)`;
@@ -378,122 +357,9 @@ const CATEGORY_DOT: Record<string, string> = {
 
 // ── focus (Today) ─────────────────────────────────────────────────────
 
-/** One task in a focus lane; `data-cat` lets the project chips narrow it. */
-const focusTaskRow = (
-  snap: StatusSnapshot,
-  task: FocusTask,
-  options: { mark?: string; note?: string; done?: boolean } = {}
-): string => {
-  const due = options.done ? { text: '', cls: '' } : dueLabel(task.due, snap.runtime.isoDate);
-  return `<div class="frow${options.done ? ' done' : ''}" data-row data-cat="${esc(task.project)}">${
-    options.mark ? `<span class="fmark">${esc(options.mark)}</span>` : ''
-  }<span class="tid nowrap">${mdLink(snap, task.path, task.id)}</span><span class="ttl">${esc(task.title)}</span>${
-    options.note ? `<span class="meta warn">${esc(options.note)}</span>` : ''
-  }${task.status === 'blocked' ? `<span class="meta bad" title="${esc(task.blockedBy)}">blocked</span>` : ''}${
-    due.text ? `<span class="meta ${due.cls}">${esc(due.text)}</span>` : ''
-  }${projChip(task.project)}<span class="pri ${esc(task.priority.toLowerCase())}">${esc(task.priority)}</span></div>`;
-};
-
-const focusGroup = (title: string, tone: string, rows: string[]): string =>
-  rows.length ? `<h3 class="group${tone ? ` ${tone}` : ''}">${esc(title)} · ${rows.length}</h3>${rows.join('')}` : '';
-
-const focusProgress = (done: number, total: number): string =>
-  total
-    ? `<div class="proj-progress fprog"><span class="dim nowrap">${done} of ${total} done</span><div class="track"><span style="width:${Math.round(
-        (done / total) * 100
-      )}%;background:var(--accent)"></span></div></div>`
-    : '';
-
-const focusMilestoneRow = (snap: StatusSnapshot, milestone: FocusMilestone): string => {
-  const slipped = milestone.state === 'slipped';
-  const tasks = milestone.tasks
-    .map(
-      (task) =>
-        `<span class="meta">${mdLink(snap, task.path, task.id)} ${esc(taskStanding(task, snap.runtime.isoDate))}</span>`
-    )
-    .join('');
-  const doing = milestone.inProgress.map((text) => `<div class="fdoing">⏳ ${esc(text)}</div>`).join('');
-  return `<div class="fms${slipped ? ' slipped' : ''}" data-row data-cat="*"><div class="frow">${
-    milestone.chip ? `<span class="chip fchip">${esc(milestone.chip)}</span>` : ''
-  }<span class="ttl">${esc(milestone.title)} <span class="dim">· ${esc(milestone.section)}</span></span><span class="meta">${milestone.done}/${milestone.total} done</span>${
-    slipped && milestone.window ? `<span class="meta warn">ended ${esc(milestone.window.end)}</span>` : ''
-  }${tasks}${milestone.gap ? '<span class="meta bad">no open task</span>' : ''}</div>${doing}</div>`;
-};
-
-const focusQueue = (snap: StatusSnapshot): string => {
-  const { snapshot, queuePulled } = snap.focus;
-  if (!snapshot) {
-    return hint(`Nothing pulled yet. Run /${snap.runtime.pluginName}:focus to fetch what's waiting on you.`);
-  }
-  const groups = snapshot.groups
-    .map(
-      (group) =>
-        `<h3 class="group">${esc(group.label)} · ${group.items.length}</h3>${
-          group.unavailable ? `<div class="hint warn">${esc(group.unavailable)}</div>` : ''
-        }${
-          group.items.length
-            ? group.items
-                .map(
-                  (item) =>
-                    `<div class="frow" data-row data-cat="*"><span class="fdot ${esc(item.tone)}"></span><span class="ttl">${
-                      item.url ? extLink(item.url, item.title) : esc(item.title)
-                    }</span>${item.detail ? `<span class="meta">${esc(item.detail)}</span>` : ''}</div>`
-                )
-                .join('')
-            : group.unavailable
-              ? ''
-              : hint(group.empty)
-        }`
-    )
-    .join('');
-  return section('Waiting on you', `pulled ${queuePulled}`, groups || hint('No queue groups in the last pull.'));
-};
-
+/** Today → Focus: the focus page's own lanes, restyled under `.focusview`, with the project chips. */
 const focusTab = (snap: StatusSnapshot): string => {
   const { focus } = snap;
-  const row = (task: FocusTask, options: { mark?: string; note?: string; done?: boolean } = {}) =>
-    focusTaskRow(snap, task, options);
-  const todayRows = [
-    ...focus.lanes.today.map((task, index) => row(task, { mark: String(index + 1) })),
-    ...focus.done.today.map((task) => row(task, { mark: '✓', done: true }))
-  ];
-  const today =
-    (todayRows.length
-      ? todayRows.join('')
-      : hint(`Nothing set for today. Run /${snap.runtime.pluginName}:focus plan to pick up to three.`)) +
-    focusGroup(
-      '↻ Carried over',
-      'warn',
-      focus.lanes.carried.map((task) => row(task, { mark: '↻', note: `from ${horizonLabel(task.horizon)}` }))
-    ) +
-    focusGroup(
-      '! Due, not planned',
-      'bad',
-      focus.dueUnplanned.map((task) => row(task, { mark: '!' }))
-    );
-  const period = (goals: string[], open: FocusTask[], done: FocusTask[], planned: FocusData['planned']['week']) => {
-    const body =
-      (goals.length ? `<ul class="plain fgoals">${goals.map((goal) => `<li>${esc(goal)}</li>`).join('')}</ul>` : '') +
-      focusProgress(planned.done.length, planned.open.length + planned.done.length) +
-      [...open.map((task) => row(task)), ...done.map((task) => row(task, { mark: '✓', done: true }))].join('');
-    return body || hint('Nothing planned yet.');
-  };
-  const { milestones, notices } = focus.roadmap;
-  const roadmap =
-    milestones.length || notices.length
-      ? section(
-          'Roadmap',
-          `${milestones.length} in flight`,
-          milestones.map((milestone) => focusMilestoneRow(snap, milestone)).join('') +
-            notices.map((notice) => hint(notice)).join('')
-        )
-      : '';
-  const later = focus.lanes.later.map((task) => row(task));
-  const unplanned = focus.unplanned.map((task) => row(task));
-  const fold = (title: string, rows: string[]) =>
-    rows.length
-      ? `<details class="ffold"><summary><h3 class="group">${esc(title)} · ${rows.length}</h3></summary>${rows.join('')}</details>`
-      : '';
   const tasks = [
     ...focus.lanes.today,
     ...focus.lanes.carried,
@@ -503,22 +369,7 @@ const focusTab = (snap: StatusSnapshot): string => {
     ...focus.lanes.later,
     ...focus.unplanned
   ];
-  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks)}${[
-    section('Today', `${focus.lanes.today.length} of 3`, today),
-    roadmap,
-    section(
-      'This week',
-      focus.week.slice(5),
-      period(focus.weekGoals, focus.lanes.week, focus.done.week, focus.planned.week)
-    ),
-    section(
-      'This month',
-      new Date(`${focus.today}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' }),
-      period(focus.monthGoals, focus.lanes.month, focus.done.month, focus.planned.month)
-    ),
-    focusQueue(snap),
-    fold('🔭 Later', later) + fold('♾ Not planned', unplanned)
-  ].join('')}</div>`;
+  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks)}<div class="focusview"><div class="lanes">${renderFocusLanes(focus)}</div></div></div>`;
 };
 
 /** Today's header: the day as focus sees it, each tile opening the Focus tab. */
@@ -2194,6 +2045,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
   return fill(TEMPLATE, {
     TITLE: esc(`${snap.persona.name} · Agent OS`),
     EMOJI: esc(snap.persona.emoji || '🤖'),
+    FOCUS_CSS,
     GENERATED_AT: esc(snap.runtime.generatedAt),
     LAST_SYNC: esc(snap.runtime.lastSync),
     SYNC_CMD: esc(syncCmd),

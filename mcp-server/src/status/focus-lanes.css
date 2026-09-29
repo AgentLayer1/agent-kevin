@@ -1,0 +1,74 @@
+/*
+  Focus lanes on their timeline, shared by focus.html and the dashboard's Today → Focus tab.
+  Everything is scoped under .focusview; colors come from the host page's palette.
+*/
+.focusview {
+  --serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --bright: #e6edf3; --faint: #5c6570; --hairline: rgba(139, 148, 158, 0.18);
+  font: 16px/1.5 var(--serif); color: var(--text); -webkit-font-smoothing: antialiased;
+}
+.focusview a { color: inherit; }
+.focusview a:hover { color: var(--accent); text-decoration: none; }
+.focusview .lanes { margin: 28px 0 0 6px; border-left: 1px solid var(--hairline); padding-left: 26px; }
+.focusview section { position: relative; margin: 0 0 40px; color: inherit; animation: focus-rise .45s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+.focusview section::before {
+  content: ''; position: absolute; left: -31px; top: 4px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--faint);
+}
+.focusview section.now::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(255, 216, 102, .12); }
+.focusview section.warn::before { border-color: var(--amber); }
+@keyframes focus-rise { from { transform: translateY(8px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .focusview section { animation: none; } }
+.focusview .lane-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.focusview .lane-head h2 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.focusview section.now .lane-head h2 { color: var(--accent); }
+.focusview .count { font: 11px/1 var(--mono); color: var(--faint); }
+.focusview .rule { flex: 1; height: 1px; background: var(--hairline); }
+.focusview ol, .focusview ul { list-style: none; margin: 0; padding: 0; }
+.focusview .row { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--hairline); border-bottom: none; }
+.focusview .row:first-child { border-top: none; }
+.focusview .mark { font: italic 400 22px/1.1 var(--serif); color: var(--faint); text-align: right; padding-top: 1px; }
+.focusview .today .mark { color: var(--accent); font-size: 30px; line-height: .95; }
+.focusview .title { color: var(--bright); font-size: 17px; line-height: 1.35; }
+.focusview .today .title { font-size: 20px; }
+.focusview .meta { grid-column: 2; margin-top: 3px; font: 11.5px/1.5 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.focusview .meta a { color: var(--cyan); }
+.focusview .proj { color: hsl(var(--h) 55% 68%); }
+.focusview .pri { padding: 0 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--dim); }
+.focusview .pri.p0 { color: var(--red); border-color: rgba(248, 81, 73, .45); }
+.focusview .pri.p1 { color: var(--amber); border-color: rgba(210, 153, 34, .45); }
+.focusview .blocked { color: var(--red); }
+.focusview .late { color: var(--amber); }
+.focusview .row.done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: rgba(139, 148, 158, .5); }
+.focusview .row.done .mark { color: var(--green); font-style: normal; font-size: 18px; }
+.focusview .carried { margin-top: 14px; padding: 10px 14px 4px; border-left: 2px solid var(--amber); background: rgba(210, 153, 34, .05); border-radius: 0 6px 6px 0; }
+.focusview .carried h3 { margin: 0 0 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--amber); }
+.focusview .carried .mark { font-size: 16px; color: var(--amber); }
+.focusview .from { color: var(--amber); }
+.focusview .carried.due { border-left-color: var(--red); background: rgba(248, 81, 73, .05); }
+.focusview .carried.due h3, .focusview .carried.due .mark, .focusview .carried.due .late { color: var(--red); }
+.focusview .roadmap .mark { font: 400 13px/1.9 var(--mono); color: var(--accent); font-style: normal; }
+.focusview .roadmap .slipped .mark, .focusview .roadmap .slipped .title { color: var(--amber); }
+.focusview .chip { background: none; white-space: normal; font: 600 11px/1 var(--mono); color: var(--accent); border: 1px solid rgba(255, 216, 102, .35); border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 3px; }
+.focusview .doings { grid-column: 2; margin-top: 4px; }
+.focusview .doing { font: 12px/1.6 var(--mono); color: var(--text); }
+.focusview .goals { margin: 0 0 12px; }
+.focusview .goals li { position: relative; padding: 3px 0 3px 22px; font-style: italic; color: var(--text); }
+.focusview .goals li::before { content: '◆'; position: absolute; left: 2px; top: 5px; font: normal 9px/1.8 var(--mono); color: var(--accent); }
+.focusview .progress { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; font: 11px/1 var(--mono); color: var(--dim); }
+.focusview .bar { flex: 1; max-width: 260px; height: 4px; border-radius: 2px; background: var(--hairline); overflow: hidden; }
+.focusview .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ffe9a3); border-radius: 2px; }
+.focusview .dot { width: 8px; height: 8px; border-radius: 50%; margin: 8px 0 0 auto; background: var(--faint); }
+.focusview .dot.good { background: var(--green); }
+.focusview .dot.warn { background: var(--amber); }
+.focusview .dot.bad { background: var(--red); }
+.focusview .items .title { font-size: 16px; }
+.focusview .subhead { font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin: 18px 0 6px; }
+.focusview .subhead:first-of-type { margin-top: 0; }
+.focusview .unavailable { font: 12px/1.5 var(--mono); color: var(--amber); margin: 2px 0 8px; }
+.focusview .empty { font-style: italic; color: var(--dim); padding: 4px 0; margin: 0; }
+.focusview .empty code { font: 12px var(--mono); color: var(--accent); font-style: normal; }
+.focusview details > summary { cursor: pointer; list-style: none; }
+.focusview details > summary::-webkit-details-marker { display: none; }
+.focusview details > summary .lane-head h2::after { content: ' ▸'; color: var(--faint); }
+.focusview details[open] > summary .lane-head h2::after { content: ' ▾'; }
