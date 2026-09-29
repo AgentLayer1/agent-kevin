@@ -118,7 +118,7 @@ describe('registration-check', () => {
       expect.objectContaining({
         kind: 'retired-marketplace',
         commands: [
-          '/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace',
+          '/plugin marketplace add AgentLayer1/agentlayer-agent-marketplace',
           '/plugin install agent-scout@agentlayer'
         ]
       })
@@ -135,7 +135,7 @@ describe('registration-check', () => {
     write('home/.claude/settings.json', { enabledPlugins: { 'agent-scout@old-al': true } });
     const result = run();
     expect(result.findings[0].commands).toEqual([
-      '/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace',
+      '/plugin marketplace add AgentLayer1/agentlayer-agent-marketplace',
       '/plugin install agent-scout@agentlayer'
     ]);
     expect(result.settings.enabledPlugins).toEqual({ from: 'agent-scout@old-al', to: 'agent-scout@agentlayer' });

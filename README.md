@@ -60,7 +60,7 @@ mkdir -p ~/Documents/Agents/Kevin && cd ~/Documents/Agents/Kevin
 
 | Claude Code | Codex |
 |---|---|
-| `claude`, then `/plugin marketplace add github:AgentLayer1/agentlayer-agent-marketplace` and `/plugin install agent-kevin@agentlayer` | `codex plugin marketplace add AgentLayer1/agentlayer-agent-marketplace` then `codex plugin add agent-kevin@agentlayer` |
+| `claude`, then `/plugin marketplace add AgentLayer1/agentlayer-agent-marketplace` and `/plugin install agent-kevin@agentlayer` | `codex plugin marketplace add AgentLayer1/agentlayer-agent-marketplace` then `codex plugin add agent-kevin@agentlayer` |
 | Relaunch and run `/agent-kevin:init` | Create the home from Claude Code, then open it with `codex` and run `$upgrade` once |
 | Skills: `/agent-kevin:<skill>` | Skills: `$<skill>` |
 

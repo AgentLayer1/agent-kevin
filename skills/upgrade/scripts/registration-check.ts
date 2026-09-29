@@ -119,7 +119,7 @@ for (const [name, registration] of relevant) {
       detail: renamedToo
         ? `Marketplace "${name}" still points at ${source.repo}; the catalog moved to ${PUBLISHED.repo}, which registers as "${PUBLISHED.name}", so the plugin id becomes ${plugin}@${PUBLISHED.name}.`
         : `Marketplace "${name}" still points at ${source.repo}; the catalog moved to ${PUBLISHED.repo} under the same name, so adding it replaces the registration and ${plugin}@${name} is unchanged.`,
-      commands: [`/plugin marketplace add github:${PUBLISHED.repo}`, `/plugin install ${plugin}@${PUBLISHED.name}`]
+      commands: [`/plugin marketplace add ${PUBLISHED.repo}`, `/plugin install ${plugin}@${PUBLISHED.name}`]
     });
     if (renamedToo) renamed.set(name, PUBLISHED.name);
     validIds.push(`${plugin}@${PUBLISHED.name}`);
