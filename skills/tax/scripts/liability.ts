@@ -450,7 +450,14 @@ export const position = (
     return `${Math.floor(index / 12)}-${pad((index % 12) + 1)}`;
   })();
   const closedSet = new Set(closedMonths);
-  const runStart = opening === undefined ? activeStart : monthsFrom(opening.date.slice(0, 7), 2)[1];
+  // An opening dated on its month's last day speaks for that whole month; one dated mid-month does
+  // not, so that month still needs its own complete close.
+  const runStart =
+    opening === undefined
+      ? activeStart
+      : opening.date === monthEnd(opening.date.slice(0, 7))
+        ? monthsFrom(opening.date.slice(0, 7), 2)[1]
+        : opening.date.slice(0, 7);
   const run = monthsFrom(runStart, Math.max(0, monthsBetween(runStart, today.slice(0, 7))));
   const brokenAt = run.findIndex((month) => !closedSet.has(month));
   const closedRun = brokenAt === -1 ? run : run.slice(0, brokenAt);
@@ -467,22 +474,22 @@ export const position = (
   ].sort();
   const coverage = coverageMonths.at(-1) ?? null;
   const monthsCovered = coverage === null ? 0 : monthsBetween(activeStart, coverage);
-  // Once an individual records any salary, every month through the latest payslip, and through
-  // coverage once that month has ended, needs a salary row (a 0 row for a month without one). An
-  // invoice in the current month does not demand a payslip that is not payable yet.
+  // Once an individual records any salary, every month through the latest payslip, and every month
+  // that has ended since, needs a salary row (a 0 row for a month without one). The month in
+  // progress never needs one before payday.
   const salaryMonths = new Set(counted.filter((row) => row.type === LedgerType.Salary).map((row) => row.date.slice(0, 7)));
   const lastSalaryMonth = [...salaryMonths].sort().at(-1) ?? null;
-  const salaryThrough =
-    coverage === null || lastSalaryMonth === null
-      ? null
-      : [coverage < lastFullMonth ? coverage : lastFullMonth, lastSalaryMonth].sort().at(-1) ?? null;
+  const salaryThrough = lastSalaryMonth === null ? null : [lastFullMonth, lastSalaryMonth].sort().at(-1) ?? null;
   const salaryGaps =
     entity.close === "none" && salaryThrough !== null
       ? monthsFrom(activeStart, monthsBetween(activeStart, salaryThrough)).filter(
           (month) => !salaryMonths.has(month) && (opening === undefined || month > opening.date.slice(0, 7))
         )
       : [];
-  const known = coverage !== null && salaryGaps.length === 0;
+  // An opening figure in another currency with no MYR value cannot price anything, and must not
+  // stand in for the months it summarises.
+  const openingUnconverted = opening !== undefined && myr(opening) === null;
+  const known = coverage !== null && salaryGaps.length === 0 && !openingUnconverted;
 
   // Income, expenses, salary and PCB are annualised, so only what the covered months hold is
   // projected: a transaction in a month not yet closed is never spread over fewer months than it
@@ -535,6 +542,9 @@ export const position = (
             ? `no income recorded for YA ${period.ya} yet`
             : `no closed month or opening figure from the accountant for YA ${period.ya} yet`,
         ]),
+    ...(openingUnconverted && opening !== undefined
+      ? [`the opening figure dated ${opening.date} is in ${opening.currency} with no amount_myr: add its MYR value`]
+      : []),
     ...(salaryGaps.length > 0
       ? [`no salary recorded for ${salaryGaps.join(", ")}: add each payslip, or a 0 salary row for a month without one`]
       : []),

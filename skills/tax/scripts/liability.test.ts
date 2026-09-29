@@ -178,6 +178,23 @@ describe("position: company", () => {
     expect(position(company, rows, rates, "2026-09-01", null, closes).known).toBe(false);
   });
 
+  test("an opening dated mid-month leaves that month needing its own close", () => {
+    const midJuly = [row("2026-07-15", "opening", 10000)];
+    expect(position(company, midJuly, rates, "2026-09-01", null, ["2026-08"]).coverage).toBe("2026-07");
+    expect(position(company, midJuly, rates, "2026-09-01", null, ["2026-07", "2026-08"]).coverage).toBe("2026-08");
+    expect(position(company, [row("2026-07-31", "opening", 10000)], rates, "2026-09-01", null, ["2026-08"]).coverage).toBe("2026-08");
+  });
+
+  test("a foreign opening figure without its MYR value leaves the year unpriced and says so", () => {
+    const usd = position(company, [row("2026-08-31", "opening", 100000, { currency: "USD" })], rates, "2026-09-28", null);
+    expect(usd.known).toBe(false);
+    expect(usd.owedNow).toBeNull();
+    expect(usd.missing.join(" ")).toContain("USD with no amount_myr");
+    const converted = position(company, [row("2026-08-31", "opening", 100000, { currency: "USD", amountMyr: 430000 })], rates, "2026-09-28", null);
+    expect(converted.known).toBe(true);
+    expect(converted.taxSoFar).toBeCloseTo(430000 * 0.24, 2);
+  });
+
   test("company zakat is a deduction capped at 2.5% of profit", () => {
     const rows = [row("2026-02-10", "sales-invoice", 100000), row("2026-02-11", "zakat", 5000)];
     expect(position(company, rows, rates, "2026-02-20", null, ["2026-01"]).taxSoFar).toBeCloseTo((100000 - 2500) * 0.24, 2);
@@ -318,6 +335,13 @@ describe("position: personal view", () => {
     const later = position(person, rows, rates, "2026-08-02", null);
     expect(later.known).toBe(false);
     expect(later.missing.join(" ")).toContain("no salary recorded for 2026-07");
+  });
+
+  test("a payslip missing for a month that has ended is named even with no other income that month", () => {
+    const result = position(person, salaryYear(3000), rates, "2026-08-02", null);
+    expect(result.known).toBe(false);
+    expect(result.missing.join(" ")).toContain("no salary recorded for 2026-07");
+    expect(position(person, salaryYear(3000), rates, "2026-07-02", null).known).toBe(true);
   });
 
   test("a company has no personal view", () => {
