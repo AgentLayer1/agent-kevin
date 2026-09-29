@@ -43,6 +43,75 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.0] - 2026-09-29
+
+### Added
+- **Python runs through uv.** The manual's Toolchain section routes Python scripts through
+  `uv run --with <packages>`, a throwaway environment per run, so no system or Homebrew Python
+  gets packages. Init always writes a pip guard to `permissions.deny` (even when the operator's
+  global deny list is their own) and uv's cache folder and the PyPI hosts to the sandbox, since
+  sandbox lists merge across settings files; without them every `uv run` fails on its cache.
+  Init's prerequisite check notes a missing `uv`.
+- **Focus playbooks.** The focus skill is a router: refresh, add, plan, week, standup,
+  where-am-i, triage, checkpoint and backfill each have a playbook, and `/focus help` prints the
+  menu. Plan reads the newest radar, so work already started ranks above anything new.
+
+### Changed
+- **Focus is the day.** The dashboard's Today tab opens on a Focus view: today's three,
+  carried-over work, the week and month lanes, and the roadmap in flight, drawn with the focus
+  page's own lanes and timeline. The home `focus.html` page is retired (project focus pages stay):
+  `focus_write` without a project re-renders the dashboard, returns `dashboard.html`, and
+  `dashboard.html` embeds the same `focus-data` JSON block. Plan folds into Tasks → Agenda as In
+  flight, soonest deadline first, plus "Due …" groups labelled by deadline.
+- **`standup` and `where-am-i` fold into the `focus` skill** as playbooks, next to new `week`,
+  `triage` and `checkpoint` playbooks: `/focus standup`, `/focus where-am-i`, `/focus week`.
+  Weekly goals are applied through focus's week playbook, so the week's tasks and the Weekly
+  Goals block are one list. Dashboard, sync, morning brief and find-session point at the
+  playbooks.
+- Every dashboard page header carries stat tiles, compacted to one line with a caption; each
+  tile (by click or keyboard) scrolls to the section it counts, and a zero tile does not link.
+  Overdue and due captions say how late in days.
+- Sync pulls the focus queue on every run, and `report_write` re-renders the dashboard so a new
+  report shows up without a refresh.
+- The MCP server moves from `@modelcontextprotocol/sdk` 1.29 to the v2 TypeScript SDK
+  (`@modelcontextprotocol/server` 2.2), still on stdio. The SDK pulls in two dependencies
+  instead of seventeen (no express, hono or jose). The same tools, with schemas in the 2020-12 dialect
+  and one-line validation errors.
+- The Codex starter prompts offer `$focus` instead of `$standup`.
+- Claude Code's Haiku tier (its small background calls) runs on Sonnet 5.5: init always writes
+  `env.ANTHROPIC_DEFAULT_HAIKU_MODEL: "claude-sonnet-5-5"` to project settings, and every upgrade
+  sets it when a home has none or still carries the old `claude-sonnet-4-6`. A home's own choice
+  of another model is kept.
+- Claude Code 2.1.284 or newer is required, the release Sonnet 5.5 behind the Haiku-tier remap was
+  verified on: init and upgrade stop below it with `claude update`, and the SessionStart banner
+  warns until the host is updated.
+
+### Removed
+- The `standup` and `where-am-i` skills, now `/focus standup` and `/focus where-am-i`. Reports
+  keep their slugs and categories, so gap detection and the dashboard still find earlier runs.
+- The standalone `<HOME>/focus.html` and its sidebar row.
+
+### Fixed
+- Focus: a roadmap that names no task ids no longer flags every milestone as missing a task, an
+  unreadable source shows once as unavailable instead of counting in the queue, and the queue
+  shows when it was pulled instead of a frozen "0m ago".
+- The dashboard reads goals without their list markers, so a numbered Weekly Goals block no
+  longer shows a number inside a bullet, and the week block's `_Set …_` footer no longer counts
+  as a goal.
+- The status line's context bar fills at least one cell for any usage above zero.
+- A double-quoted task list item with escaped characters (`\t`, `\n`) is decoded like a scalar.
+- Tax: coverage prices only an unbroken run of closes, a payslip is missing only after payday, a
+  new company's close run and projection start at the month it began, impossible months and
+  unreadable amounts are refused, openings are companies only, and only past payments count.
+
+### Upgrade
+- `deps: required` — `@modelcontextprotocol/server` replaces `@modelcontextprotocol/sdk`; run bun install in mcp-server.
+- `script: required` — run skills/upgrade/scripts/0.6.0.ts (removes the generated home `focus.html`, which the dashboard's Today → Focus view replaces). A `focus.html` without the `focus-data` block is hand-made and is left in place; the report names it. Project focus pages are untouched. It also drops the dead `Skill(agent-kevin:standup)` and `Skill(agent-kevin:where-am-i)` grants from `.claude/settings.json` `permissions.allow` (the settings merge only adds, so the removal lives here); every other entry keeps its place.
+- `settings: mandatory` — upgrade's baseline reconcile sets `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` to `claude-sonnet-5-5` in `.claude/settings.json` when the home has none or still has `claude-sonnet-4-6`; any other model the operator chose is kept. Applied automatically.
+- `settings: mandatory` — upgrade's baseline reconcile adds the Python guard (`Bash(pip install*)` and its variants) to `permissions.deny`, and `~/.cache/uv` plus `pypi.org` and `files.pythonhosted.org` to the project `sandbox`, when the home lacks them; an entry the operator already placed in allow or ask is kept as theirs. Applied automatically.
+- `template/AGENTS.md: mandatory` — the memory-routing row and the `reports/radar/` tree comment name the focus skill's standup and where-am-i playbooks instead of the retired skills, and Toolchain gains the Python line (`uv run --with`, never pip).
+- `manual: none` — `/agent-kevin:standup` is now `/agent-kevin:focus standup`, and `/agent-kevin:where-am-i` is `/agent-kevin:focus where-am-i`. Plain asks ("standup is coming up", "where am I") route there on their own.
+
 ## [0.5.3] - 2026-09-29
 
 ### Added
