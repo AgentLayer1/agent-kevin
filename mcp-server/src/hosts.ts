@@ -21,8 +21,8 @@ interface HostFloor {
 export const HOST_FLOORS: readonly HostFloor[] = [
   {
     name: 'claude',
-    version: '2.1.269',
-    why: '`bashEditDiffEnabled`, `claude plugin eval`, and the deny-rule fixes of 2.1.268',
+    version: '2.1.284',
+    why: 'Sonnet 5.5 behind the Haiku-tier remap, `bashEditDiffEnabled`, `claude plugin eval`, and the deny-rule fixes of 2.1.268',
     update: 'claude update'
   },
   {

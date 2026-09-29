@@ -20,7 +20,7 @@ describe('hosts', () => {
   });
 
   test('an absent codex passes when optional and fails when required', () => {
-    const versions = runner({ claude: '2.1.270 (Claude Code)' });
+    const versions = runner({ claude: '2.1.290 (Claude Code)' });
     expect(checkHosts(new Set(['claude']), versions).ok).toBe(true);
     expect(hostIssues(checkHosts(new Set(['claude']), versions))).toEqual([]);
     const required = checkHosts(new Set(['claude', 'codex']), versions);
@@ -31,7 +31,7 @@ describe('hosts', () => {
   test('an outdated optional host keeps ok but still surfaces as an issue', () => {
     const report = checkHosts(
       new Set(['claude']),
-      runner({ claude: '2.1.270 (Claude Code)', codex: 'codex-cli 0.150.0' })
+      runner({ claude: '2.1.290 (Claude Code)', codex: 'codex-cli 0.150.0' })
     );
     expect(report.ok).toBe(true);
     expect(hostIssues(report)).toHaveLength(1);
@@ -40,7 +40,7 @@ describe('hosts', () => {
   test('a prerelease above the floor passes', () => {
     const report = checkHosts(
       new Set(['claude', 'codex']),
-      runner({ claude: '2.1.271 (Claude Code)', codex: 'codex-cli 0.155.0-alpha.6' })
+      runner({ claude: '2.1.291 (Claude Code)', codex: 'codex-cli 0.155.0-alpha.6' })
     );
     expect(report.ok).toBe(true);
   });
