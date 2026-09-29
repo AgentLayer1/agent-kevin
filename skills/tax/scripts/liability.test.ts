@@ -167,6 +167,17 @@ describe("position: company", () => {
     expect(position(company, [], rates, "2026-10-01", null, ["2026-09"]).known).toBe(false);
   });
 
+  test("a company that started mid-year needs closes only from its first month, and projects over the months it exists", () => {
+    const rows = [row("2026-05-20", "sales-invoice", 10000)];
+    const closes = ["2026-05", "2026-06", "2026-07", "2026-08"];
+    const started = position({ ...company, startedOn: "2026-05-01" }, rows, rates, "2026-09-01", null, closes);
+    expect(started.known).toBe(true);
+    expect(started.coverage).toBe("2026-08");
+    expect(started.projectedTax).toBeCloseTo(10000 * (8 / 4) * 0.24, 2);
+    expect(started.monthlyTax).toBeCloseTo((10000 * (8 / 4) * 0.24) / 8, 2);
+    expect(position(company, rows, rates, "2026-09-01", null, closes).known).toBe(false);
+  });
+
   test("company zakat is a deduction capped at 2.5% of profit", () => {
     const rows = [row("2026-02-10", "sales-invoice", 100000), row("2026-02-11", "zakat", 5000)];
     expect(position(company, rows, rates, "2026-02-20", null, ["2026-01"]).taxSoFar).toBeCloseTo((100000 - 2500) * 0.24, 2);

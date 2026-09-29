@@ -410,6 +410,14 @@ export const position = (
 ): Position => {
   const period = periodFor(entity.fye, today);
   const periodMonths = monthsBetween(period.start.slice(0, 7), period.end.slice(0, 7));
+  // A company that started during the period is only asked for, and projected over, the months it
+  // existed.
+  const startedMonth = entity.startedOn?.slice(0, 7) ?? null;
+  const activeStart =
+    startedMonth !== null && startedMonth > period.start.slice(0, 7) && startedMonth <= period.end.slice(0, 7)
+      ? startedMonth
+      : period.start.slice(0, 7);
+  const activeMonths = monthsBetween(activeStart, period.end.slice(0, 7));
   const inPeriod = rows.filter((row) => row.date >= period.start && row.date <= period.end && row.date <= today);
   const opening = inPeriod
     .filter((row) => row.type === LedgerType.Opening)
@@ -433,15 +441,16 @@ export const position = (
   const paid = paymentsForYa + pcb;
 
   // A single record proves nothing about the months before it. Books are complete through an
-  // unbroken run of complete closes from the period start (or the month after the accountant's
-  // opening figure); an individual with no monthly close, through the last month with income.
+  // unbroken run of complete closes from the period start or the month the company started (or the
+  // month after the accountant's opening figure); an individual with no monthly close, through the
+  // last month with income.
   const lastFullMonth = (() => {
     const [year, month] = today.split("-").map(Number);
     const index = year * 12 + month - 2;
     return `${Math.floor(index / 12)}-${pad((index % 12) + 1)}`;
   })();
   const closedSet = new Set(closedMonths);
-  const runStart = opening === undefined ? period.start.slice(0, 7) : monthsFrom(opening.date.slice(0, 7), 2)[1];
+  const runStart = opening === undefined ? activeStart : monthsFrom(opening.date.slice(0, 7), 2)[1];
   const run = monthsFrom(runStart, Math.max(0, monthsBetween(runStart, today.slice(0, 7))));
   const brokenAt = run.findIndex((month) => !closedSet.has(month));
   const closedRun = brokenAt === -1 ? run : run.slice(0, brokenAt);
@@ -457,7 +466,7 @@ export const position = (
     ...incomeMonths,
   ].sort();
   const coverage = coverageMonths.at(-1) ?? null;
-  const monthsCovered = coverage === null ? 0 : monthsBetween(period.start.slice(0, 7), coverage);
+  const monthsCovered = coverage === null ? 0 : monthsBetween(activeStart, coverage);
   // Once an individual records any salary, every month through the latest payslip, and through
   // coverage once that month has ended, needs a salary row (a 0 row for a month without one). An
   // invoice in the current month does not demand a payslip that is not payable yet.
@@ -469,7 +478,7 @@ export const position = (
       : [coverage < lastFullMonth ? coverage : lastFullMonth, lastSalaryMonth].sort().at(-1) ?? null;
   const salaryGaps =
     entity.close === "none" && salaryThrough !== null
-      ? monthsFrom(period.start.slice(0, 7), monthsBetween(period.start.slice(0, 7), salaryThrough)).filter(
+      ? monthsFrom(activeStart, monthsBetween(activeStart, salaryThrough)).filter(
           (month) => !salaryMonths.has(month) && (opening === undefined || month > opening.date.slice(0, 7))
         )
       : [];
@@ -483,12 +492,12 @@ export const position = (
     sum(covered.filter((row) => types.has(row.type) && keep(row)).map((row) => myr(row) ?? 0));
   const coveredSalary = covered.filter((row) => row.type === LedgerType.Salary);
   const paidMonths = new Set(coveredSalary.filter((row) => (myr(row) ?? 0) > 0).map((row) => row.date.slice(0, 7))).size;
-  const salaryMonthsCovered = salaryThrough === null ? monthsCovered : monthsBetween(period.start.slice(0, 7), salaryThrough);
-  const remaining = Math.max(0, periodMonths - salaryMonthsCovered);
+  const salaryMonthsCovered = salaryThrough === null ? monthsCovered : monthsBetween(activeStart, salaryThrough);
+  const remaining = Math.max(0, activeMonths - salaryMonthsCovered);
   const extend = (total: number): number => total + (paidMonths > 0 ? (total / paidMonths) * remaining : 0);
   const businessProjected =
     (openingProfit + coveredOf(new Set([LedgerType.SalesInvoice])) - coveredOf(EXPENSE_TYPES, isDeductible)) *
-    (monthsCovered > 0 ? periodMonths / monthsCovered : 0);
+    (monthsCovered > 0 ? activeMonths / monthsCovered : 0);
   const employmentProjected = extend(sum(coveredSalary.map((row) => myr(row) ?? 0)));
   const pcbProjected = extend(sum(coveredSalary.map((row) => row.tax)));
   const projectedIncome = Math.max(0, businessProjected) + employmentProjected;
@@ -572,7 +581,7 @@ export const position = (
     owedNow: known ? Math.max(0, taxSoFar - paid) : null,
     aheadBy: known ? Math.max(0, paid - taxSoFar) : 0,
     projectedTax,
-    monthlyTax: projectedTax === null ? null : projectedTax / periodMonths,
+    monthlyTax: projectedTax === null ? null : projectedTax / activeMonths,
     stillToPay: projectedTax === null ? null : Math.max(0, projectedTax - projectedPaid),
     estimateOnFile,
     underestimationPenalty: underestimation !== null && underestimation > 0 ? underestimation : null,
