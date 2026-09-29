@@ -57,6 +57,21 @@ const offsetOf = (date: Date): string =>
 const isoOf = (date: Date): string => `${dateOf(date)}T${clockOf(date)}:00${offsetOf(date)}`;
 const day = (offset: number): string => dateOf(new Date(now.getTime() + offset * DAY_MS));
 const minutesAgo = (minutes: number): Date => new Date(now.getTime() - minutes * 60_000);
+const isoWeekOf = (date: string): string => {
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  const thursday = ms + (3 - ((new Date(ms).getUTCDay() + 6) % 7)) * DAY_MS;
+  const year = new Date(thursday).getUTCFullYear();
+  return `${year}-W${String(Math.floor((thursday - Date.UTC(year, 0, 1)) / DAY_MS / 7) + 1).padStart(2, '0')}`;
+};
+const monthOf = (offset: number): string => {
+  const [year, month] = day(0)
+    .split('-')
+    .map((part) => parseInt(part, 10));
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return shifted.toISOString().slice(0, 7);
+};
+const monthName = (month: string): string =>
+  new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
 const atYesterday = (clock: string): Date => {
   const [hours, minutes] = clock.split(':').map((part) => parseInt(part, 10));
   const today = minutesAgo(0);
@@ -502,6 +517,8 @@ interface DemoTask {
   priority: string;
   due: number | null;
   updated: number;
+  /** The planned day, week or month, as the task tools store it. */
+  horizon?: string;
   blockedBy?: string;
   dependsOn?: string[];
   archived?: boolean;
@@ -509,6 +526,7 @@ interface DemoTask {
 const tasks: DemoTask[] = [
   {
     id: 'pf-101',
+    horizon: day(0),
     project: 'platform',
     slug: 'billing-reconciliation-report',
     title: 'Billing dual-write reconciliation report (cutover go/no-go)',
@@ -519,6 +537,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'pf-104',
+    horizon: isoWeekOf(day(0)),
     project: 'platform',
     slug: 'v2-load-test',
     title: 'v2 load test at 5x peak (launch gate)',
@@ -529,6 +548,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'pf-099',
+    horizon: day(-1),
     project: 'platform',
     slug: 'exporter-timezone-rounding',
     title: 'Fix timezone rounding in the legacy billing exporter',
@@ -539,6 +559,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'pf-097',
+    horizon: isoWeekOf(day(0)),
     project: 'platform',
     slug: 'dual-write-shadow-mode',
     title: 'Dual-write shadow mode for usage billing',
@@ -550,6 +571,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'cp-031',
+    horizon: day(0),
     project: 'compliance',
     slug: 'q3-access-reviews',
     title: 'Quarterly access reviews (SOC 2 evidence)',
@@ -560,6 +582,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'cp-028',
+    horizon: monthOf(0),
     project: 'compliance',
     slug: 'vendor-dpa-sweep',
     title: 'Vendor inventory and DPA sweep',
@@ -570,6 +593,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'gr-012',
+    horizon: isoWeekOf(day(0)),
     project: 'growth',
     slug: 'empty-state-redesign',
     title: 'Empty-state redesign (activation step-2 leak)',
@@ -602,6 +626,7 @@ const tasks: DemoTask[] = [
   },
   {
     id: 'mb-034',
+    horizon: 'later',
     project: 'mobile',
     slug: 'push-opt-in-experiment',
     title: 'Push-notification opt-in experiment',
@@ -629,6 +654,7 @@ labels: []
 created: ${day(task.updated - 10)}
 updated: ${day(task.updated)}
 due: ${task.due === null ? '' : day(task.due)}
+horizon: ${task.horizon ?? ''}
 depends_on: [${(task.dependsOn ?? []).join(', ')}]
 blocked_by: "${task.blockedBy ?? ''}"
 parent:
@@ -656,9 +682,9 @@ write(
   `<!-- GOALS:START -->
 ## Weekly Goals — Week of ${day(-((now.getDay() + 6) % 7))}
 
-Ship the pf-101 reconciliation report and clear the exporter bug (pf-099)
-Run the 5x load test and publish the launch go/no-go (pf-104)
-Finish the Okta and AWS access reviews (cp-031)
+1. platform: Ship the reconciliation report (pf-101) — go/no-go signed off
+2. platform: Run the 5x load test (pf-104) — p99 under 300 ms at peak
+3. growth: Empty-state redesign (gr-012) — variant B live to 50%
 
 ## Monthly Goals
 
@@ -672,6 +698,135 @@ Weekly active workspaces 1,840 to 2,100
 **Q4** — 2,500 weekly active workspaces; two senior platform engineers hired
 <!-- GOALS:END -->
 `
+);
+
+// The last queue pull and a dated roadmap, so Today opens on a real focus view.
+write(
+  '.kevin/focus/queue.json',
+  `${JSON.stringify(
+    {
+      fetchedAt: minutesAgo(35).toISOString(),
+      groups: [
+        {
+          label: 'My pull requests',
+          empty: 'None open.',
+          items: [
+            {
+              title: '#482 Reconciliation report: per-tenant drift table',
+              url: 'https://github.com/acme/platform/pull/482',
+              detail: 'approved · clean · 1d',
+              tone: 'good'
+            },
+            {
+              title: '#479 Load-test harness at 5x peak',
+              url: 'https://github.com/acme/platform/pull/479',
+              detail: 'changes requested · 3d',
+              tone: 'bad'
+            },
+            {
+              title: '#471 Exporter timezone rounding',
+              url: 'https://github.com/acme/platform/pull/471',
+              detail: 'draft · 5d',
+              tone: 'dim'
+            }
+          ]
+        },
+        {
+          label: 'Reviews I owe',
+          empty: 'Nothing waiting on you.',
+          items: [
+            {
+              title: '#233 Empty-state variant B',
+              url: 'https://github.com/acme/web/pull/233',
+              detail: 'priya · waiting 4d',
+              tone: 'bad'
+            },
+            {
+              title: '#231 Okta SCIM group sync',
+              url: 'https://github.com/acme/platform/pull/231',
+              detail: 'sam · waiting 1d',
+              tone: 'warn'
+            }
+          ]
+        }
+      ]
+    },
+    null,
+    2
+  )}\n`
+);
+const roadmapTemplate = readFileSync(join(REPO, 'skills', 'roadmap', 'references', 'template.html'), 'utf-8');
+const roadmapBlock = /(<script type="application\/json" id="roadmap-data">)[\s\S]*?(<\/script>)/;
+const templateData = JSON.parse(
+  roadmapTemplate.match(/<script type="application\/json" id="roadmap-data">([\s\S]*?)<\/script>/)?.[1] ?? '{}'
+);
+const period = (offset: number, milestones: object[]) => ({
+  name: monthName(monthOf(offset)),
+  start: monthOf(offset),
+  end: monthOf(offset),
+  milestones
+});
+const roadmap = {
+  north: templateData.north,
+  launch: {
+    kind: 'timeline',
+    title: 'v2 launch',
+    tag: 'plan',
+    tagLabel: 'In flight',
+    range: `${monthName(monthOf(-1))} – ${monthName(monthOf(1))}`,
+    sub: 'billing cutover, the launch gate, and SOC 2 evidence',
+    periods: [
+      period(-1, [
+        {
+          chip: 'M1',
+          title: 'Billing shadow mode',
+          items: [
+            { text: 'Dual-write shadow mode (pf-097)', status: 'done' },
+            { text: 'Legacy exporter rounding fix (pf-099)', status: 'progress' }
+          ]
+        }
+      ]),
+      period(0, [
+        {
+          chip: 'M2',
+          title: 'Launch gate',
+          items: [
+            { text: 'Reconciliation report and go/no-go (pf-101)', status: 'progress' },
+            { text: 'Load test at 5x peak (pf-104)', status: 'planned' }
+          ]
+        },
+        {
+          chip: 'M3',
+          title: 'SOC 2 evidence',
+          items: [
+            { text: 'Quarterly access reviews (cp-031)', status: 'progress' },
+            { text: 'Vendor DPA sweep (cp-028)', status: 'planned' }
+          ]
+        },
+        {
+          chip: 'M4',
+          title: 'Public status page',
+          items: [
+            { text: 'Status page vendor picked', status: 'done' },
+            { text: 'Incident comms runbook', status: 'planned' }
+          ]
+        }
+      ]),
+      period(1, [
+        {
+          chip: 'M5',
+          title: 'Activation',
+          items: [{ text: 'Empty-state redesign (gr-012)', status: 'planned' }]
+        }
+      ])
+    ]
+  }
+};
+write(
+  'roadmap.html',
+  roadmapTemplate.replace(roadmapBlock, (_whole, open: string, close: string) =>
+    [open, JSON.stringify(roadmap, null, 2), close].join('\n')
+  )
 );
 
 // Reports: a morning brief with news, a flywheel pass, the radar, a plan, a review, and last night's wrap.
