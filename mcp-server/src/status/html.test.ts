@@ -409,6 +409,10 @@ describe('renderDashboardHtml', () => {
     expect(today).toContain('<button class="subtab active" data-subtab="focus">Focus</button>');
     expect(today).not.toContain('data-subtab="plan"');
     expect(today).toContain('data-nav="today/focus/focus-carried"');
+    expect(today).toContain(
+      '<div class="stat"><div class="top"><span class="num">0</span><span class="lab">milestones</span>'
+    );
+    expect(today).not.toContain('data-nav="today/focus/focus-roadmap"');
     expectTilesLand(html);
     expect(today).toContain('<div class="focusview"><div class="lanes"><section id="focus-today" class="now today');
     expect(today).toContain('<li class="row" data-row data-cat="life-os"><span class="mark">1</span>');

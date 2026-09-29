@@ -116,7 +116,7 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat.warn::before { background: var(--amber); }
 .stat.good::before { background: var(--green); }
 .stat.link { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-.stat.link:hover, .stat.link:focus-visible { border-color: var(--accent); background: var(--panel-2); outline: none; }
+.stat.link:hover, .stat.link:focus-visible { border-color: #3a424d; background: var(--panel-2); outline: none; }
 .stat .top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
 .stat .num { flex: none; font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .stat.bad .num { color: var(--red); }
@@ -125,7 +125,7 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat .lab { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .cap { color: var(--dim); font-size: 10.5px; margin-top: 1px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jumped { animation: jumped 1.4s ease-out; border-radius: 6px; }
-@keyframes jumped { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
+@keyframes jumped { from { box-shadow: inset 0 0 0 999px rgba(255, 216, 102, 0.07); } to { box-shadow: inset 0 0 0 999px transparent; } }
 
 {{FOCUS_CSS}}
 

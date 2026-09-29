@@ -141,14 +141,19 @@ interface StatTile {
   caption?: string;
   /** Where the tile leads: `page/sub`, plus `/<element id>` to scroll to the section it counts. */
   nav?: string;
+  /** How many things it leads to, when `num` isn't that (a `done/total` pair); defaults to a numeric `num`. */
+  count?: number;
 }
 
-const statTile = ({ num, label, tone = '', caption = '', nav = '' }: StatTile): string =>
-  `<div class="stat${tone ? ` ${tone}` : ''}${nav ? ' link' : ''}"${
-    nav ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Show ${esc(label)}"` : ''
+/** A tile that leads to nothing (a zero) isn't a link. */
+const statTile = ({ num, label, tone = '', caption = '', nav = '', count }: StatTile): string => {
+  const link = nav && (count ?? (typeof num === 'number' ? num : 0)) > 0;
+  return `<div class="stat${tone ? ` ${tone}` : ''}${link ? ' link' : ''}"${
+    link ? ` data-nav="${esc(nav)}" role="link" tabindex="0" title="Show ${esc(label)}"` : ''
   }><div class="top"><span class="num">${esc(String(num))}</span><span class="lab">${esc(label)}</span></div>${
     caption ? `<div class="cap">${esc(caption)}</div>` : ''
   }</div>`;
+};
 
 const statStrip = (tiles: StatTile[]): string => `<div class="statstrip">${tiles.map(statTile).join('')}</div>`;
 
@@ -393,6 +398,7 @@ const focusStats = (snap: StatusSnapshot): string => {
   return statStrip([
     {
       num: `${focus.lanes.today.length}/3`,
+      count: focus.lanes.today.length + focus.done.today.length,
       label: 'today',
       tone: focus.lanes.today.length ? 'good' : 'warn',
       caption: focus.done.today.length
@@ -418,6 +424,7 @@ const focusStats = (snap: StatusSnapshot): string => {
     },
     {
       num: `${focus.planned.week.done.length}/${weekTotal}`,
+      count: weekTotal,
       label: 'this week',
       caption: `${focus.weekGoals.length} goal${focus.weekGoals.length === 1 ? '' : 's'}`,
       nav: nav('week')
