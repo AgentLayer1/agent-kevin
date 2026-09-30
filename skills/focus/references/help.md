@@ -7,7 +7,8 @@ Your day in one place: what today is for, what slipped, the week and month, the 
 | Ask | Playbook | You get |
 |---|---|---|
 | `/focus`, "what's waiting on me?" | **refresh** | Your PRs, the reviews you owe and (with Slack) the replies you owe, pulled fresh, and a one-glance card |
-| "Plan my day", "I'm overwhelmed", `/focus plan` | **plan** | Today cut to three, each with its reason; carried work settled; a task offered for every roadmap milestone nothing moves |
+| "Plan my day", `/focus plan` | **plan** | Today cut to three, each with its reason; carried work settled; a task offered for every roadmap milestone nothing moves |
+| "I'm overwhelmed", "get organized", `/focus organize` | **organize** | Everything in your head sorted into tasks and notes, the gaps asked about (dates, week goals, overdue), today cut to three, a first move, and what's parked |
 | "Take this on", a pasted line, list, or link | **add** | A planned task after one question, never a duplicate |
 
 ### 🎤 The room

@@ -2,13 +2,13 @@
 name: focus
 description: >
   The operator's day in one place: what today is for, what slipped, the week and month, the roadmap
-  in flight, who is waiting on them, and where every session left off. Home focus is the dashboard's
-  Today tab; a project gets its own focus page. Plans tasks into today, the week or the month, writes
-  the standup, and runs the session radar, triage and checkpoints.
-  Triggers on "what should I work on", "plan my day", "I'm overwhelmed", "take this on", "add this to
-  my list", "what do I owe people", "standup is coming up", "what did I do yesterday", "where am
-  I", "what was I working on", "which session needs me", "checkpoint this session", a pasted link
-  as something to do, or /focus.
+  in flight, who is waiting on them, and where each session left off. Home focus is the dashboard's
+  Today tab; a project has its own page. Plans tasks into today, the week or the month, writes the
+  standup, sorts a brain dump, and runs the session radar, triage and checkpoints.
+  Triggers on "what should I work on", "plan my day", "I'm overwhelmed", "get organized", "take this
+  on", "add this to my list", "what do I owe people", "standup is coming up", "what did I do
+  yesterday", "where am I", "what was I working on", "which session needs me", "checkpoint this
+  session", a pasted link as something to do, or /focus.
 allowed-tools:
   - AskUserQuestion
   - Bash
@@ -26,6 +26,7 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_pr_view
   - mcp__plugin_agent-kevin_kevin__github_issue_view
   - mcp__plugin_agent-kevin_kevin__report_write
+  - mcp__plugin_agent-kevin_kevin__capture
 ---
 
 # Focus
@@ -48,7 +49,8 @@ The operator's day: what it's for, what slipped, what the week and month are for
 |---|---|
 | `/focus`, "refresh focus", "what's waiting on me", "what do I owe people" | [refresh](references/playbooks/refresh.md) |
 | "take this on", "add this to my list", a pasted line, list, or link | [add](references/playbooks/add.md) |
-| "plan my day", "what should I work on", "I'm overwhelmed", `/focus plan` | [plan](references/playbooks/plan.md) |
+| "plan my day", "what should I work on", `/focus plan` | [plan](references/playbooks/plan.md) |
+| "I'm overwhelmed", "get organized", "too much in my head", `/focus organize` | [organize](references/playbooks/organize.md) |
 | "standup is coming up", "what did I do yesterday", "I need my update", `/focus standup 48` | [standup](references/playbooks/standup.md) |
 | "where am I", "what was I working on", "which sessions are open", `/focus where-am-i 48` | [where-am-i](references/playbooks/where-am-i.md) |
 | "which session needs me", "what should I tend to", `/focus triage [scope]` | [triage](references/playbooks/triage.md) |
@@ -96,4 +98,4 @@ Both carry what they show as JSON in a `focus-data` block, and `focus_write` ret
 
 ## Reply
 
-Each playbook names its reply: a focus card, a one-line confirmation, the standup card and its backup, the radar digest, a triage table, or a checkpoint. End with the `file://` path when a playbook saved or rendered something.
+Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup card and its backup, the radar digest, a triage table, or a checkpoint. End with the `file://` path when a playbook saved or rendered something.
