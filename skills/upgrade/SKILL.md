@@ -507,8 +507,8 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI.
 - **`settings.retiredGrants`** lists a retired skill's grant still in a list (an older release's
   `settings:` action can re-add one after a newer script mapped it): replace each `entry` with its
-  `successor` in the same `list`, and drop the successor from `allow` when it also sits in `ask`
-  or `deny`. The retired names live in `mcp-server/src/shared/retired-skills.ts`.
+  `replacement` entries in the same `list` (a prefix rule keeps itself and gains the successors it
+  no longer reaches), and drop a successor from `allow` when it also sits in `ask` or `deny`. The retired names live in `mcp-server/src/shared/retired-skills.ts`.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.

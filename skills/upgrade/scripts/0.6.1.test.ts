@@ -72,10 +72,10 @@ describe('0.6.1 skill consolidation', () => {
     expect(run(home)).toMatchObject({
       ok: true,
       grants: [
-        { list: 'deny', from: 'Skill(agent-kevin:google-page-speed)', to: 'Skill(agent-kevin:seo)' },
-        { list: 'ask', from: 'Skill(agent-kevin:seed-import)', to: 'Skill(agent-kevin:seed)' },
-        { list: 'allow', from: 'Skill(agent-kevin:seed-export)', to: 'Skill(agent-kevin:seed)' },
-        { list: 'allow', from: 'Skill(agent-kevin:quick-pulse)', to: 'Skill(agent-kevin:briefing)' }
+        { list: 'deny', from: 'Skill(agent-kevin:google-page-speed)', to: ['Skill(agent-kevin:seo)'] },
+        { list: 'ask', from: 'Skill(agent-kevin:seed-import)', to: ['Skill(agent-kevin:seed)'] },
+        { list: 'allow', from: 'Skill(agent-kevin:seed-export)', to: ['Skill(agent-kevin:seed)'] },
+        { list: 'allow', from: 'Skill(agent-kevin:quick-pulse)', to: ['Skill(agent-kevin:briefing)'] }
       ],
       notes: [expect.stringContaining('google-page-speed'), expect.stringContaining('seed-import')]
     });
@@ -106,7 +106,7 @@ describe('0.6.1 skill consolidation', () => {
           file: join('.claude', 'settings.local.json'),
           list: 'allow',
           from: 'Skill(agent-kevin:quick-pulse *)',
-          to: 'Skill(agent-kevin:briefing *)'
+          to: ['Skill(agent-kevin:briefing *)']
         }
       ]
     });
@@ -117,14 +117,52 @@ describe('0.6.1 skill consolidation', () => {
 
   test('keeps a compact or CRLF settings file in its own layout', () => {
     const compact = '{"permissions":{"allow":["Read","Skill(agent-kevin:quick-pulse)"]}}';
-    const crlf = '{\r\n  "permissions": {\r\n    "allow": [\r\n      "Skill(agent-kevin:seed-export)"\r\n    ]\r\n  }\r\n}\r\n';
+    const crlf =
+      '{\r\n  "permissions": {\r\n    "allow": [\r\n      "Skill(agent-kevin:seed-export)"\r\n    ]\r\n  }\r\n}\r\n';
     const home = makeHome({ '.claude/settings.json': compact, '.claude/settings.local.json': crlf });
     expect(run(home)).toMatchObject({ ok: true });
     expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(
       '{"permissions":{"allow":["Read","Skill(agent-kevin:briefing)"]}}'
     );
-    expect(readFileSync(join(home, '.claude/settings.local.json'), 'utf-8')).toBe(
-      crlf.replace('seed-export', 'seed')
+    expect(readFileSync(join(home, '.claude/settings.local.json'), 'utf-8')).toBe(crlf.replace('seed-export', 'seed'));
+  });
+
+  test('keeps a gate written as a prefix rule or with a leading slash on the skill that replaced it', () => {
+    const home = makeHome({
+      '.claude/settings.json': JSON.stringify({
+        permissions: {
+          allow: ['Skill(agent-kevin:seed-export)'],
+          ask: ['Skill(agent-kevin:google- *)'],
+          deny: ['Skill(/agent-kevin:quick-pulse)', 'Skill(agent-kevin:*)']
+        }
+      })
+    });
+    expect(run(home)).toMatchObject({
+      grants: [
+        { list: 'deny', from: 'Skill(/agent-kevin:quick-pulse)', to: ['Skill(agent-kevin:briefing)'] },
+        {
+          list: 'ask',
+          from: 'Skill(agent-kevin:google- *)',
+          to: ['Skill(agent-kevin:google- *)', 'Skill(agent-kevin:seo)']
+        },
+        { list: 'allow', from: 'Skill(agent-kevin:seed-export)', to: ['Skill(agent-kevin:seed)'] }
+      ]
+    });
+    expect(readJsonFile(join(home, '.claude/settings.json'))).toEqual({
+      permissions: {
+        allow: ['Skill(agent-kevin:seed)'],
+        ask: ['Skill(agent-kevin:google- *)', 'Skill(agent-kevin:seo)'],
+        deny: ['Skill(agent-kevin:briefing)', 'Skill(agent-kevin:*)']
+      }
+    });
+  });
+
+  test('keeps leading whitespace and the indented layout after it', () => {
+    const settings = `\n${JSON.stringify({ permissions: { allow: ['Skill(agent-kevin:quick-pulse)'] }, theme: 'dark' }, null, 4)}\n`;
+    const home = makeHome({ '.claude/settings.json': settings });
+    expect(run(home)).toMatchObject({ ok: true });
+    expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(
+      settings.replace('quick-pulse', 'briefing')
     );
   });
 
@@ -136,7 +174,10 @@ describe('0.6.1 skill consolidation', () => {
     });
     chmodSync(join(home, '.claude', 'skills', 'locked'), 0o000);
     try {
-      expect(run(home)).toMatchObject({ ok: true, grants: [expect.objectContaining({ to: 'Skill(agent-kevin:briefing)' })] });
+      expect(run(home)).toMatchObject({
+        ok: true,
+        grants: [expect.objectContaining({ to: ['Skill(agent-kevin:briefing)'] })]
+      });
     } finally {
       chmodSync(join(home, '.claude', 'skills', 'locked'), 0o755);
     }

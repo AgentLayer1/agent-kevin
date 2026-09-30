@@ -181,8 +181,8 @@ describe('home-baseline settings', () => {
     });
     const { settings } = run(home);
     expect(settings.retiredGrants).toEqual([
-      { list: 'allow', entry: 'Skill(agent-kevin:quick-pulse)', successor: 'Skill(agent-kevin:briefing)' },
-      { list: 'ask', entry: 'Skill(agent-kevin:seed-import)', successor: 'Skill(agent-kevin:seed)' }
+      { list: 'allow', entry: 'Skill(agent-kevin:quick-pulse)', replacement: ['Skill(agent-kevin:briefing)'] },
+      { list: 'ask', entry: 'Skill(agent-kevin:seed-import)', replacement: ['Skill(agent-kevin:seed)'] }
     ]);
     expect(settings.allowMissing).not.toContain('Skill(agent-kevin:seed)');
     expect(settings.allowMissing).not.toContain('Skill(agent-kevin:briefing)');

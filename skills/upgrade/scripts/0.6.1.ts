@@ -22,7 +22,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { FOLDERS, PLUGIN_NAME } from '../../../mcp-server/src/config';
 import { runtimeDirName } from '../../../mcp-server/src/shared/naming';
-import { RETIRED_CADENCE_KEYS, RETIRED_SKILLS, successorGrant } from '../../../mcp-server/src/shared/retired-skills';
+import { migrateGrant, RETIRED_CADENCE_KEYS, RETIRED_SKILLS } from '../../../mcp-server/src/shared/retired-skills';
 
 const VERSION = '0.6.1';
 const first = (...values: (string | undefined)[]): string | undefined =>
@@ -50,7 +50,7 @@ interface GrantChange {
   file: string;
   list: List;
   from: string;
-  to: string;
+  to: string[];
 }
 
 interface Report {
@@ -68,8 +68,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const rel = (path: string): string => relative(HOME, path);
 
-const retiredSuccessor = (entry: unknown): string | null =>
-  typeof entry === 'string' ? successorGrant(entry, PLUGIN_NAME) : null;
+const migrated = (entry: unknown): string[] | null =>
+  typeof entry === 'string' ? migrateGrant(entry, PLUGIN_NAME) : null;
 
 const migrateSettings = (path: string): GrantChange[] => {
   if (!existsSync(path)) {
@@ -84,16 +84,16 @@ const migrateSettings = (path: string): GrantChange[] => {
   const entriesOf = (list: List): unknown[] => (Array.isArray(permissions[list]) ? permissions[list] : []);
   const changes = LISTS.flatMap((list) =>
     entriesOf(list).flatMap((entry) => {
-      const to = retiredSuccessor(entry);
+      const to = migrated(entry);
       return typeof entry === 'string' && to ? [{ file: rel(path), list, from: entry, to }] : [];
     })
   );
   if (!changes.length) {
     return [];
   }
-  const successors = new Set(changes.map((change) => change.to));
+  const successors = new Set(changes.flatMap((change) => change.to.filter((grant) => grant !== change.from)));
   const mapped = Object.fromEntries(
-    LISTS.map((list) => [list, entriesOf(list).map((entry) => retiredSuccessor(entry) ?? entry)])
+    LISTS.map((list) => [list, entriesOf(list).flatMap((entry) => migrated(entry) ?? [entry])])
   ) as Record<List, unknown[]>;
   // A successor keeps its first place in the strictest list that holds it; operator entries stay untouched.
   const rewritten = LISTS.reduce<Partial<Record<List, unknown[]>>>((acc, list, index) => {
@@ -112,22 +112,24 @@ const migrateSettings = (path: string): GrantChange[] => {
   }, {});
   // Written back in the file's own shape: compact stays compact, CRLF stays CRLF. JSON.stringify escapes
   // newlines inside strings, so every newline it emits is structural.
-  const indent = /^\{\r?\n([ \t]+)"/.exec(text)?.[1] ?? (/^\{\r?\n/.test(text) ? '  ' : '');
+  const lead = /^\s*/.exec(text)?.[0] ?? '';
+  const body = text.slice(lead.length);
+  const indent = /^\{\r?\n([ \t]+)"/.exec(body)?.[1] ?? (/^\{\r?\n/.test(body) ? '  ' : '');
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const trailing = /\r?\n$/.test(text) ? eol : '';
   const json = JSON.stringify({ ...settings, permissions: { ...permissions, ...rewritten } }, null, indent);
-  writeFileSync(path, `${json.replaceAll('\n', eol)}${trailing}`);
+  writeFileSync(path, `${lead}${json.replaceAll('\n', eol)}${trailing}`);
   return changes;
 };
 
-/** A retired grant in ask or deny now gates every playbook of its successor, not just the old one. */
+/** A gate on a retired skill now gates every playbook of its successor, not just the old one. */
 const widenedNotes = (changes: GrantChange[]): string[] =>
   changes
     .filter((change) => change.list !== 'allow')
-    .map(
-      (change) =>
-        `${change.from} was in ${change.list} (${change.file}); ${change.to} there now covers the whole skill, not only the old ${change.from.slice(change.from.indexOf(':') + 1, -1)}. Move it if that is broader than you meant.`
-    );
+    .map((change) => {
+      const added = change.to.filter((grant) => grant !== change.from).join(', ');
+      return `${change.from} in ${change.list} (${change.file}) gated a retired skill; ${added} there now covers the whole skill that replaced it. Move it if that is broader than you meant.`;
+    });
 
 const migrateCadence = (): { moves: Report['cadence']; notes: string[] } => {
   if (!existsSync(CADENCE)) {

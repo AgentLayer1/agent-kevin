@@ -34,21 +34,51 @@ export const RETIRED_CADENCE_KEYS: Readonly<Record<string, string>> = {
   'yearly-goals': 'goals-year'
 };
 
-// A grant may carry an argument wildcard (`Skill(plugin:name *)` or `Skill(plugin:name:*)`), kept as is.
-const SKILL_GRANT = /^Skill\(([^:()\s]+):([^:()\s]+)((?: \*|:\*)?)\)$/;
+/**
+ * A `Skill(...)` rule's name as Claude Code matches it: a leading `/` is dropped, and a trailing ` *` or
+ * `:*` makes it a prefix of the skill name (arguments never take part).
+ */
+const ruleName = (entry: string): { name: string; prefix?: string } | null => {
+  const inner = /^Skill\((.+)\)$/.exec(entry)?.[1]?.replace(/^\//, '');
+  if (!inner) {
+    return null;
+  }
+  return inner.endsWith(' *') || inner.endsWith(':*') ? { name: inner, prefix: inner.slice(0, -2) } : { name: inner };
+};
 
-/** The grant replacing `entry` when it names one of `plugin`'s retired skills; null for any other entry. */
-export const successorGrant = (entry: string, plugin: string): string | null => {
-  const [, owner, skill, suffix] = SKILL_GRANT.exec(entry) ?? [];
-  const successor =
-    owner === plugin && skill && Object.hasOwn(RETIRED_SKILLS, skill) ? RETIRED_SKILLS[skill] : undefined;
-  return successor ? `Skill(${plugin}:${successor.split(' ')[0]}${suffix ?? ''})` : null;
+const routerOf = (retired: string): string => (RETIRED_SKILLS[retired] ?? '').split(' ')[0] ?? '';
+
+/**
+ * What a permissions entry becomes once `plugin`'s retired skills are gone, or null when it reaches none.
+ * A rule for one retired skill becomes its successor's, wildcard kept. A prefix rule that also reached
+ * retired skills stays, joined by an exact rule for each successor it no longer reaches, so a gate the
+ * operator placed on a retired skill still holds for the skill that replaced it.
+ */
+export const migrateGrant = (entry: string, plugin: string): string[] | null => {
+  const rule = ruleName(entry);
+  if (!rule) {
+    return null;
+  }
+  const retired = Object.keys(RETIRED_SKILLS);
+  const stem = rule.prefix ?? rule.name;
+  const own = retired.find((name) => `${plugin}:${name}` === stem);
+  if (own) {
+    return [`Skill(${plugin}:${routerOf(own)}${rule.name.slice(stem.length)})`];
+  }
+  const { prefix } = rule;
+  if (prefix === undefined) {
+    return null;
+  }
+  const unreached = [...new Set(retired.filter((name) => `${plugin}:${name}`.startsWith(prefix)).map(routerOf))].filter(
+    (router) => !`${plugin}:${router}`.startsWith(prefix)
+  );
+  return unreached.length ? [entry, ...unreached.map((router) => `Skill(${plugin}:${router})`)] : null;
 };
 
 /**
- * A permissions list with every retired grant replaced by its successor's, first position kept and
- * duplicates dropped, so the list reads as the operator left it.
+ * A permissions list with every retired rule migrated, first position kept and duplicates dropped, so
+ * the list reads as the operator left it.
  */
 export const migrateGrants = (entries: readonly string[], plugin: string): string[] => [
-  ...new Set(entries.map((entry) => successorGrant(entry, plugin) ?? entry))
+  ...new Set(entries.flatMap((entry) => migrateGrant(entry, plugin) ?? [entry]))
 ];

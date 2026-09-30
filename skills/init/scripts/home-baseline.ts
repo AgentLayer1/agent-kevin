@@ -15,7 +15,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
-import { migrateGrants, successorGrant } from '../../../mcp-server/src/shared/retired-skills';
+import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde } from '../../../mcp-server/src/shared/paths';
 
 const args = process.argv.slice(2);
@@ -121,8 +121,8 @@ process.stdout.write(
         },
         retiredGrants: LISTS.flatMap((list) =>
           (settings.permissions?.[list] ?? []).flatMap((entry) => {
-            const successor = successorGrant(entry, PLUGIN);
-            return successor ? [{ list, entry, successor }] : [];
+            const replacement = migrateGrant(entry, PLUGIN);
+            return replacement ? [{ list, entry, replacement }] : [];
           })
         ),
         plansDirectory: settings.plansDirectory === undefined ? defaultPlans : null,

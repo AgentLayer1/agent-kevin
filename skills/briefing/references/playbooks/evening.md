@@ -4,9 +4,9 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 
 ## Inputs (strict today-only scope)
 
-**The day being wrapped** is today, or yesterday when it is before 3am (sync's day boundary). Every "today" below means that date: the session glob, the `since` and `-newermt` bounds (that date, 00:00), closed-that-day, the header, and the daily goals scored.
+**The day being wrapped** is today, or yesterday when it is before 3am (sync's day boundary). The inputs cover it from its 00:00 until now, which before 3am spans two calendar dates: read both dates' session files, use its 00:00 as the `since` and `-newermt` bound, and count tasks closed on either date. The header and the daily goals scored name the day being wrapped.
 
-1. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. Read all flavors. **Do not** read prior-day session logs to fill bullets.
+1. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. Read all flavors (both dates' files before 3am). **Do not** read session logs older than the day being wrapped to fill bullets.
 2. **Today's git activity** — `git -C <HOME> log --since='today 00:00' --oneline` and same for `<HOME>/projects` if separate gitdir.
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt 'today 00:00' -not -path '*/node_modules/*'`.
 4. **Closed today** — `mcp__plugin_agent-kevin_kevin__task_query` `{closed_on:"today"}` (or scan task frontmatter `closed:` for today's date).
@@ -34,7 +34,7 @@ When including it, compute the Hijri date with this one-shot TypeScript conversi
 bun -e 'const tz="<USER_TZ>";const p=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric",timeZone:tz}).formatToParts(new Date());const g=(t)=>p.find((x)=>x.type===t).value;console.log(`${g("day")} ${g("month")} ${g("year")}`)'
 ```
 
-Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zone on the session context's `## Today` line (falls back to the home timezone in `USER.md` when that line is unavailable); drop the `timeZone` field if unknown. On failure, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (±1 day), else omit the Hijri half — don't guess.
+Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zone on the session context's `## Today` line (falls back to the home timezone in `USER.md` when that line is unavailable); drop the `timeZone` field if unknown. Before 3am the header names yesterday, so pass `new Date(Date.now() - 864e5)` in place of `new Date()`. On failure, fall back to the most recent Hijri reference in `<HOME>/knowledge/memory/index.md` + day offset (±1 day), else omit the Hijri half — don't guess.
 
 ## Compose
 
