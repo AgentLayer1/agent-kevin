@@ -5,7 +5,7 @@ disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit
 ---
 
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
+> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex through `agents/openai.yaml`; this line is the backstop for any host that reads neither.
 
 # Release — cut a versioned plugin release
 

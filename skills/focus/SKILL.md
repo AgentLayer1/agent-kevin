@@ -4,11 +4,11 @@ description: >
   The operator's day in one place: what today is for, what slipped, the week and month, the roadmap
   in flight, who is waiting on them, and where every session left off. Home focus is the dashboard's
   Today tab; a project gets its own focus page. Plans tasks into today, the week or the month, writes
-  the standup, sets and scores the week, and runs the session radar, triage and checkpoints.
+  the standup, and runs the session radar, triage and checkpoints.
   Triggers on "what should I work on", "plan my day", "I'm overwhelmed", "take this on", "add this to
-  my list", "what do I owe people", "plan the week", "standup is coming up", "what did I do
-  yesterday", "where am I", "what was I working on", "which session needs me", "checkpoint this
-  session", a pasted link as something to do, or /focus.
+  my list", "what do I owe people", "standup is coming up", "what did I do yesterday", "where am
+  I", "what was I working on", "which session needs me", "checkpoint this session", a pasted link
+  as something to do, or /focus.
 allowed-tools:
   - AskUserQuestion
   - Bash
@@ -49,14 +49,13 @@ The operator's day: what it's for, what slipped, what the week and month are for
 | `/focus`, "refresh focus", "what's waiting on me", "what do I owe people" | [refresh](references/playbooks/refresh.md) |
 | "take this on", "add this to my list", a pasted line, list, or link | [add](references/playbooks/add.md) |
 | "plan my day", "what should I work on", "I'm overwhelmed", `/focus plan` | [plan](references/playbooks/plan.md) |
-| "plan the week", "score the week", Monday and Friday standups, `/focus week` | [week](references/playbooks/week.md) |
 | "standup is coming up", "what did I do yesterday", "I need my update", `/focus standup 48` | [standup](references/playbooks/standup.md) |
 | "where am I", "what was I working on", "which sessions are open", `/focus where-am-i 48` | [where-am-i](references/playbooks/where-am-i.md) |
 | "which session needs me", "what should I tend to", `/focus triage [scope]` | [triage](references/playbooks/triage.md) |
 | "checkpoint this session", "save where we are", "write a handoff", `/focus checkpoint` | [checkpoint](references/playbooks/checkpoint.md) |
 | First refresh with Slack connected: pull the priorities already posted there | [backfill](references/playbooks/backfill.md) |
 
-When the operator names *what* a past session worked on (a branch, a PR, a bug) rather than when, that's the find-session skill, not where-am-i.
+Setting goals for the day, week, month or year, and scoring the week, is the goals skill; plan reads the goals it writes. When the operator names *what* a past session worked on (a branch, a PR, a bug) rather than when, that's the find-session skill, not where-am-i.
 
 ## The day's data
 
@@ -70,16 +69,16 @@ When the operator names *what* a past session worked on (a branch, a PR, a bug) 
 | `later` | Later |
 | empty | Not planned |
 
-Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task change, `focus_write` call and `report_write` re-renders the dashboard and each project focus page, so no playbook has a save step, and nothing it does can start another skill. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
+Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task change, `focus_write` call and `report_write` re-renders the dashboard and each project focus page, so no playbook has a save step. Focus never starts another skill; the standup reads the goals skill's week playbook and follows it inline on Monday and Friday. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
 
 **Where it shows.**
 
 | Scope | Where | Holds |
 |---|---|---|
-| home (no project) | the dashboard's Today → Focus tab, `dashboard.html#today/focus` | every project, plus the Weekly and Monthly Goals |
+| home (no project) | the dashboard's Today → Focus tab, `dashboard.html#today/focus` | every project, plus today's, the week's and the month's goals |
 | `<project>` | `<HOME>/projects/<project>/focus.html`, linked from its project card | that project's tasks only |
 
-Both carry what they show as JSON in a `focus-data` block, and `focus_write` returns the same data (lanes, `planned`, `dueUnplanned`, `roadmap`, `snapshot`) with the `path`. "Mine" means a task whose assignee is empty, `user`, the agent's name, or the operator's first name or GitHub login; teammates' tasks stay off.
+Both carry what they show as JSON in a `focus-data` block, and `focus_write` returns the same data (lanes, `planned`, `dueUnplanned`, `dayGoals`, `roadmap`, `snapshot`) with the `path`. "Mine" means a task whose assignee is empty, `user`, the agent's name, or the operator's first name or GitHub login; teammates' tasks stay off.
 
 **Roadmaps.** The home view reads `<HOME>/roadmap.html`; a project view reads its own `projects/<slug>/roadmap.html` plus the root roadmap's milestones that name one of its task ids. Slipped milestones (their period ended with items open) and in-flight ones (an item in progress, or a period covering today) show with their linked tasks, and a milestone no open task names is a gap. A roadmap still on a script literal, one with no dates, or one that names no task ids gets a one-line notice instead.
 

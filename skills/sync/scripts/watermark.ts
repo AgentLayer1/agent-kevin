@@ -3,16 +3,19 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
+import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 
 /**
- * Stamp a cadence watermark: `bun watermark.ts <skill> <YYYY-MM-DD>`.
- * Written by the goals skills once goals are actually saved; read by
+ * Stamp a cadence watermark: `bun watermark.ts <key> <YYYY-MM-DD>` (`goals-week`,
+ * `goals-month`, `goals-year`). Written by the goals playbooks once goals are saved; read by
  * cadence.ts (same dir). Read-modify-write preserves sibling watermarks.
  */
 
-const [skill, date] = process.argv.slice(2);
-if (!skill || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) {
-  console.error("usage: watermark.ts <skill> <YYYY-MM-DD>");
+const [given, date] = process.argv.slice(2);
+// A session that loaded a playbook before the update may still stamp an old key.
+const key = given && Object.hasOwn(RETIRED_CADENCE_KEYS, given) ? RETIRED_CADENCE_KEYS[given] : given;
+if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) {
+  console.error("usage: watermark.ts <key> <YYYY-MM-DD>");
   process.exit(1);
 }
 
@@ -30,4 +33,4 @@ const readJson = (): Record<string, string> => {
     return {};
   }
 };
-writeFileSync(file, JSON.stringify({ ...readJson(), [skill]: date }, null, 2) + "\n");
+writeFileSync(file, JSON.stringify({ ...readJson(), [key]: date }, null, 2) + "\n");

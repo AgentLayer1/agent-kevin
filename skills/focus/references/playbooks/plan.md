@@ -12,7 +12,7 @@ Run this in the morning, or when the operator is overwhelmed. Today holds three 
    5. tasks linked to a slipped or in-flight roadmap milestone, slipped first;
    6. P0/P1 tasks in the week lane;
    7. reviews that have waited longest.
-   Finishable-shaped items beat themes. Work the operator already started beats starting something new.
+   Finishable-shaped items beat themes. Work the operator already started beats starting something new. When `focus_write` returns `dayGoals` (today's goals, set by the goals skill's [day](../../../goals/references/playbooks/day.md) playbook), a candidate that moves one of them ranks above the rest of its tier.
 4. **Propose three**, each with a one-line reason tied to the evidence ("#42 has waited 4 days and unblocks the invoice export"). Confirm them with a multi-select `AskUserQuestion`.
 5. **Settle each carried item** that wasn't picked: `This week`, `Later`, `Drop` (cancel the task), or `Keep carried`. Ask these in batches of four.
 6. **Roadmap gaps.** For each slipped or in-flight milestone with no open task behind it, offer to create one through the [add](add.md) flow (one confirming question, horizon first). Skip the ones the operator waves off.

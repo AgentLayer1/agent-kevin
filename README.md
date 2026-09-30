@@ -29,10 +29,10 @@ Kevin is a portable, file-based personal AI assistant that plugs into the agent 
 It is not a chat wrapper. It is an operating system for personal AI:
 
 - A **57-tool MCP server** for tasks, knowledge compilation, reports, home history, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
-- A **40-skill library** covering onboarding, version history, project lifecycle, a daily focus view with standup and a session radar, daily / weekly / monthly cadences, tax deadlines and bookkeeping, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
+- A **30-skill library**, related work grouped into one skill with playbooks (briefing, goals, SEO, focus, engineering), covering onboarding, version history, project lifecycle, a daily focus view with standup and a session radar, goals from the day to the year, morning and evening briefings, tax deadlines and bookkeeping, trip planning, worktree setup, API-request drafting, and read-only SEO auditing.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
 - **Opt-in packs** (SEO, Browser, Database, GitHub, API, Xcode) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
-- **You drive.** Every bundled skill waits for you to invoke it; Kevin acts when you ask, never on its own.
+- **You drive.** Ask in plain words and Kevin picks the skill and playbook; nothing runs unasked, and you never have to remember a command.
 
 ```mermaid
 graph LR
@@ -66,7 +66,7 @@ mkdir -p ~/Documents/Agents/Kevin && cd ~/Documents/Agents/Kevin
 
 Five minutes of questions later you have a home. See [Onboarding](https://agentlayer.one/docs/getting-started/onboarding) and [Hosts](https://agentlayer.one/docs/agent/hosts).
 
-**Want a head start?** The [wizard](https://agentlayer.one/dev#wizard) turns eleven prompts about your company into a seed bundle; hand the zip to `init` and the agent wakes up named, characterised, and briefed. A teammate's `seed-export` does the same from an existing agent. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
+**Want a head start?** The [wizard](https://agentlayer.one/dev#wizard) turns eleven prompts about your company into a seed bundle; hand the zip to `init` and the agent wakes up named, characterised, and briefed. A teammate's `seed export` does the same from an existing agent. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
 
 **Always launch from the agent home.** The plugin loads only for sessions started there, and that is also what keeps several agents on one machine apart. Reach your code through `permissions.additionalDirectories`, not by launching from a repo.
 
@@ -98,7 +98,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 
 - **Memory that compounds.** Hooks capture every session; the `knowledge-compile` skill distils them into user facets, concept articles, and active memory that load next launch. → [The brain](https://agentlayer.one/docs/platform/the-brain)
 - **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://agentlayer.one/docs/agent/tasks)
-- **A focus page for the day.** The `focus` skill keeps today to three, shows what carried over and what the roadmap has in flight, and plans the week with you; one page for all your work and one per project. → [Daily rhythm](https://agentlayer.one/docs/agent/daily-rhythm)
+- **A focus page for the day.** The `focus` skill keeps today to three, shows what carried over and what the roadmap has in flight, and the `goals` skill sets the day, week, month and year with you; one page for all your work and one per project. → [Daily rhythm](https://agentlayer.one/docs/agent/daily-rhythm)
 - **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://agentlayer.one/docs/platform/sync)
 - **Every change can be undone.** The `history` skill turns on local version history for the home in one question, no git knowledge needed; sync saves a snapshot each run. A home in iCloud, Dropbox or OneDrive keeps its history in `~/.local/state` (`%LOCALAPPDATA%` on Windows), where syncing can't damage it. → [History](https://agentlayer.one/docs/platform/history)
 - **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://agentlayer.one/docs/dashboard)

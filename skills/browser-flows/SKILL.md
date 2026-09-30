@@ -5,10 +5,9 @@ description: >
   scrape a page into structured data, fill a form, or click through a multi-step
   task. Kevin opens a headed Chrome and (only when a flow needs it) waits for you
   to log in by hand — your real session, no API keys. Flows are pluggable, one
-  folder each; `hacker-news` is the reference example. Manually invoked only — use
-  /agent-kevin:browser-flows with plain instructions like "digest the top Hacker
-  News stories" or by naming a flow.
-disable-model-invocation: true
+  folder each; `hacker-news` is the reference example. Triggers on plain
+  instructions like "digest the top Hacker News stories", naming a flow, or
+  /browser-flows.
 allowed-tools:
   - Bash
   - Read
@@ -18,8 +17,6 @@ allowed-tools:
   - Grep
   - mcp__plugin_agent-kevin_kevin__browser_flows
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # browser-flows
 

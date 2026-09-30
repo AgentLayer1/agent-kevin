@@ -1,11 +1,8 @@
 ---
 name: knowledge-compile
-description: Compile raw session logs, feedback, and inbox items into structured wiki articles. Orchestrated in this session — MCP returns work items, Claude synthesizes, MCP confirms.
-disable-model-invocation: true
+description: Compile raw session logs, feedback, and inbox items into structured wiki articles. Orchestrated in this session — MCP returns work items, Claude synthesizes, MCP confirms. Triggers on "compile my knowledge", "process the inbox", "absorb today's sessions", or /knowledge-compile.
 allowed-tools: mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, Read, Write, Edit, Glob, Grep
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Compile
 

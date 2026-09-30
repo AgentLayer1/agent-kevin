@@ -1,10 +1,7 @@
 ---
 name: wordpress-rest
-description: Query WordPress content via the public WP REST API — posts, pages, custom post types, categories, tags, media, and modified dates. Use this when auditing a WordPress site's content, cross-referencing with Search Console data, or listing products/brands from Toolset custom post types. Targets whatever site is configured via `GSC_SITE_URL` (same site used by `google-search-console`). No authentication required for published content. For SEO title/meta (The SEO Framework, Yoast, RankMath, AIOSEO), fall back to Playwright — those fields are injected at render time and not in the REST response.
-disable-model-invocation: true
+description: Query WordPress content via the public WP REST API — posts, pages, custom post types, categories, tags, media, and modified dates. Use this when auditing a WordPress site's content, cross-referencing with Search Console data, or listing products/brands from Toolset custom post types. Targets whatever site is configured via `GSC_SITE_URL` (the same site the seo skill uses). No authentication required for published content. For SEO title/meta (The SEO Framework, Yoast, RankMath, AIOSEO), fall back to Playwright — those fields are injected at render time and not in the REST response.
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # WordPress REST API
 
@@ -14,7 +11,7 @@ Plain HTTP, no auth, no plugin. Every WordPress site exposes the REST API at `/w
 
 ## Target site
 
-Set `$WP` to the same URL configured under `GSC_SITE_URL` (so `wordpress-rest` and `google-search-console` share one source of truth for "the site under analysis"). Examples below use `example.com` as the placeholder — substitute with the actual host.
+Set `$WP` to the same URL configured under `GSC_SITE_URL` (so `wordpress-rest` and the seo skill share one source of truth for "the site under analysis"). Examples below use `example.com` as the placeholder — substitute with the actual host.
 
 ```bash
 WP="${GSC_SITE_URL:-https://example.com}"

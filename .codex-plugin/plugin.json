@@ -34,7 +34,7 @@
     "websiteURL": "https://agentlayer.one",
     "defaultPrompt": [
       "Who are you and what's on my task list?",
-      "$quick-pulse",
+      "$briefing pulse",
       "$focus"
     ]
   }

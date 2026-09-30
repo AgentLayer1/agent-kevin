@@ -1,7 +1,7 @@
 /**
  * seed_export — build a seed bundle zip from an approved selection.
  *
- * The /seed-export skill runs the interview + per-file review gate and only
+ * The seed skill's export playbook runs the interview + per-file review gate and only
  * then calls this with the approved include list; this module is mechanical.
  * It validates every path against the format's allowed roots (a bad selection
  * fails loud, it is never silently dropped), stages payload + manifest into a

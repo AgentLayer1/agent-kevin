@@ -1,11 +1,8 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after.
-disable-model-invocation: true
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after. Triggers on "set up the SEO pack", "add my SerpAPI key", "configure a pack", "turn off the database pack", or /configure-skills.
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(cp *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *), Bash(command -v *), Bash(bun -e *), Bash(sw_vers *), Bash(xcode-select -p), Bash(xcodebuild -version), Bash(xcrun -f *), Bash(xcrun mcp-server status)
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Configure Skills
 
@@ -14,7 +11,7 @@ This skill manages Kevin's optional capabilities. Use it to:
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
-> **What this skill does NOT do:** copy pack skills around. The 6 SEO skills (and the Browser pack's underlying MCP tools) are part of the plugin itself, `<plugin>/skills/*` auto-loads when the plugin is enabled. Configuring a pack means setting up the keys/servers/permissions those skills need to actually work. For authoring brand-new custom skills, use Claude Code's native `skill-creator` plugin (Kevin does not duplicate that surface). Third-party skill libraries install via skills.sh (Section F).
+> **What this skill does NOT do:** copy pack skills around. The `seo` skill, `wordpress-rest` (and the Browser pack's underlying MCP tools) are part of the plugin itself, `<plugin>/skills/*` auto-loads when the plugin is enabled. Configuring a pack means setting up the keys/servers/permissions those skills need to actually work. For authoring brand-new custom skills, use Claude Code's native `skill-creator` plugin (Kevin does not duplicate that surface). Third-party skill libraries install via skills.sh (Section F).
 
 ---
 
@@ -75,7 +72,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 
 > **Which pack(s) to configure?** Tick any combination.
 >
-> - ☐ SEO — 6 SEO skills + the `google-search-audit` composite (already loaded; this walks API key + permission setup)
+> - ☐ SEO — the `seo` skill (audit, Search Console, PageSpeed, SERP, rank) and `wordpress-rest` (already loaded; this walks API key + permission setup)
 > - ☐ Browser **(recommended)** — Playwright tool permissions + optional Perplexity search (briefings fall back to the built-in web search without it)
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
@@ -91,18 +88,18 @@ If nothing is ticked, cancel and return to Step 1. Otherwise run the matching su
 
 **Tool-name prefix convention** — important: the plugin bundles a single MCP server (`kevin`), so all its tools use the **plugin-namespaced** prefix `mcp__plugin_agent-kevin_kevin__<tool>` (e.g., `mcp__plugin_agent-kevin_kevin__serpapi_search`, `mcp__plugin_agent-kevin_kevin__web_search`). The shorter `mcp__kevin__<tool>` form looks correct but won't match anything at runtime — Claude Code prefixes plugin-provided servers with `plugin_<plugin-name>_<server-name>`. Tools from servers registered in `<HOME>/.mcp.json` use the plain `mcp__<server>__<tool>` form — the Xcode pack (A.2f) is the one first-party pack that registers there, so its grants read `mcp__xcode__<tool>`. The "Permissions to grant" column below uses the correct form for each.
 
-| Skill | Backed by | Required key(s) | Extra permission to grant |
+| Capability (`seo` playbook) | Backed by | Required key(s) | Extra permission to grant |
 |---|---|---|---|
-| `serpapi` | `mcp__plugin_agent-kevin_kevin__serpapi_search` | `SERPAPI_KEY` (https://serpapi.com) | _granted by this SEO walk_ |
-| `open-page-rank` | `mcp__plugin_agent-kevin_kevin__open_page_rank` | `OPENPAGERANK_API_KEY` (https://openpagerank.com) | _granted by this SEO walk_ |
-| `google-search-console` | `mcp__plugin_agent-kevin_kevin__gsc_*` | Google OAuth + `GSC_SITE_URL` | _granted by this SEO walk_ |
-| `google-page-speed` | `mcp__plugin_agent-kevin_kevin__page_speed_*` | Google OAuth (shared with GSC) | _granted by this SEO walk_ |
-| `wordpress-rest` | direct `curl` | none | `Bash(curl https://<host>/*)` + `Bash(curl * https://<host>/*)`, where `<host>` is derived from `GSC_SITE_URL`. Only granted if `google-search-console` was configured this run (so `GSC_SITE_URL` is set). Otherwise curl confirms per-call. |
-| `google-search-audit` | composite (uses tools above) | shares the keys above | _granted by this SEO walk_ |
+| SERP (`serp`): live Google results | `mcp__plugin_agent-kevin_kevin__serpapi_search` | `SERPAPI_KEY` (https://serpapi.com) | _granted by this SEO walk_ |
+| Rank (`rank`): domain authority | `mcp__plugin_agent-kevin_kevin__open_page_rank` | `OPENPAGERANK_API_KEY` (https://openpagerank.com) | _granted by this SEO walk_ |
+| Search Console (`console`): queries and indexing | `mcp__plugin_agent-kevin_kevin__gsc_*` | Google OAuth + `GSC_SITE_URL` | _granted by this SEO walk_ |
+| PageSpeed (`speed`): Core Web Vitals | `mcp__plugin_agent-kevin_kevin__page_speed_*` | Google OAuth (shared with Search Console) | _granted by this SEO walk_ |
+| Audit (`audit`) | the tools above | shares the keys above | nothing extra |
+| the `wordpress-rest` skill | direct `curl` | none | `Bash(curl https://<host>/*)` + `Bash(curl * https://<host>/*)`, where `<host>` is derived from `GSC_SITE_URL`. Only granted if Search Console was configured this run (so `GSC_SITE_URL` is set). Otherwise curl confirms per-call. |
 
 **`/agent-kevin:init` only pre-grants the always-on core MCP tools** — `ping`, `compile_*`, `task_*`, `links_rewrite`, `memory_prune`. The SEO-gated tools (`serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth`) land in `permissions.allow` only when this SEO walk runs, and only if the user activates the pack (no per-call confirm prompts after that).
 
-The walk handles three concrete tasks per skill:
+The walk handles these tasks per capability:
 1. Add SEO-gated MCP tool grants to `$PROJECT_SETTINGS` → `permissions.allow` (§E).
 2. Ensure the secret store exists and tell the user which lines to add: the **secret** keys `SERPAPI_KEY` + `OPENPAGERANK_API_KEY` → `.kevin/secrets/.env` (§D.1 — Claude can't read/edit the gated file; the user adds the lines); the **non-secret** `GSC_SITE_URL` → `$SETTINGS_FILE` `env` (§D.2, Claude-writable). Never overwrite a filled value.
 3. Surface the Google OAuth file-drop flow (no value passes through chat).
@@ -110,10 +107,10 @@ The walk handles three concrete tasks per skill:
 
 > **Never prompt for API key values in chat.** Even with the session-capture redaction hook, pasted keys touch the transcript and the Anthropic API. The walk surfaces *which keys are needed* and *where to fill them* (secrets → `.kevin/secrets/.env`; `GSC_SITE_URL` → `settings.local.json` `env`); the user fills the value via editor. The session-capture redactor (exact-match against `.kevin/secrets/.env` values, plus known prefixes `pplx-…`, `sk-…`, `AIza…`) is a defense-in-depth net, not a license to ask.
 
-Walk the 4 skills that *need keys* one at a time. For each, `AskUserQuestion`:
+Walk the 4 capabilities that *need keys* one at a time (SERP, Rank, Search Console, PageSpeed). For each, `AskUserQuestion`:
 
-> **Activate `<skill-name>`?**
-> Description: `<one-line summary from the SKILL.md frontmatter>`
+> **Activate `<capability>`?**
+> Description: `<its one-line summary from the table above>`
 > Requires: `<key name(s)>` — secrets go in `.kevin/secrets/.env`, `GSC_SITE_URL` in `.claude/settings.local.json` (you fill after init via editor)
 >
 > - Yes — grant tool permissions + ensure placeholder exists
@@ -133,12 +130,12 @@ If yes:
   After that, all `gsc_*` and `page_speed_*` tools work without re-prompting.
 
 - Grant the matching MCP tool entries to `permissions.allow` via §E. Granular mapping:
-  - `serpapi` → `mcp__plugin_agent-kevin_kevin__serpapi_search`
-  - `open-page-rank` → `mcp__plugin_agent-kevin_kevin__open_page_rank`
-  - `google-search-console` → `mcp__plugin_agent-kevin_kevin__gsc_inspect`, `gsc_query`, `gsc_sites`, `google_auth`
-  - `google-page-speed` → `mcp__plugin_agent-kevin_kevin__page_speed_audit`, `page_speed_psi`, `google_auth` (deduped if GSC also chosen)
+  - SERP → `mcp__plugin_agent-kevin_kevin__serpapi_search`
+  - Rank → `mcp__plugin_agent-kevin_kevin__open_page_rank`
+  - Search Console → `mcp__plugin_agent-kevin_kevin__gsc_inspect`, `gsc_query`, `gsc_sites`, `google_auth`
+  - PageSpeed → `mcp__plugin_agent-kevin_kevin__page_speed_audit`, `page_speed_psi`, `google_auth` (deduped if Search Console also chosen)
 
-**For `wordpress-rest`:** if `GSC_SITE_URL` was set this run (the user configured `google-search-console`), derive the bare host and grant two scoped curl patterns via §E. This lets `wordpress-rest` call the user's own WP REST endpoints without re-prompting, without authorising curl to arbitrary hosts. Pure-prompt third-party SEO/content skills (e.g., `content-quality-auditor`, `seo-content-writer`) are NOT bundled with this plugin — install them via Section F if you want them.
+**For `wordpress-rest`:** if `GSC_SITE_URL` was set this run (the user configured Search Console), derive the bare host and grant two scoped curl patterns via §E. This lets `wordpress-rest` call the user's own WP REST endpoints without re-prompting, without authorising curl to arbitrary hosts. Pure-prompt third-party SEO/content skills (e.g., `content-quality-auditor`, `seo-content-writer`) are NOT bundled with this plugin — install them via Section F if you want them.
 
 ```bash
 # Normalise GSC_SITE_URL into a bare host. Handles both forms GSC accepts:
@@ -154,9 +151,9 @@ Then via §E, add to `$PROJECT_SETTINGS` → `permissions.allow`:
 - `Bash(curl https://<HOST>/*)` — naked curl invocation
 - `Bash(curl * https://<HOST>/*)` — curl with one or more flags before the URL (e.g. `curl -sS -f https://<HOST>/wp-json/...`)
 
-If `GSC_SITE_URL` is NOT set (user skipped GSC config), skip the curl grant — wordpress-rest's calls will confirm per-call and the user can "Always allow" the specific pattern manually.
+If `GSC_SITE_URL` is NOT set (user skipped Search Console), skip the curl grant — wordpress-rest's calls will confirm per-call and the user can "Always allow" the specific pattern manually.
 
-After all keyed skills processed, print a summary:
+After all keyed capabilities are processed, print a summary:
 
 ```
 ✅ SEO pack activated.

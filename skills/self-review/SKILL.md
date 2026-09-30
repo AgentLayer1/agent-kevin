@@ -1,10 +1,7 @@
 ---
 name: self-review
-description: Interactive maintenance pass over the agent's own instructions and memory, run with the operator. Prunes first (stale memory, rules the model or a guard now covers, dead references, duplicated learnings), then turns accumulated feedback into prompt, skill, or code-plan changes, and promotes generic fixes and every generic rule the home has that the templates lack to the plugin (edited in place for a local checkout, written up as an upstream proposal for a marketplace install). Pass --full to reconsider all feedback regardless of the watermark.
-disable-model-invocation: true
+description: Interactive maintenance pass over the agent's own instructions and memory, run with the operator. Prunes first (stale memory, rules the model or a guard now covers, dead references, duplicated learnings), then turns accumulated feedback into prompt, skill, or code-plan changes, and promotes generic fixes and every generic rule the home has that the templates lack to the plugin (edited in place for a local checkout, written up as an upstream proposal for a marketplace install). Pass --full to reconsider all feedback regardless of the watermark. Triggers on "run a self-review", "review your own instructions", "prune your memory", or /self-review.
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Self-Review
 

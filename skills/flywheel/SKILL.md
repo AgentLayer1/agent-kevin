@@ -1,11 +1,12 @@
 ---
 name: flywheel
-description: Cross-project work session. Read the north-star roadmap for the frame, triage active tasks against it, advance every project meaningfully, close what's done, keep the roadmaps honest, log what mattered. Invoke when you have time to work across the whole portfolio rather than one focus area.
-disable-model-invocation: true
+description: >
+  Cross-project work session. Read the north-star roadmap for the frame, triage active tasks against
+  it, advance every project meaningfully, close what's done, keep the roadmaps honest, log what
+  mattered. Only when the operator asks for a cross-project pass: "run the flywheel", "work across
+  all my projects", or /flywheel. "What should I work on" is the focus skill.
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, Read, Write, Edit, Glob, Grep, Bash
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Flywheel Session
 

@@ -23,7 +23,7 @@ export const tools: ToolDef[] = [
         .regex(/^[a-z0-9][a-z0-9-]*$/i, 'lowercase kebab-case (letters, digits, hyphens)')
         .describe('Short kebab-case slug, ≤60 chars. Filename becomes YYYY-MM-DD-HHMM-<slug>.md.'),
       title: z.string().min(1).describe('One-line headline. Shown verbatim in the index.'),
-      skill: z.string().min(1).describe('Skill that produced this report (e.g. "morning-briefing", "self-review").'),
+      skill: z.string().min(1).describe('Skill that produced this report (e.g. "briefing", "self-review").'),
       body: z.string().min(1).describe('Markdown body (no frontmatter — the helper renders frontmatter).'),
       summary: z.string().optional().describe('Optional one-line summary stored in frontmatter (not in the index).'),
       status: z

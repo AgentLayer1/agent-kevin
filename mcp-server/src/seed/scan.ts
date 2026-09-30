@@ -1,7 +1,7 @@
 /**
  * seed_scan — read-only detection of what THIS home could seed a teammate with.
  *
- * Feeds the /seed-export interview: every category comes back with enough
+ * Feeds the seed export interview: every category comes back with enough
  * detail (template-identical vs diverged, referenced env keys, pack labels)
  * for the operator to tick items, and nothing here writes or stages anything.
  * Secret VALUES are never read — the store is deny-gated and this module only

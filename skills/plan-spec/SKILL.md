@@ -6,13 +6,9 @@ description: >
   write a spec, flesh out an idea, turn rough notes into a structured plan, or go from brainstorm to
   blueprint. Triggers on /plan-spec. Also trigger when users say things like "help me spec this out",
   "plan this feature", "turn these notes into a spec", "interview me about this project", or
-  "I need to think through this design". Even if the user just has a vague idea and a file with some
-  notes, this skill applies.
-disable-model-invocation: true
+  "I need to think through this design". Not for changing code in a repo, which is the engineer skill.
 allowed-tools: Read, Glob, Grep, Write, AskUserQuestion
 ---
-
-> Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex does not.
 
 # Plan Spec: Deep-Dive Specification Writer
 

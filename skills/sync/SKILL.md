@@ -1,7 +1,7 @@
 ---
 name: sync
-description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, refresh focus (what's waiting on you, and the session radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, commit the brain's pending changes as grouped history commits when the HOME repo is local-only on main, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than quick-pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:focus), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+description: End-to-end refresh — fast-forward the default branches of any configured code repos so Kevin grounds against current code, compile pending raw inputs, lint+fix the wiki, run a flywheel pass across active projects, surface what needs attention (including a pending plugin upgrade and any planning/review skill that's come due, with the slash command to run it), optionally chain into a morning or evening briefing, refresh focus (what's waiting on you, and the session radar), then refresh both dashboards (TASKS.md + dashboard.html) last so they capture the briefing's news and the run's final state, commit the brain's pending changes as grouped history commits when the HOME repo is local-only on main, and close with a short interview offering concrete next steps (only when something's actually surfaced) that you can act on now or queue as a task. Run anytime you want to bring Kevin's state fully current and get one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:focus), Skill(agent-kevin:goals), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -12,8 +12,8 @@ One pass through every maintenance op, in dependency order, ending in a single s
 
 Optional first arg selects a briefing to chain after sync completes:
 
-- `morning` — run the [morning-briefing](../morning-briefing/SKILL.md) protocol at step 9.
-- `evening` — run the [evening-briefing](../evening-briefing/SKILL.md) protocol at step 9.
+- `morning` — run the briefing skill's [morning](../briefing/references/playbooks/morning.md) playbook at step 9.
+- `evening` — run the briefing skill's [evening](../briefing/references/playbooks/evening.md) playbook at step 9.
 - _(none)_ — pick automatically, catch-up-aware: a forgotten morning brief still runs in the afternoon instead of silently becoming an evening one. Check whether a morning brief already ran today (day starts at 3am): glob `<HOME>/reports/briefings/<today>-*-morning.md`, or read today's section of `reports/index.md` if the SessionStart hook already injected it. Then:
   - **No morning brief today and it's 3am–9pm** → **morning** (catch-up — even at 5pm).
   - **Morning already ran, or it's 9pm–3am** → **evening** (past 9pm the day is closing; a morning brief would be theater).
@@ -155,21 +155,21 @@ Interpret (mirrors the upgrade skill's guards, nudge-only — no semver math nee
 - **`baseline == installed`** → current; say nothing.
 - **`baseline != installed`** → surface `Plugin vINSTALLED installed · home migrated to vBASELINE — run /upgrade`.
 
-**Also check planning + review cadence.** The calendar-cadence skills (weekly-goals, monthly-goals, yearly-goals, self-review) are interactive interviews marked `disable-model-invocation: true` — they only run when the operator types the slash command, never on their own and never via the Skill tool. Sync can't run them; its job is to **notice when one is due and surface the nudge**, same as it does for a pending plugin upgrade. This step is read-only detection:
+**Also check planning + review cadence.** The calendar cadences (the goals skill's week, month and year playbooks, and self-review) are interactive interviews the operator runs with Kevin, never unattended. Sync's job here is to **notice when one is due and surface the nudge**, same as it does for a pending plugin upgrade; the closing interview (step 13) offers to run it. This step is read-only detection:
 
 ```bash
 bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/cadence.ts"
 ```
 
-Returns a JSON array of `{ skill, label, lastRun }` for each due item — empty `[]` means nothing's due (the common case; emit no Cadence block). Due rules baked into the script:
+Returns a JSON array of `{ invoke, label, lastRun }` for each due item (`invoke` is the command after the plugin prefix, e.g. `goals week interview`) — empty `[]` means nothing's due (the common case; emit no Cadence block). Due rules baked into the script:
 
-- **weekly-goals** — a new ISO week has begun since `lastRun` (or never run).
-- **monthly-goals** — a new calendar month has begun since `lastRun`.
-- **yearly-goals** — a new calendar quarter has begun since `lastRun`.
-- **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Unlike the others, `tax` is model-invocable, but sync still only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
+- **goals week interview** — a new ISO week has begun since `lastRun` (or never run).
+- **goals month** — a new calendar month has begun since `lastRun`.
+- **goals year** — a new calendar quarter has begun since `lastRun`.
+- **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Sync only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
 - **self-review** — `raw/user/feedback.md` has new entries since self-review's `lastRun` **and** that run is >14 days old, or a previous run is 30 or more days old regardless of feedback. The second clause is for the prune pass: loaded context goes stale with no new corrections. A home that never ran it waits for feedback, so a fresh init isn't nudged.
 
-Watermarks live in `.kevin/cadence.json` (the goals trio, keyed `skill → last-run date`, stamped by each goals skill on completion) and `.kevin/review.json` (`lastRun`, owned by self-review). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
+Watermarks live in `.kevin/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.kevin/review.json` (`lastRun`, owned by self-review). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
 
 ### 7. Read the dust-settled state
 
@@ -197,8 +197,8 @@ section sees the fresh queue, and step 11's dashboard render shows it.
 
 Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the catch-up-aware auto-selection from `## Arguments` (morning if none ran today and it's 3am–9pm, else evening). Then inline the matching protocol:
 
-- `morning` → run [morning-briefing](../morning-briefing/SKILL.md) **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · 🍌), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool; without `PERPLEXITY_API_KEY`, the briefing's built-in-search fallback) **— including a geopolitics / Muslim-world news cluster, not just the work-signal one**. Then **call `report_write` per the briefing skill's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
-- `evening` → run [evening-briefing](../evening-briefing/SKILL.md) **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the briefing skill's `## Persist` section** — not done until persisted.
+- `morning` → run the [morning](../briefing/references/playbooks/morning.md) playbook **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · 🍌), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool; without `PERPLEXITY_API_KEY`, the briefing's built-in-search fallback) **— including a geopolitics / Muslim-world news cluster, not just the work-signal one**. Then **call `report_write` per the playbook's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
+- `evening` → run the [evening](../briefing/references/playbooks/evening.md) playbook **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the playbook's `## Persist` section** — not done until persisted.
 
 To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 
@@ -246,7 +246,7 @@ After the output block (see below), turn the surfaced backlog into a decision. *
 
 When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions:
 
-1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, the due cadence skill (`/weekly-goals`, `/monthly-goals`, `/yearly-goals`, `/self-review`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one.
+1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/self-review`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one.
 
    **Freshness gate — verify every candidate against current ground truth before offering it (do NOT skip).** The failure mode here is offering something the operator *already did*, often in the very sessions this sync just compiled. The Pending list in `memory/index.md`, the cadence watermarks, and even today's briefing are lagging views — a task can be closed, a bug already fixed, or a chore already handled between when that state was written and now. So for each candidate, confirm it's still open against the freshest source before it earns a slot:
    - **Task-backed candidate** → re-read the task's frontmatter `status` (a `done`/`cancelled`/`blocked`-on-someone-else task is not a "tackle next"). Prefer items whose status/thread you touched *this run* (flywheel step 5) over anything read only from the stale Pending list.
@@ -260,7 +260,7 @@ Then honor the second answer:
 - **Act now** → do the chosen step this session. External/outbound actions (emails, messages, public posts, `git push`, anything that leaves the machine) still confirm first per the operating rules — an interview pick is not standing authorization for those.
 - **Queue as a task** → if the choice maps to an existing task, `task_thread` a note and bump priority/status as fitting; otherwise `task_create` one. Confirm the id/title back in a single line, then stop.
 
-**Exception for cadence/upgrade picks:** the goals/review skills are `disable-model-invocation`, a tax close needs the operator's documents, and `upgrade` — though model-invocable — chains sync itself, so sync invoking it would recurse. For those, both answers collapse to the same thing — surface the exact slash command for the operator to type. Don't attempt to invoke them via the Skill tool.
+**Cadence and upgrade picks:** a due goals cadence or self-review picked with **Act now** runs through the Skill tool (`agent-kevin:goals` with the rest of `invoke` as its argument, e.g. `week interview`; `agent-kevin:self-review`), and **Queue as a task** files it like any other pick. A tax close needs the operator's documents, and `upgrade` chains sync itself, so sync invoking it would recurse: for those two, both answers collapse to the same thing — surface the exact slash command for the operator to type.
 
 ## Output
 
@@ -297,7 +297,7 @@ One block, tight. Skip empty sections — don't pad.
   - left uncommitted: <paths — only when the script reports any>
 
 📅 Cadence (only when something is due — omit entirely when the cadence check returns [])
-  - <label> due (last set <lastRun | never>) → /<skill>
+  - <label> due (last set <lastRun | never>) → /<invoke>
 
 ⬆️ Upgrade (only when drift detected — omit entirely when up to date)
   - <Plugin vINSTALLED installed · home migrated to vBASELINE — run /upgrade>
@@ -337,7 +337,7 @@ The output block is the last *text* of the run. The step-13 interview, when it f
 
 ## Anti-patterns
 
-- ❌ Running this every session reflexively. Use `quick-pulse` if you just want a status check.
+- ❌ Running this every session reflexively. Use `/briefing pulse` if you just want a status check.
 - ❌ Hiding lint errors because they're "not blocking." If lint flagged 3 errors, list all 3.
 - ❌ Skipping the dust-settled re-read. Per-tool return values are useful for tracing, but the rendered files are the source of truth for the summary.
 - ❌ Writing prose paragraphs in the output. The block format above is the contract.

@@ -1,10 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { routerPlaybooks } from '@/shared/playbooks';
+import { RETIRED_SKILLS } from '@/shared/retired-skills';
 
 const ROOT = resolve(import.meta.dir, '..', '..');
 const SKILLS = join(ROOT, 'skills');
 const DESCRIPTION_CAP = 1024;
+// Hosts list every model-invocable description up to a budget (Codex ~2% of the window, Claude Code 1%);
+// this is the combined size after the playbook consolidation, and it only comes down.
+const CATALOG_BUDGET = 16_200;
+const SLASH_ONLY = ['init', 'release', 'rename-agent'];
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
 const LINK_RE = /\]\(([^)\s]+)\)/g;
 const CODE_RE = /^(`{3,}|~{3,})[\s\S]*?^\1|`[^`\n]*`/gm;
@@ -61,16 +67,49 @@ describe('skills', () => {
     }
   );
 
+  test('only the first-run wizard, the release cut and the brain-wide rename are slash-only', () => {
+    const slashOnly = skillDirs.filter((skill) => {
+      const frontmatter = readFrontmatter(skill);
+      return (
+        typeof frontmatter === 'object' &&
+        frontmatter !== null &&
+        'disable-model-invocation' in frontmatter &&
+        frontmatter['disable-model-invocation'] === true
+      );
+    });
+    expect(slashOnly.sort()).toEqual(SLASH_ONLY);
+  });
+
+  test.each(SLASH_ONLY)('%s also opts out of implicit invocation on Codex, which ignores the frontmatter flag', (skill) => {
+    const policy = Bun.YAML.parse(readFileSync(join(SKILLS, skill, 'agents', 'openai.yaml'), 'utf-8'));
+    expect(policy).toEqual({ policy: { allow_implicit_invocation: false } });
+  });
+
+  test(`model-invocable descriptions fit the ${CATALOG_BUDGET}-character catalog budget`, () => {
+    const total = skillDirs
+      .filter((skill) => !SLASH_ONLY.includes(skill))
+      .reduce((sum, skill) => sum + (descriptionOf(skill)?.length ?? 0), 0);
+    expect(total).toBeLessThanOrEqual(CATALOG_BUDGET);
+  });
+
   test('relative links inside skill folders resolve', () => {
     expect(markdownFiles(SKILLS).flatMap(brokenLinks)).toEqual([]);
   });
 });
 
-describe.each(['engineer', 'focus', 'tax'])('%s help', (skill) => {
+describe('retired skills', () => {
+  test('every successor is a live skill, never another retired one', () => {
+    const routers = Object.values(RETIRED_SKILLS).map((command) => command.split(' ')[0] ?? '');
+    expect(routers.filter((router) => !skillDirs.includes(router) || Object.hasOwn(RETIRED_SKILLS, router))).toEqual([]);
+    expect(Object.keys(RETIRED_SKILLS).filter((retired) => skillDirs.includes(retired))).toEqual([]);
+  });
+});
+
+describe.each(['briefing', 'engineer', 'focus', 'goals', 'project', 'seed', 'seo', 'tax'])('%s help', (skill) => {
   test('lists every playbook the router names', () => {
     const router = readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf-8');
     const help = readFileSync(join(SKILLS, skill, 'references', 'help.md'), 'utf-8').toLowerCase();
-    const playbooks = [...new Set([...router.matchAll(/\[([^\]]+)\]\(references\/playbooks\/[^)]+\)/g)].map((match) => match[1]))];
+    const playbooks = routerPlaybooks(router);
     expect(playbooks.length).toBeGreaterThan(0);
     expect(playbooks.filter((name) => !help.includes(`**${name.toLowerCase()}**`))).toEqual([]);
   });

@@ -9,7 +9,6 @@ Your day in one place: what today is for, what slipped, the week and month, the 
 | `/focus`, "what's waiting on me?" | **refresh** | Your PRs, the reviews you owe and (with Slack) the replies you owe, pulled fresh, and a one-glance card |
 | "Plan my day", "I'm overwhelmed", `/focus plan` | **plan** | Today cut to three, each with its reason; carried work settled; a task offered for every roadmap milestone nothing moves |
 | "Take this on", a pasted line, list, or link | **add** | A planned task after one question, never a duplicate |
-| "Plan the week", "score the week", `/focus week` | **week** | Monday: two or three week goals, planned and written to your Weekly Goals. Friday: done, partial, or missed, and where the rest goes |
 
 ### 🎤 The room
 
@@ -31,4 +30,4 @@ Your day in one place: what today is for, what slipped, the week and month, the 
 |---|---|---|
 | First refresh | **backfill** | The priorities already posted in Slack, triaged into tasks you confirm |
 
-Add a project to scope any of the day's playbooks: `/focus plan acme`.
+Add a project to scope any of the day's playbooks: `/focus plan acme`. Goals for the day, week, month and year live in `/goals`.

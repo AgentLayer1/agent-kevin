@@ -184,7 +184,7 @@ Hook commands (internal — wired into Claude Code hooks; safe to run manually f
 Knowledge commands:
   knowledge lint [--fix]            Structural health check; --fix rewrites stale wikilinks + inserts backlinks
 
-Seed commands (prefer the /agent-kevin:seed-export skill inside Claude Code — it runs the interview + review gate):
+Seed commands (prefer the /agent-kevin:seed export skill inside Claude Code — it runs the interview + review gate):
   seed scan                         Detect what this home could seed a teammate with (read-only JSON)
   seed export --include=p1,p2 --name=AGENT [--out=PATH]
                                     Build a seed bundle zip from home-relative paths (no review gate here — you are the gate)

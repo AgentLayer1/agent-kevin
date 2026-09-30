@@ -50,10 +50,10 @@ beforeAll(async () => {
       message('user', "Who are you and what's active right now?"),
       item({ type: 'reasoning', summary: [] }),
       message('assistant', "I'm Scout, your personal AI assistant, running in Codex here."),
-      message('user', '$quick-pulse'),
+      message('user', '$briefing pulse'),
       message(
         'user',
-        '<skill>\n<name>quick-pulse</name>\n<path>/Users/x/Test/.agents/skills/quick-pulse/SKILL.md</path>\n---\nname: quick-pulse\n</skill>'
+        '<skill>\n<name>briefing</name>\n<path>/Users/x/Test/.agents/skills/briefing/SKILL.md</path>\n---\nname: briefing\n</skill>'
       ),
       item({ type: 'custom_tool_call', name: 'exec', input: 'text(await tools.mcp__kevin__task_scan({}))' }),
       item({
@@ -93,7 +93,7 @@ describe('codex rollout capture', () => {
     expect(day).toContain('· turns 1–5 · codex: gpt-6-astra');
     expect(day).toContain("Who are you and what's active right now?");
     expect(day).toContain("I'm Scout, your personal AI assistant");
-    expect(day).toContain('$quick-pulse');
+    expect(day).toContain('$briefing pulse');
     expect(day).toContain('Needs attention');
     expect(day).toContain('exit');
     for (const injected of [

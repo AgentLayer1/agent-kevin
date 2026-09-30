@@ -15,7 +15,7 @@ the room can act on, and they're the half a status report leaves out.
 
 This is not the evening briefing. Four differences, and together they're why the skill exists:
 
-| | `evening-briefing` | standup |
+| | evening brief | standup |
 |---|---|---|
 | Window | strict today-only | **last 24h**, so it crosses the day boundary |
 | Audience | the operator | the operator's teammates |
@@ -317,8 +317,8 @@ Rules:
 ## Monday and Friday — the week frame
 
 Standup is where the week gets set and scored, so on those two days the card gains one section:
-Monday runs [set the week](week.md#set-the-week-monday-or-plan-the-week) and adds `## This week`
-above `Next`; Friday runs [score the week](week.md#score-the-week-friday-or-score-the-week) and adds
+Monday follows the goals skill's [set the week](../../../goals/references/playbooks/week.md#set-the-week-monday-or-plan-the-week) and adds `## This week`
+above `Next`; Friday follows its [score the week](../../../goals/references/playbooks/week.md#score-the-week-friday-or-score-the-week) and adds
 `## Week score` above `Next`. Skip it on a quiet week the operator says doesn't need one.
 
 ## Step 6 — persist
