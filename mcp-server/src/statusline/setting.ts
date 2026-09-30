@@ -6,7 +6,7 @@
  * on screen saying why.
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 export interface StatusLineSetting {
   type: 'command';
@@ -43,21 +43,28 @@ const canonical = (path: string): string => {
   }
 };
 
-/**
- * Why the home's status line will not render from this checkout, or nothing when it is
- * absent, the operator's own, or already current.
- */
-export const statusLineDrift = (settingsPath: string, binPath: string): string | undefined => {
-  if (!existsSync(settingsPath)) return undefined;
-  let command: unknown;
+const commandIn = (path: string): unknown => {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-    command = (parsed as { statusLine?: { command?: unknown } } | null)?.statusLine?.command;
+    return (JSON.parse(readFileSync(path, 'utf-8')) as { statusLine?: { command?: unknown } } | null)?.statusLine
+      ?.command;
   } catch {
     return undefined; // a settings file Claude Code itself could not parse is not this check's problem
   }
-  if (typeof command !== 'string') return undefined;
-  const pinned = commandBinPath(command, basename(binPath));
+};
+
+/**
+ * Why the home's status line will not render from this checkout, or nothing when it is
+ * absent, the operator's own, or already current. The local file wins, as it does in Claude Code.
+ */
+export const statusLineDrift = (claudeDir: string, binPath: string): string | undefined => {
+  const source = ['settings.local.json', 'settings.json']
+    .map((name) => ({
+      name,
+      command: existsSync(join(claudeDir, name)) ? commandIn(join(claudeDir, name)) : undefined
+    }))
+    .find(({ command }) => command !== undefined);
+  if (!source || typeof source.command !== 'string') return undefined;
+  const pinned = commandBinPath(source.command, basename(binPath));
   if (pinned === undefined || canonical(pinned) === canonical(binPath)) return undefined;
-  return `\`.claude/settings.json\` runs the status line from \`${pinned}\`, not this plugin (\`${resolve(binPath)}\`), so the footer stays blank — run \`/agent-kevin:upgrade\` to re-point it`;
+  return `\`.claude/${source.name}\` runs the status line from \`${pinned}\`, not this plugin (\`${resolve(binPath)}\`), so the footer stays blank — run \`/agent-kevin:upgrade\` to re-point it`;
 };

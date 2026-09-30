@@ -5,13 +5,14 @@ import { join, resolve } from 'node:path';
 import { commandBinPath, statusLineDrift, statusLineSetting } from './setting';
 
 const dirs: string[] = [];
-const settingsFile = (content: string): string => {
+/** A home's `.claude` folder holding each named settings file. */
+const claudeDir = (files: Record<string, string>): string => {
   const dir = mkdtempSync(join(tmpdir(), 'statusline-setting-'));
   dirs.push(dir);
-  const path = join(dir, 'settings.json');
-  writeFileSync(path, content);
-  return path;
+  Object.entries(files).forEach(([name, content]) => writeFileSync(join(dir, name), content));
+  return dir;
 };
+const settingsFile = (content: string): string => claudeDir({ 'settings.json': content });
 afterAll(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 });
@@ -42,7 +43,7 @@ describe('commandBinPath', () => {
 
 describe('statusLineDrift', () => {
   test('is silent for no file, no entry, an operator-owned command, a current path, or unparsable JSON', () => {
-    expect(statusLineDrift('/nonexistent/settings.json', BIN)).toBeUndefined();
+    expect(statusLineDrift('/nonexistent/.claude', BIN)).toBeUndefined();
     expect(statusLineDrift(settingsFile('{}'), BIN)).toBeUndefined();
     expect(
       statusLineDrift(settingsFile('{"statusLine":{"type":"command","command":"~/.claude/statusline.sh"}}'), BIN)
@@ -57,5 +58,18 @@ describe('statusLineDrift', () => {
     expect(drift).toContain('/cache/agent-kevin/0.4.4/bin/kevin');
     expect(drift).toContain('/opt/kevin/bin/kevin');
     expect(drift).toContain('/agent-kevin:upgrade');
+    expect(drift).toContain('.claude/settings.json');
+  });
+
+  test('reads the local file first, as Claude Code does', () => {
+    const stale = JSON.stringify({ statusLine: statusLineSetting('/cache/agent-kevin/0.4.4/bin/kevin') });
+    const current = JSON.stringify({ statusLine: statusLineSetting(BIN) });
+    expect(statusLineDrift(claudeDir({ 'settings.local.json': current, 'settings.json': stale }), BIN)).toBeUndefined();
+    expect(statusLineDrift(claudeDir({ 'settings.local.json': stale, 'settings.json': current }), BIN)).toContain(
+      '.claude/settings.local.json'
+    );
+    expect(statusLineDrift(claudeDir({ 'settings.local.json': '{}', 'settings.json': stale }), BIN)).toContain(
+      '.claude/settings.json'
+    );
   });
 });

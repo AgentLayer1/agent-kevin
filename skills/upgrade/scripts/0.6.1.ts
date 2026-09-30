@@ -14,6 +14,11 @@
  *   wording, and a `## Daily Goals` placeholder is added when the block has none. Nothing else in
  *   the block changes; the task sections are regenerated on the next task change.
  * - Mentions: files the operator owns that still name an old command are reported, never edited.
+ * - Ownership: entries that name this machine (a status line run by absolute path, this plugin's
+ *   `enabledPlugins` id and its marketplace, absolute folder grants) move from `settings.json` to
+ *   `settings.local.json`, which Claude Code merges back in. Custom-folder rules an older init wrote as `Read(/abs/**)` never matched (a single
+ *   slash is project-relative in a rule) and land in their working `//abs` form. The rule lives in
+ *   `mcp-server/src/home/settings-scope.ts`.
  *
  * Run by `/agent-kevin:upgrade` via `run_upgrade` (outside the Bash sandbox). Idempotent.
  * Contract: prints a single-line JSON report as its LAST stdout line; exits non-zero on failure.
@@ -21,6 +26,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { FOLDERS, PLUGIN_NAME } from '../../../mcp-server/src/config';
+import { type SettleReport, settleSettings } from '../../../mcp-server/src/home/settings-scope';
 import { runtimeDirName } from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, RETIRED_CADENCE_KEYS, RETIRED_SKILLS } from '../../../mcp-server/src/shared/retired-skills';
 
@@ -57,6 +63,7 @@ interface Report {
   ok: true;
   version: string;
   grants: GrantChange[];
+  settings: SettleReport;
   cadence: Array<{ from: string; to: string }>;
   tasks: 'updated' | 'unchanged' | 'absent' | 'no-goals-block';
   mentions: Array<{ file: string; commands: string[] }>;
@@ -226,11 +233,13 @@ const findMentions = (): Report['mentions'] =>
 
 try {
   const grants = SETTINGS_FILES.flatMap(migrateSettings);
+  const settings = settleSettings(HOME, PLUGIN_NAME, process.env);
   const cadence = migrateCadence();
   const report: Report = {
     ok: true,
     version: VERSION,
     grants,
+    settings,
     cadence: cadence.moves,
     tasks: migrateTasks(),
     mentions: findMentions(),

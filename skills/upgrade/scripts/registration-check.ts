@@ -127,15 +127,19 @@ for (const [name, registration] of relevant) {
   }
   validIds.push(`${plugin}@${name}`);
 }
-const homeSettings = readJson(resolve(homeDir, '.claude', 'settings.json')) ?? {};
-const enabledKey = Object.keys(homeSettings.enabledPlugins ?? {}).find((key) => key.startsWith(`${plugin}@`));
+// Both home files: the plugin keys belong in the local one, and a home not yet upgraded keeps them in the shared one.
+const homeSettings = ['settings.local.json', 'settings.json'].map(
+  (name) => readJson(resolve(homeDir, '.claude', name)) ?? {}
+);
+const keysOf = (key: string): string[] => homeSettings.flatMap((settings) => Object.keys(settings[key] ?? {}));
+const enabledKey = keysOf('enabledPlugins').find((key) => key.startsWith(`${plugin}@`));
 if (enabledKey && validIds.length > 0 && !validIds.includes(enabledKey)) {
   const marketplace = enabledKey.slice(plugin.length + 1);
   const target = renamed.get(marketplace);
   const installedId = validIds.find((id) => id in installed);
   settings.enabledPlugins = { from: enabledKey, to: target ? `${plugin}@${target}` : (installedId ?? validIds[0]) };
 }
-const staleMarketplace = Object.keys(homeSettings.extraKnownMarketplaces ?? {}).find((key) => renamed.has(key));
+const staleMarketplace = keysOf('extraKnownMarketplaces').find((key) => renamed.has(key));
 if (staleMarketplace) {
   settings.extraKnownMarketplaces = { from: staleMarketplace, to: String(renamed.get(staleMarketplace)) };
 }

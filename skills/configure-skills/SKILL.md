@@ -467,8 +467,8 @@ And to `permissions.ask`, so each one waits for the operator:
 
 **Kevin does not write this line.** An agent widening its own sandbox reads as self-modification, and the auto-mode classifier refuses it (observed 2026-09-18, and correctly). So generate the paste-ready block and hand it over, following the `automode-block.ts` precedent — an operator instruction is a generated artifact, never a description:
 
-1. Read `$PROJECT_SETTINGS` and the user-global `~/.claude/settings.json` (the same two layers init reads). If neither enables the sandbox, say so and stop here: the exclusion is unnecessary, and no file is written.
-2. `excludedCommands` merges across layers, so union both files' arrays and compute only the *missing* entries. If both patterns are already present, skip the rest of this step and say so.
+1. Read `$PROJECT_SETTINGS`, `$SETTINGS_FILE` and the user-global `~/.claude/settings.json`. If none enables the sandbox, say so and stop here: the exclusion is unnecessary, and no file is written.
+2. `excludedCommands` merges across layers, so union the three files' arrays and compute only the *missing* entries. If both patterns are already present, skip the rest of this step and say so.
 3. Write `<HOME>/.kevin/updates/xcode-sandbox.md` containing the exact JSON to merge, the file path to merge it into, and one line on what each pattern buys.
 4. Quote that file verbatim in the summary (step 10). Do not paraphrase it.
 
@@ -789,7 +789,7 @@ When a pack/skill is configured, write its tools into `$PROJECT_SETTINGS` → `p
 
 **Grant** (add entries — dedup, preserve existing):
 
-1. Read `$PROJECT_SETTINGS`. If it doesn't exist, start with `{}`. If it exists from `/agent-kevin:init`, it'll already have `extraKnownMarketplaces` and `enabledPlugins` — preserve them.
+1. Read `$PROJECT_SETTINGS`. If it doesn't exist, start with `{}`. Preserve every key it already has.
 2. Ensure `permissions` is an object and `permissions.allow` is an array — initialize if missing.
 3. For each entry in the input list: if it's **not already** in `permissions.allow`, push it. Don't add duplicates.
 4. Sort `permissions.allow` alphabetically (deterministic diffs).
@@ -800,8 +800,6 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "extraKnownMarketplaces": { "agentlayer": { "source": { "source": "directory", "path": "/path/to/plugin" } } },
-  "enabledPlugins": { "agent-kevin@agentlayer": true },
   "permissions": {
     "allow": [
       "Bash(cat *)",

@@ -510,23 +510,16 @@ If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUs
 
 `AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans, reviews) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
 
-**If either path is OUTSIDE the agent home directory**, Step 7's `.claude/settings.json` write must also append `permissions.allow` entries (and `sandbox.filesystem.allowWrite` if the user's sandbox is enabled, see below) so Claude Code can read/write there without prompting on every operation. Specifically add to `permissions.allow`:
+**If any of the three paths is OUTSIDE the agent home directory**, Step 7's `.claude/settings.local.json` write carries its grants. They name folders on this machine, so they never go in the shared `settings.json`. For each outside path, add `Read` and `Edit` rules to `permissions.allow` so the file tools reach it without prompting, and the folder itself to `sandbox.filesystem.allowWrite` so sandboxed Bash can write there:
 
 ```json
-"Read(<AGENT_KNOWLEDGE>/**)",
-"Write(<AGENT_KNOWLEDGE>/**)",
-"Edit(<AGENT_KNOWLEDGE>/**)",
-"Read(<AGENT_PROJECTS>/**)",
-"Write(<AGENT_PROJECTS>/**)",
-"Edit(<AGENT_PROJECTS>/**)",
-"Read(<AGENT_REPORTS>/**)",
-"Write(<AGENT_REPORTS>/**)",
-"Edit(<AGENT_REPORTS>/**)"
+"permissions": { "allow": ["Read(<RULE_PATH>/**)", "Edit(<RULE_PATH>/**)"] },
+"sandbox": { "filesystem": { "allowWrite": ["<PATH>"] } }
 ```
 
-And if `~/.claude/settings.json` has a `sandbox.filesystem.allowWrite` array, mirror those two paths into it too — otherwise Claude Code's sandbox blocks the writes regardless of `permissions.allow`.
+The two settings read a path differently (verified against the docs and a live probe on Claude Code 2.1.284): a permission rule reads a single leading slash as project-relative, so `<RULE_PATH>` is the absolute path with a second slash in front (`/Users/ada/notes` → `//Users/ada/notes`; a native Windows `C:\Users\ada\notes` → `//c/Users/ada/notes`), while `allowWrite` takes the plain absolute `<PATH>`. `toRulePath` in `mcp-server/src/home/settings-scope.ts` is the conversion. `Write(…)` path rules are never consulted, so none is written.
 
-If both paths are inside `<HOME>`, no extra grants needed (the home dir's `.` is already on the writable list).
+If all three paths are inside `<HOME>`, no extra grants needed (the home dir's `.` is already on the writable list).
 
 ---
 
@@ -821,9 +814,11 @@ With no `.gitignore` it copies the template. Over an existing one it appends eac
 
 Write project settings so the plugin auto-loads on subsequent launches AND the **always-on core** MCP tools are pre-granted (no per-call confirm prompts). Pack-gated tools are NOT granted here — they land in `permissions.allow` only when the matching `configure-skills` walk runs (Step 8 inline or `/agent-kevin:configure-skills` later).
 
-- `$HOME_DIR/.claude/settings.json` ← JSON below, with `<PLUGIN_PATH>` substituted with the absolute value of `${CLAUDE_PLUGIN_ROOT}`.
+- `$HOME_DIR/.claude/settings.json` ← JSON below.
 
-**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<REPORTS_ROOT>/plans/`, so we point the harness at the same folder — one home for every plan. Compute it from the reports path resolved in Step 7: `./reports/plans` when `REPORTS_ROOT` is the default under `$HOME_DIR`, else the absolute `<REPORTS_ROOT>/plans`. **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
+**Two files, split by owner.** `settings.json` travels with the home (history commits it, a synced folder copies it, a seed carries its grants), so it holds the agent's policy and defaults: entries correct unchanged for a teammate on the same OS with another username and plugin install. `settings.local.json` is this machine's: the status line command (it names this checkout), the plugin's enable entry (it names the marketplace this machine installed from), grants for folders outside the home, and personal overrides. Claude Code reads the two as one (lists combine, a local value wins), so nothing is lost by the split, and whatever the operator adds to either file keeps working.
+
+**`plansDirectory` — unify plan-mode with reports.** Claude Code writes plan-mode artefacts to the path in `plansDirectory` (default `./.claude/plans`). Kevin's `self-review` skill also writes code-change plans under `<REPORTS_ROOT>/plans/`, so we point the harness at the same folder — one home for every plan. Compute it from the reports path resolved in Step 7: `./reports/plans` when `REPORTS_ROOT` is the default under `$HOME_DIR`, `./<path>/plans` when it is elsewhere inside the home, and **no key at all** when it is outside the home: Claude Code keeps its default when the path resolves outside the project, so an absolute value would do nothing. **Preserve any pre-existing value**: if the project `settings.json` already has a `plansDirectory`, omit the key from the scaffold and let the deep-merge below keep the operator's choice. (Note: `self-review`'s age-sweep filters to its own plans by frontmatter `skill: self-review`, so raw plan-mode dumps sharing the folder are ignored — see that skill.)
 
 **`bashEditDiffEnabled` — see what Bash edited.** Under auto mode Claude Code routes file edits through the Bash tool, which hides the diff the Edit tool would have shown. This setting (Claude Code 2.1.269+) attaches a diff of the files a Bash command changed to that command's result, so a scripted edit stays reviewable in the transcript. Written when the operator's user-global settings don't set it.
 
@@ -844,13 +839,13 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **The Haiku-tier remap is not gap-filled either.** Claude Code sends its small background calls to the Haiku tier, and `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` = `"claude-sonnet-5-5"` points that tier at Sonnet. It is always written to the project scaffold, whatever the global settings say. An existing project value is kept unless it is one an earlier release wrote (`claude-sonnet-4-6`), which is replaced. Upgrade reconciles the same key on every run through `home-baseline.ts`, which reads the value from this paragraph.
 
-**`statusLine` — the footer, the Claude side of the Codex `[tui]` table.** Kevin renders it (`kevin statusline`: model, folder, branch on line one; context bar, cost with the hourly rate, session time, and the Pro/Max rate-limit windows on line two). The command names this checkout, so never type it — generate it and merge the object it prints:
+**`statusLine` — the footer, the Claude side of the Codex `[tui]` table.** Kevin renders it (`kevin statusline`: model, folder, branch on line one; context bar, cost with the hourly rate, session time, and the Pro/Max rate-limit windows on line two). The command names this checkout, so it goes in `settings.local.json`, never the shared file; never type it — generate it and merge the object it prints:
 
 ```bash
 bun "$PLUGIN_ROOT/bin/kevin" statusline --setting
 ```
 
-Set when absent: an operator's own `statusLine` in the project file is kept (the deep-merge below already does this, scalars in an existing object win), and the user-level one is never touched — project settings outrank it in sessions started here, which is the point: this home shows its agent's footer, every other directory keeps the operator's own. A version-pinned plugin cache moves on every release, so `$upgrade` re-points the command, and the SessionStart context flags a stale one until it does. The subagent panel needs no wiring: the plugin ships its `subagentStatusLine` itself. Both take effect on relaunch.
+Set when absent from both home files: an operator's own `statusLine` in either is kept, and the user-level one is never touched — the home's settings outrank it in sessions started here, which is the point: this home shows its agent's footer, every other directory keeps the operator's own. A version-pinned plugin cache moves on every release, so `$upgrade` re-points the command, and the SessionStart context flags a stale one until it does. The subagent panel needs no wiring: the plugin ships its `subagentStatusLine` itself. Both take effect on relaunch.
 
 **⚠ The traffic kill suppresses auto mode's built-in default.** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` disables feature-flag fetching, and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the traffic kill: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
 
@@ -1053,8 +1048,7 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "autoAllowBashIfSandboxed": true,
   "allowUnsandboxedCommands": false,
   "filesystem": {
-    "denyRead": [".kevin/secrets"],
-    "allowWrite": "<[CODE_ROOT] when the code tree is outside the home — see below; omit the key otherwise>"
+    "denyRead": [".kevin/secrets"]
   },
   "credentials": {
     "files": [{ "path": ".kevin/secrets", "mode": "deny" }]
@@ -1108,21 +1102,20 @@ case "$AGENT_CODE_PATH" in
 esac
 ```
 
-When `CODE_ROOT` is non-empty, add both to the scaffold:
+When `CODE_ROOT` is non-empty, add both to the `settings.local.json` write below (the path is this machine's, and both settings take a plain absolute path):
 
 - `permissions.additionalDirectories: ["<CODE_ROOT>"]` — the Read/Edit/Write tools use the permission system, not the sandbox.
 - `sandbox.filesystem.allowWrite: ["<CODE_ROOT>"]` — sandboxed Bash writes only to cwd + session temp by default, so without this `git commit`, package installs, and test runs inside a repo all fail.
 
 **Grant the code root, not the single repo.** Sibling worktrees live beside the main checkout, and an operator who splits their home's git dir (`git init --separate-git-dir`, so the vault holds only a `.git` pointer) keeps the git internals in that same tree — narrowing the path to one repo silently breaks `git add`/`git commit` on the agent's own knowledge. This grant restores exactly what a nested layout gave implicitly (everything under cwd was writable); it doesn't widen beyond it. Mention it in one line during Step 9's summary so the operator knows the code tree is writable.
 
-**Do not** touch global keys outside this baseline (`hooks`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. (`statusLine` is written to the *project* file by its own rule above and never mirrored from or into the global one.) Hooks especially: plugin hooks come from `hooks/claude.json` (declared in the plugin manifest) once registered; mirroring global hooks here would double-fire.
+**Do not** touch global keys outside this baseline (`hooks`, `theme`, `verbose`, other `env.*` entries, other `permissions.allow` entries, `enabledPlugins`) — those are operator-personal, not project-security. (`statusLine` is written to the home's local file by its own rule above and never mirrored from or into the global one.) Hooks especially: plugin hooks come from `hooks/claude.json` (declared in the plugin manifest) once registered; mirroring global hooks here would double-fire.
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
 - **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `bashEditDiffEnabled`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exceptions: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run); `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` — an earlier release's default is replaced (see above).
 - **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.ask`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
-- **Objects** (`permissions`, `sandbox`, `sandbox.network`, `enabledPlugins`, `env`, `hooks`): recurse with the same rules.
-- **`enabledPlugins`**: special case — set `"agent-kevin@<MARKETPLACE>": true` even if the key already exists with a different value (the operator just ran init, so they want it enabled). `<MARKETPLACE>` is the name the plugin was installed under: for a marketplace install `${CLAUDE_PLUGIN_ROOT}` is a version-pinned cache path `…/plugins/cache/<MARKETPLACE>/agent-kevin/<version>` (`agentlayer` from the public marketplace); for a clone (Option B/C) it is the `name` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/marketplace.json`, `agentdev-kevin`. A key naming a marketplace that is not registered enables nothing. Other plugin entries pass through untouched.
+- **Objects** (`permissions`, `sandbox`, `sandbox.network`, `env`, `hooks`): recurse with the same rules.
 - **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
 
 Concrete approach: `Read` the existing file (treat as `{}` if absent), build the merged object in-memory per the rules above, then `Write` the full merged JSON back. Do not invoke `jq` or shell tooling for the merge — the orchestrator has the file content already and can deep-merge cleanly without subshell escaping risks.
@@ -1130,11 +1123,10 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "plansDirectory": "<\"./reports/plans\" (or \"<REPORTS_ROOT>/plans\" when relocated) if no existing project value, else omit and preserve>",
+  "plansDirectory": "<\"./reports/plans\" (or \"./<path>/plans\" when the reports root sits elsewhere in the home) if no existing value; omit when the reports root is outside the home or a value exists>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
   "bashEditDiffEnabled": "<true if global doesn't set it, else omit>",
   "model": "<the Step 6c answer: \"opus\" or \"fable\" — always written>",
-  "statusLine": "<the object printed by `bun \"$PLUGIN_ROOT/bin/kevin\" statusline --setting` when the project file has no statusLine, else omit and preserve>",
   "effortLevel": "<\"high\" — always written; an existing project value is kept>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
@@ -1142,13 +1134,9 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<\"claude-sonnet-5-5\" — always written; an existing project value is kept unless an earlier release wrote it>"
   },
   "sandbox": "<the uv sandbox grants above, always; merged with the full baseline sandbox block when global.sandbox.enabled !== true>",
-  "enabledPlugins": {
-    "agent-kevin@<MARKETPLACE>": true
-  },
   "permissions": {
     "deny": "<the Python guard above, always; plus the full baseline deny list when global has no permissions.deny>",
     "ask": "<the full baseline ask list above — always written, unioned with any existing entries>",
-    "additionalDirectories": "<[CODE_ROOT] when the code tree is outside the home — see above; omit the key otherwise>",
     "allow": [
       "Bash(cat *)",
       "Bash(date)",
@@ -1224,7 +1212,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 }
 ```
 
-**Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in project settings is redundant — only `enabledPlugins` is needed here to opt this specific home into agent-kevin.
+**Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in the home is redundant — only `enabledPlugins` is needed to opt this specific home into agent-kevin, and it goes in `settings.local.json` (below), since the marketplace it names differs between a clone and a marketplace install.
 
 **Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `focus_write`, `home_history`, `setup_worktree`, `video_frames`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
@@ -1368,7 +1356,15 @@ _(Add anything Kevin should never do — sensitive content, off-limits topics, v
 
 If Step 5 URL synthesis surfaced anything that fills or contradicts this skeleton (e.g., the user's blog reveals they prefer step-by-step walkthroughs over terse answers), append a `## Synthesized from URLs` section below the defaults rather than overwriting it — let the user resolve the conflict later.
 
-Also write `.claude/settings.local.json` so the file exists with the correct gitignored permissions from day one. The env keys init owns are `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
+Also write `.claude/settings.local.json`: this machine's half of the settings (see **Two files, split by owner** above). Init writes these keys into it:
+
+- **`statusLine`**: the object `bun "$PLUGIN_ROOT/bin/kevin" statusline --setting` prints, set when neither home file has one.
+- **`enabledPlugins`**: `"agent-kevin@<MARKETPLACE>": true`, set even if the key already exists with a different value (the operator just ran init, so they want it enabled). `<MARKETPLACE>` is the name the plugin was installed under: for a marketplace install `${CLAUDE_PLUGIN_ROOT}` is a version-pinned cache path `…/plugins/cache/<MARKETPLACE>/agent-kevin/<version>` (`agentlayer` from the public marketplace); for a clone (Option B/C) it is the `name` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/marketplace.json`, `agentdev-kevin`. A key naming a marketplace that is not registered enables nothing. Other plugin entries pass through untouched.
+- **The code-root pair** from **Reaching the code tree** above, when `CODE_ROOT` is set: `permissions.additionalDirectories` and `sandbox.filesystem.allowWrite`, both `["<CODE_ROOT>"]`.
+- **The custom-folder grants** from Step 5c, when a path is outside the home.
+- **`env`**: `AGENT_HOME_TIMEZONE` from Step 4 (always written — the SessionStart hook compares it against the live machine timezone and flags the operator as traveling when they differ) and the **optional** primary-codebase pair from Step 4b, written only when a path was actually captured.
+
+Lists union with what the file already holds, deduped; existing scalars win except `enabledPlugins` as above. `Read` it first (treat as `{}` if absent) and `Write` the merged JSON, same as the shared file.
 
 **Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, and the `seo` skill's audit) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
@@ -1393,6 +1389,16 @@ The rule: **init owns env keys that are universal to every operator; configure-s
 
   ```json
   {
+    "statusLine": "<the object printed by `bun \"$PLUGIN_ROOT/bin/kevin\" statusline --setting`, unless either home file already has one>",
+    "enabledPlugins": {
+      "agent-kevin@<MARKETPLACE>": true
+    },
+    "permissions": {
+      "additionalDirectories": ["<CODE_ROOT>"]
+    },
+    "sandbox": {
+      "filesystem": { "allowWrite": ["<CODE_ROOT>"] }
+    },
     "env": {
       "AGENT_HOME_TIMEZONE": "<TIMEZONE>",
       "AGENT_CODE_PATH": "<AGENT_CODE_PATH>",
@@ -1401,9 +1407,9 @@ The rule: **init owns env keys that are universal to every operator; configure-s
   }
   ```
 
-- **Step 4b returned `skip`:** write only `AGENT_HOME_TIMEZONE` — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
+- **Step 4b returned `skip`:** the `env` block holds only `AGENT_HOME_TIMEZONE` and there is no code-root pair — no orphan empty keys. A code path is genuinely optional for a personal agent; the operator can add it later by editing this file.
 
-- **If the file already exists:** never overwrite existing values. Merge in `AGENT_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.AGENT_CODE_PATH` / `env.AGENT_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
+- **If the file already exists:** never overwrite existing `env` values. Merge in `AGENT_HOME_TIMEZONE` if absent, and the codebase pair only if (a) Step 4b captured a real path AND (b) `env.AGENT_CODE_PATH` / `env.AGENT_GIT_REPOS` are currently absent or the empty string. Leave all other keys untouched. configure-skills walks merge in pack-gated keys via §D when activated.
 
 We intentionally do **not** prompt for any secret values in chat (see the rule below); the codebase path is not a secret — it's captured in Step 4b's plain-chat prompt.
 
@@ -1620,8 +1626,8 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Home          `<HOME_DIR>`
 > ✅ Identity      SOUL.md · IDENTITY.md · USER.md
 > ✅ Operating manual   `<MANUAL_PATH>` (+ `.claude/CLAUDE.md`, the Claude Code bridge that `@-imports` it and the above)
-> ✅ Plugin reg    .claude/settings.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
-> ✅ Status line   .claude/settings.json → `kevin statusline` (model · folder · branch / context · cost · time · rate limits; shows on relaunch)
+> ✅ Plugin reg    .claude/settings.local.json (auto-loads agent-kevin next launch — no `--plugin-dir` needed)
+> ✅ Status line   .claude/settings.local.json → `kevin statusline` (model · folder · branch / context · cost · time · rate limits; shows on relaunch)
 > `<CODEX_HOOKS_ROW>`
 > ✅ Knowledge     `<FACET_FILES_FILLED>/5` facets populated `<from blog · LinkedIn · GitHub, if Step 5 ran>`
 > `<WORLD_ROW>`
@@ -1651,7 +1657,7 @@ For the operating-manual row:
 - Re-init of a home still on the pre-0.4.0 layout (`$HOME_DIR/CLAUDE.md` exists and `grep -q '^## Memory Routing'` matches it): the old manual is still there and Claude Code will load it alongside the new files — append a callout line:
   > ℹ️ Your previous operating manual is still at `CLAUDE.md`. Run `/agent-kevin:upgrade` to move it aside (it backs up, then removes the duplicate) so the manual isn't loaded twice.
 
-Blank line, then the **Next** heading (same style as Ready), then the relaunch prose. **Important: the user must exit and relaunch** so the new `.claude/settings.json` is picked up by Claude Code:
+Blank line, then the **Next** heading (same style as Ready), then the relaunch prose. **Important: the user must exit and relaunch** so the new `.claude/settings.json` and `.claude/settings.local.json` are picked up by Claude Code:
 
 > 🚀 **Next**
 >
@@ -1676,7 +1682,7 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > **Do not set this if you have, or might later have, more than one agent-kevin home** (say a work agent and a personal one). It's machine-wide and it wins outright over launch-directory resolution, so it captures *every* session for one home and makes the others unreachable. With multiple homes, isolation comes from where you launch, and the pin actively breaks it. Same rule for any other `KEVIN_*` var in user-level settings: one value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names. (Whatever you choose is visible on the dashboard's System → Environment page, with a tooltip explaining it.)
 >
-> **Then relaunch.** The plugin registration in `.claude/settings.json` only takes effect on a fresh session. Exit now (`/exit` or Ctrl+D) and relaunch:
+> **Then relaunch.** The plugin registration in `.claude/settings.local.json` only takes effect on a fresh session. Exit now (`/exit` or Ctrl+D) and relaunch:
 >
 > ```bash
 > cd <HOME_DIR>

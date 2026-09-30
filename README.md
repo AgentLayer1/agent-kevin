@@ -68,7 +68,7 @@ Five minutes of questions later you have a home. See [Onboarding](https://agentl
 
 **Want a head start?** The [wizard](https://agentlayer.one/dev#wizard) turns eleven prompts about your company into a seed bundle; hand the zip to `init` and the agent wakes up named, characterised, and briefed. A teammate's `seed export` does the same from an existing agent. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
 
-**Always launch from the agent home.** The plugin loads only for sessions started there, and that is also what keeps several agents on one machine apart. Reach your code through `permissions.additionalDirectories`, not by launching from a repo.
+**Always launch from the agent home.** The plugin loads only for sessions started there, and that is also what keeps several agents on one machine apart. Reach your code through `permissions.additionalDirectories` in the home's `.claude/settings.local.json` (init writes it there, since the path is this machine's), not by launching from a repo.
 
 ---
 

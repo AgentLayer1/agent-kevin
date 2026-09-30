@@ -16,16 +16,21 @@ const MISSING_GRANTS = [
 ];
 
 const dirs: string[] = [];
-const scratchHome = (files: { gitignore?: string; settings?: object } = {}): string => {
+const scratchHome = (files: { gitignore?: string; settings?: object; local?: object } = {}): string => {
   const dir = mkdtempSync(join(tmpdir(), 'home-baseline-'));
   dirs.push(dir);
   spawnSync('git', ['init', '-q', dir]);
   if (files.gitignore !== undefined) {
     writeFileSync(join(dir, '.gitignore'), files.gitignore);
   }
-  if (files.settings) {
+  if (files.settings || files.local) {
     mkdirSync(join(dir, '.claude'));
+  }
+  if (files.settings) {
     writeFileSync(join(dir, '.claude', 'settings.json'), JSON.stringify(files.settings));
+  }
+  if (files.local) {
+    writeFileSync(join(dir, '.claude', 'settings.local.json'), JSON.stringify(files.local));
   }
   return dir;
 };
@@ -174,7 +179,10 @@ describe('home-baseline settings', () => {
     const home = scratchHome({
       settings: {
         permissions: {
-          allow: [...baselineAllowMinus(['Skill(agent-kevin:seed)', 'Skill(agent-kevin:briefing)']), 'Skill(agent-kevin:quick-pulse)'],
+          allow: [
+            ...baselineAllowMinus(['Skill(agent-kevin:seed)', 'Skill(agent-kevin:briefing)']),
+            'Skill(agent-kevin:quick-pulse)'
+          ],
           ask: ['Skill(agent-kevin:seed-import)']
         }
       }
@@ -211,7 +219,9 @@ describe('home-baseline settings', () => {
   });
 
   test('backfills the core deny list only while the user settings carry no deny list of their own', () => {
-    expect(fresh.denyMissing).toEqual(expect.arrayContaining(['Bash(sudo *)', 'Read(~/.ssh/id_*)', 'Bash(pip install*)']));
+    expect(fresh.denyMissing).toEqual(
+      expect.arrayContaining(['Bash(sudo *)', 'Read(~/.ssh/id_*)', 'Bash(pip install*)'])
+    );
     const curated = run(scratchHome(), ['--claude-dir', claudeDirWith({ permissions: { deny: ['Bash(make *)'] } })]);
     expect(curated.settings.denyMissing).not.toContain('Bash(sudo *)');
     expect(curated.settings.denyMissing).toContain('Bash(pip install*)');
@@ -227,7 +237,9 @@ describe('home-baseline settings', () => {
     const userOn = ['--claude-dir', claudeDirWith({ sandbox: { enabled: true } })];
     expect(run(scratchHome(), userOn).settings.sandboxBlock).toBeNull();
     expect(run(scratchHome({ settings: { sandbox: { enabled: false } } })).settings.sandboxBlock).toBeNull();
-    expect(run(scratchHome({ settings: { sandbox: { network: { allowedDomains: ['pypi.org'] } } } })).settings.sandboxBlock).not.toBeNull();
+    expect(
+      run(scratchHome({ settings: { sandbox: { network: { allowedDomains: ['pypi.org'] } } } })).settings.sandboxBlock
+    ).not.toBeNull();
   });
 
   test('backfills the uv sandbox grants a home lacks, keeping its own entries', () => {
@@ -236,7 +248,9 @@ describe('home-baseline settings', () => {
       allowedDomains: ['pypi.org', 'files.pythonhosted.org']
     });
     const home = scratchHome({
-      settings: { sandbox: { filesystem: { allowWrite: ['~/.cache/uv'] }, network: { allowedDomains: ['github.com'] } } }
+      settings: {
+        sandbox: { filesystem: { allowWrite: ['~/.cache/uv'] }, network: { allowedDomains: ['github.com'] } }
+      }
     });
     expect(run(home).settings.sandboxMissing).toEqual({
       allowWrite: [],
@@ -244,12 +258,29 @@ describe('home-baseline settings', () => {
     });
   });
 
-  test('plansDirectory follows the reports root and never overrides an existing value', () => {
+  test('plansDirectory follows the reports root inside the home, and is never set to a folder outside it', () => {
     expect(fresh.plansDirectory).toBe('./reports/plans');
-    const relocated = join(tmpdir(), 'elsewhere', 'reports');
-    expect(run(scratchHome(), [], relocated).settings.plansDirectory).toBe(join(relocated, 'plans'));
+    const inside = scratchHome();
+    expect(run(inside, [], join(inside, 'out', 'reports')).settings.plansDirectory).toBe('./out/reports/plans');
+    expect(run(scratchHome(), [], join(tmpdir(), 'elsewhere', 'reports')).settings.plansDirectory).toBeNull();
     const home = scratchHome({ settings: { plansDirectory: './.claude/plans' } });
     expect(run(home).settings.plansDirectory).toBeNull();
+  });
+
+  test('an entry kept in settings.local.json counts as present', () => {
+    const report = run(
+      scratchHome({
+        local: {
+          permissions: { allow: MISSING_GRANTS },
+          sandbox: { enabled: false, filesystem: { allowWrite: ['~/.cache/uv'] } },
+          plansDirectory: './.claude/plans'
+        }
+      })
+    ).settings;
+    MISSING_GRANTS.forEach((grant) => expect(report.allowMissing).not.toContain(grant));
+    expect(report.sandboxBlock).toBeNull();
+    expect(report.sandboxMissing.allowWrite).toEqual([]);
+    expect(report.plansDirectory).toBeNull();
   });
 
   test('haikuModel sets a missing or retired Haiku-tier model and keeps an operator choice', () => {

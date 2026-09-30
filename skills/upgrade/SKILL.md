@@ -96,11 +96,11 @@ no settings rename → continue to Step 1. Otherwise (a finding, a rename, or bo
    it brought, which is why the install line follows it.
 2. Apply `settings` now, not in Step 4: Step 1 may end this run early (already up to date,
    stale code), and a home whose key names a marketplace that no longer exists loads no plugin
-   next session. Copy `$HOME_DIR/.claude/settings.json` to
-   `$HOME_DIR/.kevin/updates/registration-$(date +%Y%m%d-%H%M%S)/settings.json`, then `Read`
-   it, rename the `enabledPlugins` key and the `extraKnownMarketplaces` key from `from` to
-   `to` (values untouched, nothing else changes), and `Write` the full JSON back. Name the
-   backup path in the Step 6 report.
+   next session. Copy each home settings file (`settings.json`, `settings.local.json`) that
+   holds one of the keys to `$HOME_DIR/.kevin/updates/registration-$(date +%Y%m%d-%H%M%S)/`, then
+   `Read` it, rename the `enabledPlugins` key and the `extraKnownMarketplaces` key from `from` to
+   `to` (values untouched, nothing else changes), and `Write` the full JSON back. Name the backup
+   path in the Step 6 report.
 3. Ask once (`AskUserQuestion` under Claude Code; plain text under Codex): "Run the
    registration commands above now, then continue?" Either answer continues this upgrade;
    the commands need a relaunch to take effect, and the Step 6 report repeats them as a
@@ -207,8 +207,9 @@ Upgrade vBASELINE → vINSTALLED (N releases)
 
 ## Step 3 — Back up first
 
-Snapshot every HOME file the plan will touch, before any write. `.gitignore` and
-`.claude/settings.json` are always in it: Step 4's baseline reconcile may change them on any run.
+Snapshot every HOME file the plan will touch, before any write. `.gitignore`,
+`.claude/settings.json` and `.claude/settings.local.json` are always in it: Step 4's baseline
+reconcile may change them on any run.
 
 ```bash
 TS=$(date +%Y%m%d-%H%M%S)
@@ -245,8 +246,11 @@ safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
 
-**settings (mandatory)** — merge the named entries into
-`$HOME_DIR/.claude/settings.json`. Read it, add only entries **not already present**
+**settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
+an entry naming a path on this machine (an absolute folder, as an older release's code-root action
+names), which goes to `$HOME_DIR/.claude/settings.local.json`. Claude Code reads the two as one
+(lists combine, a local value wins), so an entry already in either file counts as present. Read
+the target, add only entries **not already present**
 (union + dedupe the named array — `permissions.allow`, `permissions.additionalDirectories`,
 `sandbox.filesystem.allowWrite`, whichever the action names; create the key when absent;
 never reorder or remove existing entries; a scalar the action names, a top-level key like
@@ -296,7 +300,7 @@ them, the profile carries the sandbox. A refusal (`ok: false`, its message in `s
 fails the upgrade: quote the message as a `manual:` note in Step 6 and continue; nothing was
 written. The profile replaces the sandbox the home ran under, and an escalation prompt no
 longer lifts it, so a directory the agent writes that is neither the home nor the code path
-belongs in the Claude settings' `permissions.additionalDirectories` before the next run. Then generate the user-level note and carry its path and every block it holds (the keys,
+belongs in `settings.local.json`'s `permissions.additionalDirectories` before the next run. Then generate the user-level note and carry its path and every block it holds (the keys,
 among them the context window read from Codex's model catalog cache, and when the user config
 lacks them a profile and a rules file) into the Step 6 report as a `manual:` note; the plugin
 never writes a user-level file, and the home's profile carries the user-level denies until the
@@ -509,21 +513,24 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   `settings:` action can re-add one after a newer script mapped it): replace each `entry` with its
   `replacement` entries in the same `list` (a prefix rule keeps itself and gains the successors it
   no longer reaches), and drop a successor from `allow` when it also sits in `ask` or `deny`. The retired names live in `mcp-server/src/shared/retired-skills.ts`.
-- **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
+- **`settings.plansDirectory`** is the value to set, `null` when the home already has one or when the reports root sits outside the home (Claude Code ignores a plans folder outside the project).
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.
 
-Read `$HOME_DIR/.claude/settings.json` once, union every list above and set `plansDirectory` and the
-Haiku-tier model in one in-memory merge, and write it with the Write tool, same as Step 7 does; no
-`jq`. Never remove or reorder an operator's entry; a retired grant is the plugin's, not theirs.
+The script reads both home settings files as the one view Claude Code acts on, so an entry kept in
+`settings.local.json` is never reported missing. Read `$HOME_DIR/.claude/settings.json` once, union
+every list above and set `plansDirectory` and the Haiku-tier model in one in-memory merge, and write
+it with the Write tool, same as Step 7 does; no `jq`. Never remove or reorder an operator's entry;
+a retired grant is the plugin's, not theirs.
 
-If the write fails with a permission error, the operator's sandbox protects
-`settings.json` from agent writes (a correct posture, and the default in some setups).
-Don't retry or work around it — surface the exact JSON block for them to paste and carry
-it into the Step 6 report as a `manual:` note.
+If a write fails with a permission error, the operator's sandbox protects the settings files from
+agent writes (a correct posture, and the default in some setups; both `settings.json` and
+`settings.local.json` sit in the protected `.claude` folder). Don't retry or work around it —
+surface the exact JSON block for each file for them to paste and carry it into the Step 6 report
+as a `manual:` note.
 
-**Re-point the status line (built-in invariant, every run).** `$HOME_DIR/.claude/settings.json`
-carries a `statusLine` whose command runs `bin/kevin statusline` from the plugin checkout, and a
+**Re-point the status line (built-in invariant, every run).** The home's `statusLine` runs
+`bin/kevin statusline` from the plugin checkout, and a
 version-pinned plugin cache moves on every release, so a stale path leaves the footer blank with
 nothing on screen saying why (the SessionStart context flags it until fixed). Generate the current
 entry, never type it:
@@ -532,9 +539,11 @@ entry, never type it:
 bun "$PLUGIN_ROOT/bin/kevin" statusline --setting
 ```
 
-If the file's `statusLine.command` runs `bin/kevin statusline` from another path, replace the
-object with the printed one; if `statusLine` is absent, add it; anything else is the operator's
-own line and is kept. Same write discipline as the `ask` backfill above (in-memory merge, the
+Claude Code uses the `statusLine` in `settings.local.json` when it has one, else the one in
+`settings.json`. If that one's command runs `bin/kevin statusline` from another path, replace the
+object with the printed one in the file that holds it; if neither file has a `statusLine`, add it to
+`settings.local.json`, since the command names this machine's checkout; anything else is the
+operator's own line and is kept. Same write discipline as the `ask` backfill above (in-memory merge, the
 Write tool, no `jq`, and the permission-error fallback to a `manual:` note). A changed entry shows
 on relaunch; say so in the Step 6 report. The subagent panel needs nothing here: the plugin ships
 its own `subagentStatusLine`.

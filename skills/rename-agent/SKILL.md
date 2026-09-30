@@ -26,7 +26,7 @@ Two gates, both intentional: don't "fix" either by adding a grant.
 | The avatar image file | `mcp__plugin_agent-kevin_kevin__*` tool names |
 | Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `KEVIN_*` / `AGENT_*` env vars |
 | Prose in `knowledge/`, `projects/`, reports | `.kevin/` runtime dir |
-| | `enabledPlugins` in `.claude/settings.json` |
+| | `enabledPlugins` in `.claude/settings.local.json` |
 
 The right-hand column is plumbing. None of it surfaces in conversation, and changing
 any of it means forking the plugin and giving up clean updates. Say this out loud if

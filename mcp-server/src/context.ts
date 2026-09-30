@@ -426,7 +426,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
   const statusLine =
     getUpgradeStatus().state === 'current'
       ? statusLineDrift(
-          resolve(FOLDERS.HOME, '.claude', 'settings.json'),
+          resolve(FOLDERS.HOME, '.claude'),
           resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, ''))
         )
       : undefined;

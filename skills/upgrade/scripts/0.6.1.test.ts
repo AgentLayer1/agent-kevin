@@ -258,3 +258,121 @@ describe('0.6.1 skill consolidation', () => {
     });
   });
 });
+
+describe('0.6.1 settings ownership', () => {
+  const statusLine = { type: 'command', command: 'bun "/Users/ada/agent-kevin/bin/kevin" statusline' };
+  const shared = {
+    model: 'opus',
+    statusLine,
+    enabledPlugins: { 'agent-kevin@agentdev-kevin': true },
+    permissions: {
+      allow: [
+        'Bash(git log *)',
+        'Read(/Users/ada/notes/**)',
+        'Write(/Users/ada/notes/**)',
+        'Edit(/Users/ada/notes/**)'
+      ],
+      deny: ['Read(//**/.kevin/secrets/**)', 'Read(//**/.env)', 'Read(~/.ssh/id_*)'],
+      additionalDirectories: ['/Users/ada/Developer']
+    },
+    sandbox: {
+      enabled: true,
+      filesystem: { denyRead: ['.kevin/secrets'], allowWrite: ['~/.cache/uv', '/Users/ada/Developer'] }
+    }
+  };
+  const local = { env: { AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur', AGENT_KNOWLEDGE: '/Users/ada/notes' } };
+  const raw = (home: string) =>
+    spawnSync('bun', [SCRIPT], {
+      env: {
+        ...(Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(KEVIN|AGENT)_/.test(key))) as Record<
+          string,
+          string
+        >),
+        KEVIN_HOME: home,
+        AGENT_HOME: home
+      },
+      encoding: 'utf-8'
+    });
+
+  test('moves machine-owned entries to the local file, keeps policy shared, then is a no-op', () => {
+    const home = makeHome({
+      '.claude/settings.json': JSON.stringify(shared, null, 2),
+      '.claude/settings.local.json': JSON.stringify(local, null, 2)
+    });
+    expect(run(home)).toMatchObject({
+      settings: {
+        moved: {
+          statusLine: [statusLine],
+          'permissions.allow': ['Read(/Users/ada/notes/**)', 'Write(/Users/ada/notes/**)', 'Edit(/Users/ada/notes/**)'],
+          'permissions.additionalDirectories': ['/Users/ada/Developer']
+        },
+        rewritten: [
+          { from: 'Read(/Users/ada/notes/**)', to: 'Read(//Users/ada/notes/**)' },
+          { from: 'Write(/Users/ada/notes/**)', to: 'Edit(//Users/ada/notes/**)' },
+          { from: 'Edit(/Users/ada/notes/**)', to: 'Edit(//Users/ada/notes/**)' }
+        ]
+      }
+    });
+    expect(readJsonFile(join(home, '.claude/settings.json'))).toEqual({
+      model: 'opus',
+      permissions: { allow: ['Bash(git log *)'], deny: shared.permissions.deny },
+      sandbox: { enabled: true, filesystem: { denyRead: ['.kevin/secrets'], allowWrite: ['~/.cache/uv'] } }
+    });
+    expect(readJsonFile(join(home, '.claude/settings.local.json'))).toEqual({
+      env: local.env,
+      statusLine,
+      enabledPlugins: shared.enabledPlugins,
+      permissions: {
+        allow: ['Read(//Users/ada/notes/**)', 'Edit(//Users/ada/notes/**)'],
+        additionalDirectories: ['/Users/ada/Developer']
+      },
+      sandbox: { filesystem: { allowWrite: ['/Users/ada/Developer'] } }
+    });
+    expect(run(home)).toMatchObject({ settings: { moved: {}, rewritten: [] } });
+  });
+
+  test('creates the local file when only the shared one exists, and leaves a home without either alone', () => {
+    const home = makeHome({ '.claude/settings.json': JSON.stringify({ statusLine }) });
+    run(home);
+    expect(readJsonFile(join(home, '.claude/settings.json'))).toEqual({});
+    expect(readJsonFile(join(home, '.claude/settings.local.json'))).toEqual({ statusLine });
+    expect(run(makeHome())).toMatchObject({ settings: { moved: {} } });
+  });
+
+  test('keeps a compact shared file compact', () => {
+    const home = makeHome({ '.claude/settings.json': JSON.stringify({ model: 'opus', statusLine }) });
+    run(home);
+    expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe('{"model":"opus"}');
+  });
+
+  test('a local file that is not JSON stops the run before either file changes', () => {
+    const sharedText = JSON.stringify(shared, null, 2);
+    const home = makeHome({ '.claude/settings.json': sharedText, '.claude/settings.local.json': '{ not json' });
+    const result = raw(home);
+    expect(result.status).not.toBe(0);
+    expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(sharedText);
+    expect(readFileSync(join(home, '.claude/settings.local.json'), 'utf-8')).toBe('{ not json');
+  });
+
+  test('an interruption after the local write loses no grant, and a re-run finishes the move', () => {
+    const home = makeHome({ '.claude/settings.local.json': JSON.stringify(local, null, 2) });
+    const locked = join(home, 'locked');
+    mkdirSync(locked);
+    writeFileSync(join(locked, 'settings.json'), JSON.stringify(shared, null, 2));
+    symlinkSync(join(locked, 'settings.json'), join(home, '.claude', 'settings.json'));
+    chmodSync(locked, 0o555);
+    try {
+      expect(raw(home).status).not.toBe(0);
+      const inLocal = readJsonFile(join(home, '.claude/settings.local.json')) as typeof shared;
+      expect(inLocal.permissions.additionalDirectories).toEqual(['/Users/ada/Developer']);
+      expect(readJsonFile(join(locked, 'settings.json'))).toEqual(shared);
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+    expect(run(home)).toMatchObject({ ok: true });
+    expect(readJsonFile(join(locked, 'settings.json'))).not.toHaveProperty('statusLine');
+    const settled = readJsonFile(join(home, '.claude/settings.local.json')) as typeof shared;
+    expect(settled.permissions.additionalDirectories).toEqual(['/Users/ada/Developer']);
+    expect(settled.permissions.allow).toEqual(['Read(//Users/ada/notes/**)', 'Edit(//Users/ada/notes/**)']);
+  });
+});

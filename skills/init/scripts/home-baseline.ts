@@ -3,7 +3,8 @@
  * The part of init's Step 7 baseline that no template merge reaches: the home's `.gitignore`
  * (reconciled against `templates/.gitignore`), the `permissions.allow` / `permissions.ask`
  * entries, the `permissions.deny` list, the sandbox, `plansDirectory` and the Haiku-tier model, and
- * any retired skill's grant an older release left behind.
+ * any retired skill's grant an older release left behind. The home's two settings files are read as
+ * the one view Claude Code acts on, so an entry kept in `settings.local.json` counts as present.
  * The core deny list and the sandbox block are gap-filled against the user settings, the same
  * test init applies. `--write` writes the `.gitignore` (without it, a dry run); settings are only
  * reported, for the caller to merge.
@@ -12,11 +13,12 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
-import { expandTilde } from '../../../mcp-server/src/shared/paths';
+import { expandTilde, isInside } from '../../../mcp-server/src/shared/paths';
+import { readMergedSettings } from '../../../mcp-server/src/home/settings-scope';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -32,7 +34,12 @@ const home = resolve(homeFlag);
 const claudeDir = resolve(flag('claude-dir') ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'));
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
 
-const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'), runtimeDirName());
+const gitignore = reconcileHomeGitignore(
+  home,
+  join(pluginRoot, 'templates', '.gitignore'),
+  args.includes('--write'),
+  runtimeDirName()
+);
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {
@@ -57,14 +64,7 @@ const osTailAnchors: Partial<Record<NodeJS.Platform, string>> = {
 };
 const osTailAnchor = osTailAnchors[process.platform];
 const baselineOsDeny = osTailAnchor ? jsonBlockAfter<string[]>(osTailAnchor) : [];
-const rawSandbox = jsonBlockAfter<{ filesystem: Record<string, unknown> } & Record<string, unknown>>(
-  'Baseline `sandbox` block to write'
-);
-// The block's allowWrite is a placeholder for the code root, which only init's interview knows.
-const baselineSandbox = {
-  ...rawSandbox,
-  filesystem: Object.fromEntries(Object.entries(rawSandbox.filesystem).filter(([key]) => key !== 'allowWrite'))
-};
+const baselineSandbox = jsonBlockAfter<Record<string, unknown>>('Baseline `sandbox` block to write');
 const baselineUvSandbox = jsonBlockAfter<{
   filesystem: { allowWrite: string[] };
   network: { allowedDomains: string[] };
@@ -83,9 +83,9 @@ interface HomeSettings {
   permissions?: Partial<Record<'allow' | 'ask' | 'deny', string[]>>;
   sandbox?: { enabled?: boolean; filesystem?: { allowWrite?: string[] }; network?: { allowedDomains?: string[] } };
 }
-const readSettings = (path: string): HomeSettings =>
-  existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : {};
-const settings = readSettings(join(home, '.claude', 'settings.json'));
+const readSettings = (path: string): HomeSettings => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : {});
+const homeSettings = readMergedSettings(home);
+const settings = homeSettings.merged as HomeSettings;
 const userSettings = readSettings(join(claudeDir, 'settings.json'));
 const userCuratesDeny = (userSettings.permissions?.deny ?? []).length > 0;
 const baselineDeny = userCuratesDeny
@@ -104,7 +104,9 @@ const currentHaiku = settings.env?.ANTHROPIC_DEFAULT_HAIKU_MODEL;
 
 const configuredReports = resolveEnv('AGENT_REPORTS');
 const reportsRoot = configuredReports ? resolve(expandTilde(configuredReports)) : join(home, 'reports');
-const defaultPlans = reportsRoot === join(home, 'reports') ? './reports/plans' : join(reportsRoot, 'plans');
+// Claude Code ignores a plans folder outside the project, so a relocated reports root outside the home gets none.
+const plansRelative = relative(home, join(reportsRoot, 'plans')).split(sep).join('/');
+const defaultPlans = isInside(reportsRoot, home) ? `./${plansRelative}` : null;
 
 process.stdout.write(
   JSON.stringify(
@@ -117,10 +119,13 @@ process.stdout.write(
         sandboxBlock: process.platform === 'win32' || sandboxDecided ? null : baselineSandbox,
         sandboxMissing: {
           allowWrite: missingFrom(settings.sandbox?.filesystem?.allowWrite, baselineUvSandbox.filesystem.allowWrite),
-          allowedDomains: missingFrom(settings.sandbox?.network?.allowedDomains, baselineUvSandbox.network.allowedDomains)
+          allowedDomains: missingFrom(
+            settings.sandbox?.network?.allowedDomains,
+            baselineUvSandbox.network.allowedDomains
+          )
         },
         retiredGrants: LISTS.flatMap((list) =>
-          (settings.permissions?.[list] ?? []).flatMap((entry) => {
+          ((homeSettings.shared as HomeSettings).permissions?.[list] ?? []).flatMap((entry) => {
             const replacement = migrateGrant(entry, PLUGIN);
             return replacement ? [{ list, entry, replacement }] : [];
           })

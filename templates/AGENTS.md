@@ -55,8 +55,8 @@ The agent home directory is the single source of truth for memory.
 ├── USER.md                          # YOUR headline + links to {{KNOWLEDGE_REL}}/user/
 ├── .claude/
 │   ├── CLAUDE.md                    # Claude Code bridge: @-imports this manual + the identity stack, plus Claude-only rules
-│   ├── settings.json                # enabledPlugins + pre-granted tool permissions (written by /init)
-│   ├── settings.local.json          # API keys, gitignored, project-scoped env block
+│   ├── settings.json                # shared policy: pre-granted tool permissions, deny list, sandbox (written by /init)
+│   ├── settings.local.json          # this machine's: plugin registration, status line, folder grants, env block (gitignored)
 │   ├── assets/                      # {{AGENT_NAME}}'s avatar (and any other plugin-shipped images)
 │   ├── rules/                       # path-scoped coding rules, auto-applied by file glob (seeded by /init)
 │   └── skills/                      # user-authored custom skills only (lazy — pack skills stay in the plugin dir)

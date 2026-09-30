@@ -107,6 +107,17 @@ describe('registration-check', () => {
     });
   });
 
+  test('finds the key in settings.local.json, where the plugin keys now live', () => {
+    const { root, write, run } = machine();
+    write('claude/plugins/known_marketplaces.json', {
+      'agentdev-scout': { source: { source: 'directory', path: join(root, 'plugin') } }
+    });
+    write('home/.claude/settings.local.json', { enabledPlugins: { 'agent-scout@scoutco': true } });
+    expect(run().settings).toEqual({
+      enabledPlugins: { from: 'agent-scout@scoutco', to: 'agent-scout@agentdev-scout' }
+    });
+  });
+
   test('a retired marketplace repo: add the new one, nothing in the home changes', () => {
     const { write, run } = machine();
     write('claude/plugins/known_marketplaces.json', {
