@@ -67,15 +67,20 @@ and prompts per optional one. The new template files are the source of truth for
 - **Fifteen skills fold into five playbook skills**, the same shape as engineer, focus and tax, so
   there are five names to remember instead of fifteen:
   - `briefing`: morning, evening, pulse
-  - `goals`: day (new), week (quick set, or `week interview`), month, year. Focus's week playbook
-    moves here, since goals are outcomes and focus plans the tasks.
+  - `goals`: day (new), week, month, year. `/goals week` sets the week (or scores it on a Friday),
+    and `/goals week interview` is the old weekly-goals interview. Focus's week playbook moves here,
+    since goals are outcomes and focus plans the tasks.
   - `seo`: audit, console, speed, serp, rank (wordpress-rest stays its own skill)
   - `seed`: export, import
   - `project`: create, archive
 
-  A bare `/briefing`, `/goals`, `/seo`, `/seed` or `/project` prints its menu. Report slugs are
-  unchanged, so sync and the dashboard still find earlier runs. Skill tiles on the dashboard list
-  a router's playbooks as chips.
+  A bare `/briefing` picks the morning or evening brief the way sync does, a bare `/goals` runs
+  whichever horizon is due (the day when none is), a bare `/seo` runs the audit, and a bare `/seed`
+  or `/project` prints its menu. Report slugs are unchanged, so sync and the dashboard still find
+  earlier runs. Skill tiles on the dashboard list a router's playbooks as chips.
+- Sync's closing interview can run a due goals cadence itself (the week as `goals week interview`)
+  instead of only printing the command, and sync reads the old cadence keys until the upgrade
+  moves them.
 - Every skill is model-invocable except init, release and rename-agent, which also ship
   `agents/openai.yaml` so Codex doesn't pick them on its own. Init grants every skill but init
   and rename-agent.
@@ -105,17 +110,16 @@ and prompts per optional one. The new template files are the source of truth for
 ### Fixed
 - Custom-folder rules an older init wrote as `Read(/abs/**)` never matched, since a single leading
   slash is project-relative in a permission rule. Init writes `//abs` for Read and Edit rules.
-- An evening wrap after midnight covers the day being wrapped from 00:00 until now, reads both
-  dates' sessions and closures, scores yesterday's goals against yesterday's work, and converts
-  yesterday's Hijri date to match.
-- `/goals week` scores the week on Fridays and sets it on other days, as its help says.
+- An evening wrap after midnight covers the day being wrapped from 00:00 until now, reading both
+  dates' sessions and closures, where it used to see only what happened after midnight; its Hijri
+  date names the same day.
 
 ### Upgrade
-- `script: required` — run skills/upgrade/scripts/0.6.1.ts. It rewrites each retired `Skill(agent-kevin:<old>)` rule in `permissions.allow`, `ask` or `deny` of `.claude/settings.json` and `.claude/settings.local.json` to its successor's, in the same list (a gated `seed-import` still gates `seed`; a prefix rule like `Skill(agent-kevin:seed- *)` keeps working through exact successor rules). It moves the `weekly-goals` / `monthly-goals` / `yearly-goals` cadence keys to `goals-week` / `goals-month` / `goals-year`, rewords the goals placeholders in TASKS.md and adds a Daily Goals one, and reports (never edits) files you own that still name an old command. It also moves this machine's entries (a status line that runs a program by absolute path, this plugin's `enabledPlugins` entry and the marketplace it names, absolute folder grants) from `settings.json` to `settings.local.json`; other plugins and marketplaces stay shared, writing the local file first, and rewrites `Read(/abs/**)` folder rules to `//abs`. Settings files keep their layout.
+- `script: required` — run skills/upgrade/scripts/0.6.1.ts. It rewrites each retired `Skill(agent-kevin:<old>)` rule in `permissions.allow`, `ask` or `deny` of `.claude/settings.json` and `.claude/settings.local.json` to its successor's, in the same list (a gated `seed-import` still gates `seed`; a prefix rule like `Skill(agent-kevin:seed- *)` keeps working through exact successor rules). It moves the `weekly-goals` / `monthly-goals` / `yearly-goals` cadence keys to `goals-week` / `goals-month` / `goals-year`, rewords the goals placeholders in TASKS.md and adds a Daily Goals one, and reports (never edits) files you own that still name an old command. It rewrites `.claude/settings.json`, `.claude/settings.local.json`, `.kevin/cadence.json` and `projects/TASKS.md`; back those up first. It also moves this machine's entries (a status line that runs a program by absolute path, this plugin's `enabledPlugins` entry and the marketplace it names, absolute folder grants) from `settings.json` to `settings.local.json`; other plugins and marketplaces stay shared, writing the local file first, and rewrites `Read(/abs/**)` folder rules to `//abs`. Settings files keep their layout.
 - `settings: mandatory` — upgrade's baseline reconcile adds the new skills' grants (`Skill(agent-kevin:briefing)`, `Skill(agent-kevin:goals)`, `Skill(agent-kevin:seo)`, `Skill(agent-kevin:seed)`, `Skill(agent-kevin:project)`) and the grants for skills that became model-invocable, when the home hasn't placed them in allow, ask or deny. Applied automatically.
 - `settings: mandatory` — the Codex wiring regenerates and fills a missing home-level `model` / `model_reasoning_effort` in `.codex/config.toml` with `gpt-6-astra` / `high`; a value already set is kept. Applied automatically for homes wired to Codex.
 - `template/AGENTS.md: mandatory` — the tree comments for `.claude/settings.json` (shared policy) and `.claude/settings.local.json` (this machine's plugin registration, status line, folder grants, env) follow the new ownership split.
-- `manual: none` — the fifteen retired commands are now playbooks: `/briefing morning|evening|pulse`, `/goals week|month|year` (weekly-goals' interview is `/goals week interview`), `/seo audit|console|speed|serp|rank`, `/seed export|import`, `/project create|archive`, and `/focus week` is `/goals week`. Plain asks ("brief me", "plan the week", "run the SEO audit") route on their own.
+- `manual: none` — the fifteen retired commands are now playbooks: `/briefing morning|evening|pulse`, `/goals week|month|year` (weekly-goals' interview is `/goals week interview`), `/seo audit|console|speed|serp|rank`, `/seed export|import`, `/project create|archive`, and `/focus week` is `/goals week`. Plain asks ("brief me", "plan the week", "run the SEO audit") route on their own. A schedule or script outside the home that runs an old command (`~/.claude/scheduled_tasks.json`, a cron or launchd job) needs the new one; the script only sees files inside the home.
 
 ## [0.6.0] - 2026-09-29
 
