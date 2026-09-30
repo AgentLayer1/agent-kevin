@@ -270,7 +270,9 @@ const OWNED_TABLES: string[][] = [
 const OWNED_KEYS: Record<string, string> = {
   default_permissions: agent,
   approval_policy: 'on-request',
-  approvals_reviewer: 'user'
+  approvals_reviewer: 'user',
+  model: 'gpt-6-astra',
+  model_reasoning_effort: 'high'
 };
 interface OwnedTableKeys {
   label: string;

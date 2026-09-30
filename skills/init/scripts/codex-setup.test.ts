@@ -172,6 +172,56 @@ describe('codex-setup hooks', () => {
 });
 
 describe('codex-setup mcp registration', () => {
+  test.each([
+    { config: '', model: 'gpt-6-astra', effort: 'high' },
+    { config: 'model = "gpt-6.1-sol"\n', model: 'gpt-6.1-sol', effort: 'high' },
+    { config: 'model_reasoning_effort = "low"\n', model: 'gpt-6-astra', effort: 'low' },
+    {
+      config: 'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\n',
+      model: 'gpt-6.1-sol',
+      effort: 'medium'
+    }
+  ])('fills missing model settings and preserves local choices: $config', ({ config, model, effort }) => {
+    const home = scratch();
+    if (config) {
+      seed(home, 'config.toml', config);
+    }
+    const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(first.code).toBe(0);
+    const written = readFileSync(first.json.mcp.path, 'utf-8');
+    expect(Bun.TOML.parse(written)).toMatchObject({ model, model_reasoning_effort: effort });
+    const second = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(second.code).toBe(0);
+    expect(second.json.mcp.changed).toBe(false);
+    expect(readFileSync(second.json.mcp.path, 'utf-8')).toBe(written);
+  });
+
+  test('adds home model defaults over global preferences without modifying the user config', () => {
+    const home = scratch();
+    const userConfig = join(scratch(), 'config.toml');
+    const userText = 'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "low"\n';
+    writeFileSync(userConfig, userText);
+    seed(home, 'config.toml', '[tui]\nanimations = false\n');
+    const result = run(
+      '--home',
+      home,
+      '--plugin-root',
+      PLUGIN,
+      '--write',
+      '--claude-user-settings',
+      NO_USER,
+      '--codex-user-config',
+      userConfig
+    );
+    expect(result.code).toBe(0);
+    expect(Bun.TOML.parse(readFileSync(result.json.mcp.path, 'utf-8'))).toMatchObject({
+      model: 'gpt-6-astra',
+      model_reasoning_effort: 'high',
+      tui: { animations: false }
+    });
+    expect(readFileSync(userConfig, 'utf-8')).toBe(userText);
+  });
+
   test('writes the kevin server, the permission profile, the shell env, and the policy keys for a bare home', () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');

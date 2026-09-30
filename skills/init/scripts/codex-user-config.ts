@@ -61,18 +61,12 @@ const lookup = (document: Toml, path: string[]): unknown =>
 
 const config = readToml(configPath);
 const claudeUser = readJson(claudeSettingsPath) as {
-  effortLevel?: unknown;
   permissions?: { deny?: unknown; ask?: unknown };
 };
 const claudeList = (key: 'deny' | 'ask'): string[] => {
   const list = claudeUser.permissions?.[key];
   return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
 };
-
-/** Claude's effort levels mapped onto Codex's reasoning efforts; absent when the operator set none. */
-const EFFORT: Record<string, string> = { low: 'low', medium: 'medium', high: 'high', max: 'xhigh' };
-const claudeEffort = claudeUser.effortLevel;
-const reasoningEffort = typeof claudeEffort === 'string' ? EFFORT[claudeEffort] : undefined;
 
 interface CatalogModel {
   slug: string;
@@ -102,15 +96,6 @@ interface Recommendation {
   why: string;
 }
 const recommendations: Recommendation[] = [
-  ...(reasoningEffort
-    ? [
-        {
-          path: ['model_reasoning_effort'],
-          value: reasoningEffort,
-          why: `matches effortLevel "${String(claudeEffort)}" in your Claude settings`
-        }
-      ]
-    : []),
   ...(largerWindow
     ? [
         {

@@ -49,7 +49,7 @@ describe('codex-user-config', () => {
     expect(json.rulesBlock).toBe('');
   });
 
-  test('only the keys that differ are listed, an existing table is marked, and the Claude effort level maps onto reasoning effort', () => {
+  test('only differing keys are listed, existing tables are marked, and model settings stay out of the global recommendations', () => {
     const dir = scratch();
     const config = join(dir, 'config.toml');
     writeFileSync(config, '[analytics]\nenabled = false\n\n[tui]\nanimations = false\nalternate_screen = "auto"\n');
@@ -58,11 +58,12 @@ describe('codex-user-config', () => {
     const { json } = run('--config', config, '--claude-settings', claude);
     expect(json.status).toBe('partial');
     const keys = json.missing.map((m: { key: string }) => m.key);
-    expect(keys).toContain('model_reasoning_effort');
+    expect(keys).not.toContain('model');
+    expect(keys).not.toContain('model_reasoning_effort');
     expect(keys).toContain('tui.alternate_screen');
     expect(keys).not.toContain('analytics.enabled');
     expect(keys).not.toContain('tui.animations');
-    expect(json.block).toContain('model_reasoning_effort = "xhigh"');
+    expect(json.block).not.toContain('model_reasoning_effort');
     expect(json.block).toContain('# inside your existing [tui] table:\nalternate_screen = "never"');
     expect(json.block).not.toContain('[tui]\n');
   });

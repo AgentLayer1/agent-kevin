@@ -275,6 +275,13 @@ from the shell:
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
+The generator also fills missing home-level `model` and `model_reasoning_effort` keys with
+`gpt-6-astra` and `high`. Each existing home-level value is preserved. This applies to previously
+wired homes as well as new ones and takes precedence over the user's global Codex defaults;
+report the resulting pair in Step 6. The user-global paste note no longer recommends a reasoning
+effort derived from Claude. If Astra is unavailable to the operator, help them choose an available
+model and set it in the home config.
+
 Since 0.4.2 the generator also writes the home's permission posture from its Claude settings
 (a `[permissions.kevin]` profile that denies the secrets store and `.env` reads, makes
 `.git` writable, and lists the code path and `additionalDirectories` as workspace roots) and
