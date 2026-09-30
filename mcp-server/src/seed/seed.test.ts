@@ -225,7 +225,8 @@ describe('exportSeed', () => {
           allow: [
             'mcp__plugin_agent-kevin_kevin__web_search',
             'mcp__plugin_agent-kevin_kevin__browser_screenshot',
-            'Bash(curl https://acme.example/*)'
+            'Bash(curl https://acme.example/*)',
+            'Skill(agent-kevin:seed-export)'
           ]
         },
         secretKeys: ['PERPLEXITY_API_KEY', 'MCP_ACME_TELEMETRY_TOKEN'],
@@ -287,6 +288,9 @@ describe('importSeed', () => {
     expect(settings.permissions.allow).toContain('mcp__plugin_agent-kevin_kevin__browser_screenshot');
     expect(settings.permissions.allow).toContain('Bash(curl https://acme.example/*)');
     expect(result.permissionsAdded.allow).not.toContain('mcp__plugin_agent-kevin_kevin__web_search');
+    // A grant for a skill retired since the bundle was made lands as its successor's.
+    expect(settings.permissions.allow).toContain('Skill(agent-kevin:seed)');
+    expect(settings.permissions.allow).not.toContain('Skill(agent-kevin:seed-export)');
 
     const mcp = JSON.parse(readFileSync(join(recipient, '.mcp.json'), 'utf-8'));
     expect(Object.keys(mcp.mcpServers)).toEqual(['acme-telemetry']);

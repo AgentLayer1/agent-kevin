@@ -2,7 +2,8 @@
 /**
  * The part of init's Step 7 baseline that no template merge reaches: the home's `.gitignore`
  * (reconciled against `templates/.gitignore`), the `permissions.allow` / `permissions.ask`
- * entries, the `permissions.deny` list, the sandbox, `plansDirectory` and the Haiku-tier model.
+ * entries, the `permissions.deny` list, the sandbox, `plansDirectory` and the Haiku-tier model, and
+ * any retired skill's grant an older release left behind.
  * The core deny list and the sandbox block are gap-filled against the user settings, the same
  * test init applies. `--write` writes the `.gitignore` (without it, a dry run); settings are only
  * reported, for the caller to merge.
@@ -14,6 +15,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { migrateGrants, successorGrant } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde } from '../../../mcp-server/src/shared/paths';
 
 const args = process.argv.slice(2);
@@ -72,6 +74,8 @@ if (!haikuModel) {
   throw new Error('init SKILL.md no longer names the ANTHROPIC_DEFAULT_HAIKU_MODEL baseline');
 }
 const retiredHaikuModels = ['claude-sonnet-4-6'];
+const PLUGIN = 'agent-kevin';
+const LISTS = ['allow', 'ask', 'deny'] as const;
 
 interface HomeSettings {
   env?: Record<string, string>;
@@ -88,8 +92,9 @@ const baselineDeny = userCuratesDeny
   ? baselinePythonDeny
   : [...baselineCoreDeny, ...baselineOsDeny, ...baselinePythonDeny];
 const sandboxDecided = settings.sandbox?.enabled !== undefined || userSettings.sandbox?.enabled === true;
+// A retired skill's grant counts as its successor's, so an old `ask` placement keeps deciding it.
 const listed = (...lists: ('allow' | 'ask' | 'deny')[]) =>
-  new Set(lists.flatMap((list) => settings.permissions?.[list] ?? []));
+  new Set(lists.flatMap((list) => migrateGrants(settings.permissions?.[list] ?? [], PLUGIN)));
 const decidedForAllow = listed('allow', 'ask', 'deny');
 const decidedForAsk = listed('ask', 'deny');
 const decidedForDeny = listed('allow', 'ask', 'deny');
@@ -114,6 +119,12 @@ process.stdout.write(
           allowWrite: missingFrom(settings.sandbox?.filesystem?.allowWrite, baselineUvSandbox.filesystem.allowWrite),
           allowedDomains: missingFrom(settings.sandbox?.network?.allowedDomains, baselineUvSandbox.network.allowedDomains)
         },
+        retiredGrants: LISTS.flatMap((list) =>
+          (settings.permissions?.[list] ?? []).flatMap((entry) => {
+            const successor = successorGrant(entry, PLUGIN);
+            return successor ? [{ list, entry, successor }] : [];
+          })
+        ),
         plansDirectory: settings.plansDirectory === undefined ? defaultPlans : null,
         haikuModel: !currentHaiku || retiredHaikuModels.includes(currentHaiku) ? haikuModel : null
       }

@@ -253,7 +253,8 @@ never reorder or remove existing entries; a scalar the action names, a top-level
 `bashEditDiffEnabled` or an `env.<KEY>`, is set only when absent so an operator's own value
 stays; never touch operator keys like `hooks`/`theme`/`env` unless an action names them).
 Write back valid JSON. Idempotent:
-re-running adds nothing.
+re-running adds nothing. Never add a `Skill(agent-kevin:<name>)` grant whose name is retired (the
+map in `mcp-server/src/shared/retired-skills.ts`), whatever an older release's action names.
 
 **codex wiring (always, when applicable)** — this home runs Codex when any of these holds:
 `$HOME_DIR/.codex/hooks.json` exists; this session itself runs under Codex (the `<skill>`
@@ -497,13 +498,17 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   a home whose sandbox came from user settings that later turned it off gets it back.
 - **`settings.sandboxMissing`** holds `allowWrite` and `allowedDomains` entries to add under
   `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI.
+- **`settings.retiredGrants`** lists a retired skill's grant still in a list (an older release's
+  `settings:` action can re-add one after a newer script mapped it): replace each `entry` with its
+  `successor` in the same `list`, and drop the successor from `allow` when it also sits in `ask`
+  or `deny`. The retired names live in `mcp-server/src/shared/retired-skills.ts`.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one.
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.
 
 Read `$HOME_DIR/.claude/settings.json` once, union every list above and set `plansDirectory` and the
 Haiku-tier model in one in-memory merge, and write it with the Write tool, same as Step 7 does; no
-`jq`. Never remove or reorder an operator's entry.
+`jq`. Never remove or reorder an operator's entry; a retired grant is the plugin's, not theirs.
 
 If the write fails with a permission error, the operator's sandbox protects
 `settings.json` from agent writes (a correct posture, and the default in some setups).
@@ -552,7 +557,7 @@ operators extend it per home.
 - `stale` — a `manual:` note in the Step 6 report: for each `replacements` entry, its list and
   name, its `changes` (the OLD/NEW sentences, so the operator sees what actually moved), and
   the full `text` **verbatim** inside a json fence, plus the note path and the one
-  consequence of ignoring it: under auto mode, template merges and seed-import appends to
+  consequence of ignoring it: under auto mode, template merges and seed imports append to
   `AGENTS.md` will be classified and may prompt or block until the block is refreshed.
 - `absent` and `defaultMode` unset — this operator is likely riding Claude Code's fragile
   built-in default (it needs Pro/Max/Team OAuth and reachable feature flags, and it skips

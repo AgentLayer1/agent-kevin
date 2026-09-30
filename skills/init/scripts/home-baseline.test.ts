@@ -170,6 +170,25 @@ describe('home-baseline settings', () => {
     expect(missing).toContain('Skill(agent-kevin:focus)');
   });
 
+  test('reports a retired skill grant with its successor, and its ask placement decides the successor', () => {
+    const home = scratchHome({
+      settings: {
+        permissions: {
+          allow: [...baselineAllowMinus(['Skill(agent-kevin:seed)', 'Skill(agent-kevin:briefing)']), 'Skill(agent-kevin:quick-pulse)'],
+          ask: ['Skill(agent-kevin:seed-import)']
+        }
+      }
+    });
+    const { settings } = run(home);
+    expect(settings.retiredGrants).toEqual([
+      { list: 'allow', entry: 'Skill(agent-kevin:quick-pulse)', successor: 'Skill(agent-kevin:briefing)' },
+      { list: 'ask', entry: 'Skill(agent-kevin:seed-import)', successor: 'Skill(agent-kevin:seed)' }
+    ]);
+    expect(settings.allowMissing).not.toContain('Skill(agent-kevin:seed)');
+    expect(settings.allowMissing).not.toContain('Skill(agent-kevin:briefing)');
+    expect(fresh.retiredGrants).toEqual([]);
+  });
+
   test('backfills an ask guard even when the entry sits in allow, never when it sits in deny', () => {
     expect(fresh.askMissing).toContain('Bash(git push)');
     const home = scratchHome({

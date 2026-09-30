@@ -14,8 +14,9 @@
  * settings.local.json, and secret key NAMES come back as a fill-this checklist
  * (the store is ensured to exist; its contents are never read or written).
  */
-import { FOLDERS, operatingManualPath } from '@/config';
+import { FOLDERS, operatingManualPath, PLUGIN_NAME } from '@/config';
 import { CREDENTIAL_KEY_RE, MANUAL_SEED_PATH, type SeedManifest, sha256, validateSeedPath } from '@/seed/format';
+import { migrateGrants } from '@/shared/retired-skills';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -173,7 +174,8 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
     const settings = readJson(settingsPath);
     const permissions = (settings.permissions ?? {}) as Record<string, string[]>;
     const mergeGrants = (list: 'allow' | 'ask'): string[] => {
-      const incoming = manifest.permissions?.[list] ?? [];
+      // A bundle from an older release names retired skills; grant their successors instead.
+      const incoming = migrateGrants(manifest.permissions?.[list] ?? [], PLUGIN_NAME);
       const current = permissions[list] ?? [];
       const added = incoming.filter((entry) => !current.includes(entry));
       if (added.length > 0) permissions[list] = [...current, ...added].sort();
