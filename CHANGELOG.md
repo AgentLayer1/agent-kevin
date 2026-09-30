@@ -113,6 +113,8 @@ and prompts per optional one. The new template files are the source of truth for
 - An evening wrap after midnight covers the day being wrapped from 00:00 until now, reading both
   dates' sessions and closures, where it used to see only what happened after midnight; its Hijri
   date names the same day.
+- The session radar dropped a session that was only slash commands (an `/upgrade`, a `/release`),
+  because a command turn didn't count as the operator's words. It now reads as `/name args`.
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.6.1.ts. It rewrites each retired `Skill(agent-kevin:<old>)` rule in `permissions.allow`, `ask` or `deny` of `.claude/settings.json` and `.claude/settings.local.json` to its successor's, in the same list (a gated `seed-import` still gates `seed`; a prefix rule like `Skill(agent-kevin:seed- *)` keeps working through exact successor rules). It moves the `weekly-goals` / `monthly-goals` / `yearly-goals` cadence keys to `goals-week` / `goals-month` / `goals-year`, rewords the goals placeholders in TASKS.md and adds a Daily Goals one, and reports (never edits) files you own that still name an old command. It rewrites `.claude/settings.json`, `.claude/settings.local.json`, `.kevin/cadence.json` and `projects/TASKS.md`; back those up first. It also moves this machine's entries (a status line that runs a program by absolute path, this plugin's `enabledPlugins` entry and the marketplace it names, absolute folder grants) from `settings.json` to `settings.local.json`; other plugins and marketplaces stay shared, writing the local file first, and rewrites `Read(/abs/**)` folder rules to `//abs`. Settings files keep their layout.

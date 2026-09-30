@@ -97,18 +97,27 @@ const isRealUserText = (text: string): boolean => {
 /** Truncate by Unicode code point (matches Python string slicing, not UTF-16 units). */
 const clip = (text: string, max: number): string => [...text].slice(0, max).join('');
 
+/** A slash-command turn is the operator's own words too: `/name args` from its invocation tags. */
+const commandInvocation = (text: string): string | null => {
+  const name = /<command-name>([^<]*)<\/command-name>/.exec(text)?.[1]?.trim();
+  if (!name) {
+    return null;
+  }
+  const args = /<command-args>([^<]*)<\/command-args>/.exec(text)?.[1]?.trim();
+  return [name, args].filter(Boolean).join(' ');
+};
+
+const operatorText = (text: string): string | null => commandInvocation(text) ?? (isRealUserText(text) ? text : null);
+
 const blockText = (block: ContentBlock): string | null =>
   block.type === 'text' && typeof block.text === 'string' ? block.text : null;
 
 const userTexts = (record: SessionRecord): string[] => {
   const content = record.message?.content;
-  if (typeof content === 'string') {
-    return isRealUserText(content) ? [content] : [];
-  }
-  if (Array.isArray(content)) {
-    return content.map(blockText).filter((text): text is string => text !== null && isRealUserText(text));
-  }
-  return [];
+  const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.map(blockText) : [];
+  return texts
+    .map((text) => (text === null ? null : operatorText(text)))
+    .filter((text): text is string => text !== null);
 };
 
 const assistantTexts = (record: SessionRecord): string[] => {
