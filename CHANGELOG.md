@@ -43,6 +43,80 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.1] - 2026-09-30
+
+### Added
+- **Daily goals.** `/goals day` sets one to three outcomes for today and the evening wrap scores
+  them. They land in a `## Daily Goals — <date>` block in TASKS.md, get their own card on the
+  dashboard's Goals tab, and head the Today lane of the Focus view; `focus_write` returns them as
+  `dayGoals` so focus plan reads the same list.
+- **A welcome after init.** Init can't ask what to do first, since the plugin only loads after a
+  relaunch. It now leaves a welcome pending, and the first session after it opens with one
+  question, where to start: the roadmap always first, then documents, packs and the morning brief
+  when they apply. A re-init never welcomes twice.
+- **Postman adapter for api-collections.** Postman v12's Native Git mode reads v3 YAML
+  collections from disk, so drafting works like Bruno: Kevin writes the request file, you click
+  Send in Local View. Secrets are `{{vault:KEY}}` references, flows chain in the Runner, and
+  nothing pushes to Postman Cloud. An existing collection's format picks the adapter.
+- **Plans reviewed against their code.** adversarial-review resolves a plan's grounding (the repos
+  and commits it was written against), hands them to the reviewer read-only, flags drift and work
+  already built elsewhere, and asks plan-shaped questions. Design findings on a plan go to you as
+  questions. plan-spec records the grounding and offers the review before anyone builds.
+
+### Changed
+- **Fifteen skills fold into five playbook skills**, the same shape as engineer, focus and tax, so
+  there are five names to remember instead of fifteen:
+  - `briefing`: morning, evening, pulse
+  - `goals`: day (new), week (quick set, or `week interview`), month, year. Focus's week playbook
+    moves here, since goals are outcomes and focus plans the tasks.
+  - `seo`: audit, console, speed, serp, rank (wordpress-rest stays its own skill)
+  - `seed`: export, import
+  - `project`: create, archive
+
+  A bare `/briefing`, `/goals`, `/seo`, `/seed` or `/project` prints its menu. Report slugs are
+  unchanged, so sync and the dashboard still find earlier runs. Skill tiles on the dashboard list
+  a router's playbooks as chips.
+- Every skill is model-invocable except init, release and rename-agent, which also ship
+  `agents/openai.yaml` so Codex doesn't pick them on its own. Init grants every skill but init
+  and rename-agent.
+- **Machine-bound settings live in `settings.local.json`.** A home's `settings.json` travels
+  (history commits it, a synced folder copies it, a seed carries its grants), but init wrote
+  entries into it that only work on one machine: the status line command, this plugin's enable
+  entry, and the code-root and custom-folder grants. Those now go to `settings.local.json`, which
+  Claude Code merges over `settings.json`; policy stays shared.
+  The baseline check, registration check and stale status-line check all read the merged view.
+- The roadmap skill reads init's goals draft (`knowledge/concepts/roadmap-draft.md`) for the north
+  star and milestones, confirms the frame it implies instead of asking from scratch, and marks the
+  draft superseded once `roadmap.html` exists.
+- Codex homes default to `gpt-6-astra` at `high` reasoning: init and upgrade fill the home-level
+  `model` and `model_reasoning_effort` keys when they're missing and keep any value already set.
+  The user-global paste note no longer suggests a reasoning effort.
+- Marketplace add commands take `owner/repo`; the `github:` prefix Claude Code doesn't recognise
+  is gone from the README and upgrade's registration hint.
+
+### Removed
+- The `morning-briefing`, `evening-briefing`, `quick-pulse`, `weekly-goals`, `monthly-goals`,
+  `yearly-goals`, `google-search-audit`, `google-search-console`, `google-page-speed`, `serpapi`,
+  `open-page-rank`, `seed-export`, `seed-import`, `create-project` and `archive-project` skills,
+  now playbooks of the five above. `/focus week` moves to `/goals week`.
+- Init no longer writes an absolute `plansDirectory` (Claude Code ignores a plans folder outside
+  the project) or any `Write()` folder rule (Claude Code never consults one).
+
+### Fixed
+- Custom-folder rules an older init wrote as `Read(/abs/**)` never matched, since a single leading
+  slash is project-relative in a permission rule. Init writes `//abs` for Read and Edit rules.
+- An evening wrap after midnight covers the day being wrapped from 00:00 until now, reads both
+  dates' sessions and closures, scores yesterday's goals against yesterday's work, and converts
+  yesterday's Hijri date to match.
+- `/goals week` scores the week on Fridays and sets it on other days, as its help says.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.6.1.ts. It rewrites each retired `Skill(agent-kevin:<old>)` rule in `permissions.allow`, `ask` or `deny` of `.claude/settings.json` and `.claude/settings.local.json` to its successor's, in the same list (a gated `seed-import` still gates `seed`; a prefix rule like `Skill(agent-kevin:seed- *)` keeps working through exact successor rules). It moves the `weekly-goals` / `monthly-goals` / `yearly-goals` cadence keys to `goals-week` / `goals-month` / `goals-year`, rewords the goals placeholders in TASKS.md and adds a Daily Goals one, and reports (never edits) files you own that still name an old command. It also moves this machine's entries (a status line that runs a program by absolute path, this plugin's `enabledPlugins` entry and the marketplace it names, absolute folder grants) from `settings.json` to `settings.local.json`; other plugins and marketplaces stay shared, writing the local file first, and rewrites `Read(/abs/**)` folder rules to `//abs`. Settings files keep their layout.
+- `settings: mandatory` — upgrade's baseline reconcile adds the new skills' grants (`Skill(agent-kevin:briefing)`, `Skill(agent-kevin:goals)`, `Skill(agent-kevin:seo)`, `Skill(agent-kevin:seed)`, `Skill(agent-kevin:project)`) and the grants for skills that became model-invocable, when the home hasn't placed them in allow, ask or deny. Applied automatically.
+- `settings: mandatory` — the Codex wiring regenerates and fills a missing home-level `model` / `model_reasoning_effort` in `.codex/config.toml` with `gpt-6-astra` / `high`; a value already set is kept. Applied automatically for homes wired to Codex.
+- `template/AGENTS.md: mandatory` — the tree comments for `.claude/settings.json` (shared policy) and `.claude/settings.local.json` (this machine's plugin registration, status line, folder grants, env) follow the new ownership split.
+- `manual: none` — the fifteen retired commands are now playbooks: `/briefing morning|evening|pulse`, `/goals week|month|year` (weekly-goals' interview is `/goals week interview`), `/seo audit|console|speed|serp|rank`, `/seed export|import`, `/project create|archive`, and `/focus week` is `/goals week`. Plain asks ("brief me", "plan the week", "run the SEO audit") route on their own.
+
 ## [0.6.0] - 2026-09-29
 
 ### Added
