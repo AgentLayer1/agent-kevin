@@ -9,7 +9,7 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 1. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. Read all flavors (both dates' files before 3am). **Do not** read session logs older than the day being wrapped to fill bullets.
 2. **Today's git activity** — `git -C <HOME> log --since='today 00:00' --oneline` and same for `<HOME>/projects` if separate gitdir.
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt 'today 00:00' -not -path '*/node_modules/*'`.
-4. **Closed today** — `mcp__plugin_agent-kevin_kevin__task_query` `{closed_on:"today"}` (or scan task frontmatter `closed:` for today's date).
+4. **Closed today** — `grep -rl --include='*.md' '^closed: <date>' <HOME>/projects`, once per date being wrapped (it also finds tasks sync already archived). `task_query` has no closed-date filter.
 5. **Active / open P0–P1** — `{status:"active"}`, `{status:"open", priority:"P0"}`, `{status:"open", priority:"P1"}`.
 6. **Overdue / due soon / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan` (`dueSoon` is the next 14 days; name anything due tomorrow in tomorrow's first move).
 7. **Goals** — read `<HOME>/projects/TASKS.md` `## Daily Goals`, `## Monthly Goals` and `## Weekly Goals` to compute end-of-day delta. Score today's daily goals as the goals skill's [day](../../../goals/references/playbooks/day.md#score-the-day-the-evening-brief-or-how-did-today-go) playbook says.
