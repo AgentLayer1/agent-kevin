@@ -95,7 +95,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
 
 👉 Today: <one concrete first action — the mechanical, blocked-on-nothing, prevents-the-next-outage move>
 
-🍌
+<agent emoji — the Emoji line of IDENTITY.md>
 ```
 
 ## Persist

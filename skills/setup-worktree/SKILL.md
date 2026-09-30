@@ -242,10 +242,10 @@ the unpushed gate already routed through `force` (which force-deletes), so there
 
 Close with one tidy summary distilled from the result — never paste the raw JSON or the full `steps`
 dump. A status header, then one aligned line per action that actually ran (skip lines for things that
-didn't apply rather than printing "n/a"). Terminal-native: ASCII + a light 🍌, no wall of tables.
+didn't apply rather than printing "n/a"). Terminal-native: ASCII + the agent's emoji (the `Emoji` line of `IDENTITY.md`), no wall of tables.
 
 ```
-🍌 Worktree removed — acme-mono-darkmode
+<agent emoji> Worktree removed — acme-mono-darkmode
 
    remove     git worktree remove ✓
    clean      pnpm run clean ✓

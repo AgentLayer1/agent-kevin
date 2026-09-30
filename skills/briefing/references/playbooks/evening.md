@@ -73,7 +73,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
 🌅 Tomorrow first move
   • <one concrete first action — the mechanical, blocked-on-nothing thing to open at 8am>
 
-🍌
+<agent emoji — the Emoji line of IDENTITY.md>
 ```
 
 ## Empty-day variant
@@ -86,7 +86,7 @@ When all four signals are zero (no closures, no commits, no raw session, no proj
 <single dry one-liner — e.g., "Quiet one. Nothing shipped, nothing broke, nothing on fire. See you tomorrow." Vary the line each time. No bullets.>
 <only when today's goals were set: one more line, "Today's goals: ❌ none landed (<the goals, comma-separated>)">
 
-🍌
+<agent emoji>
 ```
 
 ## Persist

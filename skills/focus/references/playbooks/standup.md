@@ -352,7 +352,7 @@ reaches them, often mid-thought or frazzled, so it holds reminders, never senten
 block (monospace keeps the columns aligned in a terminal), one line per item, nothing to read.
 
 ```
-🍌 STANDUP · Tue Jan 06 · last 24h
+<agent emoji> STANDUP · Tue Jan 06 · last 24h
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🚢 SHIPPED · 2
@@ -382,6 +382,8 @@ block (monospace keeps the columns aligned in a terminal), one line per item, no
    Sam        vendor API answers      7d
 ```
 
+- **The header opens with the agent's emoji**, the `Emoji` line of `IDENTITY.md` (already in
+  context), never a hardcoded one: a renamed agent keeps its own.
 - **Three columns: handle · a 3–6 word cue · state.** The handle is the PR number or a short
   noun; the cue is the reminder, not the verbatim title; the state keeps the ladder honest, led
   by a one-cell glyph: `✓` verified or done, `●` merged or live but unverified, `◌` waiting on
