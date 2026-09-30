@@ -34,8 +34,9 @@ Adversarially review <the work in one clause>. Assume it is broken and prove whe
 | <name> | pr · range | `<absolute path>` | `git diff <base>...<head>` | <app · engine · foundation> |
 | <name> | working-tree | `<absolute path>` | `git diff <base>` plus untracked: `<path>`, `<path>` | <role> |
 | <name> | paths | `<absolute path>` | whole file, <n> lines, `<sha or mtime>` | <plan · spec · skill · doc> |
+| <name> | grounding, read-only | `<absolute path>` | `<ref>` @ `<HEAD sha>`; plan written against `<sha>` | the code the plan will change |
 
-*One row per repository or artifact; drop the example rows that do not apply.*
+*One row per repository or artifact; drop the example rows that do not apply. A plan gets one grounding row per repository it will change. When the plan names an older SHA, list the drift commits (`git log <named>..HEAD -- <files the plan cites>`) under the table: each is a lead.*
 
 <One paragraph: what the work does as a whole, grouped by concern, and which commits or files are the follow-up batch if there is one.>
 
@@ -43,11 +44,13 @@ Adversarially review <the work in one clause>. Assume it is broken and prove whe
 
 ### Stance
 
-*Keep the paragraph that fits the target; drop the other. A working tree with no commit messages takes the code paragraph with "the author's claims below" in place of "the messages".*
+*Keep the paragraph that fits the target; drop the others. A plan keeps the prose and plan paragraphs. A working tree with no commit messages takes the code paragraph with "the author's claims below" in place of "the messages".*
 
 Read the code, not the commit messages. The messages assert things ("equivalent", "preserves ordering", "no early return precedes it"); each assertion is a claim to test, and where one is wrong, say so plainly. Judge the head commit with its callers and callees, not the diff in isolation: regressions live in unchanged code that relied on the old behavior. Unchanged code that predates the change is not a finding unless the change makes it worse or newly reachable; say which. Beyond defects, look for structure: a reframing that would delete whole branches or helpers, a new conditional tangled into an unrelated flow, a pass-through layer or a leaked wire type, an old path kept alive beside its replacement, a test that would pass if every import returned `undefined`. "I would have done it differently" is not a finding without a concrete cost. Disagreement with the approach is welcome; state it directly.
 
 Read the text the way its reader will. A plan is executed by an engineer or an agent with no memory of the session that wrote it; a skill or prompt is executed literally by a model; a document is acted on by whoever it is for. Every instruction, path, tool name, parameter, flag, and number in it is a claim: one that cannot be followed, contradicts another, or names a thing that does not exist is a defect, not style. Judge each section with the sections it depends on, not in isolation: the most likely defect is two passages that disagree. Text that predates the change is not a finding unless the change makes it wrong or newly load-bearing; say which. Disagreement with the approach is welcome; state it directly.
+
+This is a plan, so nothing is built yet and its defects sit where it meets the code. Read it against the grounding repositories at the HEADs above, not against itself: open every file, symbol, and line it cites, grep for the callers and readers it says do not exist, and walk the steps in order as the engineer or agent executing them would, naming the step where the build breaks, a caller is missed, or a check passes on broken work. Design findings are the most valuable kind here, because the design is still cheap to change: an approach that will not survive the code, a phase order that leaves the default branch broken, scope that is in but built by no step. The settled decisions listed below were made by the operator; challenge one only with a fact from the code the decision could not have known.
 
 ### Bug classes already seen here
 
@@ -60,13 +63,15 @@ Read the text the way its reader will. A plan is executed by an engineer or an a
 1. <Symbol or file>: <the claim>. <What to check, and what would falsify it.>
 2. …
 
+*A plan adds, after the numbered claims:* **Settled, not claims:** <one line per operator decision the plan records, so it is not reopened.>
+
 ### Also look for
 
-<One paragraph, comma-separated: the generic hazards this kind of change carries (ordering changes, error paths that now log instead of propagate, work moved into a task that can be dropped, retain cycles from changed capture lists, conformances that paper over a thread mismatch, anything that changes when the domain's key event happens).>
+<One paragraph, comma-separated: the generic hazards this kind of change carries (ordering changes, error paths that now log instead of propagate, work moved into a task that can be dropped, retain cycles from changed capture lists, conformances that paper over a thread mismatch, anything that changes when the domain's key event happens). For a plan, start from the list in the skill's `references/plans.md` → Also look for.>
 
 ### Output contract
 
-Read the whole of every range and file above; do not sample. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, each in this shape:
+Read the whole of every range and file above; do not sample. A grounding row is the exception: read it wherever the plan cites it and wherever those files lead (callers, readers, tests), not the whole repository. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, each in this shape:
 
 ```
 ### R<n>-<k>. <claim in one sentence>
@@ -82,7 +87,7 @@ fix: <the smallest correct change, as a diff or one sentence>
 introduced: yes | made-worse | pre-existing
 ```
 
-The `code:` lines are the anchor of record; a finding whose snippet is not in the file cannot be verified, so copy it exactly. One finding per defect; a pattern repeated in six places is one finding with six anchors. Where an area is genuinely clean, say so in one line rather than padding; no findings is a valid result, and a few high-conviction findings beat a long list of nits. Close with one line per claim above: `claim <k>: falsified · holds · not checked`, and one line on what you ran and did not run. When you are done, reply in chat with only the path of this file.
+For a plan, a document, or a skill: `file` and `line` point into the artifact, `code:` quotes its lines, `old:` is what the text says, `new:` is what the code or the reader actually meets, and `introduced:` is `yes` for the text's own defect or `pre-existing` for a code fact it relies on without noticing; cite the grounding file and line inside `failure:`. The `code:` lines are the anchor of record; a finding whose snippet is not in the file cannot be verified, so copy it exactly. One finding per defect; a pattern repeated in six places is one finding with six anchors. Where an area is genuinely clean, say so in one line rather than padding; no findings is a valid result, and a few high-conviction findings beat a long list of nits. Close with one line per claim above: `claim <k>: falsified · holds · not checked`, and one line on what you ran and did not run. When you are done, reply in chat with only the path of this file.
 
 ---
 
@@ -112,7 +117,8 @@ The `code:` lines are the anchor of record; a finding whose snippet is not in th
 
 | Id | Verdict | Fix or receipt |
 |---|---|---|
-| R1-1 | Confirmed | <repo `sha`>: <what changed, one line> |
+| R1-1 | Confirmed | <repo `sha`>: <what changed, one line; for an uncommitted artifact, the section edited with its before and after quoted> |
+| R1-4 | Confirmed, design | <for a plan: the question put to the operator, their answer, and the section revised or kept> |
 | R1-2 | Rejected | <what was read or run that disproves it> |
 | R1-3 | Inherited | <why it is not this change's problem, and where it is tracked> |
 

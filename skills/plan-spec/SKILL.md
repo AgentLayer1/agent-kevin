@@ -146,7 +146,7 @@ Once the interview is complete (or skipped), write the full spec in one pass. Th
 
 The structure is **adaptive** — generate sections that fit what was discussed, not a rigid template. However, every spec must include:
 
-1. **A clear title and one-paragraph summary** at the top
+1. **A clear title and one-paragraph summary** at the top, followed, when the spec describes code, by one grounding line per repository it was written against: "Grounded against `<repo>` `<ref>` @ `<short sha>` (<date>)". A reviewer checks the plan against those commits and sees what moved since
 2. **Sections corresponding to the coverage areas** that were explored
 3. **Open Questions** section — always present, even if empty. These are things that came up during the interview but couldn't be fully resolved, plus any coverage areas that were skipped. Each open question should note why it's unresolved and what would be needed to resolve it.
 4. **Design** section, required when the spec describes code. Write the caller's usage first (a quickstart plus two or three real call sites), then the data shapes derived from it. Name at least one structurally different alternative and why it lost, or which constraints left only one viable shape. List tradeoffs accepted as "we accept X in exchange for Y". Screen the chosen shape against the red flags in the engineer skill's architect reference (shallow module, information leakage, temporal decomposition, pass-through method) and say how it passes.
@@ -205,3 +205,4 @@ After writing, tell the user:
 1. Where the file was saved
 2. A brief summary of what's in it
 3. **Remind them they can press `Ctrl+G` to open the plan file and start implementing from it** — just like `/plan` does
+4. When the spec describes code, or a design that is hard to reverse, offer a second model's pass with the adversarial-review skill on the saved path before anyone implements it
