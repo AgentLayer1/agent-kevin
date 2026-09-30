@@ -98,4 +98,4 @@ Both carry what they show as JSON in a `focus-data` block, and `focus_write` ret
 
 ## Reply
 
-Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup card and its backup, the radar digest, a triage table, or a checkpoint. End with the `file://` path when a playbook saved or rendered something.
+Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup glance card (the full update is the saved report), the radar digest, a triage table, or a checkpoint. End with the `file://` path when a playbook saved or rendered something.

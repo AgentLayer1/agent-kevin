@@ -15,7 +15,7 @@ Your day in one place: what today is for, what slipped, the week and month, the 
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "Standup is coming up", "what did I do yesterday?", `/focus standup 48` | **standup** | Did / next / blocked from git, PRs, sessions and the board, a card to read while talking, and the evidence below it |
+| "Standup is coming up", "what did I do yesterday?", `/focus standup 48` | **standup** | Did / next / blocked from git, PRs, sessions and the board, a glance card to read while talking, with the full update and its evidence saved as a report |
 
 ### 🛰️ Sessions
 

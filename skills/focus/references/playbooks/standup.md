@@ -23,7 +23,7 @@ This is not the evening briefing. Four differences, and together they're why the
 | Forward half | one "tomorrow first move" | `Next` + `Blocked`, named owners and ages |
 
 The sources row is the load-bearing one. A day's most valuable work often leaves no commit: an
-investigation that found a production bug, a SQL statement applied to prod by hand, a teammate's
+investigation that found a production bug, a SQL statement applied to prod by hand, a partner
 question answered. Git cannot see any of it. Only the session transcripts can.
 
 ## Step 1 — fix the window
@@ -151,9 +151,14 @@ section.
 **8. The gap, only when Step 1 found one** — the same PR, main-log and task queries re-run over
 **last-standup-timestamp → the 24h boundary** (exclusive of the body's window — anything newer is
 already in the body, and an item appearing in both `Shipped` and the tail reads as more work than
-happened). Landings only; skip the session scan and the worktree walk. The tail is a
+happened). Landings only; skip the session scan, the worktree walk and Slack. The tail is a
 "here's what's older, in case it never got said" list, not a second standup, and keeping it to
 three cheap queries is what makes the cap affordable to be honest about.
+
+**9. Slack, for what they already said** — `slack_whoami`, then `slack_search` for their own
+messages in the window. This is a *subtractive* input: its job is to stop the operator
+re-announcing something they already posted, and to surface a question someone asked them that
+they never answered. Skip silently if Slack isn't configured.
 
 ## Step 3 — classify before composing
 
@@ -176,7 +181,7 @@ out loud:
 - **Drop teammates' work.** A merge commit on main authored by someone else is theirs even if
   the operator reviewed it. Reviewing is worth a mention; it isn't a landing.
 - **Hunt the un-diffed work explicitly.** Re-read the session set asking only: *what changed in
-  the world that has no commit?* Hand-run SQL against prod, a call taken, an env flip, a
+  the world that has no commit?* Hand-run SQL against prod, a partner call, an env flip, a
   verification that a deploy was clean, an answer to a teammate's question. These are usually
   the highest-value items in the update and they are invisible to every other source.
 
@@ -204,8 +209,8 @@ tail (not to `Next`; it is a standup input, not a plan): `🎤 prep: /engineer w
 
 Rules for this section, because it's the easiest place to write something useless:
 
-- **Finishable-shaped, not a theme.** "Push the loop-claim fix and get it reviewed" is a next.
-  "Work on payment reliability" is not.
+- **Finishable-shaped, not a theme.** "Push the webhook retry fix and get it reviewed" is a next.
+  "Work on reliability" is not.
 - **Three maximum.** A standup where someone lists eight plans is a standup nobody believes.
   Rank and cut; the board is not the update.
 - **Never invent one.** If in-flight work and the goals genuinely don't point anywhere, say what
@@ -221,7 +226,7 @@ finished it" is a next, not a blocker. Candidates:
    room.
 3. **Decision-pending sessions** — a session whose `last_assistant_text` ends by asking the
    operator something is *self*-blocked, which belongs in `Next`, not here. But a session
-   waiting on a *third party* (a vendor's answer, a teammate's schema call) is a real blocker.
+   waiting on a *third party* (a partner's answer, a teammate's schema call) is a real blocker.
 4. **Questions raised in act one** that gate real work, from the findings and filed tasks.
 
 Each blocker carries **who**, **what's stopped**, and **how long**. The duration is what turns a
@@ -230,8 +235,8 @@ letting it sit in a task for the fourth week.
 
 ## Step 5 — compose
 
-The operator reads this **while talking**. They will never read a paragraph mid-sentence, so the
-update is two layers with a hard line between them:
+This is the saved report: the history the operator opens when someone asks a follow-up (the chat
+gets the glance card, Step 7). It is two layers with a hard line between them:
 
 - **The card** — everything above the `---`. One line per item, bold spoken lead first. This is
   the whole standup; it must survive being glanced at in half-second increments.
@@ -250,12 +255,12 @@ SHIPPED ███ 3   IN FLIGHT ██████ 6   FOUND ██ 2   FILED �
 
 ## Did
 
-- 🚢 **#474 merged + verified** · <the PR title, verbatim> — <reminder clause: what it was about / why it mattered>
-- 🚢 **#475 merged, ⚠️ not verified yet** · <title> — <reminder>
+- 🚢 **#101 merged + verified** · <the PR title, verbatim> — <reminder clause: what it was about / why it mattered>
+- 🚢 **#102 merged, ⚠️ not verified yet** · <title> — <reminder>
 - 🎛️ **By hand, prod** · <the action in its own words> — <that it held, and for whom>
 - 🔴 **FOUND: <impact-first, e.g. "duplicate sends — retry race in the acme webhook">** — fix built, unpushed
-- 🔧 **#478 open, awaiting review** · <title> — <reminder>
-- 🔧 **Built, uncommitted** · `<user>/<branch>` — <what it is and what it's waiting on>
+- 🔧 **#105 open, awaiting review** · <title> — <reminder>
+- 🔧 **Built, uncommitted** · `<operator>/<branch>` — <what it is and what it's waiting on>
 - 📋 **<task-id> filed** · <task title> — <the blocking question, if it has one>
 
 ### ⏸ Before this window
@@ -272,14 +277,14 @@ SHIPPED ███ 3   IN FLIGHT ██████ 6   FOUND ██ 2   FILED �
 | Who | What I need | Since |
 |---|---|---|
 | **<name>** | <the question, as you'd ask it> | 5d |
-| **<vendor>** | <what can't proceed> | 12d |
+| **<partner>** | <what can't proceed> | 12d |
 
 - ❓ <open question for the room, not blocking yet>
 
 ---
 ## 📎 Backup — if someone asks
 
-**#474** — <the evidence: what was checked in prod, the number, the query>
+**#101** — <the evidence: what was checked in prod, the number, the query>
 **<the 🔴 finding>** — <mechanism, a ```mermaid block if it earns one, provenance of every number>
 **<blocker>** — <the context you'd give if pressed>
 ```
@@ -303,7 +308,7 @@ Rules:
 - **Status is part of the bold lead**, not a trailing qualifier: "**merged, not verified**" gets
   spoken; a ⚠️ at the end of a long line gets missed mid-presentation.
 - **Numbers carry units and provenance** — in the backup. "214 requests across 3 days, most
-  recent 08-06" with the report cited. The card carries the number alone.
+  recent 01-05" with the report cited. The card carries the number alone.
 - **Name people.** "Ask Alex which env the flag reads from" is actionable; "clarify requirements"
   is not. This applies to blockers most of all — an unnamed blocker never gets cleared.
 - **The three acts are not optional, but their items are.** `Next` empty means say so honestly;
@@ -326,18 +331,75 @@ above `Next`; Friday follows its [score the week](../../../goals/references/play
 Not optional: this report is the only thing that lets the *next* run detect a gap, and it's what
 the operator reaches for when someone asks "what did you say last time?"
 
+Re-glob the window's reports (Step 2.6) first: a sibling session often writes something (a cue
+card, a fix) while this one gathers, and it belongs in both the report and the card.
+
 ```
 report_write({
   category: 'briefings',
   slug: 'standup',
-  title: <e.g. 'Standup — 3 shipped, acme double-send found, port-status PR opened'>,
+  title: <e.g. 'Standup — 3 shipped, acme double-send found, search PR opened'>,
   skill: 'focus',
-  body: <the full update, no frontmatter — exactly what was shown in chat>,
+  body: <the full update from Step 5, no frontmatter; the chat shows the Step 7 card instead>,
   status: <'critical' if a finding needs the room today, 'findings' normally, 'clean' if the window was quiet>
 });
 ```
 
-Surface `📄 Saved to <path>` (the absolute `path`, not `relPath`) at the end.
+## Step 7 — reply with the glance card
+
+The saved report is the history. The chat reply is the operator's notes for the moment standup
+reaches them, often mid-thought or frazzled, so it holds reminders, never sentences: a fenced
+block (monospace keeps the columns aligned in a terminal), one line per item, nothing to read.
+
+```
+🍌 STANDUP · Tue Jan 06 · last 24h
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚢 SHIPPED · 2
+   #101    retry flaky webhook sends         ✓ verified
+   #102    cap the export page size          ● merged
+
+🔴 FOUND · 2
+   #103    reminders fire an hour late       → fix #104
+   Prod    nightly import sweep, logs down   ✓ data intact
+           ├ acme import                     ✗ failed
+           └ globex sync                     ✗ failed
+
+🔧 IN FLIGHT · 1
+   #105    signup flow test pass             ◌ needs review
+
+📝 DRAFTED · 1
+   Cache   CDN rollout plan                  ◌ not posted
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👉 NEXT
+   1  #106 search demo                tomorrow
+   2  acme support reply              3d late
+
+⏳ WAITING ON
+   Alex       #103 repro steps        today
+   Sam        vendor API answers      7d
+```
+
+- **Three columns: handle · a 3–6 word cue · state.** The handle is the PR number or a short
+  noun; the cue is the reminder, not the verbatim title; the state keeps the ladder honest, led
+  by a one-cell glyph: `✓` verified or done, `●` merged or live but unverified, `◌` waiting on
+  someone, `✗` failed, `→` points at the fix. Pad the columns so every state starts in one column.
+- **Sections are the ladder in order, each with its emoji and a count**: `🚢 SHIPPED`,
+  `🔴 FOUND`, `🔧 IN FLIGHT`, `📝 DRAFTED` (the ladder's 📋 filed: docs, plans, replies,
+  decisions, filed tasks), a `━` rule, then `👉 NEXT` and `⏳ WAITING ON` (the `Blocked` table).
+  A header rule under the title and the mid rule split the past from the forward half. Emoji go
+  only at the start of a header line, where their double width can't break the columns. Related
+  items nest under a parent with `├` / `└`. Drop an empty past section; `NEXT` and `WAITING ON`
+  always print (`nothing queued` / `nothing`).
+- **The report's extras get a section only when they exist**: `⏸ EARLIER` (handles and a count)
+  above the mid rule when Step 1 found a gap, `🎯 THIS WEEK` or `🎯 WEEK SCORE` above `NEXT` on
+  Monday and Friday, and `🎤 PREP` (the PR numbers) last when Step 4 added walkthrough lines.
+- **No prose anywhere in the block**: no through-line sentence, no mechanisms, no numbers'
+  provenance, no bar chart. Those live in the saved report.
+- **Anything the gather couldn't settle** (a claim that contradicts an earlier report, a failed
+  source) goes in at most two short lines *after* the block, then `📄 <file:// path>` last.
 
 ## Quiet-window variant
 
@@ -361,15 +423,17 @@ credibility the next time they're specific.
 - ❌ Filing "I still have to write it" as a blocker. A blocker names a person or an external party.
 - ❌ Inventing a plan to avoid an empty `Next`. Say there's nothing queued and ask.
 - ❌ Dropping a blocker's age. Four weeks of waiting is the entire argument for raising it again.
+- ❌ Re-announcing what they already posted in Slack this window.
 - ❌ Narrowing `--scope` to the code tree because the work was code work. Sessions are keyed on
   launch directory; most of them launch from HOME.
 - ❌ Widening past 24h because a lot happened, or dropping the `⏸` tail because the cap "handles
   it". The cap is the window; the tail is what makes capping safe.
 - ❌ Restating `memory/index.md` active threads. Standup is the delta, not the standing state.
-- ❌ Paragraphs above the `---`. The operator is mid-sentence when they look down; anything that
-  needs reading (vs glancing) belongs in the backup.
-- ❌ Compressing an item past recognition. A bare "#474 merged" makes the operator reconstruct
-  what #474 *is* while talking — the verbatim title and a reminder clause stay on the card;
+- ❌ Pasting the full update into chat, or paragraphs above the report's `---`. The operator is
+  mid-sentence when they look down; anything that needs reading (vs glancing) belongs in the
+  backup.
+- ❌ Compressing an item past recognition. A bare "#101 merged" makes the operator reconstruct
+  what #101 *is* while talking — the verbatim title and a reminder clause stay on the card;
   only depth moves to backup.
 - ❌ Burying an item's status at the end of its line. "merged, not verified" is the bold lead,
   not a trailing footnote.
