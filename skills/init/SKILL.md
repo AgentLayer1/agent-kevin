@@ -667,6 +667,13 @@ fi
 
 The `template-base` copy is what the next upgrade merges against: it tells a line the operator wrote from the template's own wording.
 
+**Queue the first-session welcome.** Init can't ask what to do first, because the operator relaunches before anything runs. So it leaves a flag the SessionStart hook reads: while `welcome` is `pending`, the first session opens by asking where to start, the roadmap first ([references/welcome.md](references/welcome.md)), and clears the flag once answered. **Skip the write if the file already exists**, so a re-init of a running home never re-welcomes.
+
+```bash
+CADENCE_FILE="$HOME_DIR/.kevin/cadence.json"
+[ -f "$CADENCE_FILE" ] || printf '{\n  "welcome": "pending"\n}\n' > "$CADENCE_FILE"
+```
+
 Note: do **not** create `.claude/skills/` here. Third-party skill libraries are installed via `/agent-kevin:configure-skills` after the user relaunches.
 
 Copy the agent's avatar into `.claude/assets/` so it stays out of the way at the home root but is still resolvable from `IDENTITY.md`.
@@ -1687,17 +1694,9 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > (where `<PLUGIN_DIR>` is the absolute path of the cloned plugin — same path as `${CLAUDE_PLUGIN_ROOT}` during this init session.)
 >
-> Once the plugin is loaded, try:
+> **Your first session opens with a welcome.** Say hi and <AGENT_NAME> suggests where to start, beginning with your roadmap.
 >
-> - `/agent-kevin:knowledge-compile` — absorb the documents in your inbox (list this first when Step 5d left any there)
-> - `/agent-kevin:roadmap` — turn the roadmap draft into `roadmap.html` (only when Step 5d staged one)
-> - `/agent-kevin:dashboard` — open the Agent OS dashboard (your whole setup on one page)
-> - `/agent-kevin:configure-skills` — configure skill packs (SEO, Browser) or author a custom skill
-> - `/agent-kevin:project create` — start your first project
-> - `/agent-kevin:briefing morning` — see what Kevin knows about you
-> - `mcp__plugin_agent-kevin_kevin__ping` — health check the MCP server
->
-> Open `<HOME_DIR>` in Obsidian to view/edit your wiki.
+> `/agent-kevin:dashboard` opens the Agent OS dashboard, your whole setup on one page. Open `<HOME_DIR>` in Obsidian to view/edit your wiki.
 
 ---
 

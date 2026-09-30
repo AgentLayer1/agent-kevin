@@ -246,4 +246,40 @@ describe('sessionStart', () => {
     );
     expect(result.systemMessage).toMatch(/○ history .*off · run /);
   });
+
+  const cadence = `${RUNTIME_DIR_DEFAULT}/cadence.json`;
+
+  test('welcome: a pending flag from init surfaces the welcome early in the context', async () => {
+    const result = await withHome(
+      (home) => markedHome(home, { [cadence]: '{ "welcome": "pending" }' }),
+      () => sessionStart()
+    );
+    expect(result.systemMessage).toContain('👋 Welcome:');
+    expect(result.additionalContext).toContain('## First Session Since Init');
+    expect(result.additionalContext).toContain(resolve(FOLDERS.ROOT, 'skills', 'init', 'references', 'welcome.md'));
+    // Right after Today, so the truncation cap (which cuts from the end) never drops it.
+    expect(result.additionalContext.split('\n\n---\n\n')[1]).toStartWith('## First Session Since Init');
+  });
+
+  test('welcome: Codex gets the same welcome through the shared assembler', async () => {
+    const result = await withHome(
+      (home) => markedHome(home, { [cadence]: '{ "welcome": "pending" }' }),
+      () => sessionStartCodex()
+    );
+    expect(result.additionalContext).toContain('## First Session Since Init');
+  });
+
+  test.each([
+    ['answered', { [cadence]: '{ "welcome": "2026-01-15", "goals-week": "2026-01-12" }' }],
+    ['no cadence file', {}],
+    ['malformed cadence file', { [cadence]: '{ welcome: pending' }]
+  ])('welcome: %s shows no welcome', async (_label, files) => {
+    const result = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStart()
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.systemMessage).not.toContain('Welcome:');
+    expect(result.additionalContext).not.toContain('First Session Since Init');
+  });
 });

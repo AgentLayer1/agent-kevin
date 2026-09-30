@@ -196,6 +196,11 @@ export const FILES = {
   get VERSION() {
     return resolve(dataRoot(), 'version.json');
   },
+  /** Planning watermarks (`goals-week`…) stamped by `skills/sync/scripts/watermark.ts`, plus
+   *  `welcome: "pending"` from init until the first session's welcome is answered. */
+  get CADENCE() {
+    return resolve(dataRoot(), 'cadence.json');
+  },
   get REPORTS_INDEX() {
     return resolve(FOLDERS.REPORTS, 'index.md');
   },

@@ -209,6 +209,30 @@ const STATUS_ICON: Record<ManifestEntry['status'], string> = {
   off: '○'
 };
 
+interface CadenceFile {
+  welcome?: string;
+}
+
+/**
+ * Init leaves `welcome: "pending"` until the first session after relaunch has asked where to start.
+ */
+const welcomePending = (): boolean => {
+  try {
+    const parsed: CadenceFile = JSON.parse(readFileSync(FILES.CADENCE, 'utf-8'));
+    return parsed.welcome === 'pending';
+  } catch {
+    return false;
+  }
+};
+
+const welcomePart = (): string =>
+  [
+    '## First Session Since Init',
+    '',
+    `The operator just set this home up and relaunched. On their first message, read \`${resolve(FOLDERS.ROOT, 'skills', 'init', 'references', 'welcome.md')}\` and follow it: it asks where to start, with the roadmap first. Its commands run from the plugin root, \`${FOLDERS.ROOT}\`.`,
+    'If that first message is a concrete task, do the task, then run the welcome at the end of the same turn.'
+  ].join('\n');
+
 function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
   const labelWidth = Math.max(...entries.map((e) => e.label.length), 12);
   const sizeWidth = Math.max(...entries.map((e) => formatKB(e.bytes).length));
@@ -230,6 +254,9 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     head.splice(1, 0, `  ⬆️ Upgrade:   run /agent-kevin:upgrade (${n} release${n === 1 ? '' : 's'} behind)`);
   } else if (upgrade.state === 'onboard') {
     head.splice(1, 0, '  ⬆️ Upgrade:   run /agent-kevin:upgrade to enable update tracking');
+  }
+  if (welcomePending()) {
+    head.splice(1, 0, "  👋 Welcome:   first session, say hi and I'll suggest where to start");
   }
   return [...head, ...lines].join('\n');
 }
@@ -347,6 +374,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
 
   const traveling = HOME_TIMEZONE && HOME_TIMEZONE !== TIMEZONE ? ` — ✈️ traveling (home: ${HOME_TIMEZONE})` : '';
   const parts: string[] = [`## Today\n${dateStr} (${TIMEZONE})${traveling}`];
+  if (welcomePending()) parts.push(welcomePart());
   if (tail.content) parts.push(`## Last Session Memory (archived — not this conversation)\n\n${tail.content}`);
   if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
 
