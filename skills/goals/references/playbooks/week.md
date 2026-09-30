@@ -1,6 +1,6 @@
 # Week — set it on Monday, score it on Friday (`/goals week`)
 
-The week gets set and scored in one place, so the week's tasks and the Weekly Goals in `TASKS.md` are the same list. The focus skill's [standup](../../../focus/references/playbooks/standup.md) playbook runs the quick set on Monday and the score on Friday; "plan the week" or `/goals week` runs the quick set any day. `/goals week interview`, "set my weekly goals", or sync's weekly nudge runs the [interview](#set-the-week-in-depth-the-interview) instead. Either one stamps the week, so a Monday standup that set it clears the nudge.
+The week gets set and scored in one place, so the week's tasks and the Weekly Goals in `TASKS.md` are the same list. The focus skill's [standup](../../../focus/references/playbooks/standup.md) playbook runs the quick set on Monday and the score on Friday; `/goals week` sets the week, except on a Friday or when asked to score it, when it [scores it](#score-the-week-friday-or-score-the-week); "plan the week" sets it any day. `/goals week interview`, "set my weekly goals", or sync's weekly nudge runs the [interview](#set-the-week-in-depth-the-interview) instead. Either one stamps the week, so a Monday standup that set it clears the nudge.
 
 ## Set the week (Monday, or "plan the week")
 

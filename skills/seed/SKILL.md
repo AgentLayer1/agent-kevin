@@ -22,7 +22,7 @@ A seed bundle is a plain zip that forks one agent's persona and setup into anoth
 
 ## Start
 
-Match the ask to a playbook below, open it, and follow its steps in order; both have gates that are never skipped. A path to a `*-seed.zip` is import.
+Match the ask to a playbook below, open it, and follow its steps in order; both have gates that are never skipped. A path to a `*-seed.zip` is import. A bare `/seed` replies with [help](references/help.md) and stops.
 
 ## Playbooks
 

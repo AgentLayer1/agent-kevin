@@ -19,7 +19,7 @@ A project is a folder with a README and its tasks. Creating one puts it in the k
 
 ## Start
 
-Match the ask to a playbook below, open it, and follow its steps. The word after the playbook is the project's name or slug (`/project create acme-site`, `/project archive acme-site`).
+Match the ask to a playbook below, open it, and follow its steps. The word after the playbook is the project's name or slug (`/project create acme-site`, `/project archive acme-site`). A bare `/project` replies with [help](references/help.md) and stops.
 
 ## Playbooks
 

@@ -4,6 +4,8 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 
 ## Inputs (strict today-only scope)
 
+**The day being wrapped** is today, or yesterday when it is before 3am (sync's day boundary). Every "today" below means that date: the session glob, the `since` and `-newermt` bounds (that date, 00:00), closed-that-day, the header, and the daily goals scored.
+
 1. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. Read all flavors. **Do not** read prior-day session logs to fill bullets.
 2. **Today's git activity** — `git -C <HOME> log --since='today 00:00' --oneline` and same for `<HOME>/projects` if separate gitdir.
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt 'today 00:00' -not -path '*/node_modules/*'`.

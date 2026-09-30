@@ -6,8 +6,8 @@
  * - Grants: every retired `Skill(agent-kevin:<old>)` in `permissions.allow`, `ask` or `deny` of
  *   `.claude/settings.json` and `.claude/settings.local.json` becomes its successor's grant in the
  *   same list, so an operator who gated `seed-import` is still asked before `seed` runs. A successor
- *   that lands in a stricter list (deny, then ask) is dropped from the looser ones. Nothing else in
- *   the file changes.
+ *   that lands in a stricter list (deny, then ask) is dropped from the looser ones. Every other
+ *   entry keeps its place, and the file keeps its layout (indent or compact, line endings).
  * - Cadence: `.kevin/cadence.json` keys move from `weekly-goals` / `monthly-goals` / `yearly-goals`
  *   to `goals-week` / `goals-month` / `goals-year`; when both exist, the later date wins.
  * - TASKS.md: inside the goals markers, a placeholder naming a retired goals skill gets the new
@@ -110,12 +110,13 @@ const migrateSettings = (path: string): GrantChange[] => {
     const changed = kept.length !== original.length || kept.some((entry, at) => entry !== original[at]);
     return changed ? { ...acc, [list]: kept } : acc;
   }, {});
-  const indent = /^\{\r?\n([ \t]+)"/.exec(text)?.[1] ?? '  ';
-  const trailing = /\r?\n$/.exec(text)?.[0] ?? '';
-  writeFileSync(
-    path,
-    `${JSON.stringify({ ...settings, permissions: { ...permissions, ...rewritten } }, null, indent)}${trailing}`
-  );
+  // Written back in the file's own shape: compact stays compact, CRLF stays CRLF. JSON.stringify escapes
+  // newlines inside strings, so every newline it emits is structural.
+  const indent = /^\{\r?\n([ \t]+)"/.exec(text)?.[1] ?? (/^\{\r?\n/.test(text) ? '  ' : '');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const trailing = /\r?\n$/.test(text) ? eol : '';
+  const json = JSON.stringify({ ...settings, permissions: { ...permissions, ...rewritten } }, null, indent);
+  writeFileSync(path, `${json.replaceAll('\n', eol)}${trailing}`);
   return changes;
 };
 
@@ -185,13 +186,17 @@ const COMMAND = new RegExp(
 );
 
 // Real files and folders only: a symlinked skill (a skills.sh install) is someone else's, and may dangle.
-const filesUnder = (dir: string): string[] =>
-  existsSync(dir)
-    ? readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-        const path = join(dir, entry.name);
-        return entry.isDirectory() ? filesUnder(path) : entry.isFile() ? [path] : [];
-      })
-    : [];
+// The scan only reports, so a folder it can't read is skipped rather than failing the upgrade.
+const filesUnder = (dir: string): string[] => {
+  try {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? filesUnder(path) : entry.isFile() ? [path] : [];
+    });
+  } catch {
+    return [];
+  }
+};
 
 const commandsIn = (path: string): string[] => {
   try {

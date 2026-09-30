@@ -452,7 +452,8 @@ describe('focus pages on disk', () => {
     expect(readFileSync(dashboard, 'utf-8')).toBe('<p>hand-made</p>');
     rmSync(join(archived, 'ac-901-shipped.md'), { force: true });
 
-    const { surfaces, tasks, focus } = await collectStatus();
+    const { surfaces, tasks, focus, skills } = await collectStatus();
+    expect(skills.details.find((skill) => skill.name === 'briefing')?.playbooks).toEqual(['morning', 'evening', 'pulse']);
     expect(surfaces.map((surface) => surface.title)).not.toContain('Focus');
     expect(focus.project).toBe('');
     expect(surfaces).toContainEqual({ title: 'Acme', icon: '📊', appTab: false, href: 'projects/acme/dashboard.html' });

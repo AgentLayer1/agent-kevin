@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -113,6 +113,33 @@ describe('0.6.1 skill consolidation', () => {
     expect(readFileSync(join(home, '.claude/settings.local.json'), 'utf-8')).toBe(
       local.replace('Skill(agent-kevin:quick-pulse *)', 'Skill(agent-kevin:briefing *)')
     );
+  });
+
+  test('keeps a compact or CRLF settings file in its own layout', () => {
+    const compact = '{"permissions":{"allow":["Read","Skill(agent-kevin:quick-pulse)"]}}';
+    const crlf = '{\r\n  "permissions": {\r\n    "allow": [\r\n      "Skill(agent-kevin:seed-export)"\r\n    ]\r\n  }\r\n}\r\n';
+    const home = makeHome({ '.claude/settings.json': compact, '.claude/settings.local.json': crlf });
+    expect(run(home)).toMatchObject({ ok: true });
+    expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(
+      '{"permissions":{"allow":["Read","Skill(agent-kevin:briefing)"]}}'
+    );
+    expect(readFileSync(join(home, '.claude/settings.local.json'), 'utf-8')).toBe(
+      crlf.replace('seed-export', 'seed')
+    );
+  });
+
+  test('a folder the report scan cannot read never fails the upgrade', () => {
+    const home = makeHome({
+      '.claude/settings.json': JSON.stringify({ permissions: { allow: ['Skill(agent-kevin:quick-pulse)'] } }),
+      '.claude/skills/locked/SKILL.md': 'Run /quick-pulse\n',
+      '.codex': 'not a folder\n'
+    });
+    chmodSync(join(home, '.claude', 'skills', 'locked'), 0o000);
+    try {
+      expect(run(home)).toMatchObject({ ok: true, grants: [expect.objectContaining({ to: 'Skill(agent-kevin:briefing)' })] });
+    } finally {
+      chmodSync(join(home, '.claude', 'skills', 'locked'), 0o755);
+    }
   });
 
   test('moves cadence keys, the later date winning either way', () => {
