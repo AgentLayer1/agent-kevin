@@ -79,7 +79,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ Browser **(recommended)** — Playwright tool permissions + optional Perplexity search (briefings fall back to the built-in web search without it)
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
-> - ☐ API — draft API requests as file-based collections you fire yourself (Bruno visual client or plain curl scripts). No keys or permissions; this walks the adapter setup.
+> - ☐ API — draft API requests as file-based collections you fire yourself (Bruno or Postman visual clients, or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
@@ -354,19 +354,23 @@ The lightest pack: no API keys, no MCP tools, no permission grants. The `api-col
 > **How do you want to fire drafted API requests?**
 >
 > - ☐ Bruno **(recommended)** — visual client: open the collection once, click Send, watch tests pass/fail
+> - ☐ Postman — for teams already on it: requests land in the desktop app's Local View (Postman v12+)
 > - ☐ curl — zero-install: requests come as terminal-runnable scripts
 
 **(2) Bruno picked →** check the install — macOS: `ls /Applications | grep -i Bruno || which bru` · Windows (pwsh): `where.exe bru` or `Test-Path` on `$env:ProgramFiles\Bruno\Bruno.exe` / `$env:LOCALAPPDATA\Programs\bruno\Bruno.exe` · Linux: `which bruno || which bru`. If missing, offer to walk the install: macOS `brew install --cask bruno` · Windows `winget install -e --id Bruno.Bruno` (or `choco install bruno` / `scoop install bruno`) · [usebruno.com/downloads](https://www.usebruno.com/downloads). Then scaffold `<HOME>/reports/api/bruno/` if it doesn't exist (per `skills/api-collections/adapters/bruno.md`: `opencollection.yml` + `environments/default.yml` + `.env.example`) and tell the user to **Open Collection** in Bruno once, pointing at that folder.
 
-**(3) curl picked →** nothing to install (curl ships with macOS, Linux, and Windows 10+). Confirm the default root `<HOME>/reports/api/curl/` — scripts arrive per platform (`requests.sh` for bash, `requests.ps1` using `curl.exe` for PowerShell) with run commands included. This adapter is also the automatic fallback whenever no client is detected, so picking nothing still leaves the skill working.
+**(3) Postman picked →** check the install — macOS: `ls /Applications | grep -i Postman` (version: `defaults read /Applications/Postman.app/Contents/Info.plist CFBundleShortVersionString`, needs 12+) · Windows (pwsh): `Test-Path "$env:LOCALAPPDATA\Postman\Postman.exe"` · Linux: `which postman`. If missing or below 12, offer the install or update: macOS `brew install --cask postman` · Windows `winget install -e --id Postman.Postman` · [postman.com/downloads](https://www.postman.com/downloads/). Then scaffold `<HOME>/reports/api/postman/` if it doesn't exist (per `skills/api-collections/adapters/postman.md`: `postman/collections/` + `postman/environments/Local.environment.yaml`) and tell the user to open it once in Postman: **Files → Open folder** in a workspace of its own, then stay in Local View.
 
-**(4) Summary** (reflect what was picked):
+**(4) curl picked →** nothing to install (curl ships with macOS, Linux, and Windows 10+). Confirm the default root `<HOME>/reports/api/curl/` — scripts arrive per platform (`requests.sh` for bash, `requests.ps1` using `curl.exe` for PowerShell) with run commands included. This adapter is also the automatic fallback whenever no client is detected, so picking nothing still leaves the skill working.
+
+**(5) Summary** (reflect what was picked):
 
 ```
 ✅ API pack ready.
 
-Adapters:            Bruno (installed | install offered) · curl (always available)
+Adapters:            Bruno (installed | install offered) · Postman (installed | install offered) · curl (always available)
 Default collections: <HOME>/reports/api/bruno/  (open once in Bruno: Open Collection → this folder)
+                     <HOME>/reports/api/postman/  (open once in Postman: Files → Open folder → this folder)
                      <HOME>/reports/api/curl/   (terminal-runnable scripts)
 Permissions granted: none needed — authoring writes files only; Kevin never sends requests
 ```
