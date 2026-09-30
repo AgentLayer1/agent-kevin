@@ -21,14 +21,14 @@ Three phases: **interview → harvest → render**. Don't skip the interview (a 
 Figure out what already exists so the wizard asks only what's genuinely open:
 
 1. **Update or create?** Glob for existing roadmaps: `<HOME>/roadmap.html` (the north star), `projects/*/roadmap.html` (a project's own), and anything the user pointed at. If the request targets an existing file, this is an **update** — skip to Iterating below; never regenerate a roadmap that already exists.
-2. Identify the subject: the whole life/company (multi-lane), one project, or a code repo. Read the matching sources: the cross-project task dashboard and yearly goals (`projects/TASKS.md`), the project README + tasks, or the repo's docs.
+2. Identify the subject: the whole life/company (multi-lane), one project, or a code repo. Read the matching sources: the cross-project task dashboard and yearly goals (`projects/TASKS.md`), the project README + tasks, or the repo's docs. For the north star, also read `knowledge/concepts/roadmap-draft.md` when it exists: init writes the goals the operator gave during setup there as a `| When | Milestone |` table, and so does a seed bundle.
 3. Note today's date and any hard external deadlines already on record (filings, events, seasons) — these become finish-line tags.
 
 ## Phase 1 · Wizard interview
 
 Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from context instead of open blanks (offer the horizons you found in their goals, not "when?").
 
-**The wizard is skippable.** If the user already described the roadmap (a brain-dump, an existing planning doc, a goals block), extract everything from that first and ask only about gaps. Round 1 carries an explicit escape hatch ("I'll just tell you" / "use my notes as the base"); when taken, parse the dump and go straight to the final screen.
+**The wizard is skippable.** If the user already described the roadmap (a brain-dump, an existing planning doc, a goals block), extract everything from that first and ask only about gaps. Round 1 carries an explicit escape hatch ("I'll just tell you" / "use my notes as the base"); when taken, parse the dump and go straight to the final screen. A roadmap draft counts as that description: derive the horizons and lanes from its rows and offer them as the recommended options, so Round 1 confirms the frame instead of asking for it.
 
 **Round 1: the frame**
 - **Shape**: multi-lane north star (parallel bets, each with its own finish line) vs phased project roadmap (shipped history → planned quarters → long-term horizon). Recommend the one the context implies. See "Two shapes, one system" in `references/DESIGN.md`.
@@ -51,6 +51,7 @@ Fill the frame with real content. Milestones come from sources, not imagination:
 - **Task board**: `task_query` the relevant project(s); open/active tasks cluster into planned milestones, closed ones into shipped items. Statuses map from frontmatter: `done`→`done`, `active`→`progress`, `open`/`blocked`→`planned`.
 - **Git history** (repo roadmaps): `git log --oneline` since the epoch the user named; cluster commits into monthly milestone themes. This is how a credible shipped phase gets backfilled.
 - **Goals blocks**: yearly/quarterly goals become outcome tiles and finish-line checks (the last period of a lane often is "the quarter check").
+- **Roadmap draft**: each `| When | Milestone |` row becomes a `planned` milestone in the period its When names.
 - **The user's own words**: anything they dumped in the interview is first-class source material.
 
 Every period gets a `start` (and an `end` when it spans more than one day, week or month) from a real date the operator gave or confirmed: `2026-10-05`, `2026-W41` or `2026-10`. An undated period still renders, but focus pages can only see its `progress` items. Name the task ids a milestone covers in its item text (`Webhook receiver (ac-012)`): that link is how a focus page shows which tasks move a milestone forward.
@@ -67,6 +68,8 @@ Rules: a `done` status needs evidence from this session (task frontmatter, git, 
 6. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
 
    For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit its `roadmap-data` block, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card); no config, no manual registration.
+
+   When the build started from `roadmap-draft.md`, add one line under the draft's title: "Rendered into `roadmap.html` on <date>; edit that file from now on." Keep the draft, since it records what the operator first said.
 
 ## Iterating
 
