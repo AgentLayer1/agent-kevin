@@ -43,7 +43,7 @@ const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusI
   project: '',
   home: '/home/alex',
   tasks,
-  goals: { weekly: ['Ship the invoice export'], monthly: [] },
+  goals: { daily: [], weekly: ['Ship the invoice export'], monthly: [] },
   roadmaps: [],
   snapshot: null,
   self: new Set(['user', 'alex']),
@@ -133,6 +133,15 @@ describe('renderFocusHtml', () => {
     expect(data).toEqual(focusData(view));
     expect(data?.lanes.today[0].path).toBe('projects/acme/tasks/ac-001.md');
     expect(JSON.stringify(data)).not.toContain('/home/alex');
+  });
+
+  test("today's goals head the Today lane on the home page, never on a project page", () => {
+    const goals = { daily: ['The invoice export is on staging'], weekly: [], monthly: [] };
+    const home = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })], { goals })));
+    const today = home.slice(home.indexOf('id="focus-today"'), home.indexOf('id="focus-roadmap"'));
+    expect(today).toContain('<ul class="goals"><li>The invoice export is on staging</li></ul>');
+    const project = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })], { goals, project: 'acme' })));
+    expect(project).not.toContain('The invoice export is on staging');
   });
 
   test('today reads as a numbered list with the date as the headline', () => {
@@ -375,23 +384,14 @@ describe('project page', () => {
   });
 });
 
-describe('weekly goals from TASKS.md', () => {
-  test('read without their list markers, as the week playbook writes them', () => {
+describe('goals from TASKS.md', () => {
+  const withTasksFile = (content: string, check: () => void): void => {
     const file = join(FOLDERS.PROJECTS, 'TASKS.md');
     const before = existsSync(file) ? readFileSync(file, 'utf-8') : null;
     mkdirSync(FOLDERS.PROJECTS, { recursive: true });
-    writeFileSync(
-      file,
-      '<!-- GOALS:START -->\n## Weekly Goals — Week of 2026-09-28\n\n1. acme: Ship the invoice export (ac-101) — live for all tenants\n2. acme: Close the audit gaps (ac-102) — evidence filed\n\n## Monthly Goals\n\n- **Launch** the billing cutover\n<!-- GOALS:END -->\n'
-    );
+    writeFileSync(file, content);
     try {
-      expect(collectGoals()).toMatchObject({
-        weekly: [
-          'acme: Ship the invoice export (ac-101) — live for all tenants',
-          'acme: Close the audit gaps (ac-102) — evidence filed'
-        ],
-        monthly: ['Launch the billing cutover']
-      });
+      check();
     } finally {
       if (before === null) {
         rmSync(file, { force: true });
@@ -399,6 +399,32 @@ describe('weekly goals from TASKS.md', () => {
         writeFileSync(file, before);
       }
     }
+  };
+
+  test('daily goals count only under a heading dated today', () => {
+    const block = (date: string) =>
+      `<!-- GOALS:START -->\n## Daily Goals — ${date}\n\n1. The invoice export is on staging (ac-101)\n\n## Weekly Goals\n\n_No weekly goals set yet — run \`goals week\` to set them._\n<!-- GOALS:END -->\n`;
+    withTasksFile(block(todayDate()), () => {
+      expect(collectGoals()).toMatchObject({ daily: ['The invoice export is on staging (ac-101)'], weekly: [] });
+    });
+    withTasksFile(block('2020-01-01'), () => {
+      expect(collectGoals().daily).toEqual([]);
+    });
+  });
+
+  test('weekly goals read without their list markers, as the week playbook writes them', () => {
+    withTasksFile(
+      '<!-- GOALS:START -->\n## Weekly Goals — Week of 2026-09-28\n\n1. acme: Ship the invoice export (ac-101) — live for all tenants\n2. acme: Close the audit gaps (ac-102) — evidence filed\n\n## Monthly Goals\n\n- **Launch** the billing cutover\n<!-- GOALS:END -->\n',
+      () => {
+        expect(collectGoals()).toMatchObject({
+          weekly: [
+            'acme: Ship the invoice export (ac-101) — live for all tenants',
+            'acme: Close the audit gaps (ac-102) — evidence filed'
+          ],
+          monthly: ['Launch the billing cutover']
+        });
+      }
+    );
   });
 });
 

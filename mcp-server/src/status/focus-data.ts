@@ -81,6 +81,8 @@ export const FocusDataSchema = z.object({
   done: z.object({ today: Tasks, week: Tasks, month: Tasks }),
   /** Everything planned inside this week and this month, whatever lane it sits in now: the progress count. */
   planned: z.object({ week: z.object({ open: Tasks, done: Tasks }), month: z.object({ open: Tasks, done: Tasks }) }),
+  // Pages written before the day horizon existed carry none.
+  dayGoals: z.array(z.string()).default([]),
   weekGoals: z.array(z.string()),
   monthGoals: z.array(z.string()),
   /** Open tasks of mine with no horizon yet. */

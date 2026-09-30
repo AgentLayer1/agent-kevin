@@ -38,6 +38,7 @@ import type {
   RadarSession,
   ReportRef,
   RuleEntry,
+  SkillInfo,
   StaticImport,
   StatusSnapshot,
   TaskRef
@@ -330,7 +331,7 @@ const reportRow = (report: ReportRef, snap: StatusSnapshot): string => {
 
 /** Category filter chips for the Reports page — All + one per category that
  *  actually has reports. Each carries the same colored dot the matching row
- *  chips use (briefings borrows the morning-briefing hue), so the filter reads
+ *  chips use (briefings borrows the briefing skill's hue), so the filter reads
  *  as the same vocabulary as the list. `data-catchips` wires the client filter. */
 const reportChips = (reports: ReportRef[]): string => {
   const counts = reports.reduce<Record<string, number>>((acc, report) => {
@@ -359,9 +360,9 @@ const reportChips = (reports: ReportRef[]): string => {
 const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews'] as const;
 
 /** Dot hue per category — keyed to a representative row chip so the filter and
- *  the list share colors. Briefings uses the morning-briefing skill's hue. */
+ *  the list share colors. Briefings uses the briefing skill's hue. */
 const CATEGORY_DOT: Record<string, string> = {
-  briefings: 'morning-briefing',
+  briefings: 'briefing',
   plans: 'plans',
   radar: 'focus',
   api: 'api-collections',
@@ -453,16 +454,15 @@ const pageToday = (snap: StatusSnapshot): string => {
   const part = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
   const name = snap.operator.name ? `, ${esc(snap.operator.name)}` : '';
 
-  const goalCard = (icon: string, label: string, lines: string[]): string =>
+  const goalCard = (icon: string, label: string, empty: string, lines: string[]): string =>
     `<div class="goalcard"><h3 class="group"><span class="gicon">${icon}</span>${esc(label)}</h3>${
-      lines.length
-        ? `<ul class="plain">${lines.map((line) => `<li>${esc(line)}</li>`).join('')}</ul>`
-        : hint(`No ${label.toLowerCase()} goals set yet, run the ${label.toLowerCase()}-goals skill.`)
+      lines.length ? `<ul class="plain">${lines.map((line) => `<li>${esc(line)}</li>`).join('')}</ul>` : hint(empty)
     }</div>`;
   const goalsBody =
-    goalCard('🗓', 'Weekly', goals.weekly) +
-    goalCard('🎯', 'Monthly', goals.monthly) +
-    goalCard('🧭', 'Yearly', goals.yearly);
+    goalCard('☀️', 'Today', 'No goals set for today, run goals day.', goals.daily) +
+    goalCard('🗓', 'Weekly', 'No weekly goals set yet, run goals week.', goals.weekly) +
+    goalCard('🎯', 'Monthly', 'No monthly goals set yet, run goals month.', goals.monthly) +
+    goalCard('🧭', 'Yearly', 'No yearly goals set yet, run goals year.', goals.yearly);
 
   // The grounding feed covers the last ~24h so it survives midnight: sessions
   // and tasks carry date-only stamps (today + yesterday); reports have times
@@ -1086,8 +1086,8 @@ const pageReports = (snap: StatusSnapshot): string => {
 
 interface ScheduledJob {
   label: string;
-  /** Plugin skill invoked, e.g. `sync` → `/<plugin>:sync`. */
-  skill: string;
+  /** Command after the plugin prefix, e.g. `goals month` → `/<plugin>:goals month`. */
+  invoke: string;
   /** Human cadence shown in the When column. */
   when: string;
   /** Target time of day (HH:MM), used both for display and slot-passed checks. */
@@ -1122,32 +1122,32 @@ const nextQuarterStart = (iso: string): string => {
 };
 
 const SCHEDULE: ScheduledJob[] = [
-  { label: 'Sync (morning)', skill: 'sync', when: 'Daily', anchor: '07:00', nextDate: (iso) => iso },
-  { label: 'Sync (evening)', skill: 'sync', when: 'Daily', anchor: '19:00', nextDate: (iso) => iso },
+  { label: 'Sync (morning)', invoke: 'sync', when: 'Daily', anchor: '07:00', nextDate: (iso) => iso },
+  { label: 'Sync (evening)', invoke: 'sync', when: 'Daily', anchor: '19:00', nextDate: (iso) => iso },
   {
     label: 'Weekly goals',
-    skill: 'weekly-goals',
+    invoke: 'goals week interview',
     when: 'Mondays',
     anchor: '08:00',
     nextDate: (iso) => nextWeekday(iso, 1)
   },
   {
     label: 'Monthly goals',
-    skill: 'monthly-goals',
+    invoke: 'goals month',
     when: '1st of month',
     anchor: '08:00',
     nextDate: (iso) => nextMonthlyDay(iso, 1)
   },
   {
     label: 'Yearly goals',
-    skill: 'yearly-goals',
+    invoke: 'goals year',
     when: 'Quarterly · Jan/Apr/Jul/Oct 1',
     anchor: '08:00',
     nextDate: nextQuarterStart
   },
   {
     label: 'Self-review',
-    skill: 'self-review',
+    invoke: 'self-review',
     when: '15th of month',
     anchor: '08:00',
     nextDate: (iso) => nextMonthlyDay(iso, 15)
@@ -1181,7 +1181,7 @@ const pageScheduler = (snap: StatusSnapshot): string => {
 <div class="sched-head"><span class="sched-name">${esc(job.label)}</span><span class="chip manual">manual</span></div>
 <div class="sched-when dim">${esc(job.when)} · ${esc(job.anchor)}</div>
 <div class="sched-next"><span class="dim">next</span> ${esc(prettyDate(next))} <span class="dim">${esc(rel)}</span></div>
-<div class="sched-invoke good">/${esc(plugin)}:${esc(job.skill)}</div>
+<div class="sched-invoke good">/${esc(plugin)}:${esc(job.invoke)}</div>
 </div>`;
   }).join('');
 
@@ -1202,7 +1202,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: 'Between sessions',
-    say: `/${plugin}:quick-pulse`,
+    say: `/${plugin}:briefing pulse`,
     what: 'A fast status check without the heavy maintenance pass.'
   },
   {
@@ -1217,12 +1217,12 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: '1st of the month',
-    say: `/${plugin}:monthly-goals`,
-    what: 'Set the month’s themes and big rocks (weekly-goals does the same per week).'
+    say: `/${plugin}:goals month`,
+    what: 'Set the month’s themes and big rocks (`goals week` does the same per week, `goals day` for today).'
   },
   {
     when: 'Quarterly',
-    say: `/${plugin}:yearly-goals`,
+    say: `/${plugin}:goals year`,
     what: 'Plan the year ahead quarter by quarter — run mid-year it shapes the remaining quarters; run in Q4 it drafts next year from Q1.'
   },
   {
@@ -1288,6 +1288,14 @@ const reflexTips = (agent: string): Record<string, string> => ({
     'Fires just before Claude Code compacts (summarises) a long conversation. Captures the session up to that point so the part being compressed away is still preserved on disk.'
 });
 
+/** A router skill's playbooks as chips under its tile. */
+const playbookChips = (skill: SkillInfo): string =>
+  skill.playbooks.length
+    ? `<div class="tplays">${skill.playbooks
+        .map((name) => `<span class="chip">${esc(name)}</span>`)
+        .join('')}</div>`
+    : '';
+
 const pageCapabilities = (snap: StatusSnapshot): string => {
   const { skills, mcp, hooks } = snap;
 
@@ -1313,12 +1321,13 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
           false
         )}${skillChip('manual', 'Manual', skills.details.length - autoCount, false)}</div>`
       : '';
+  const playbookCount = skills.details.reduce((sum, skill) => sum + skill.playbooks.length, 0);
   const skillTiles = `<div data-filterbox>${filterInput('filter skills…')}${skillChips}<div class="tiles">${skills.details
     .map(
       (skill) =>
         `<div class="tile" data-row data-cat="${skill.auto ? 'auto' : 'manual'}"><div class="tname"><span class="good">/${esc(snap.runtime.pluginName)}:${esc(skill.name)}</span>${
           skill.custom ? ' <span class="chip">custom</span>' : ''
-        }${skill.auto ? ' <span class="chip auto" title="the model may invoke this on its own">auto</span>' : ''}</div><div class="tdesc">${esc(skill.description || '—')}</div></div>`
+        }${skill.auto ? ' <span class="chip auto" title="the model may invoke this on its own">auto</span>' : ''}</div><div class="tdesc">${esc(skill.description || '—')}</div>${playbookChips(skill)}</div>`
     )
     .join('')}</div></div>`;
 
@@ -1379,7 +1388,11 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
     `Everything you can ask ${snap.persona.name} to do — skills by name, tools under the hood.`,
     subTabs([
       { id: 'cheatsheet', label: 'Cheatsheet', body: cheatRows },
-      { id: 'skills', label: `Skills · ${skills.count}`, body: skillTiles },
+      {
+        id: 'skills',
+        label: `Skills · ${skills.count}${playbookCount ? ` · ${playbookCount} playbooks` : ''}`,
+        body: skillTiles
+      },
       { id: 'tools', label: `Tools · ${mcp.toolCount}`, body: toolTiles },
       { id: 'commands', label: 'Commands', body: cliBody },
       { id: 'hooks', label: `Reflexes · ${hooks.count}`, body: hookRows }

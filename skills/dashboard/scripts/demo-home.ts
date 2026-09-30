@@ -417,7 +417,7 @@ const history: [string, number, number, string, string][] = [
     'confirm the funnel numbers on production before we brief the board',
     '~/acme/growth'
   ],
-  ['8e1a3c5d-7f9b-4d2e-b4a6-c8e0a2b4c6d8', -1, 11, '/agent-kevin:evening-briefing', '~/agent-acme'],
+  ['8e1a3c5d-7f9b-4d2e-b4a6-c8e0a2b4c6d8', -1, 11, '/agent-kevin:briefing evening', '~/agent-acme'],
   [SESSION.soc2, -2, 31, 'soc2 evidence sprint: pull the access lists and draft the review docs', '~/acme'],
   [
     '4b6d8f0a-2c4e-4a6c-8e0b-2d4f6a8c0e21',
@@ -690,6 +690,11 @@ ${task.title}.
 write(
   'projects/TASKS.md',
   `<!-- GOALS:START -->
+## Daily Goals — ${day(0)}
+
+1. The reconciliation report is signed off (pf-101)
+2. The load-test plan is agreed with SRE (pf-104)
+
 ## Weekly Goals — Week of ${day(-((now.getDay() + 6) % 7))}
 
 1. platform: Ship the reconciliation report (pf-101) — go/no-go signed off
@@ -858,7 +863,7 @@ const reports: DemoReport[] = [
     category: 'briefings',
     slug: 'morning',
     title: 'Morning brief: launch week minus 14',
-    skill: 'morning-briefing',
+    skill: 'briefing',
     status: 'findings',
     emoji: '🟠',
     body: `# Morning brief\n\n📋 Today: pf-101 reconciliation report, then the pf-104 load-test prep.\n\n🌐 Signals\n  • 🤖 [Claude Sonnet 5 lands with a 1M-token context and cheaper agentic pricing](https://www.anthropic.com/news) (anthropic.com) — review costs drop again.\n  • 🧪 [DeepEval 4.0 ships an open-source eval harness for coding agents](https://github.com/confident-ai/deepeval) (github.com) — a cheap way to grade our agent PRs.\n📰 News\n  • 🌍 [AWS stands up a $1B forward-deployed engineering org](https://www.reuters.com/technology/) (reuters.com) — the channel war moves to services.\n  • 💳 [Stripe expands usage-based billing primitives](https://stripe.com/blog) (stripe.com) — relevant to the cutover.\n👉 First move: finish the reconciliation diff before the 11:00 standup.\n`
@@ -940,7 +945,7 @@ Access reviews 3 of 5 done; the Okta checklist is drafted.
     category: 'briefings',
     slug: 'evening',
     title: 'Evening wrap: load-test target locked at 5x',
-    skill: 'evening-briefing',
+    skill: 'briefing',
     status: 'clean',
     emoji: '🟢',
     body: '# Evening wrap\n\n- Shipped: load-test target decision.\n- Tomorrow: reconciliation walk first.\n'

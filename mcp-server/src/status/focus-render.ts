@@ -119,7 +119,13 @@ const todaySection = (view: FocusView): string => {
     callout(view, 'focus-carried', 'carried', 'Carried over', carried, '↻', true) +
     callout(view, 'focus-due', 'carried due', 'Due, not planned', view.dueUnplanned, '!', false);
   const warn = carried.length || view.dueUnplanned.length ? ' warn' : '';
-  return section(0, 'focus-today', `now today${warn}`, laneHead('Today', open.length), list + blocks);
+  return section(
+    0,
+    'focus-today',
+    `now today${warn}`,
+    laneHead('Today', open.length),
+    goalList(view.dayGoals) + list + blocks
+  );
 };
 
 const periodSection = (

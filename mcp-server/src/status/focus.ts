@@ -45,7 +45,7 @@ export interface FocusInputs {
   home: string;
   /** Active and archived tasks: sync archives done work, which still counts toward its period. */
   tasks: TaskFile[];
-  goals: { weekly: string[]; monthly: string[] };
+  goals: { daily: string[]; weekly: string[]; monthly: string[] };
   roadmaps: FocusRoadmapSource[];
   snapshot: FocusSnapshot | null;
   /** Lowercased assignee names that mean "the operator". */
@@ -229,6 +229,7 @@ export const buildFocusView = (inputs: FocusInputs): FocusView => {
     lanes,
     done,
     planned: { week: plannedIn('week'), month: plannedIn('month') },
+    dayGoals: inputs.project ? [] : inputs.goals.daily,
     weekGoals: inputs.project ? [] : inputs.goals.weekly,
     monthGoals: inputs.project ? [] : inputs.goals.monthly,
     unplanned: unplanned.filter((task) => !isDue(task)).sort(byUrgency),
@@ -304,7 +305,7 @@ export const collectFocusView = (project = ''): FocusView => {
   return buildFocusView({
     project: checkedProject(project),
     tasks: [...scanAllTasks(), ...scanArchivedTasks()],
-    goals: { weekly: goals.weekly, monthly: goals.monthly },
+    goals: { daily: goals.daily, weekly: goals.weekly, monthly: goals.monthly },
     roadmaps: roadmapSources(project),
     snapshot: readFocusQueue(project),
     self: selfNames(operator, boldField(FILES.USER, 'GitHub login')),

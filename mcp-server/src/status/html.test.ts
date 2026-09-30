@@ -10,7 +10,7 @@ const emptyFocus = buildFocusView({
   project: '',
   home: '/tmp/home',
   tasks: [],
-  goals: { weekly: [], monthly: [] },
+  goals: { daily: [], weekly: [], monthly: [] },
   roadmaps: [],
   snapshot: null,
   self: new Set(['user']),
@@ -77,8 +77,20 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   skills: {
     count: 2,
     details: [
-      { name: 'sync', description: 'End-to-end refresh of every derived view.', custom: false, auto: false },
-      { name: 'status', description: 'Command-center overview of the whole agent.', custom: false, auto: true }
+      {
+        name: 'sync',
+        description: 'End-to-end refresh of every derived view.',
+        custom: false,
+        auto: false,
+        playbooks: []
+      },
+      {
+        name: 'status',
+        description: 'Command-center overview of the whole agent.',
+        custom: false,
+        auto: true,
+        playbooks: ['morning', 'evening']
+      }
     ]
   },
   mcp: {
@@ -97,6 +109,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     ]
   },
   goals: {
+    daily: [],
     weekly: [],
     monthly: ['Ship the MD Status application'],
     yearly: ['Q3: land MD Status; Q4: first customer']
@@ -282,7 +295,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       time: '09:04',
       title: 'Morning brief',
       href: 'reports/briefings/2026-06-11-0904-morning.md',
-      skill: 'morning-briefing',
+      skill: 'briefing',
       status: '🟠',
       category: 'briefings'
     }
@@ -389,7 +402,7 @@ describe('renderDashboardHtml', () => {
         task('lo-102', '2026-06-12', 'open'),
         task('lo-103', '', 'open', '2026-03-24')
       ],
-      goals: { weekly: ['Ship the radar'], monthly: [] },
+      goals: { daily: [], weekly: ['Ship the radar'], monthly: [] },
       roadmaps: [],
       snapshot: {
         fetchedAt: '2026-06-15T08:30:00Z',
@@ -714,9 +727,24 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('⚡ Commands · 1');
   });
 
-  test('unset goals show the run-the-skill hint', () => {
+  test('unset goals show the playbook that sets them', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('No weekly goals set yet, run the weekly-goals skill.');
+    expect(html).toContain('No goals set for today, run goals day.');
+    expect(html).toContain('No weekly goals set yet, run goals week.');
+  });
+
+  test("today's goals fill the Today card", () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({ goals: { daily: ['Reconciliation signed off'], weekly: [], monthly: [], yearly: [] } })
+    );
+    expect(html).toContain('Today</h3><ul class="plain"><li>Reconciliation signed off</li></ul>');
+    expect(html).not.toContain('No goals set for today');
+  });
+
+  test('a router skill lists its playbooks under its tile', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).toContain('Skills · 2 · 2 playbooks');
+    expect(html).toContain('<div class="tplays"><span class="chip">morning</span><span class="chip">evening</span></div>');
   });
 
   test('today feed spans the last 24h: yesterday in, two days ago out', () => {
@@ -742,7 +770,7 @@ describe('renderDashboardHtml', () => {
             time: '',
             turns: 3,
             cwd: '~/Documents/Agents/Kevin',
-            briefing: '/agent-kevin:quick-pulse',
+            briefing: '/agent-kevin:briefing pulse',
             isCommand: true
           }
         ]
@@ -751,7 +779,7 @@ describe('renderDashboardHtml', () => {
     const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
     // The command feed still spans the 24h window: yesterday in, two days ago out.
     expect(today).toContain('/agent-kevin:sync evening');
-    expect(today).not.toContain('/agent-kevin:quick-pulse');
+    expect(today).not.toContain('/agent-kevin:briefing pulse');
     // Feed rows carry timestamps; yesterday's rows wear a stacked day label
     // under the time so times stay column-aligned.
     expect(today).toContain('09:45');

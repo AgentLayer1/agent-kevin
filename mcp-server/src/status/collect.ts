@@ -26,6 +26,7 @@ import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeStat
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
 import { agentDisplayName } from '@/shared/agent-name';
 import { agentKeyName } from '@/shared/naming';
+import { routerPlaybooks } from '@/shared/playbooks';
 import { env } from '@/shared/env';
 import {
   composeMetaBox,
@@ -123,6 +124,8 @@ export interface SkillInfo {
   custom: boolean;
   /** True when the model may auto-invoke it (no `disable-model-invocation`). */
   auto: boolean;
+  /** Playbooks a router skill routes to; empty for a single-purpose skill. */
+  playbooks: string[];
 }
 
 export interface DbConnectionInfo {
@@ -374,7 +377,7 @@ export interface StatusSnapshot {
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };
   /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
-  goals: { weekly: string[]; monthly: string[]; yearly: string[] };
+  goals: { daily: string[]; weekly: string[]; monthly: string[]; yearly: string[] };
   /** `## Active Threads` bullets from memory/index.md, markdown stripped. */
   memoryThreads: string[];
   /** `## Recent Decisions` bullets from memory/index.md, markdown stripped. */
@@ -528,24 +531,25 @@ const firstSentence = (text: string, max = 160): string => {
 /** Description + auto-invocation flag from a SKILL.md's YAML frontmatter.
  *  Descriptions handle both single-line values and folded/literal blocks
  *  (`description: >` followed by indented lines). */
-const skillMeta = (skillDir: string): { description: string; auto: boolean } => {
+const skillMeta = (skillDir: string): { description: string; auto: boolean; playbooks: string[] } => {
   try {
     const raw = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8');
     const auto = !/^disable-model-invocation:\s*true/m.test(raw);
+    const playbooks = routerPlaybooks(raw);
     const lines = raw.split('\n');
     const start = lines.findIndex((line) => line.startsWith('description:'));
-    if (start === -1) return { description: '', auto };
+    if (start === -1) return { description: '', auto, playbooks };
     const inline = lines[start].slice('description:'.length).trim();
-    if (inline && !/^[>|][+-]?$/.test(inline)) return { description: firstSentence(inline), auto };
+    if (inline && !/^[>|][+-]?$/.test(inline)) return { description: firstSentence(inline), auto, playbooks };
     const block: string[] = [];
     for (let i = start + 1; i < lines.length; i++) {
       const line = lines[i] ?? '';
       if (!/^\s+\S/.test(line)) break;
       block.push(line.trim());
     }
-    return { description: firstSentence(block.join(' ')), auto };
+    return { description: firstSentence(block.join(' ')), auto, playbooks };
   } catch {
-    return { description: '', auto: false };
+    return { description: '', auto: false, playbooks: [] };
   }
 };
 
@@ -645,11 +649,13 @@ const treeBytes = (dir: string): number => {
   }
 };
 
-/** Non-empty lines under a `## Heading` (prefix match), until the next `##`. */
-const sectionLines = (file: string, heading: string): string[] => {
+/** Non-empty lines under a `## Heading` (prefix match, or a pattern over the whole line), until the next `##`. */
+const sectionLines = (file: string, heading: string | RegExp): string[] => {
   try {
     const lines = readFileSync(file, 'utf-8').split('\n');
-    const start = lines.findIndex((line) => line.trim().startsWith(`## ${heading}`));
+    const isHeading = (line: string): boolean =>
+      typeof heading === 'string' ? line.trim().startsWith(`## ${heading}`) : heading.test(line.trim());
+    const start = lines.findIndex(isHeading);
     if (start === -1) return [];
     const collected: string[] = [];
     for (let i = start + 1; i < lines.length; i++) {
@@ -1745,12 +1751,14 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
 
 /** Goal lines under a TASKS.md heading, without their list markers. The scaffold's
  *  italic `_No … yet_` placeholders are dropped so unset goals render the dashboard's own hint. */
-const goalLines = (heading: string): string[] =>
+const goalLines = (heading: string | RegExp): string[] =>
   sectionLines(resolve(FOLDERS.PROJECTS, 'TASKS.md'), heading)
     .filter((line) => !/^_No .+_$/.test(line))
     .map((line) => stripMarkdown(line.replace(/^(?:[-*+]|\d+[.)])\s+/, '')));
 
 export const collectGoals = (): StatusSnapshot['goals'] => ({
+  // Only a block headed with today's date counts; yesterday's goals are not today's. Any dash separates them.
+  daily: goalLines(new RegExp(`^## Daily Goals\\s*[—–-]\\s*${todayDate()}\\b`)),
   weekly: goalLines('Weekly Goals'),
   monthly: goalLines('Monthly Goals'),
   yearly: goalLines('Yearly Goals')
