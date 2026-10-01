@@ -43,6 +43,43 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.2] - 2026-10-01
+
+### Added
+- **The media skill.** Hand over a local recording (a screen recording, a ticket's video, a
+  meeting, a voice memo) and get the transcript with timestamps, screenshots, a summary, a bug's
+  repro steps, or a note saved to the brain. Its five playbooks are summarize, ticket, transcribe,
+  screenshots and remember. A link can't be fetched, so download the file and give its path.
+- **`media_transcribe` tool.** It transcribes speech on the device, with nothing uploaded, using
+  Apple's SpeechAnalyzer through `yap` (macOS 26+). It writes `transcript.md` and `transcript.json`
+  to a new folder under `reports/captures`.
+- **`video_frames` grabs chosen moments.** A new `at` mode takes one frame at each second you give
+  it, so frames can follow the narration ("the total is wrong at 1:13"). A `dir` option puts the
+  frames beside the recording's transcript in the same capture folder.
+- **Focus organize.** "I'm overwhelmed" now starts with a brain dump in plain chat and sorts it
+  against your tasks (tracked, new, waiting on someone, worry or note). It asks only about real
+  gaps (overdue tasks, missing week goals, milestones with no task), then cuts the day to three.
+  Worries go to the inbox and a card lists what was parked.
+- **Compile reads folders, zips and PDFs from the inbox.** Folders are walked at any depth and
+  archived under the same path. A zip is unpacked first. A PDF, an image, or a text file over
+  30KB is given to the model by path to read in parts, instead of being pasted in as bytes or cut
+  off.
+
+### Changed
+- **Standup replies with a glance card.** The chat reply is one short card to read mid-standup,
+  and the full update stays in the saved report.
+- **Skill output signs with the agent's own emoji** from `IDENTITY.md`, not the default 🍌. This
+  covers the briefings, the standup card and the worktree summary.
+
+### Fixed
+- Browser captures and video frames stay inside `reports/captures`. Before this, a `name` like
+  `../../x` could write outside it.
+- Frame labels round down, so 59.6s prints as `00:59`, not `00:60`.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds `mcp__plugin_agent-kevin_kevin__media_transcribe` and `Skill(agent-kevin:media)` to `permissions.allow` when the home hasn't placed them in allow, ask or deny. Applied automatically.
+- `manual: optional` — to transcribe recordings, install `yap` from a normal terminal: `brew install yap` (macOS 26+). For screenshots from video, also install `ffmpeg` (`brew install ffmpeg`). Without them, the media tools say what is missing and stop.
+
 ## [0.6.1] - 2026-09-30
 
 ### Added
