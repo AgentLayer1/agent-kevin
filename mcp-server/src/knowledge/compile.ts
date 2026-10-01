@@ -15,7 +15,7 @@ import { agentDisplayName } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
-import { mkdir, readFile, readdir, rename, rm } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 
 /**
@@ -110,15 +110,12 @@ const inboxRelative = (abs: string): string => relative(FOLDERS.INBOX_RAW, abs);
 
 const archivedRelPath = (inboxRel: string): string => posix.join('raw/archive/inbox', ...inboxRel.split(sep));
 
-/**
- * Removes inbox folders the archive emptied, up to the inbox root; a Finder `.DS_Store` doesn't count as content.
- */
 async function pruneEmptyInboxDirs(dir: string): Promise<void> {
   if (dir === FOLDERS.INBOX_RAW || inboxRelative(dir).startsWith('..')) {
     return;
   }
   const entries = await readdir(dir);
-  if (entries.some((name) => name !== '.DS_Store')) {
+  if (!entries.every((name) => KNOWLEDGE.IGNORED_FILES.has(name))) {
     return;
   }
   await rm(dir, { recursive: true, force: true });
@@ -136,16 +133,16 @@ const expandInboxZip = (zip: string): void => {
     execFileSync('unzip', ['-q', zip, '-d', dest, '-x', '__MACOSX/*'], { stdio: 'ignore' });
   } catch (cause) {
     rmSync(dest, { recursive: true, force: true });
-    throw new Error(`Could not unzip ${inboxRelative(zip)}: fix or remove it from the inbox`, { cause });
+    throw new Error(
+      `Could not unzip ${inboxRelative(zip)} (${(cause as Error).message}): fix or remove it from the inbox`,
+      { cause }
+    );
   }
   const archived = resolve(FOLDERS.INBOX_ARCHIVE, inboxRelative(zip));
   mkdirSync(dirname(archived), { recursive: true });
   renameSync(zip, archived);
 };
 
-/**
- * Unpacks each zip in the inbox into a folder beside it and archives the zip, so its files compile one by one.
- */
 const expandInboxZips = (): void =>
   listInboxFiles()
     .filter((abs) => extname(abs).toLowerCase() === '.zip')
@@ -179,20 +176,23 @@ async function buildFeedbackPrompt(): Promise<string> {
 
 const READ_BY_PATH_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']);
 
-const isBinaryInboxFile = (inboxPath: string, buf: Buffer): boolean =>
-  READ_BY_PATH_EXTENSIONS.has(extname(inboxPath).toLowerCase()) || buf.subarray(0, 8000).includes(0);
+const inlineText = async (inboxPath: string): Promise<string | null> => {
+  if (
+    READ_BY_PATH_EXTENSIONS.has(extname(inboxPath).toLowerCase()) ||
+    (await stat(inboxPath)).size > KNOWLEDGE.MAX_INBOX_INLINE_BYTES
+  ) {
+    return null;
+  }
+  const buf = await readFile(inboxPath);
+  return buf.includes(0) ? null : buf.toString('utf-8');
+};
 
 const readByPathNote = (inboxPath: string): string =>
-  [
-    `_This file is binary (\`${extname(inboxPath) || 'no extension'}\`), so its content is not inlined here. Read it from \`${inboxPath}\` with your file-reading tool before writing anything._`,
-    '',
-    `_Read a PDF in page ranges of at most 20 pages until you have covered every page. If your host can't read PDFs, run \`pdftotext -layout "${inboxPath}" -\` instead. If you can't read the format at all, write no articles and say which format it was._`
-  ].join('\n');
+  `_This file is not inlined here: it is binary, or longer than the compile prompt can carry. Before writing anything, read it from \`${inboxPath}\` with your file-reading tool, in parts (PDFs at most 20 pages at a time) until you have covered all of it. If your host can't read PDFs, run \`pdftotext -layout "${inboxPath}" -\` instead. If you can't read the format at all, write no articles and say which format it was._`;
 
 async function buildInboxPrompt(inboxPath: string): Promise<string> {
   const fileName = inboxRelative(inboxPath);
-  const buf = await readFile(inboxPath);
-  const inboxContent = isBinaryInboxFile(inboxPath, buf) ? readByPathNote(inboxPath) : buf.toString('utf-8');
+  const inboxContent = (await inlineText(inboxPath)) ?? readByPathNote(inboxPath);
   return renderTemplate(INBOX_TEMPLATE, {
     agentName: agentDisplayName(),
     fileName,

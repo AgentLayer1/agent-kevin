@@ -94,5 +94,14 @@ describe('inbox zips and binary files', () => {
     expect(item?.itemId).toBe('inbox:deck.pdf');
     expect(item?.prompt).toContain(join(INBOX, 'deck.pdf'));
     expect(item?.prompt).not.toContain('%PDF-1.4');
+    await markComplete(item?.itemId ?? '');
+  });
+
+  test('a text file too long to inline is handed over by path', async () => {
+    writeFileSync(join(INBOX, 'chat-index.md'), `# Index\n${'row\n'.repeat(20_000)}`);
+    const item = await pickNext();
+    expect(item?.itemId).toBe('inbox:chat-index.md');
+    expect(item?.prompt).toContain(join(INBOX, 'chat-index.md'));
+    expect(item?.prompt).not.toContain('row\nrow\n');
   });
 });

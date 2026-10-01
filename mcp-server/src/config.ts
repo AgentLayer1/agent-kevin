@@ -292,6 +292,7 @@ export const KNOWLEDGE = {
   // (AGENTS.md ~8KB + USER.md ~2KB + wiki index ~5KB + template boilerplate
   // ~3KB), a 30KB chunk leaves margin under the cap.
   MAX_SESSION_LOG_CHUNK_BYTES: 30 * 1024,
+  MAX_INBOX_INLINE_BYTES: 30 * 1024,
   MAX_COMPILE_TURNS: 60,
   IGNORED_FILES: new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini', '.gitkeep'])
 } as const;

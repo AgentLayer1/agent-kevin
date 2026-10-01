@@ -1,4 +1,4 @@
-import { FILES, FOLDERS } from '@/config';
+import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { scrubValues } from '@/shared/env';
 import { createHash } from 'crypto';
 import { readdirSync, readFileSync } from 'fs';
@@ -187,12 +187,12 @@ export async function listRawFiles(): Promise<string[]> {
 }
 
 /**
- * Every file in the inbox, inside dropped folders too, skipping dotfiles and dot-folders.
+ * Every file in the inbox, inside dropped folders too, skipping dot-paths and OS clutter like `Thumbs.db`.
  */
 export const listInboxFiles = (): string[] => {
   try {
     return readdirSync(FOLDERS.INBOX_RAW, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile())
+      .filter((entry) => entry.isFile() && !KNOWLEDGE.IGNORED_FILES.has(entry.name))
       .map((entry) => resolve(entry.parentPath, entry.name))
       .filter((abs) => !relative(FOLDERS.INBOX_RAW, abs).split(sep).some((part) => part.startsWith('.')))
       .sort();
