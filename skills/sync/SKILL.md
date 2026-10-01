@@ -220,10 +220,10 @@ up.
 
 This is the final step — it runs **after** the briefing, on purpose. `dashboard.html`'s News section is harvested from `reports/briefings/*.md`, and the Reports tab reads `reports/index.md` — both of which step 9 just wrote. Rendering here (rather than before the briefing) is what lets the dashboard show the current run's news and report entry instead of the previous run's. By now every upstream producer has run: compile, lint, flywheel mutations, scan, the briefing, and the session radar.
 
-One call rebuilds both `<HOME>/dashboard.html` and `projects/TASKS.md` — call it once here, nowhere else in sync. It runs even for "sync only" (it just won't have new briefing news to pick up):
+One call rebuilds both `<HOME>/dashboard.html` and `projects/TASKS.md` — call it once here, nowhere else in sync. It runs even for "sync only" (it just won't have new briefing news to pick up). Pass `sync: true` so the tool records this run as the last sync before it renders: the dashboard's last-sync age and the session-start banner's sync nudge both read that stamp.
 
 ```
-mcp__plugin_agent-kevin_kevin__dashboard
+mcp__plugin_agent-kevin_kevin__dashboard  { sync: true }
 ```
 
 Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent } }`. One call, no judgment needed.

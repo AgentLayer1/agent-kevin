@@ -3,9 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
+import { FILES, FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
 import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
+import { stampSync } from '@/shared/cadence';
+import { nowISO } from '@/shared/date';
 import { statusLineSetting } from '@/statusline/setting';
 
 /**
@@ -281,5 +283,45 @@ describe('sessionStart', () => {
     expect(result.error).toBeUndefined();
     expect(result.systemMessage).not.toContain('Welcome:');
     expect(result.additionalContext).not.toContain('First Session Since Init');
+  });
+
+  const syncedDaysAgo = (days: number) => ({
+    [cadence]: JSON.stringify({ sync: nowISO(new Date(Date.now() - days * 86_400_000)) })
+  });
+
+  test.each([
+    ['a stale sync', syncedDaysAgo(4), '(last 4 days ago)'],
+    ['no sync on record', {}, '(none on record)']
+  ])('sync: %s nudges a sync in the banner', async (_label, files, since) => {
+    const result = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStart()
+    );
+    expect(result.systemMessage).toContain(`🔄 Sync:      run /agent-kevin:sync ${since}`);
+    expect(result.additionalContext).not.toContain('Sync:');
+  });
+
+  test("sync: a stamp clears the nudge and keeps the goals skill's watermarks", async () => {
+    const result = await withHome(
+      (home) => markedHome(home, { [cadence]: '{ "goals-week": "2026-01-12" }' }),
+      async () => {
+        stampSync();
+        return { start: await sessionStart(), stamps: readFileSync(FILES.CADENCE, 'utf-8') };
+      }
+    );
+    expect(result.start.systemMessage).not.toContain('Sync:');
+    expect(JSON.parse(result.stamps)['goals-week']).toBe('2026-01-12');
+  });
+
+  test.each([
+    ['a sync today', syncedDaysAgo(0)],
+    ['a sync two days ago', syncedDaysAgo(2)],
+    ['a pending welcome', { [cadence]: '{ "welcome": "pending" }' }]
+  ])('sync: %s shows no nudge', async (_label, files) => {
+    const result = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStart()
+    );
+    expect(result.systemMessage).not.toContain('Sync:');
   });
 });

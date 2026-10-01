@@ -197,7 +197,7 @@ export const FILES = {
     return resolve(dataRoot(), 'version.json');
   },
   /** Planning watermarks (`goals-week`…) stamped by `skills/sync/scripts/watermark.ts`, plus
-   *  `welcome: "pending"` from init until the first session's welcome is answered. */
+   *  the runtime keys in `Cadence` (shared/cadence.ts). */
   get CADENCE() {
     return resolve(dataRoot(), 'cadence.json');
   },
@@ -305,7 +305,9 @@ export const CONTEXT = {
   /** Today's section of `reports/index.md`, injected so the agent sees what was already produced today. */
   REPORTS_BYTES: 1_000,
   /** Commits to surface in the recent-git-activity slice. */
-  MAX_GIT_LOG_COMMITS: 15
+  MAX_GIT_LOG_COMMITS: 15,
+  /** Days since the last sync before the banner nudges for one. */
+  SYNC_STALE_DAYS: 3
 } as const;
 
 /**

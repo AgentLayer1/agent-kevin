@@ -37,6 +37,14 @@ export function todayDate(date: Date = new Date()): string {
   return date.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
 }
 
+/** Days from `fromIso` to `toIso`; both YYYY-MM-DD. NaN-safe → 0. */
+export const daysBetween = (fromIso: string, toIso: string): number => {
+  const from = Date.parse(`${fromIso}T00:00:00Z`);
+  const to = Date.parse(`${toIso}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return 0;
+  return Math.round((to - from) / 86_400_000);
+};
+
 /** YYYY-MM-DD `n` days ago in local time. */
 export function daysAgoDate(n: number): string {
   return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toLocaleDateString('sv-SE', {

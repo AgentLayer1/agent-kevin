@@ -24,7 +24,8 @@ import { contextManifest, type ManifestEntry } from '@/context';
 import { type HistoryState, historyStatus, type LastCommit } from '@/home/history';
 import { listInboxFiles } from '@/knowledge/utils';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
-import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
+import { readCadence } from '@/shared/cadence';
+import { nowISO, nowTime, todayDate } from '@/shared/date';
 import { agentDisplayName } from '@/shared/agent-name';
 import { agentKeyName } from '@/shared/naming';
 import { routerPlaybooks } from '@/shared/playbooks';
@@ -354,9 +355,8 @@ export interface StatusSnapshot {
     /** Full ISO-8601 with tz offset for the render moment — the client uses it
      *  to compute snapshot age and warn when a sync is overdue. */
     generatedAt: string;
-    /** ISO-8601 of the newest briefings-category report (flywheel / morning /
-     *  evening) — the last heavy refresh, distinct from the dashboard re-render
-     *  that fires on every task mutation. '' when no briefing exists yet. */
+    /** ISO-8601 sync stamp from cadence.json, distinct from the dashboard
+     *  re-render that fires on every task mutation. '' before the first sync. */
     lastSync: string;
     /** HOME template baseline from <data-dir>/version.json; null on a pre-feature
      *  or uninitialized home. */
@@ -1485,8 +1485,7 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
     isoDate: now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE }),
     time: nowTime(now),
     generatedAt: nowISO(now),
-    // Filled in collectStatus, which has the report list to derive it from.
-    lastSync: '',
+    lastSync: readCadence().sync ?? '',
     baselineVersion: upgrade.baseline,
     upgradeState: upgrade.state,
     releasesBehind: upgrade.releasesBehind,
@@ -1846,18 +1845,11 @@ const collectSurfaces = (): SurfaceLink[] => {
 
 const MAX_REPORTS = 60;
 
-/** ISO-8601 (with current tz offset) of the newest briefings-category report.
- *  `reports` must be newest-first. '' when none exists. */
-const lastSyncIso = (reports: ReportRef[]): string => {
-  const latest = reports.find((ref) => ref.category === 'briefings' && ref.date && ref.time);
-  return latest ? `${latest.date}T${latest.time}:00${offsetFor()}` : '';
-};
-
 export const collectStatus = async (): Promise<StatusSnapshot> => {
   const allReports = collectReports();
   const knowledge = collectKnowledge();
   const base = {
-    runtime: { ...collectRuntime(), lastSync: lastSyncIso(allReports) },
+    runtime: collectRuntime(),
     persona: collectPersona(),
     operator: collectOperatorInfo(knowledge.facets),
     markdownUrl: collectMarkdownUrl(),

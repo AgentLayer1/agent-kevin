@@ -28,6 +28,7 @@ import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import type { HistoryState } from '@/home/history';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
+import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
 import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
 import type {
@@ -206,14 +207,6 @@ const plainRows = (items: string[], emptyText: string): string =>
     : hint(emptyText);
 
 // ── dates ─────────────────────────────────────────────────────────────
-
-/** Days from `fromIso` to `toIso`; both YYYY-MM-DD. NaN-safe → 0. */
-const daysBetween = (fromIso: string, toIso: string): number => {
-  const from = Date.parse(`${fromIso}T00:00:00Z`);
-  const to = Date.parse(`${toIso}T00:00:00Z`);
-  if (Number.isNaN(from) || Number.isNaN(to)) return 0;
-  return Math.round((to - from) / 86_400_000);
-};
 
 const dueLabel = (due: string, todayIso: string): { text: string; cls: string } => {
   if (!due) return { text: '', cls: '' };

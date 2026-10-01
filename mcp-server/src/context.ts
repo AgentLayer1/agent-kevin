@@ -25,6 +25,8 @@ import {
 import { followMove, historyStatus, restorePointer } from '@/home/history';
 import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
 import { agentDisplayName } from '@/shared/agent-name';
+import { readCadence } from '@/shared/cadence';
+import { daysBetween, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
 import { isInside } from '@/shared/paths';
 import { statusLineDrift } from '@/statusline/setting';
@@ -209,20 +211,17 @@ const STATUS_ICON: Record<ManifestEntry['status'], string> = {
   off: '○'
 };
 
-interface CadenceFile {
-  welcome?: string;
-}
-
 /**
  * Init leaves `welcome: "pending"` until the first session after relaunch has asked where to start.
  */
-const welcomePending = (): boolean => {
-  try {
-    const parsed: CadenceFile = JSON.parse(readFileSync(FILES.CADENCE, 'utf-8'));
-    return parsed.welcome === 'pending';
-  } catch {
-    return false;
-  }
+const welcomePending = (): boolean => readCadence().welcome === 'pending';
+
+/**
+ * Calendar days since `stamp` in the operator's timezone, or `null` without a valid stamp.
+ */
+const daysSince = (stamp: string | undefined): number | null => {
+  const at = Date.parse(stamp ?? '');
+  return Number.isNaN(at) ? null : daysBetween(todayDate(new Date(at)), todayDate());
 };
 
 const welcomePart = (): string =>
@@ -248,6 +247,13 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`
   ];
+  const cadence = readCadence();
+  const welcome = cadence.welcome === 'pending';
+  const syncAge = daysSince(cadence.sync);
+  if (!welcome && (syncAge === null || syncAge >= CONTEXT.SYNC_STALE_DAYS)) {
+    const since = syncAge === null ? 'none on record' : `last ${countOf(syncAge, 'day')} ago`;
+    head.splice(1, 0, `  🔄 Sync:      run /${PLUGIN_NAME}:sync (${since})`);
+  }
   const upgrade = getUpgradeStatus();
   if (upgrade.state === 'pending') {
     const n = upgrade.releasesBehind;
@@ -255,7 +261,7 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
   } else if (upgrade.state === 'onboard') {
     head.splice(1, 0, '  ⬆️ Upgrade:   run /agent-kevin:upgrade to enable update tracking');
   }
-  if (welcomePending()) {
+  if (welcome) {
     head.splice(1, 0, "  👋 Welcome:   first session, say hi and I'll suggest where to start");
   }
   return [...head, ...lines].join('\n');
