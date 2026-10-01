@@ -105,12 +105,15 @@ describe('retired skills', () => {
   });
 });
 
-describe.each(['briefing', 'engineer', 'focus', 'goals', 'project', 'seed', 'seo', 'tax'])('%s help', (skill) => {
-  test('lists every playbook the router names', () => {
-    const router = readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf-8');
-    const help = readFileSync(join(SKILLS, skill, 'references', 'help.md'), 'utf-8').toLowerCase();
-    const playbooks = routerPlaybooks(router);
-    expect(playbooks.length).toBeGreaterThan(0);
-    expect(playbooks.filter((name) => !help.includes(`**${name.toLowerCase()}**`))).toEqual([]);
-  });
-});
+describe.each(['briefing', 'engineer', 'focus', 'goals', 'project', 'seed', 'seo', 'tax', 'media'])(
+  '%s help',
+  (skill) => {
+    test('lists every playbook the router names', () => {
+      const router = readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf-8');
+      const help = readFileSync(join(SKILLS, skill, 'references', 'help.md'), 'utf-8').toLowerCase();
+      const playbooks = routerPlaybooks(router);
+      expect(playbooks.length).toBeGreaterThan(0);
+      expect(playbooks.filter((name) => !help.includes(`**${name.toLowerCase()}**`))).toEqual([]);
+    });
+  }
+);

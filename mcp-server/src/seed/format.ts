@@ -142,6 +142,7 @@ const CORE_GRANTS = new Set([
     'seed_scan',
     'setup_worktree',
     'video_frames',
+    'media_transcribe',
     'task_close',
     'task_create',
     'task_get',
