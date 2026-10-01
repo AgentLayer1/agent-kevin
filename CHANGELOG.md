@@ -43,6 +43,30 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.3] - 2026-10-02
+
+### Added
+- **The session banner nudges a sync.** Once three days pass since the last sync, the banner adds
+  one line: run `/agent-kevin:sync`, with how long it has been ("none on record" before the first
+  one). It stays quiet during the welcome after init.
+
+### Changed
+- **Sync records itself.** Sync's final dashboard call passes `sync: true`, which stamps the run
+  before rendering. The dashboard's last-sync age reads that stamp instead of guessing from the
+  newest briefing, so a standalone brief or standup no longer resets it, and a sync that ran no
+  briefing still counts.
+- **Adversarial review on code leads with design.** The reviewer applies the engineer skill's
+  principles first and tags each finding as design, defect or edge case. Verify fixes security,
+  data safety, defects and design simplifications. An edge case whose only fix is another guard is
+  deferred, listed with the reason, and offered to you.
+
+### Fixed
+- Plan-spec specs are written through `report_write`, so they appear in `reports/index.md` and the
+  next session sees them. Outside an agent home they still go to the plans directory.
+
+### Upgrade
+- `template/IDENTITY.md: optional` — the Operational Pattern "Review loop" line now says the agent fixes what's worth the code, simpler shape first, and offers the edge cases it deferred.
+
 ## [0.6.2] - 2026-10-01
 
 ### Added
