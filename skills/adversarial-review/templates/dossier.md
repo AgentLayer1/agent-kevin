@@ -13,7 +13,7 @@ One file per review target, for the whole loop. The implementer creates it on ro
 
 ## How this document works
 
-Two sessions of the same agent share this file, each on a different model, so the sections are named by role rather than by name. **The implementer** owns the Brief, the Ledger, and every Disposition section; it verifies findings against the work, fixes what is real, and commits on the operator's branch when the target is committed code (a working tree or a document is fixed in place). **The reviewer** owns the `Findings` section of the current round only: it appends that section (opening with the model and host it runs on), changes nothing else here, and modifies nothing in the repositories or the files under review. Findings carry ids `R<round>-<k>`; the Ledger tracks each one across rounds so a settled finding is never re-raised and an open one is never lost. A round is one reviewer pass plus the implementer's disposition of it; when several reviewers run the same round, each has its own lettered Findings section and ids (`R<round>A-<k>`). The operator hands the file back and forth; nothing here is posted anywhere.
+Two sessions of the same agent share this file, each on a different model, so the sections are named by role rather than by name. **The implementer** owns the Brief, the Ledger, and every Disposition section; it verifies findings against the work, fixes what is real and worth the code (deferring the rest to the operator), and commits on the operator's branch when the target is committed code (a working tree or a document is fixed in place). **The reviewer** owns the `Findings` section of the current round only: it appends that section (opening with the model and host it runs on), changes nothing else here, and modifies nothing in the repositories or the files under review. Findings carry ids `R<round>-<k>`; the Ledger tracks each one across rounds so a settled finding is never re-raised and an open one is never lost. A round is one reviewer pass plus the implementer's disposition of it; when several reviewers run the same round, each has its own lettered Findings section and ids (`R<round>A-<k>`). The operator hands the file back and forth; nothing here is posted anywhere.
 
 ---
 
@@ -21,7 +21,13 @@ Two sessions of the same agent share this file, each on a different model, so th
 
 *Rewritten by the implementer every round. It is the prompt: self-contained, model-neutral, and free of anything from the agent home (memory, feedback, private notes). Code facts and task intent only.*
 
-Adversarially review <the work in one clause>. Assume it is broken and prove where. Read-only: modify nothing in the repositories or the files under review; read-only checks (a build, a test run, a script that inspects) are welcome and should be reported as what you ran.
+*Code targets open with the first sentence; a plan, skill, or document with the second.*
+
+Review <the work in one clause> the way a principal engineer would before it merges: first whether it could be simpler and more robust by construction, then where it breaks.
+
+Adversarially review <the work in one clause>. Assume it is broken and prove where.
+
+Read-only: modify nothing in the repositories or the files under review; read-only checks (a build, a test run, a script that inspects) are welcome and should be reported as what you ran.
 
 ### Why this matters
 
@@ -46,11 +52,27 @@ Adversarially review <the work in one clause>. Assume it is broken and prove whe
 
 *Keep the paragraph that fits the target; drop the others. A plan keeps the prose and plan paragraphs. A working tree with no commit messages takes the code paragraph with "the author's claims below" in place of "the messages".*
 
-Read the code, not the commit messages. The messages assert things ("equivalent", "preserves ordering", "no early return precedes it"); each assertion is a claim to test, and where one is wrong, say so plainly. Judge the head commit with its callers and callees, not the diff in isolation: regressions live in unchanged code that relied on the old behavior. Unchanged code that predates the change is not a finding unless the change makes it worse or newly reachable; say which. Beyond defects, look for structure: a reframing that would delete whole branches or helpers, a new conditional tangled into an unrelated flow, a pass-through layer or a leaked wire type, an old path kept alive beside its replacement, a test that would pass if every import returned `undefined`. "I would have done it differently" is not a finding without a concrete cost. Disagreement with the approach is welcome; state it directly.
+Start with the shape. Does the code fit the problem, or could it be smaller and sturdier: a reframing that would delete whole branches or helpers, a state the types could make impossible, validation scattered past the boundary, a new conditional tangled into an unrelated flow, a pass-through layer or a leaked wire type, an abstraction with one caller, error handling for a case no caller can reach, an old path kept alive beside its replacement, a test that would pass if every import returned `undefined`. These are the findings this review exists for; the Design lens below names the principles behind them. Then the defects. Read the code, not the commit messages. The messages assert things ("equivalent", "preserves ordering", "no early return precedes it"); each assertion is a claim to test, and where one is wrong, say so plainly. Judge the head commit with its callers and callees, not the diff in isolation: regressions live in unchanged code that relied on the old behavior. Unchanged code that predates the change is not a finding unless the change makes it worse or newly reachable; say which. A fix that adds a guard, flag, retry, or special case is a smell: propose the reshape that makes the case impossible, or say that none exists. "I would have done it differently" is not a finding without a concrete cost. Disagreement with the approach is welcome; state it directly.
 
 Read the text the way its reader will. A plan is executed by an engineer or an agent with no memory of the session that wrote it; a skill or prompt is executed literally by a model; a document is acted on by whoever it is for. Every instruction, path, tool name, parameter, flag, and number in it is a claim: one that cannot be followed, contradicts another, or names a thing that does not exist is a defect, not style. Judge each section with the sections it depends on, not in isolation: the most likely defect is two passages that disagree. Text that predates the change is not a finding unless the change makes it wrong or newly load-bearing; say which. Disagreement with the approach is welcome; state it directly.
 
 This is a plan, so nothing is built yet and its defects sit where it meets the code. Read it against the grounding repositories at the HEADs above, not against itself: open every file, symbol, and line it cites, grep for the callers and readers it says do not exist, and walk the steps in order as the engineer or agent executing them would, naming the step where the build breaks, a caller is missed, or a check passes on broken work. Design findings are the most valuable kind here, because the design is still cheap to change: an approach that will not survive the code, a phase order that leaves the default branch broken, scope that is in but built by no step. The settled decisions listed below were made by the operator; challenge one only with a fact from the code the decision could not have known.
+
+### Design lens
+
+*Code targets only; drop the section for a plan, skill, or document.*
+
+The work should leave the code simpler, not just correct. A `design` finding names the principle it applies and the concrete cost of the current shape (lines, branches, states, layers a reader holds):
+
+- **Laziness protocol:** the smallest change that solves the problem; deletion beats addition.
+- **Subtract before you add:** remove the dead path, then build on what is left.
+- **Minimize reader load:** fewer layers, modes, and pieces of state to hold in your head.
+- **Model the domain:** one type for one concept; a discriminated state, not flags that can disagree.
+- **Type and boundary discipline:** illegal states unrepresentable; validate at the edge, trust inside.
+- **Fix root causes:** a guard that masks a broken invariant is a defect, not a fix.
+- **Test behavior, not implementation:** a test that cannot fail when the behavior breaks is dead weight.
+
+Full text: `<absolute path to the engineer skill>/references/principles/` and the audit criteria in `<absolute path to the engineer skill>/references/playbooks/simplify.md`.
 
 ### Bug classes already seen here
 
@@ -71,10 +93,11 @@ This is a plan, so nothing is built yet and its defects sit where it meets the c
 
 ### Output contract
 
-Read the whole of every range and file above; do not sample. A grounding row is the exception: read it wherever the plan cites it and wherever those files lead (callers, readers, tests), not the whole repository. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, each in this shape:
+Read the whole of every range and file above; do not sample. A grounding row is the exception: read it wherever the plan cites it and wherever those files lead (callers, readers, tests), not the whole repository. Write your findings under the empty heading `## Round <n> — Findings (Reviewer)` already at the end of this file (or the lettered slot heading your handoff line named), and change nothing else in the file. Re-read the file immediately before writing and write only your section. Open with the model and host you are running on, the heads you read (`repo: sha`, one line each), and whether the working trees were clean. Then the `design` and `defect` findings ordered by risk to a real user, verified ones first and suspected ones under their own heading, and last the edge cases under `#### Edge cases`. An edge case is reported for the record, not as a demand to fix it: the implementer decides whether its fix is worth the code. Each finding in this shape:
 
 ```
 ### R<n>-<k>. <claim in one sentence>
+kind: design | defect | edge-case
 file: <repo-relative path>
 line: <line on the head commit>
 code: <the anchored line or lines, verbatim>
@@ -87,19 +110,20 @@ fix: <the smallest correct change, as a diff or one sentence>
 introduced: yes | made-worse | pre-existing
 ```
 
-For a plan, a document, or a skill: `file` and `line` point into the artifact, `code:` quotes its lines, `old:` is what the text says, `new:` is what the code or the reader actually meets, and `introduced:` is `yes` for the text's own defect or `pre-existing` for a code fact it relies on without noticing; cite the grounding file and line inside `failure:`. The `code:` lines are the anchor of record; a finding whose snippet is not in the file cannot be verified, so copy it exactly. One finding per defect; a pattern repeated in six places is one finding with six anchors. Where an area is genuinely clean, say so in one line rather than padding; no findings is a valid result, and a few high-conviction findings beat a long list of nits. Close with one line per claim above: `claim <k>: falsified · holds · not checked`, and one line on what you ran and did not run. When you are done, reply in chat with only the path of this file.
+`design` means the work behaves correctly but could be simpler or more robust by construction; `failure:` then names the cost of the current shape (what a reader or the next change pays), and `old:`/`new:` may describe the shape instead of the behavior. `defect` is a wrong outcome reachable in normal use. `edge-case` is a wrong outcome only under unusual inputs, environments, or timing. A skill or document uses `defect` or `edge-case`; a plan uses all three, with `design` for the approach itself. For a plan, a document, or a skill: `file` and `line` point into the artifact, `code:` quotes its lines, `old:` is what the text says, `new:` is what the code or the reader actually meets, and `introduced:` is `yes` for the text's own defect or `pre-existing` for a code fact it relies on without noticing; cite the grounding file and line inside `failure:`. The `code:` lines are the anchor of record; a finding whose snippet is not in the file cannot be verified, so copy it exactly. One finding per defect; a pattern repeated in six places is one finding with six anchors. Where an area is genuinely clean, say so in one line rather than padding; no findings is a valid result, and a few high-conviction findings beat a long list of nits. Close with one line per claim above: `claim <k>: falsified · holds · not checked`, and one line on what you ran and did not run. When you are done, reply in chat with only the path of this file.
 
 ---
 
 ## Ledger
 
-*One row per finding across all rounds, updated by the implementer on every `verify`. State: `open` (not yet dispositioned or still unsettled) · `fixed` (with the commit) · `rejected` (with the receipt) · `inherited` (pre-existing, tracked elsewhere or left as is). Rounds 1–2 imported from prior reports link the report instead of a section.*
+*One row per finding across all rounds, updated by the implementer on every `verify`. State: `open` (not yet dispositioned or still unsettled) · `fixed` (with the commit) · `deferred` (real, but the fix is not worth the code; offered to the operator) · `rejected` (with the receipt) · `inherited` (pre-existing, tracked elsewhere or left as is). Rounds 1–2 imported from prior reports link the report instead of a section.*
 
 | Id | Claim | Raised | Verdict | Resolution | State |
 |---|---|---|---|---|---|
 | R1-1 | <short claim> | round 1 | confirmed | <repo `sha`> | fixed |
 | R1-2 | <short claim> | round 1 | rejected | <what was read or run> | rejected |
 | R1-3 | <short claim> | round 1 | pre-existing | <task id or "left as is"> | inherited |
+| R1-5 | <short claim> | round 1 | confirmed, edge case | <what the fix would add> | deferred |
 
 ---
 
@@ -111,7 +135,7 @@ For a plan, a document, or a skill: `file` and `line` point into the artifact, `
 
 ## Round 1 — Disposition (Implementer)
 
-*Written by `verify`. Verdict on the round in one sentence first, then one row per finding, then the checks that back the verdicts.*
+*Written by `verify`. Verdict on the round in one sentence first, then one row per finding, what was not worth fixing, then the checks that back the verdicts.*
 
 <One sentence: how accurate the round was and what the real catch was.>
 
@@ -121,6 +145,11 @@ For a plan, a document, or a skill: `file` and `line` point into the artifact, `
 | R1-4 | Confirmed, design | <for a plan: the question put to the operator, their answer, and the section revised or kept> |
 | R1-2 | Rejected | <what was read or run that disproves it> |
 | R1-3 | Inherited | <why it is not this change's problem, and where it is tracked> |
+| R1-5 | Deferred | <see Not worth fixing> |
+
+**Not worth fixing:** *one line per deferred finding: the case, why it is not worth the code (how rare, what it costs the user when it happens, what the fix would add), and the fix if the operator wants it. Write "none" when nothing was deferred.*
+
+- R1-5: <the case>. <Why not: rarity, impact, the guard or branch the fix needs.> Fix if wanted: <one sentence>.
 
 **Checks after the fixes**
 

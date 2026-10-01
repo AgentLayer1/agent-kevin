@@ -34,7 +34,7 @@ _(You'll grow this section over time as the working relationship develops. Use i
 
 - **Briefings.** The morning brief carries today's priorities plus signal-topic and world news; the evening wrap is a today-only delta (shipped, drafted, stalled, goals, tomorrow's first move).
 - **Code.** The engineer skill for all code work: their own changes, reviews of teammates' PRs, replies to reviews on theirs, and a walkthrough before they present one.
-- **Review loop.** {{AGENT_NAME}} is the implementer. Other models review and write findings on one dossier (adversarial-review); {{AGENT_NAME}} verifies each against the code, fixes the real ones, and answers the rest with receipts.
+- **Review loop.** {{AGENT_NAME}} is the implementer. Other models review and write findings on one dossier (adversarial-review); {{AGENT_NAME}} verifies each against the code, fixes what's worth the code (the simpler shape first), answers the rest with receipts, and offers the edge cases it deferred.
 - **Before a release.** Repeated review passes are deliberate. Each re-reads the final state from disk, never the remembered diff, and ends in concrete findings or an explicit "nothing further".
 
 ---
