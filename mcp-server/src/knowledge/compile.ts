@@ -9,13 +9,13 @@ import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { chunkSessionLog } from '@/knowledge/chunk';
 import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
-import { hashBuffer, listRawFiles, loadScriptTemplate, renderTemplate } from '@/knowledge/utils';
+import { hashBuffer, listInboxFiles, listRawFiles, loadScriptTemplate, renderTemplate } from '@/knowledge/utils';
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
 import { agentDisplayName } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, rename } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import { mkdir, readFile, readdir, rename, rm } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 
 /**
  * Byte offset of `buf` already compiled, per the file's ingest record.
@@ -105,16 +105,23 @@ async function feedbackChanged(state: CompileState): Promise<{ changed: boolean;
   return { changed: !prev || prev.hash !== hash, hash };
 }
 
-async function listInboxArtifacts(): Promise<string[]> {
-  try {
-    const entries = await readdir(FOLDERS.INBOX_RAW, { withFileTypes: true });
-    return entries
-      .filter((e) => e.isFile() && !e.name.startsWith('.'))
-      .map((e) => resolve(FOLDERS.INBOX_RAW, e.name))
-      .sort();
-  } catch {
-    return [];
+const inboxRelative = (abs: string): string => relative(FOLDERS.INBOX_RAW, abs);
+
+const archivedRelPath = (inboxRel: string): string => posix.join('raw/archive/inbox', ...inboxRel.split(sep));
+
+/**
+ * Removes inbox folders the archive emptied, up to the inbox root; a Finder `.DS_Store` doesn't count as content.
+ */
+async function pruneEmptyInboxDirs(dir: string): Promise<void> {
+  if (dir === FOLDERS.INBOX_RAW || inboxRelative(dir).startsWith('..')) {
+    return;
   }
+  const entries = await readdir(dir);
+  if (entries.some((name) => name !== '.DS_Store')) {
+    return;
+  }
+  await rm(dir, { recursive: true, force: true });
+  await pruneEmptyInboxDirs(dirname(dir));
 }
 
 // ── Prompt builders ──────────────────────────────────────────────────
@@ -144,13 +151,13 @@ async function buildFeedbackPrompt(): Promise<string> {
 }
 
 async function buildInboxPrompt(inboxPath: string): Promise<string> {
-  const fileName = basename(inboxPath);
+  const fileName = inboxRelative(inboxPath);
   const inboxContent = await readFile(inboxPath, 'utf-8');
   return renderTemplate(INBOX_TEMPLATE, {
     agentName: agentDisplayName(),
     fileName,
     inboxContent,
-    archivedRelPath: `raw/archive/inbox/${fileName}`,
+    archivedRelPath: archivedRelPath(fileName),
     knowledgeDir: FOLDERS.KNOWLEDGE
   });
 }
@@ -227,10 +234,10 @@ export async function pickNext(): Promise<CompileWorkItem | null> {
   }
 
   // 3. Inbox.
-  const inboxItems = await listInboxArtifacts();
+  const inboxItems = listInboxFiles();
   if (inboxItems.length > 0) {
     const inboxPath = inboxItems[0];
-    const fileName = basename(inboxPath);
+    const fileName = inboxRelative(inboxPath);
     const prompt = await buildInboxPrompt(inboxPath);
     state.in_flight = `inbox/${fileName}`;
     await saveState(state);
@@ -293,9 +300,15 @@ const HANDLERS: Array<[string, CompleteHandler]> = [
     async (itemId) => {
       const fileName = itemId.slice('inbox:'.length);
       const src = resolve(FOLDERS.INBOX_RAW, fileName);
+      const rel = inboxRelative(src);
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        throw new Error(`Inbox item is outside the inbox: ${fileName}`);
+      }
       if (existsSync(src)) {
-        await mkdir(FOLDERS.INBOX_ARCHIVE, { recursive: true });
-        await rename(src, resolve(FOLDERS.INBOX_ARCHIVE, fileName));
+        const dest = resolve(FOLDERS.INBOX_ARCHIVE, fileName);
+        await mkdir(dirname(dest), { recursive: true });
+        await rename(src, dest);
+        await pruneEmptyInboxDirs(dirname(src));
       }
       return true;
     }
@@ -325,11 +338,8 @@ export async function markComplete(itemId: string): Promise<{ ok: true; promoted
 
 export async function getStatus(): Promise<CompileStatus> {
   const state = await loadState();
-  const [sessions, fb, inboxItems] = await Promise.all([
-    pendingSessions(state),
-    feedbackChanged(state),
-    listInboxArtifacts()
-  ]);
+  const [sessions, fb] = await Promise.all([pendingSessions(state), feedbackChanged(state)]);
+  const inboxItems = listInboxFiles();
   return {
     pending: {
       sessions: sessions.length,

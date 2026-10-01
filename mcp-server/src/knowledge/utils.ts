@@ -1,9 +1,9 @@
 import { FILES, FOLDERS } from '@/config';
 import { scrubValues } from '@/shared/env';
 import { createHash } from 'crypto';
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
-import { dirname, relative, resolve } from 'path';
+import { dirname, relative, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 
 // ── Hashing ──────────────────────────────────────────────────────────
@@ -185,6 +185,21 @@ export async function listRawFiles(): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Every file in the inbox, inside dropped folders too, skipping dotfiles and dot-folders.
+ */
+export const listInboxFiles = (): string[] => {
+  try {
+    return readdirSync(FOLDERS.INBOX_RAW, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => resolve(entry.parentPath, entry.name))
+      .filter((abs) => !relative(FOLDERS.INBOX_RAW, abs).split(sep).some((part) => part.startsWith('.')))
+      .sort();
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Redact secrets from text before it goes anywhere persistent. Three passes:

@@ -22,6 +22,7 @@ import {
 } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type HistoryState, historyStatus, type LastCommit } from '@/home/history';
+import { listInboxFiles } from '@/knowledge/utils';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { nowISO, nowTime, offsetFor, todayDate } from '@/shared/date';
 import { agentDisplayName } from '@/shared/agent-name';
@@ -725,7 +726,7 @@ const collectKnowledge = (): StatusSnapshot['knowledge'] => {
     memoryIndexBytes: safeBytes(FILES.MEMORY),
     activeThreads: countBulletsUnder(FILES.MEMORY, 'Active Threads'),
     learnings: countBulletsUnder(FILES.MEMORY, 'Learnings'),
-    inboxItems: countDir(FOLDERS.INBOX_RAW, (name) => !name.startsWith('.')),
+    inboxItems: listInboxFiles().length,
     feedbackBytes: safeBytes(FILES.FEEDBACK),
     sessionsWeek: collectSessionsWeek(),
     // Curated wiki only — concepts + facets + memory + index. Excludes
