@@ -13,9 +13,10 @@ import { hashBuffer, listInboxFiles, listRawFiles, loadScriptTemplate, renderTem
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
 import { agentDisplayName } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
-import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 
 /**
  * Byte offset of `buf` already compiled, per the file's ingest record.
@@ -124,6 +125,32 @@ async function pruneEmptyInboxDirs(dir: string): Promise<void> {
   await pruneEmptyInboxDirs(dirname(dir));
 }
 
+const unusedDir = (base: string, attempt = 1): string => {
+  const candidate = attempt === 1 ? base : `${base}-${attempt}`;
+  return existsSync(candidate) ? unusedDir(base, attempt + 1) : candidate;
+};
+
+const expandInboxZip = (zip: string): void => {
+  const dest = unusedDir(resolve(dirname(zip), basename(zip, extname(zip))));
+  try {
+    execFileSync('unzip', ['-q', zip, '-d', dest, '-x', '__MACOSX/*'], { stdio: 'ignore' });
+  } catch (cause) {
+    rmSync(dest, { recursive: true, force: true });
+    throw new Error(`Could not unzip ${inboxRelative(zip)}: fix or remove it from the inbox`, { cause });
+  }
+  const archived = resolve(FOLDERS.INBOX_ARCHIVE, inboxRelative(zip));
+  mkdirSync(dirname(archived), { recursive: true });
+  renameSync(zip, archived);
+};
+
+/**
+ * Unpacks each zip in the inbox into a folder beside it and archives the zip, so its files compile one by one.
+ */
+const expandInboxZips = (): void =>
+  listInboxFiles()
+    .filter((abs) => extname(abs).toLowerCase() === '.zip')
+    .forEach(expandInboxZip);
+
 // ── Prompt builders ──────────────────────────────────────────────────
 // The manual, USER.md, the wiki index, and the memory index are in the caller's
 // context already; embedding them pushed every result past the host's cap.
@@ -150,9 +177,22 @@ async function buildFeedbackPrompt(): Promise<string> {
   });
 }
 
+const READ_BY_PATH_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']);
+
+const isBinaryInboxFile = (inboxPath: string, buf: Buffer): boolean =>
+  READ_BY_PATH_EXTENSIONS.has(extname(inboxPath).toLowerCase()) || buf.subarray(0, 8000).includes(0);
+
+const readByPathNote = (inboxPath: string): string =>
+  [
+    `_This file is binary (\`${extname(inboxPath) || 'no extension'}\`), so its content is not inlined here. Read it from \`${inboxPath}\` with your file-reading tool before writing anything._`,
+    '',
+    `_Read a PDF in page ranges of at most 20 pages until you have covered every page. If your host can't read PDFs, run \`pdftotext -layout "${inboxPath}" -\` instead. If you can't read the format at all, write no articles and say which format it was._`
+  ].join('\n');
+
 async function buildInboxPrompt(inboxPath: string): Promise<string> {
   const fileName = inboxRelative(inboxPath);
-  const inboxContent = await readFile(inboxPath, 'utf-8');
+  const buf = await readFile(inboxPath);
+  const inboxContent = isBinaryInboxFile(inboxPath, buf) ? readByPathNote(inboxPath) : buf.toString('utf-8');
   return renderTemplate(INBOX_TEMPLATE, {
     agentName: agentDisplayName(),
     fileName,
@@ -234,6 +274,7 @@ export async function pickNext(): Promise<CompileWorkItem | null> {
   }
 
   // 3. Inbox.
+  expandInboxZips();
   const inboxItems = listInboxFiles();
   if (inboxItems.length > 0) {
     const inboxPath = inboxItems[0];

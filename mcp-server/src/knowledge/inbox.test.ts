@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -60,5 +61,38 @@ describe('inbox folders', () => {
 
   test('an item id that points outside the inbox is rejected', async () => {
     await expect(markComplete('inbox:../../USER.md')).rejects.toThrow('outside the inbox');
+  });
+});
+
+describe('inbox zips and binary files', () => {
+  test.skipIf(!Bun.which('zip'))('a dropped zip is unpacked beside itself and the zip is archived', async () => {
+    const staging = mkdtempSync(resolve(tmpdir(), 'kevin-zip-'));
+    mkdirSync(join(staging, 'bundle-notes'));
+    writeFileSync(join(staging, 'bundle-notes', 'one.md'), '# One\n');
+    execFileSync('zip', ['-qr', join(INBOX, 'bundle.zip'), 'bundle-notes'], { cwd: staging });
+    rmSync(staging, { recursive: true, force: true });
+
+    const item = await pickNext();
+    expect(item?.itemId).toBe(join('inbox:bundle', 'bundle-notes', 'one.md'));
+    expect(existsSync(join(INBOX, 'bundle.zip'))).toBe(false);
+    expect(existsSync(join(ARCHIVE, 'bundle.zip'))).toBe(true);
+
+    await markComplete(item?.itemId ?? '');
+    expect(existsSync(join(INBOX, 'bundle'))).toBe(false);
+  });
+
+  test('a file that is not a zip fails loudly and stays put', async () => {
+    writeFileSync(join(INBOX, 'broken.zip'), 'not a zip');
+    await expect(pickNext()).rejects.toThrow('Could not unzip broken.zip');
+    expect(existsSync(join(INBOX, 'broken'))).toBe(false);
+    rmSync(join(INBOX, 'broken.zip'));
+  });
+
+  test('a PDF is handed over by path instead of inlined as text', async () => {
+    writeFileSync(join(INBOX, 'deck.pdf'), Buffer.from('%PDF-1.4\n\u0000binary stream'));
+    const item = await pickNext();
+    expect(item?.itemId).toBe('inbox:deck.pdf');
+    expect(item?.prompt).toContain(join(INBOX, 'deck.pdf'));
+    expect(item?.prompt).not.toContain('%PDF-1.4');
   });
 });
