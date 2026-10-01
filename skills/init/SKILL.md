@@ -1195,6 +1195,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:humanizer)",
       "Skill(agent-kevin:itinerary)",
       "Skill(agent-kevin:knowledge-compile)",
+      "Skill(agent-kevin:media)",
       "Skill(agent-kevin:mermaid)",
       "Skill(agent-kevin:plan-spec)",
       "Skill(agent-kevin:project)",
@@ -1207,7 +1208,6 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:sync)",
       "Skill(agent-kevin:tax)",
       "Skill(agent-kevin:upgrade)",
-      "Skill(agent-kevin:media)",
       "Skill(agent-kevin:wordpress-rest)"
     ]
   }
