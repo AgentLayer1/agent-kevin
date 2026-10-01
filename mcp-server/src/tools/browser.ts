@@ -19,6 +19,7 @@
  */
 
 import { BROWSER } from '@/config';
+import { stampedPath } from '@/media/files';
 import { acquireContext, getChromium, withBrowserLaunch, type PageLike } from '@/shared/browser-deps';
 import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { log } from '@/shared/log';
@@ -41,9 +42,7 @@ type Step = z.infer<typeof StepSchema>;
 
 function captureFilename(action: string, ext: string, name?: string): string {
   mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const stem = name ? `${stamp}-${name}` : `${stamp}-${action}`;
-  return resolve(BROWSER.CAPTURES_DIR, `${stem}.${ext}`);
+  return `${stampedPath(BROWSER.CAPTURES_DIR, name ?? action)}.${ext}`;
 }
 
 interface NormalizedInput {
@@ -298,8 +297,7 @@ export const tools: ToolDef[] = [
       const chromium = await getChromium();
       mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
       const browser = await withBrowserLaunch(() => chromium.launch({ headless: true }));
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const videoDir = resolve(BROWSER.CAPTURES_DIR, `${stamp}-${name ?? 'record'}-tmp`);
+      const videoDir = stampedPath(BROWSER.CAPTURES_DIR, `${name ?? 'record'}-tmp`);
       mkdirSync(videoDir, { recursive: true });
       try {
         const context = await browser.newContext({

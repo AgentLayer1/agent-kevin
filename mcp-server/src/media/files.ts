@@ -21,8 +21,8 @@ export const label = (seconds: number): string => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
-/** A fresh `<parent>/<stamp>-<name>` folder path (not created), with `name` reduced to a safe slug. */
-export const stampedDir = (parent: string, name: string): string =>
+/** A fresh `<parent>/<stamp>-<name>` path (not created), with `name` reduced to a safe slug. */
+export const stampedPath = (parent: string, name: string): string =>
   resolve(parent, `${new Date().toISOString().replace(/[:.]/g, '-')}-${slugify(name)}`);
 
 /** Resolve a caller-supplied folder, refusing anything outside the captures dir. */

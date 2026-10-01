@@ -15,7 +15,7 @@
  */
 
 import { BROWSER } from '@/config';
-import { insideCaptures, label, resolveMediaPath, stampedDir } from '@/media/files';
+import { insideCaptures, label, resolveMediaPath, stampedPath } from '@/media/files';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -186,8 +186,8 @@ export function extractFrames(options: ExtractFramesOptions): FrameExtraction {
   const width = options.width ?? 1280;
   const max = options.maxFrames ?? 30;
   const outDir = options.dir
-    ? stampedDir(resolve(insideCaptures(options.dir), 'frames'), mode)
-    : stampedDir(BROWSER.CAPTURES_DIR, `${options.name ?? 'video'}-frames`);
+    ? stampedPath(resolve(insideCaptures(options.dir), 'frames'), mode)
+    : stampedPath(BROWSER.CAPTURES_DIR, `${options.name ?? 'video'}-frames`);
   mkdirSync(outDir, { recursive: true });
 
   const { frames, note } =

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { BROWSER } from '@/config';
 import { join } from 'node:path';
-import { insideCaptures, label, stampedDir } from './files';
+import { insideCaptures, label, stampedPath } from './files';
 
 describe('insideCaptures', () => {
   test('accepts a folder under the captures dir', () => {
@@ -17,9 +17,9 @@ describe('insideCaptures', () => {
   });
 });
 
-describe('stampedDir', () => {
+describe('stampedPath', () => {
   test('keeps a hostile name inside its parent', () => {
-    expect(() => insideCaptures(stampedDir(BROWSER.CAPTURES_DIR, '../../etc/x'))).not.toThrow();
+    expect(() => insideCaptures(stampedPath(BROWSER.CAPTURES_DIR, '../../etc/x'))).not.toThrow();
   });
 });
 

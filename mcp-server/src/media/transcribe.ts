@@ -6,7 +6,7 @@
 
 import { BROWSER } from '@/config';
 import { yap } from '@/media/engines/yap';
-import { label, resolveMediaPath, stampedDir } from '@/media/files';
+import { label, resolveMediaPath, stampedPath } from '@/media/files';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -63,7 +63,7 @@ export const transcribe = async (options: TranscribeOptions): Promise<Transcript
   }
   const transcript = await engineFor(process.platform)({ file, language: options.language ?? 'en-US' });
 
-  const dir = stampedDir(BROWSER.CAPTURES_DIR, options.name ?? 'media');
+  const dir = stampedPath(BROWSER.CAPTURES_DIR, options.name ?? 'media');
   mkdirSync(dir, { recursive: true });
   const jsonPath = resolve(dir, 'transcript.json');
   const transcriptPath = resolve(dir, 'transcript.md');
