@@ -1,7 +1,7 @@
 /**
  * Reports helper.
  *
- * Reporting skills (briefings, goals, self-review, flywheel) write their
+ * Reporting skills (briefings, goals, plan-spec, self-review, flywheel) write their
  * artefacts via `writeReport`. The helper does three things in one shot:
  *
  *   1. Render frontmatter + body to `reports/<category>/YYYY-MM-DD-HHMM-<slug><ext>`

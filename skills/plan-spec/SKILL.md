@@ -7,7 +7,7 @@ description: >
   blueprint. Triggers on /plan-spec. Also trigger when users say things like "help me spec this out",
   "plan this feature", "turn these notes into a spec", "interview me about this project", or
   "I need to think through this design". Not for changing code in a repo, which is the engineer skill.
-allowed-tools: Read, Glob, Grep, Write, AskUserQuestion
+allowed-tools: Read, Glob, Grep, Write, AskUserQuestion, mcp__plugin_agent-kevin_kevin__report_write
 ---
 
 # Plan Spec: Deep-Dive Specification Writer
@@ -182,23 +182,35 @@ The spec must be structured so Claude can consume it as an implementation plan. 
 
 ### Output
 
-**Resolve the plans directory first.** Read `.claude/settings.json` (and `.claude/settings.local.json` if present) — if either sets `plansDirectory`, use that path; otherwise default to `.claude/plans/`. (In a Kevin home this resolves to `reports/plans/`.) Create the directory if it doesn't exist, then write the spec there with the naming convention:
+**In a Kevin home** (the `mcp__plugin_agent-kevin_kevin__report_write` tool is available), call it. It writes the spec under `<HOME>/reports/plans/` and adds a one-line entry to `<HOME>/reports/index.md` under today's date in one atomic call, so the next session sees the spec:
 
 ```
-<plansDirectory>/<name>.plan-spec.md
+report_write({
+  category: 'plans',
+  slug: <name>,
+  title: <one-line headline summarising what the spec is about>,
+  skill: 'plan-spec',
+  status: 'draft',
+  body: <full spec markdown, no frontmatter>,
+  ext: '.plan-spec.md'
+});
 ```
 
-Where `<name>` is a meaningful, concise slug generated from the interview content — not the input filenames. After the interview is complete, synthesize what the spec is actually about and derive a name from that. Use lowercase kebab-case.
+The tool prepends the date and time, producing e.g. `reports/plans/2026-05-23-1430-oauth-nextjs-integration.plan-spec.md`. Never write the spec under a code repo's `.claude/` or under `~/.claude/`: plans are operator artefacts and must work for teammates who don't have the repo cloned.
+
+**Anywhere else**, resolve the plans directory first. Read `.claude/settings.json` (and `.claude/settings.local.json` if present) — if either sets `plansDirectory`, use that path; otherwise default to `.claude/plans/`. Create the directory if it doesn't exist, then write the spec to `<plansDirectory>/<name>.plan-spec.md`.
+
+`<name>` is a meaningful, concise slug generated from the interview content — not the input filenames. After the interview is complete, synthesize what the spec is actually about and derive a name from that. Use lowercase kebab-case.
 
 Examples:
-- Interview about adding OAuth to a Next.js app → `oauth-nextjs-integration.plan-spec.md`
-- Interview about migrating a monolith to microservices → `monolith-to-microservices.plan-spec.md`
-- Interview about a real-time chat feature → `realtime-chat-feature.plan-spec.md`
+- Interview about adding OAuth to a Next.js app → `oauth-nextjs-integration`
+- Interview about migrating a monolith to microservices → `monolith-to-microservices`
+- Interview about a real-time chat feature → `realtime-chat-feature`
 
 The name should be short (2-4 words) but specific enough that someone scanning the plans directory can tell what it's about without opening it.
 
 After writing, tell the user:
-1. Where the file was saved
+1. Where the file was saved (the `relPath` `report_write` returns, when it was used)
 2. A brief summary of what's in it
 3. **Remind them they can press `Ctrl+G` to open the plan file and start implementing from it** — just like `/plan` does
 4. When the spec describes code, or a design that is hard to reverse, offer a second model's pass with the adversarial-review skill on the saved path before anyone implements it
