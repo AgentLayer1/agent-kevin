@@ -280,10 +280,11 @@ bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
 The generator also fills missing home-level `model` and `model_reasoning_effort` keys with
-`gpt-6-astra` and `high`. Each existing home-level value is preserved. This applies to previously
+`gpt-6.1-sol` and `high`. Each existing home-level value is preserved; the 0.6.4 migration
+script moves a home still on the old `gpt-6-astra` default to Sol, once. This applies to previously
 wired homes as well as new ones and takes precedence over the user's global Codex defaults;
 report the resulting pair in Step 6. The user-global paste note no longer recommends a reasoning
-effort derived from Claude. If Astra is unavailable to the operator, help them choose an available
+effort derived from Claude. If Sol is unavailable to the operator, help them choose an available
 model and set it in the home config.
 
 Since 0.4.2 the generator also writes the home's permission posture from its Claude settings

@@ -271,7 +271,7 @@ const OWNED_KEYS: Record<string, string> = {
   default_permissions: agent,
   approval_policy: 'on-request',
   approvals_reviewer: 'user',
-  model: 'gpt-6-astra',
+  model: 'gpt-6.1-sol',
   model_reasoning_effort: 'high'
 };
 interface OwnedTableKeys {

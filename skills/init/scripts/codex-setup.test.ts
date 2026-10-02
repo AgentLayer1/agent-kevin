@@ -173,12 +173,12 @@ describe('codex-setup hooks', () => {
 
 describe('codex-setup mcp registration', () => {
   test.each([
-    { config: '', model: 'gpt-6-astra', effort: 'high' },
-    { config: 'model = "gpt-6.1-sol"\n', model: 'gpt-6.1-sol', effort: 'high' },
-    { config: 'model_reasoning_effort = "low"\n', model: 'gpt-6-astra', effort: 'low' },
+    { config: '', model: 'gpt-6.1-sol', effort: 'high' },
+    { config: 'model = "gpt-6-astra"\n', model: 'gpt-6-astra', effort: 'high' },
+    { config: 'model_reasoning_effort = "low"\n', model: 'gpt-6.1-sol', effort: 'low' },
     {
-      config: 'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\n',
-      model: 'gpt-6.1-sol',
+      config: 'model = "gpt-6-astra"\nmodel_reasoning_effort = "medium"\n',
+      model: 'gpt-6-astra',
       effort: 'medium'
     }
   ])('fills missing model settings and preserves local choices: $config', ({ config, model, effort }) => {
@@ -199,7 +199,7 @@ describe('codex-setup mcp registration', () => {
   test('adds home model defaults over global preferences without modifying the user config', () => {
     const home = scratch();
     const userConfig = join(scratch(), 'config.toml');
-    const userText = 'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "low"\n';
+    const userText = 'model = "gpt-6-astra"\nmodel_reasoning_effort = "low"\n';
     writeFileSync(userConfig, userText);
     seed(home, 'config.toml', '[tui]\nanimations = false\n');
     const result = run(
@@ -215,7 +215,7 @@ describe('codex-setup mcp registration', () => {
     );
     expect(result.code).toBe(0);
     expect(Bun.TOML.parse(readFileSync(result.json.mcp.path, 'utf-8'))).toMatchObject({
-      model: 'gpt-6-astra',
+      model: 'gpt-6.1-sol',
       model_reasoning_effort: 'high',
       tui: { animations: false }
     });

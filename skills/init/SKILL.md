@@ -610,7 +610,7 @@ Parse the next message: if `looks good` → keep the proposal; if edits/addition
 
 ## Step 6c — Model
 
-For Codex, the shipped default is **Astra High** (`gpt-6-astra`, reasoning effort `high`). Step 7c writes this pair into the home's `.codex/config.toml`, filling each missing key and preserving existing home-level choices. Tell the operator that these home settings take precedence over their global Codex model and effort; they can change either locally. Model and effort are not part of the user-global paste note.
+For Codex, the shipped default is **Sol High** (`gpt-6.1-sol`, reasoning effort `high`). Step 7c writes this pair into the home's `.codex/config.toml`, filling each missing key and preserving existing home-level choices. Tell the operator that these home settings take precedence over their global Codex model and effort; they can change either locally. Model and effort are not part of the user-global paste note.
 
 Kevin's project settings pin which Claude model powers this home. `AskUserQuestion`:
 
@@ -1550,7 +1550,7 @@ Idempotent by file, same as the concept seeding above: an existing rule file is 
 
 ## Step 7c — Codex wiring (when the harness is Codex, or the operator also runs Codex here)
 
-The generator adds `model = "gpt-6-astra"` and `model_reasoning_effort = "high"` when those keys are absent from the home config, including when the user-global config selects something else. Existing home-level values survive every regeneration. Report the resulting pair in Step 9; if the operator cannot access Astra, help them choose an available model and set it in the home config.
+The generator adds `model = "gpt-6.1-sol"` and `model_reasoning_effort = "high"` when those keys are absent from the home config, including when the user-global config selects something else. Existing home-level values survive every regeneration. Report the resulting pair in Step 9; if the operator cannot access Sol, help them choose an available model and set it in the home config.
 
 Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a plugin can bundle neither hooks nor an MCP server that knows which home it serves (the server is launched inside the plugin cache, and Codex exports no workspace variable and advertises no MCP roots). So under Codex it lives per home: hooks in `$HOME_DIR/.codex/hooks.json`, the `kevin` MCP server plus the home's permission posture in `$HOME_DIR/.codex/config.toml`, and the command rules in `$HOME_DIR/.codex/rules/kevin.rules`, each pinned to this plugin checkout and this home. Generate them with the `codex_setup` MCP tool; never hand-write these files. The tool runs the generator outside the shell sandbox, which matters under Codex, where the workspace's `.codex/` directory is read-only to the model's shell. If the tool is unavailable (a session whose server has not started), the same generator runs from the shell:
 
