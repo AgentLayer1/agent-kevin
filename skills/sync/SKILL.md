@@ -76,6 +76,8 @@ If anything is pending, loop:
 4. `mcp__plugin_agent-kevin_kevin__compile_write` with the `itemId`.
 5. Goto 1.
 
+When the loop compiled at least one item, run knowledge-compile's [gap pass](../knowledge-compile/SKILL.md#gap-pass-on-completion) as written. It is the only writer of `## Open Questions`, a section loaded into every session, and without it the section keeps flagging gaps that were filled long ago.
+
 If nothing is pending, skip to step 2.
 
 Track: how many items processed, any errors.
