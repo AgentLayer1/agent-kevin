@@ -6,6 +6,8 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_a
 
 # Sync
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 One pass through every maintenance op, in dependency order, ending in a single status line the user can scan in a second. Use this when you've been away for a while, when you want to start a session fresh, or when something feels stale and you don't want to think about which skill to run.
 
 ## Arguments

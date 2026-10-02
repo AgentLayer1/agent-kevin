@@ -12,6 +12,8 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevi
 
 # Briefing
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 Three reads of the same state at different depths: the morning brief orients, the evening wrap closes the day, and the pulse checks for fire.
 
 ## Help

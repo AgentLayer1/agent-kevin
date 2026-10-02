@@ -11,6 +11,8 @@ description: >
 
 # Project
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 A project is a folder with a README and its tasks. Creating one puts it in the knowledge index, the task tools and the flywheel; archiving one keeps it for history and takes it off every active surface.
 
 ## Help

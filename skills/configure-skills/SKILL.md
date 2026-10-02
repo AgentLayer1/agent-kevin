@@ -6,6 +6,8 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 
 # Configure Skills
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 This skill manages Kevin's optional capabilities. Use it to:
 1. **Configure a pack** (SEO, Browser, Database, GitHub, API, or Xcode) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)

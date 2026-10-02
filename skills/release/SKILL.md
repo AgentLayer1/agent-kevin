@@ -9,6 +9,8 @@ allowed-tools: Bash, Read, Write, Edit
 
 # Release — cut a versioned plugin release
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 Maintainer tool. Produces the **contract** that `/agent-kevin:upgrade` consumes:
 a bumped `plugin.json` version + a `CHANGELOG.md` entry whose `### Upgrade` block
 tells every consumer exactly what their home needs after they `/plugin update`.

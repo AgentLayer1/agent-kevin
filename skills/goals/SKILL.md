@@ -12,6 +12,8 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__focus_write, mcp__plugin_agent-kev
 
 # Goals
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 What should be true by tonight, this week, this month and this year. Goals are outcomes; the focus skill plans the tasks that reach them.
 
 ## Help
