@@ -147,7 +147,7 @@ Summarise for the sitting's report (SKILL.md, Finish):
 
 The summary names every edit, plan path, and watched theme, and hands every deleted line to Finish for `## Removed`.
 
-Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior file (the brain pass's keys stay as they are):
+Then hand Finish this watermark update for `<HOME>/.kevin/review.json`. Finish writes it after the report, so each new `retired` entry's `report` is the relPath the report write returned. It merges with the prior file (the brain pass's keys stay as they are):
 
 ```json
 {

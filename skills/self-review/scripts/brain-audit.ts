@@ -14,7 +14,11 @@ const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const homeFlag = flag('--home');
 // The config module resolves the home from the agent's own variable, so --home is exported first.
-if (homeFlag) process.env[agentKeyName('HOME')] = resolve(homeFlag);
+if (homeFlag) {
+  process.env[agentKeyName('HOME')] = resolve(homeFlag);
+}
+// Read-only means no log file either: a scanner warning would otherwise write into the home.
+process.env[agentKeyName('LOG_FILE')] = 'off';
 const { FOLDERS } = await import('../../../mcp-server/src/config');
 const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/shared/env');
 const { daysBetween, todayDate } = await import('../../../mcp-server/src/shared/date');
@@ -38,7 +42,9 @@ const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
 
 const isDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const age = (date: string): number | null => (isDate(date) ? daysBetween(date, TODAY) : null);
-const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
+const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8').replace(/\r\n/g, '\n') : '');
+const minusDays = (date: string, days: number): string =>
+  new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 const hash = (text: string): string => hashBuffer(text.trim().replace(/\s+/g, ' '));
 
 interface Asked {
@@ -60,7 +66,9 @@ const watermark: Watermark = (() => {
 /** An item answered Keep stays quiet for 90 days, and only while its text is unchanged. */
 const keptQuiet = (key: string, currentHash = ''): boolean => {
   const entry = watermark.asked?.[key];
-  if (!entry || entry.answer !== 'keep') return false;
+  if (!entry || entry.answer !== 'keep') {
+    return false;
+  }
   const sinceAsked = age(entry.date);
   return sinceAsked !== null && sinceAsked < KEEP_QUIET_DAYS && (entry.hash ?? '') === currentHash;
 };
@@ -101,6 +109,8 @@ const knownIds = new Set([...closedIds, ...openTasks.map((task) => task.id)]);
 const taskRow = (task: (typeof openTasks)[number]) => {
   const mention = lastMention([task.id]);
   return {
+    key: `task:${task.id}`,
+    hash: '',
     id: task.id,
     title: task.title,
     project: task.project,
@@ -123,7 +133,8 @@ const activeOld = byOldest(
       (task) =>
         task.status === 'active' &&
         (age(task.created) ?? 0) >= ACTIVE_OLD_DAYS &&
-        (age(task.updated) ?? Infinity) < STALE_DAYS
+        (age(task.updated) ?? Infinity) < STALE_DAYS &&
+        !keptQuiet(`task:${task.id}`)
     )
     .map(taskRow)
 );
@@ -140,6 +151,8 @@ const dormantProjects = discoverProjects()
         .sort()
         .at(-1) ?? null;
     return {
+      key: `project:${slug}`,
+      hash: '',
       slug,
       openTasks: own.filter((task) => openTasks.includes(task)).length,
       lastTaskUpdate,
@@ -148,7 +161,8 @@ const dormantProjects = discoverProjects()
   })
   .filter((project) => quietFor(project.lastTaskUpdate, DORMANT_DAYS) && quietFor(project.lastMention, DORMANT_DAYS));
 
-// Memory index: Active Threads and Key Context lines with a closed-or-quiet signal; every Pending line.
+// Memory index: every line of the sections loaded into each session, strongest signal first. A line
+// with no task reference is still a candidate; verification decides whether it gets asked.
 const memoryIndex = read(join(FOLDERS.MEMORY, 'index.md'));
 const section = (name: string): string[] =>
   (memoryIndex.split(/^## /m).find((part) => part.startsWith(`${name}\n`)) ?? '')
@@ -163,15 +177,19 @@ const memoryRow = (name: string) => (line: string) => {
       : ids.length > 0 && quietFor(mention, QUIET_THREAD_DAYS)
         ? 'quiet'
         : 'none';
-  return { key: `memory:${name}:${hash(line)}`, text: line, ids, lastMention: mention, signal };
+  return { key: `memory:${name}:${hash(line)}`, hash: hash(line), text: line, ids, lastMention: mention, signal };
 };
-const memoryLines = (name: string, keepAll: boolean) =>
+const SIGNAL_ORDER = ['closed', 'quiet', 'none'];
+const memoryLines = (name: string) =>
   section(name)
     .map(memoryRow(name))
-    .filter((row) => (keepAll || row.signal !== 'none') && !keptQuiet(row.key, hash(row.text)));
-const openQuestions = section('Open Questions').filter((line) => line.includes('[stale]'));
+    .filter((row) => !keptQuiet(row.key, row.hash))
+    .toSorted((left, right) => SIGNAL_ORDER.indexOf(left.signal) - SIGNAL_ORDER.indexOf(right.signal));
+const openQuestions = memoryLines('Open Questions').filter((row) => row.text.includes('[stale]'));
 
-// Decisions archived after the last brain pass (the archive is permanent; only dated daily files prune).
+// Decisions archived since the last brain pass. Compile archives a decision 14 days after its date, so
+// one dated up to 14 days before that pass was still live then and is due now. The archive is
+// permanent; only dated daily files prune.
 const since = watermark.brainLastRun && isDate(watermark.brainLastRun) ? watermark.brainLastRun : '';
 const archiveDir = join(FOLDERS.MEMORY, 'archive');
 const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : [])
@@ -181,7 +199,10 @@ const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : []
       .split('\n')
       .map((line) => ({ file: name, date: line.match(/^- \*\*(\d{4}-\d{2}-\d{2})\*\*/)?.[1] ?? '', text: line }))
   )
-  .filter((entry) => entry.date !== '' && entry.date > since && (since !== '' || (age(entry.date) ?? Infinity) <= 31))
+  .filter(
+    (entry) =>
+      entry.date !== '' && (since === '' ? (age(entry.date) ?? Infinity) <= 31 : entry.date > minusDays(since, 14))
+  )
   .toSorted((left, right) => left.date.localeCompare(right.date));
 
 // Articles: concepts and user facets untouched for 60 days and unmentioned by slug for 60.
@@ -199,6 +220,7 @@ const staleArticles = articleDirs
     const updated = splitFrontmatter(content).frontmatter.match(/^updated:\s*['"]?(\d{4}-\d{2}-\d{2})/m)?.[1] ?? '';
     const slug = basename(path, '.md');
     return {
+      key: `article:${relative(FOLDERS.HOME, path)}`,
       path: relative(FOLDERS.HOME, path),
       updated,
       daysSinceUpdate: age(updated),
@@ -209,7 +231,7 @@ const staleArticles = articleDirs
   .filter(
     (article) => (article.daysSinceUpdate ?? Infinity) >= DORMANT_DAYS && quietFor(article.lastMention, DORMANT_DAYS)
   )
-  .filter((article) => !keptQuiet(`article:${article.path}`, article.hash))
+  .filter((article) => !keptQuiet(article.key, article.hash))
   .toSorted((left, right) => left.updated.localeCompare(right.updated));
 
 // Storage.
@@ -238,7 +260,10 @@ const capturesDir = join(FOLDERS.REPORTS, 'captures');
 const oldCaptures = (existsSync(capturesDir) ? readdirSync(capturesDir).filter((name) => !name.startsWith('.')) : [])
   .map((name) => {
     const path = join(capturesDir, name);
-    return { path: relative(FOLDERS.HOME, path), modified: todayDate(statSync(path).mtime), bytes: sizeOf(path) };
+    const folder = statSync(path).isDirectory();
+    // A folder is as old as its newest file: a recording's frames and transcript land after it.
+    const newest = Math.max(statSync(path).mtimeMs, ...filesUnder(path).map((file) => statSync(file).mtimeMs));
+    return { path: relative(FOLDERS.HOME, path), folder, modified: todayDate(new Date(newest)), bytes: sizeOf(path) };
   })
   .filter((capture) => (age(capture.modified) ?? 0) >= CAPTURE_DAYS);
 const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice(0, 7)))]
@@ -247,8 +272,16 @@ const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice
     const group = oldCaptures.filter((capture) => capture.modified.startsWith(month));
     return {
       key: `capture:${month}`,
+      hash: '',
       month,
-      paths: group.map((capture) => capture.path).sort(),
+      files: group
+        .filter((capture) => !capture.folder)
+        .map((capture) => capture.path)
+        .sort(),
+      folders: group
+        .filter((capture) => capture.folder)
+        .map((capture) => capture.path)
+        .sort(),
       bytes: group.reduce((sum, capture) => sum + capture.bytes, 0)
     };
   })
@@ -258,9 +291,9 @@ const inbox = existsSync(FOLDERS.INBOX_RAW)
   : 0;
 
 const memory = {
-  threads: memoryLines('Active Threads', false),
-  pending: memoryLines('Pending', true),
-  keyContext: memoryLines('Key Context', false),
+  threads: memoryLines('Active Threads'),
+  pending: memoryLines('Pending'),
+  keyContext: memoryLines('Key Context'),
   openQuestions
 };
 const oldestWaiting = staleTasks[0]?.updated ?? null;
@@ -284,7 +317,10 @@ const audit = {
     dormantTasks: staleTasks.filter((task) => task.dormant).length,
     activeOld: activeOld.length,
     dormantProjects: dormantProjects.length,
-    memoryLines: memory.threads.length + memory.pending.length + memory.keyContext.length + openQuestions.length,
+    memoryLines:
+      [...memory.threads, ...memory.keyContext].filter((row) => row.signal !== 'none').length +
+      memory.pending.length +
+      openQuestions.length,
     decisions: archivedDecisions.length,
     staleArticles: staleArticles.length,
     oldCaptureFiles: oldCaptures.length,

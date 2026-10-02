@@ -17,14 +17,14 @@ It prints JSON, writes nothing, and counts only. Every bucket is a date comparis
 | `tasks.stale` | open, active or blocked, untouched for 30 days; `dormant: true` when no operator turn has named its id for 60 |
 | `tasks.activeOld` | active, filed 60+ days ago, still being touched. A trigger to read the thread, not proof of slow progress: `created` is when it was filed |
 | `projects.dormant` | no task touched and no operator mention of the slug or its ids for 60 days |
-| `memory.threads`, `memory.keyContext` | lines whose tasks all closed (`signal: closed`) or went unmentioned for 14 days (`quiet`) |
+| `memory.threads`, `memory.keyContext` | every line, ranked: tasks all closed (`signal: closed`), then unmentioned for 14 days (`quiet`), then no task signal (`none`) |
 | `memory.pending` | every Pending line; each is a commitment, so each gets asked |
 | `memory.openQuestions` | the `[stale]` gaps compile's gap pass flagged |
-| `decisions` | entries archived after `brainLastRun` (the last 31 days on a first run) |
+| `decisions` | archived entries dated after `brainLastRun` minus 14 days, since compile archives a decision 14 days after its date (the last 31 days on a first run) |
 | `articles` | concepts and user facets untouched for 60 days and unmentioned for 60 |
-| `storage.captures` | captures older than 30 days, one group per month with its exact paths |
+| `storage.captures` | captures older than 30 days (a folder by its newest file), one group per month with its exact `files` and `folders` |
 
-"Operator mention" counts only `**User:**` turns, matched on whole words: the agent names overdue ids in its own output every day. A pasted report inside a user turn still counts, so treat a mention as a reason to look, never as proof of activity. Items kept within the last 90 days are already filtered out while their text is unchanged.
+"Operator mention" counts only `**User:**` turns, matched on whole words: the agent names overdue ids in its own output every day. A pasted report inside a user turn still counts, so treat a mention as a reason to look, never as proof of activity. Every keepable row carries a `key` and a `hash`; items kept within the last 90 days are already filtered out while their hash is unchanged.
 
 When sync handed this pass a list of the flywheel's stalled tasks (sync step 13), those come first, whatever their age.
 
@@ -33,11 +33,11 @@ When sync handed this pass a list of the flywheel's stalled tasks (sync step 13)
 The script only detects. Before an item becomes a question, check it against the machine so the question carries real evidence:
 
 - **Tasks.** `task_get` the ones you'll ask about; read the last thread entries. Say what you found ("last thread entry 06-12: waiting on the quote"), not just the age. For `activeOld`, ask about slow progress only when the thread shows it.
-- **Memory lines.** For `closed`, confirm the task status. For Pending, check the artifact or task it names: a Pending item already done is a Drop with the receipt. For a status claim ("unpushed", "pending", a version), check the current state (git, the file, the latest session that mentions it) before asking.
+- **Memory lines.** A line with `signal: none` is asked only when checking it turns something up: a status the machine contradicts, a dead path or name, a fact a later session overtook. Otherwise leave it alone; Key Context lines rarely name a task, so this is how their facts get checked. For `closed`, confirm the task status. For Pending, check the artifact or task it names: a Pending item already done is a Drop with the receipt. For a status claim ("unpushed", "pending", a version), check the current state (git, the file, the latest session that mentions it) before asking.
 - **Open Questions.** Find the source the gap is about (a task, a README, a concept, a memory line). A question you can't trace to a source gets asked as is.
 - **Decisions.** Grep the concepts, user facets and project READMEs for each decision's key terms. Only a durable decision that no permanent article holds becomes a question; the rest stay archived silently.
 - **Articles.** Read each one and compare its claims with current state. Bring specific contradictions ("says v0.4; the plugin is on 0.6"). With none found, the question is whether it's still accurate.
-- **Captures.** Read the group's size and file count; nothing else.
+- **Captures.** Read the group's size and its file and folder counts; nothing else.
 
 Drop any item verification shows is already handled: the operator never answers a question the machine already answered.
 
@@ -58,13 +58,13 @@ Ask 4 questions per call (`AskUserQuestion` under Claude Code; a numbered list p
 |---|---|
 | Stalled task (from sync) | The flywheel's step-9 options and effects: Push a week · Park · Blocked · Cancel |
 | Stale or dormant task | **Keep, this month** → `task_update` with `horizon: "month"` · **Park** → `priority: "P3"`, `due: ""` · **Cancel** → `status: "cancelled"` · **Already done** → `task_close`; a `blocked` task gets `status: "active"` first, since blocked can't go straight to done |
-| Old task, still active | **Keep** · **Park** (as above) · **Split** → draft the follow-up tasks in chat; `task_create` them only on a second yes |
+| Old task, still active | **Keep** → no task change; recorded in Step 4 · **Park** (as above) · **Split** → draft the follow-up tasks in chat; `task_create` them only on a second yes |
 | Dormant project | **Keep** · **Pause** → one status line at the top of its README, and offer Park for its open tasks · **Archive** → after the interview, run the project skill's archive playbook |
 | Memory line | **Drop** · **Keep** · **Rewrite** (the operator's words, or your draft they approve) |
 | Open Question | **Answer** → apply the answer to the question's source; the next sync's gap pass drops the question · **No longer relevant** → correct or remove the stale fact at its source · **Keep** |
 | Decision | **Promote** → write it into the named article, with the date · **Leave it archived** |
 | Article | **Rewrite** → apply your draft built from the contradictions · **Still accurate** · **Delete the section** (or the article, updating `knowledge/index.md`) |
-| Capture month | **Keep** · **Delete** → remove exactly the paths the inventory listed for that month, written out in full in the command (`rm -- '<absolute path>' …`), never a glob or a built path. A folder belonging to another agent's home is deleted like any other, never moved |
+| Capture month | **Keep** · **Delete** → the question states how many files and folders (a folder goes with everything in it). Remove exactly what the inventory listed, each absolute path written out in full: `rm -- '<file>' …` for `files`, `rm -r -- '<folder>' …` for `folders`. Never a glob or a built path. A folder belonging to another agent's home is deleted like any other, never moved |
 
 A typed answer ("Other") is applied as stated, when it maps to an effect above. Otherwise, ask once to clarify. Never edit `## Learnings` or `## Open Questions` directly: a fix lands on the source, and compile does the rest. Quote every line you delete or rewrite, as it read before, for the report.
 
@@ -80,7 +80,7 @@ Merge into `<HOME>/.kevin/review.json`, keeping every other key:
 }
 ```
 
-Add an `asked` entry for each **Keep** or **Still accurate** on an item with no `updated` field to move: a memory line or an article (use the inventory's `key` and `hash`), a project (`project:<slug>`, no hash), or a capture month (its `key`). A task needs no entry, since every answer moves its `updated`. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
+Add an `asked` entry for each **Keep** or **Still accurate** that changes nothing on disk: a memory line, an Open Question, an article, an old active task, a project, or a capture month. Use the row's `key` and `hash` exactly as the inventory emitted them, with `answer: "keep"` for either answer. A stale task answered Keep needs no entry: setting its horizon moves its `updated`. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
 
 ## Step 5 — Hand off to the report
 

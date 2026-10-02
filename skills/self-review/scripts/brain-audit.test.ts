@@ -66,10 +66,15 @@ describe('brain-audit', () => {
     expect(stale).toEqual(['ac-003:true', 'ac-002:false']);
   });
 
-  test('an old active task counts only while it is still being touched, and a project goes dormant on both clocks', () => {
-    const { task, session, run } = home();
+  test('an old active task counts while still touched and until kept, and a project goes dormant on both clocks', () => {
+    const { write, task, session, run } = home();
     task({ id: 'ac-001', project: 'acme', status: 'active', updated: 5, created: 61 });
     task({ id: 'ac-002', project: 'acme', status: 'active', updated: 5, created: 59 });
+    task({ id: 'ac-003', project: 'acme', status: 'active', updated: 5, created: 90 });
+    write(
+      join(runtimeDirName(), 'review.json'),
+      JSON.stringify({ asked: { 'task:ac-003': { date: daysAgo(5), answer: 'keep' } } })
+    );
     task({ id: 'ta-001', project: 'tax', updated: 70 });
     task({ id: 'sl-001', project: 'sleepy', updated: 70 });
     session(5, '**User:** fix the syntax, and check sleepy today');
@@ -78,7 +83,7 @@ describe('brain-audit', () => {
     expect(audit.projects.dormant.map((row: { slug: string }) => row.slug)).toEqual(['tax']);
   });
 
-  test('memory lines: a closed thread is asked, a quiet one is not until 14 days pass, and a kept Pending line stays quiet', () => {
+  test('memory lines rank closed, then quiet, then the rest; Keep silences an unchanged line; CRLF parses', () => {
     const { write, task, session, run } = home();
     task({ id: 'ac-001', project: 'acme', status: 'done', updated: 1 });
     task({ id: 'ac-002', project: 'acme', updated: 1 });
@@ -88,7 +93,10 @@ describe('brain-audit', () => {
     const kept = '- **Itinerary** — rewrite the template.';
     write(
       'knowledge/memory/index.md',
-      `# Memory\n\n## Active Threads\n\n- **Shipped** (ac-001) — done.\n- **Live** (ac-002) — moving.\n- **Quiet** (ac-003) — waiting.\n- **No id** — prose only.\n\n## Pending\n\n${kept}\n- **Insurance** — quote it.\n\n## Open Questions\n\n- **[stale]** an old gap\n- **[missing]** a new one\n`
+      `# Memory\n\n## Active Threads\n\n- **No id** — prose only.\n- **Live** (ac-002) — moving.\n- **Quiet** (ac-003) — waiting.\n- **Shipped** (ac-001) — done.\n\n## Pending\n\n${kept}\n- **Insurance** — quote it.\n\n## Key Context\n\n- The API endpoint moved.\n\n## Open Questions\n\n- **[stale]** an old gap\n- **[missing]** a new one\n`.replace(
+        /\n/g,
+        '\r\n'
+      )
     );
     write(
       join(runtimeDirName(), 'review.json'),
@@ -97,16 +105,18 @@ describe('brain-audit', () => {
       })
     );
     const { memory } = run();
-    expect(memory.threads.map((row: { signal: string }) => row.signal)).toEqual(['closed', 'quiet']);
-    expect(memory.pending.map((row: { text: string }) => row.text)).toEqual(['- **Insurance** — quote it.']);
-    expect(memory.openQuestions).toEqual(['- **[stale]** an old gap']);
+    const texts = (rows: { text: string }[]) => rows.map((row) => row.text);
+    expect(memory.threads.map((row: { signal: string }) => row.signal)).toEqual(['closed', 'quiet', 'none', 'none']);
+    expect(texts(memory.pending)).toEqual(['- **Insurance** — quote it.']);
+    expect(texts(memory.keyContext)).toEqual(['- The API endpoint moved.']);
+    expect(texts(memory.openQuestions)).toEqual(['- **[stale]** an old gap']);
   });
 
   test('archived decisions since the last brain pass, stale articles, and old captures grouped by month', () => {
     const { write, run, age } = home();
     write(
       'knowledge/memory/archive/decisions-2026-10.md',
-      `# Decisions\n\n- **${daysAgo(5)}** — after the last pass.\n- **${daysAgo(25)}** — before it.\n`
+      `# Decisions\n\n- **${daysAgo(5)}** — after the last pass.\n- **${daysAgo(25)}** — still live at the last pass.\n- **${daysAgo(40)}** — archived before it.\n`
     );
     write(join(runtimeDirName(), 'review.json'), JSON.stringify({ brainLastRun: daysAgo(20) }));
     write('knowledge/concepts/old-idea.md', `---\ntitle: Old\nupdated: ${daysAgo(61)}\n---\n\nbody\n`);
@@ -115,17 +125,24 @@ describe('brain-audit', () => {
     write('reports/captures/shot.png', 'png');
     write('reports/captures/old-a.png', 'a');
     write('reports/captures/old-b.pdf', 'bb');
+    write('reports/captures/old-frames/frame-1.png', 'f');
+    write('reports/captures/new-frames/frame-1.png', 'n');
     age('reports/captures/old-a.png', 40);
     age('reports/captures/old-b.pdf', 40);
+    age('reports/captures/old-frames/frame-1.png', 40);
+    age('reports/captures/old-frames', 40);
+    age('reports/captures/new-frames', 40);
     const audit = run();
-    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(5)]);
+    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(25), daysAgo(5)]);
     expect(audit.articles.map((row: { path: string }) => row.path)).toEqual(['knowledge/concepts/old-idea.md']);
     expect(audit.storage.captures).toEqual([
       {
         key: `capture:${daysAgo(40).slice(0, 7)}`,
+        hash: '',
         month: daysAgo(40).slice(0, 7),
-        paths: ['reports/captures/old-a.png', 'reports/captures/old-b.pdf'],
-        bytes: 3
+        files: ['reports/captures/old-a.png', 'reports/captures/old-b.pdf'],
+        folders: ['reports/captures/old-frames'],
+        bytes: 4
       }
     ]);
   });

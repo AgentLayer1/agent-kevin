@@ -48,7 +48,7 @@ bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DI
 
 ## Finish
 
-Re-run `context-weight.ts`, then persist one report for the sitting with `report_write({ category: 'briefings', slug: 'self-review', title: 'Self-review: <date> (<counts>)', skill: 'self-review', status: 'draft', body })`. The body opens with the context weight per host (Claude `<before>` → `<after>` bytes, Codex `<before>` → `<after>`), then the `## Brain` section from the brain pass and the summary from the rules pass, and quotes every deleted or rewritten line verbatim under `## Removed`. Surface `📄 Saved to <path>` using the absolute `path` the tool returns. Skip the report only when nothing was pruned or changed. Each playbook writes its own watermark keys; neither overwrites the other's.
+Re-run `context-weight.ts`, then persist one report for the sitting with `report_write({ category: 'briefings', slug: 'self-review', title: 'Self-review: <date> (<counts>)', skill: 'self-review', status: 'draft', body })`. The body opens with the context weight per host (Claude `<before>` → `<after>` bytes, Codex `<before>` → `<after>`), then the `## Brain` section from the brain pass and the summary from the rules pass, and quotes every deleted or rewritten line verbatim under `## Removed`. Surface `📄 Saved to <path>` using the absolute `path` the tool returns. Skip the report only when nothing was pruned or changed. Then write the rules pass's watermark update (its Step 6), filling each new `retired` entry's `report` with the relPath the report write returned; the brain pass wrote its keys in its own Step 4, and neither overwrites the other's. The watermark is written even when the report is skipped.
 
 
 ## Hard rules
