@@ -43,8 +43,6 @@ const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
 const isDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const age = (date: string): number | null => (isDate(date) ? daysBetween(date, TODAY) : null);
 const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8').replace(/\r\n/g, '\n') : '');
-const minusDays = (date: string, days: number): string =>
-  new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 const hash = (text: string): string => hashBuffer(text.trim().replace(/\s+/g, ' '));
 
 interface Asked {
@@ -71,6 +69,11 @@ const keptQuiet = (key: string, currentHash = ''): boolean => {
   }
   const sinceAsked = age(entry.date);
   return sinceAsked !== null && sinceAsked < KEEP_QUIET_DAYS && (entry.hash ?? '') === currentHash;
+};
+/** Any answer settles an item for 90 days, whatever it was. */
+const settled = (key: string): boolean => {
+  const sinceAsked = age(watermark.asked?.[key]?.date ?? '');
+  return sinceAsked !== null && sinceAsked < KEEP_QUIET_DAYS;
 };
 
 // Operator mentions: whole-word hits inside `**User:**` turns of the dated session day-files.
@@ -187,22 +190,26 @@ const memoryLines = (name: string) =>
     .toSorted((left, right) => SIGNAL_ORDER.indexOf(left.signal) - SIGNAL_ORDER.indexOf(right.signal));
 const openQuestions = memoryLines('Open Questions').filter((row) => row.text.includes('[stale]'));
 
-// Decisions archived since the last brain pass. Compile archives a decision 14 days after its date, so
-// one dated up to 14 days before that pass was still live then and is due now. The archive is
-// permanent; only dated daily files prune.
+// Archived decisions from the last 90 days that no pass has settled yet. The archive is permanent;
+// the window matches how long `asked` keeps an answer, so a settled decision never comes back.
 const since = watermark.brainLastRun && isDate(watermark.brainLastRun) ? watermark.brainLastRun : '';
+// A first pass looks back one month, not three, so it starts with a sitting's worth.
+const decisionWindow = since === '' ? 31 : KEEP_QUIET_DAYS;
 const archiveDir = join(FOLDERS.MEMORY, 'archive');
 const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : [])
   .filter((name) => /^decisions-\d{4}-\d{2}\.md$/.test(name))
   .flatMap((name) =>
     read(join(archiveDir, name))
       .split('\n')
-      .map((line) => ({ file: name, date: line.match(/^- \*\*(\d{4}-\d{2}-\d{2})\*\*/)?.[1] ?? '', text: line }))
+      .map((line) => ({
+        key: `decision:${hash(line)}`,
+        hash: hash(line),
+        file: name,
+        date: line.match(/^- (?:\*\*)?(\d{4}-\d{2}-\d{2})(?:\*\*)? —/)?.[1] ?? '',
+        text: line
+      }))
   )
-  .filter(
-    (entry) =>
-      entry.date !== '' && (since === '' ? (age(entry.date) ?? Infinity) <= 31 : entry.date > minusDays(since, 14))
-  )
+  .filter((entry) => entry.date !== '' && (age(entry.date) ?? Infinity) < decisionWindow && !settled(entry.key))
   .toSorted((left, right) => left.date.localeCompare(right.date));
 
 // Articles: concepts and user facets untouched for 60 days and unmentioned by slug for 60.

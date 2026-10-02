@@ -112,13 +112,17 @@ describe('brain-audit', () => {
     expect(texts(memory.openQuestions)).toEqual(['- **[stale]** an old gap']);
   });
 
-  test('archived decisions since the last brain pass, stale articles, and old captures grouped by month', () => {
+  test('unsettled archived decisions from 90 days, stale articles, and old captures grouped by month', () => {
     const { write, run, age } = home();
+    const settledLine = `- **${daysAgo(25)}** — settled by an earlier pass.`;
     write(
       'knowledge/memory/archive/decisions-2026-10.md',
-      `# Decisions\n\n- **${daysAgo(5)}** — after the last pass.\n- **${daysAgo(25)}** — still live at the last pass.\n- **${daysAgo(40)}** — archived before it.\n`
+      `# Decisions\n\n- **${daysAgo(5)}** — not reached yet.\n${settledLine}\n- **${daysAgo(95)}** — outside the window.\n- ${daysAgo(6)} — an older, unbolded entry.\n`
     );
-    write(join(runtimeDirName(), 'review.json'), JSON.stringify({ brainLastRun: daysAgo(20) }));
+    write(
+      join(runtimeDirName(), 'review.json'),
+      JSON.stringify({ asked: { [`decision:${hashBuffer(settledLine)}`]: { date: daysAgo(20), answer: 'leave' } } })
+    );
     write('knowledge/concepts/old-idea.md', `---\ntitle: Old\nupdated: ${daysAgo(61)}\n---\n\nbody\n`);
     write('knowledge/concepts/fresh-idea.md', `---\ntitle: Fresh\nupdated: ${daysAgo(59)}\n---\n\nbody\n`);
     write('reports/captures/.env', 'SECRET=1');
@@ -133,7 +137,7 @@ describe('brain-audit', () => {
     age('reports/captures/old-frames', 40);
     age('reports/captures/new-frames', 40);
     const audit = run();
-    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(25), daysAgo(5)]);
+    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(6), daysAgo(5)]);
     expect(audit.articles.map((row: { path: string }) => row.path)).toEqual(['knowledge/concepts/old-idea.md']);
     expect(audit.storage.captures).toEqual([
       {

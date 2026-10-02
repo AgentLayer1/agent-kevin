@@ -20,7 +20,7 @@ It prints JSON, writes nothing, and counts only. Every bucket is a date comparis
 | `memory.threads`, `memory.keyContext` | every line, ranked: tasks all closed (`signal: closed`), then unmentioned for 14 days (`quiet`), then no task signal (`none`) |
 | `memory.pending` | every Pending line; each is a commitment, so each gets asked |
 | `memory.openQuestions` | the `[stale]` gaps compile's gap pass flagged |
-| `decisions` | archived entries dated after `brainLastRun` minus 14 days, since compile archives a decision 14 days after its date (the last 31 days on a first run) |
+| `decisions` | archived decisions from the last 90 days (31 on a first pass) that no pass has settled; any `asked` answer settles one. Most are already held by an article and are recorded silently |
 | `articles` | concepts and user facets untouched for 60 days and unmentioned for 60 |
 | `storage.captures` | captures older than 30 days (a folder by its newest file), one group per month with its exact `files` and `folders` |
 
@@ -80,7 +80,7 @@ Merge into `<HOME>/.kevin/review.json`, keeping every other key:
 }
 ```
 
-Add an `asked` entry for each **Keep** or **Still accurate** that changes nothing on disk: a memory line, an Open Question, an article, an old active task, a project, or a capture month. Use the row's `key` and `hash` exactly as the inventory emitted them, with `answer: "keep"` for either answer. A stale task answered Keep needs no entry: setting its horizon moves its `updated`. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
+Add an `asked` entry for each **Keep** or **Still accurate** that changes nothing on disk: a memory line, an Open Question, an article, an old active task, a project, or a capture month. Use the row's `key` and `hash` exactly as the inventory emitted them, with `answer: "keep"` for either answer. A stale task answered Keep needs no entry: setting its horizon moves its `updated`. Record every decision the pass reached, with its `key` and `answer: "promote"` or `"leave"`, including those left silently because an article already holds them, so they are not checked again. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
 
 ## Step 5 — Hand off to the report
 
