@@ -2,14 +2,13 @@
 
 The agent's instructions and the feedback loop: prune the prompt surface and memory, turn corrections into rules, and promote generic ones upstream.
 
-## Step 0 — Resolve paths, install mode, and context weight
+## Step 0 — Resolve paths and install mode
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
 [ -f "$HOME_DIR/SOUL.md" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # under Codex replace <SKILL_BASE_DIR> with this skill's base directory
 bun "$PLUGIN_ROOT/skills/self-review/scripts/plugin-source.ts" --home "$HOME_DIR"
-bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DIR"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "<source, or $PLUGIN_ROOT in consumer mode>"
 ```
 
@@ -21,20 +20,18 @@ bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DI
 - **`consumer`**: no enabled registration is a git checkout; the loaded copy is a host cache the next update overwrites. Never edit it. Plugin-level fixes become a local override plus an upstream proposal for `repository` (Step 4, Track D).
 - **`ambiguous`**: the hosts are enabled from different checkouts (`candidates` names them). Ask the operator which one is upstream before any Track D edit.
 
-`context-weight.ts` prints the **always-loaded stack per host**, with bytes per file and a total. The two stacks differ: Claude Code loads the bridge, everything it `@`-imports (recursively, prose only: an `@path` inside a fenced block or a code span is not an import, and a bare `@word` that names no file is a mention), and every `.md` under `.claude/rules/` without a `paths:` scope; Codex loads `AGENTS.md` natively and gets the identity stack (SOUL, IDENTITY, USER, the knowledge index, the memory index, the task dashboard) from the SessionStart hook, never the bridge or the rules. A non-zero exit means an import did not resolve: fix or report that before using the totals. Record both totals as this cycle's baseline; the wrap-up reports the deltas. A rules-file deletion is a Claude-only saving; say so.
-
 `template-drift.ts` prints, for SOUL, IDENTITY, AGENTS, the Claude bridge, and each rule file the templates ship, the `##` sections and lines this home has that the templates lack (placeholders such as `{{AGENT_NAME}}` match whatever the home resolved them to), plus rule-shaped bullets living in `USER.md` and `knowledge/user/preferences.md`. In contributor mode point `--plugin` at the checkout, so drift is measured against the templates about to ship. Its output feeds Track E every cycle.
 
 ## Step 1 — Cast a wide signal net
 
 Read every surface where corrections and decay actually show up.
 
-1. `<HOME>/knowledge/memory/index.md`, the whole file. `## Learnings` is the feedback synth; the other sections are the main prune target.
+1. `<HOME>/knowledge/memory/index.md`, the whole file. `## Learnings` is the feedback synth. The brain pass owns the other sections' data (stale threads, Pending, Key Context); read them here for context and for rules that live in the wrong place.
 2. `<HOME>/knowledge/raw/user/feedback.md`, the full file, not the tail. The synth flattens nuance you'll need (escalation language, repeated phrasing). Note entries headed `— graduated: <theme>` or `— graduated-rule: <theme>`: those are prior cycles' graduation markers.
 3. `<HOME>/knowledge/raw/sessions/`, the last 7 days (or since the watermark, whichever is longer). Grep for correction phrases: `no `, `don't`, `stop`, `wrong`, `actually`, `you didn't`, `that's not`, `i told you`, `again`, `still`, `please`, `before you`, `approval`. Also confirmation phrases: `yes exactly`, `perfect`, `that's right`, `keep doing`, `exactly what`. Successes validate non-obvious choices. Then, for every `graduated:` marker and every `retired` watermark entry, grep the same window for the rule's own key words (from the marker's quoted rule or the retired text in its report): a politely worded correction can slip past a phrase list, and a graduated rule breaking again is exactly the recurrence the markers cannot see on their own.
 4. Task threads updated in the last 7 days: `[!quote]` blocks with the same phrases.
 5. The prompt surface, read in full: `<HOME>/AGENTS.md` (the manual), `<HOME>/.claude/CLAUDE.md` (the Claude bridge), `<HOME>/SOUL.md`, `<HOME>/USER.md`, `<HOME>/.claude/rules/*.md`, and `<HOME>/.claude/skills/*/SKILL.md` if the home has custom skills, and `IDENTITY.md` (its `## Operational Pattern` is proposable; the preamble and `## Who` are not).
-6. `<HOME>/knowledge/concepts/` and `<HOME>/knowledge/user/`: list every article, and read `knowledge/user/preferences.md` in full: a working rule filed there is a rule the manual is missing, not a taste. A theme that maps to a concept means the *thinking* landed but maybe not the *behavior* (enforcement gap, not knowledge gap). An article contradicted by current state is a prune candidate.
+6. `<HOME>/knowledge/concepts/` and `<HOME>/knowledge/user/`: list every article, and read `knowledge/user/preferences.md` in full: a working rule filed there is a rule the manual is missing, not a taste. A theme that maps to a concept means the *thinking* landed but maybe not the *behavior* (enforcement gap, not knowledge gap). An article contradicted by current state is the brain pass's question, not this pass's.
 7. Git history. Plugin side: `git -C <source> log --format='%h %ai %s' -50 -- skills templates mcp-server/src` in contributor mode, or the `CHANGELOG.md` beside `$PLUGIN_ROOT` in consumer mode. Commits and releases after a cycle's date are addressed work, so you can compute "violations after fix". Home side: try `git -C "$HOME_DIR" log --oneline -30`; homes with a separated git dir outside the sandbox refuse it, and then the prior cycle reports (item 9) are the home-side history.
 8. `<HOME>/reports/plans/`: self-review-authored plans only (frontmatter `skill: self-review`). The folder also holds raw plan-mode saves with no frontmatter; ignore those.
 9. Prior cycle reports: `<HOME>/reports/briefings/*self-review*.md`. These are the cycle count: a theme named in two prior reports is in its third cycle.
@@ -52,8 +49,6 @@ Build a **deletion manifest** before any additive proposal. Every candidate need
 | **Dead reference** | Names a file, tool, skill, flag, env var, path, or version that no longer exists. Verify with `ls` / `grep`. | Delete, or fix the reference. |
 | **Enforced elsewhere** | Prose for a rule a hook, validator, test, or harness setting now holds. | Shrink to one line pointing at the guard, or delete. |
 | **Model default** | A line on a prompt surface (`AGENTS.md`, `SOUL.md`, a rule file, a template) stating generic practice the current model already follows unprompted ("read before editing", "write clean code"), with zero violations since the watermark and no matching `## Learnings` theme. A Learnings theme is an operator correction by definition, so it never qualifies. Models improve; instructions written for an older one go stale. | **Retire on trial:** remove it and log it in the watermark's `retired` list with the surface it came from. Later cycles restore it if it's violated after that. |
-| **Stale memory** | In `memory/index.md`: Active Threads that are done or dormant, Pending items already closed (check the task frontmatter or the artifact), Recent Decisions older than 14 days, Key Context facts that went false. Compile's own budgets (`mcp-server/src/knowledge/compile.md`: 30KB total, per-section caps) are a ceiling, not a target. | Delete, or move decisions into `memory/archive/decisions-YYYY-MM.md` (compile's archive convention). |
-| **Stale article** | A concept or user-facet section superseded by current state. | Rewrite or delete the section; update `knowledge/index.md` if an article goes. |
 | **Local override shipped upstream** | A home-local rule or custom skill added as a consumer workaround whose fix is now in the installed plugin. | Delete the override. |
 | **Stuck plan** | A self-review plan over 14 days old with no follow-through. | Re-surface, downgrade, or close (set `status`, add a closing line). |
 
@@ -144,16 +139,15 @@ Walk through the proposals one at a time (Track E promotions can be approved as 
 
 ## Step 6 — Wrap up
 
-Re-run `context-weight.ts` and summarise:
+Summarise for the sitting's report (SKILL.md, Finish):
 
-- Always-loaded context per host: Claude `<before>` → `<after>` bytes, Codex `<before>` → `<after>` bytes
 - Pruned: N items (by class), graduation markers appended, retirements restored or made permanent
 - Track A edits, Track B plans (paths), Track C skills, Track D promotions (edited in the checkout, or upstream proposals written), Track E drift (promoted, marked personal, pending upgrade)
 - Skipped, watched, stuck plans surfaced
 
-Persist it with `report_write({ category: 'briefings', slug: 'self-review', title: 'Self-review: <date> (<counts>)', skill: 'self-review', status: 'draft', body })`. The body names every edit, plan path, and watched theme, and quotes every deleted line verbatim under `## Removed`. Surface `📄 Saved to <path>` using the absolute `path` the tool returns. Skip the report only when nothing was pruned or changed.
+The summary names every edit, plan path, and watched theme, and hands every deleted line to Finish for `## Removed`.
 
-Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior file:
+Then write the watermark `<HOME>/.kevin/review.json`, merging with the prior file (the brain pass's keys stay as they are):
 
 ```json
 {

@@ -105,7 +105,7 @@ describe('retired skills', () => {
   });
 });
 
-describe.each(['briefing', 'engineer', 'focus', 'goals', 'media', 'project', 'seed', 'seo', 'tax'])(
+describe.each(['briefing', 'engineer', 'focus', 'goals', 'media', 'project', 'seed', 'self-review', 'seo', 'tax'])(
   '%s help',
   (skill) => {
     test('lists every playbook the router names', () => {
