@@ -45,8 +45,8 @@ Lanes, horizons, and milestone statuses tell you which work is *on the path* and
 
 Most work happens in sessions that never touch a task, so the board alone undersells what moved. Before the sweep, read what the sessions did:
 
-- **Since when.** The newest flywheel report: `<HOME>/reports/briefings/*-flywheel*.md`, last by filename (a same-minute rerun gets a `-1` suffix). With none, the last 7 days.
-- **What to read.** Every compiled daily summary written since that report, whatever day it covers: `find <HOME>/knowledge/memory -maxdepth 1 -name '????-??-??.md' -newer <that report>`. Read each one whole, not the raw transcripts. Selecting by write time, not by the date in the filename, is what catches a day compiled late: a standalone run before compile catches up simply picks that day up on the next pass.
+- **Since when.** The newest flywheel report among `<HOME>/reports/briefings/*-flywheel*.md` (a same-minute rerun adds a `-1` suffix), judged by its frontmatter `created` timestamp, never the filename or the file's modified time: a report is often edited after it is written. With none, the last 7 days.
+- **What to read.** Every compiled daily summary written since that report, whatever day it covers: `find <HOME>/knowledge/memory -maxdepth 1 -name '????-??-??.md' -newermt '<created, verbatim>'` (it takes the ISO timestamp with its offset). Read each one whole, not the raw transcripts. Selecting by write time, not by the date in the filename, is what catches a day compiled late: a standalone run before compile catches up simply picks that day up on the next pass.
 - **Map each work stream to a task** by id, branch, PR, or project:
   - It moved a task forward → one `[!info]` `task_thread` entry on that task summarising what moved, one per task per run. Skip it when the task's thread (`task_get`), anywhere in it, already records that work; sessions often thread while they work.
   - It only mentioned a task → nothing. A thread entry is for progress.
@@ -61,7 +61,7 @@ mcp__plugin_agent-kevin_kevin__task_get with { id: "<id>" }
 
 A project keeping its own roadmap has it at `projects/<slug>/roadmap.html` (same convention as the HOME-root north star, one level down). Read its `ROADMAP` object the same way before deciding what to advance — it's the project-level plan the task board implements, and it usually names the next milestone more clearly than any single task does.
 
-First set aside the **stalled** tasks: open or active, with a `due` date (an empty one never counts) before the newest flywheel report's date, and `updated` before it too. The last run already saw each one overdue, and nothing has touched it since. Take `due` and `updated` from `task_query` (`status: "open"`, then `"active"`), never from `TASKS.md`, whose date-based sections are only as fresh as its last render. With no earlier flywheel report, nothing is stalled yet.
+First set aside the **stalled** tasks: open or active, with a `due` date (an empty one never counts) before the date of the newest flywheel report's `created`, and `updated` before it too. The last run already saw each one overdue, and nothing has touched it since. Take `due` and `updated` from `task_query` (`status: "open"`, then `"active"`), never from `TASKS.md`, whose date-based sections are only as fresh as its last render. With no earlier flywheel report, nothing is stalled yet.
 
 A stalled task is the operator's decision, not more narration. List it under **Stalled, decide** in the report (id, title, days overdue) instead of repeating it in its project's line. Never thread or update it just to say it hasn't moved: every thread entry and update sets `updated` to today, which hides the stall from the next run.
 

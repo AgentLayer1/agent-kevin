@@ -29,7 +29,7 @@ What still lands outside the fixture, and is harmless: the session transcript un
 
    It prints `{ out, bytes, seed }`. The home is `<seed>/home/alex/agent-acme`.
 3. **Remove the demo's own env.** The seed's `.claude/settings.local.json` and `.claude/settings.json` carry demo values (`KEVIN_HOME: ~/agent-acme`, `AGENT_CODE_PATH: ~/acme/platform`). Set the home variable to the fixture's absolute path and delete the code path, in the fixture only.
-4. **Add the cases the change needs.** Write invented data only, never values from a real home. For each new behavior, add one case where it should fire and one where it shouldn't. Set file times with `touch -t` when a behavior depends on write order. Commit the cases (`git -C <home> commit -am "test cases"`) and record that SHA as the baseline.
+4. **Add the cases the change needs.** Write invented data only, never values from a real home. For each new behavior, add one case where it should fire and one where it shouldn't. Set file times with `touch -t` when a behavior depends on write order. Stage and commit the cases, new files included (`git -C <home> add -A && git -C <home> commit -m "test cases"`), check `git -C <home> status --short` is empty, and record that SHA as the baseline.
 5. **Write the expectations down before running**, as a table: case → expected outcome → how to check it (a file, a frontmatter field, a question the session should ask).
 6. **Launch the session.** The operator runs this, because an agent can't start an interactive session:
 
