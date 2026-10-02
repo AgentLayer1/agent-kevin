@@ -28,15 +28,21 @@ export const selfReviewDue = (
   feedbackChangedOn: string | null,
   oldestSessionDay: string | null
 ): ReviewDue | null => {
-  if (isDate(review.snoozeUntil) && today < review.snoozeUntil) return null;
-  if (isDate(review.skippedOn) && daysBetween(review.skippedOn, today) < MONTH) return null;
+  if (isDate(review.snoozeUntil) && today < review.snoozeUntil) {
+    return null;
+  }
+  if (isDate(review.skippedOn) && daysBetween(review.skippedOn, today) < MONTH) {
+    return null;
+  }
   const brainDue = isDate(review.brainLastRun)
     ? daysBetween(review.brainLastRun, today) >= MONTH
     : isDate(oldestSessionDay) && daysBetween(oldestSessionDay, today) >= MONTH;
   const rulesAge = isDate(review.lastRun) ? daysBetween(review.lastRun, today) : Infinity;
   const newFeedback = feedbackChangedOn !== null && (!isDate(review.lastRun) || feedbackChangedOn >= review.lastRun);
   const rulesDue = (rulesAge >= 14 && newFeedback) || (isDate(review.lastRun) && rulesAge >= MONTH);
-  if (!brainDue && !rulesDue) return null;
+  if (!brainDue && !rulesDue) {
+    return null;
+  }
   const skipped = (review.skips ?? 0) >= 2 ? `, skipped ${review.skips} times in a row` : '';
   const passes = brainDue && rulesDue ? '' : brainDue ? ' brain' : ' rules';
   const label =

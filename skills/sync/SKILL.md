@@ -255,7 +255,7 @@ After the output block (see below), turn the surfaced backlog into a decision. *
 
 **Self-review first, on its own.** When step 6's cadence check listed a `self-review…` item, ask about it before anything else, in its own `AskUserQuestion`: "<label> is due (last run <lastRun, or never>; <the 🧹 Brain counts> waiting)", with **Run it now** · **Tomorrow** · **Skip this month**.
 
-- **Run it now** → skip the rest of this interview: the review is the next move. Run self-review through the Skill tool (`agent-kevin:self-review` with the rest of `invoke` as its argument, e.g. `brain`), and hand it the flywheel's stalled tasks, which its brain pass asks first.
+- **Run it now** → skip the rest of this interview: the review is the next move. Run self-review through the Skill tool (`agent-kevin:self-review` with the rest of `invoke` as its argument, e.g. `brain`). When `invoke` includes the brain pass (`self-review`, `self-review brain`), hand it the flywheel's stalled tasks, which it asks first. For `self-review rules`, which has no place for them, ask the stalled-task questions (3 and 4 below) in their own call and apply them before starting it.
 - **Tomorrow** → `bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/review-defer.ts" tomorrow`. **Skip this month** → the same script with `skip`. Then continue with the interview below, unchanged.
 
 Self-review is never one of question 1's options.
