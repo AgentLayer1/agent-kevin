@@ -102,6 +102,16 @@ describe('resolveConnectionString', () => {
     }
   });
 
+  test('accepts a raw password with URL-reserved characters and hands it to pg intact', () => {
+    for (const password of ['ab/c+d=', 'a#b?c==', 'p@ss:w/rd', 'plain=']) {
+      const raw = `postgres://u:${password}@db.example.com:5432/app`;
+      const parsed = new URL(resolveConnectionString(raw));
+      expect(parsed.hostname).toBe('db.example.com');
+      expect(decodeURIComponent(parsed.password)).toBe(password);
+      expect(safeConnectionInfo(raw)).toEqual({ host: 'db.example.com', port: '5432', database: 'app' });
+    }
+  });
+
   test('rejects an invalid database name', () => {
     expect(() => resolveConnectionString('postgres://u:p@h:5432/app', '')).toThrow(/Invalid database name/);
     expect(() => resolveConnectionString('postgres://u:p@h:5432/app', 'nul\0name')).toThrow(/Invalid database name/);

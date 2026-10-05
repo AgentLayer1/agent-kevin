@@ -45,10 +45,31 @@ export const decodeDbName = (raw: string): string => {
   }
 };
 
+/**
+ * Percent-encode the user and password of a connection string `new URL` rejects,
+ * so a password pasted raw with `/`, `#`, `?` or `@` (generated base64 secrets) still parses.
+ */
+export const encodeConnectionCredentials = (url: string): string => {
+  if (URL.canParse(url)) {
+    return url;
+  }
+  const match = /^(?<scheme>[a-z][a-z\d+.-]*:\/\/)(?<credentials>.*)@(?<address>[^@]*)$/i.exec(url);
+  if (!match?.groups) {
+    return url;
+  }
+  const { scheme, credentials, address } = match.groups;
+  const separator = credentials.indexOf(':');
+  const encoded =
+    separator === -1
+      ? encodeURIComponent(credentials)
+      : `${encodeURIComponent(credentials.slice(0, separator))}:${encodeURIComponent(credentials.slice(separator + 1))}`;
+  return `${scheme}${encoded}@${address}`;
+};
+
 /** Parse a connection URL into display metadata, dropping all credentials. */
 export const safeConnectionInfo = (url: string): { host: string; port: string; database: string } => {
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(encodeConnectionCredentials(url));
     return {
       host: parsed.hostname,
       port: parsed.port || '5432',
@@ -79,7 +100,8 @@ export const assertDbName = (name: string, label = 'database name'): void => {
  * PGDATABASE / the username, connecting somewhere surprising.
  */
 export const resolveConnectionString = (url: string, database?: string): string => {
-  const parsed = new URL(url);
+  const encoded = encodeConnectionCredentials(url);
+  const parsed = new URL(encoded);
   if (database !== undefined) {
     assertDbName(database);
     parsed.pathname = `/${encodeURIComponent(database)}`;
@@ -88,7 +110,7 @@ export const resolveConnectionString = (url: string, database?: string): string 
   if (!parsed.pathname.replace(/^\//, '')) {
     throw new Error(`Connection has no default database — pass "database" to target one (e.g. "app_my_branch").`);
   }
-  return url;
+  return encoded;
 };
 
 const pools = new Map<string, pg.Pool>();
