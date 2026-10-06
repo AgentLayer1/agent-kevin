@@ -245,6 +245,5 @@ export const log = {
   knowledge: createLogger('📚 knowledge'),
   tasks: createLogger('📋 tasks'),
   session: createLogger('🪝 session'),
-  tools: createLogger('🔧 tools'),
-  mcp: createLogger('🛰 mcp')
+  tools: createLogger('🔧 tools')
 };

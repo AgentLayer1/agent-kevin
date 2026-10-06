@@ -192,7 +192,7 @@ Seed commands (prefer the /agent-kevin:seed export skill inside Claude Code — 
                                     Overlay a bundle onto THIS home; --dry-run prints the plan + conflicts first
 
 Compile commands:
-  compile status                    Show queue (pending sessions, feedback, specs)
+  compile status                    Show queue (pending sessions, feedback, inbox)
   compile next                      Print next work item (no synthesis — run /agent-kevin:knowledge-compile for that)
   compile write <itemId>            Mark item complete (advanced — synthesis writes use this internally)
 
@@ -490,7 +490,7 @@ async function run(): Promise<void> {
 
   if (group === 'database') {
     // The database tools live as MCP tool handlers; reuse them directly rather
-    // than duplicating the SQL. They read connections via config's `env()`, which
+    // than duplicating the SQL. They read connections via shared/env's `env()`, which
     // self-loads the data-dir secrets/.env on first read — no manual preload needed.
     // Like worktree/database_fork, these run outside the Bash sandbox — this CLI
     // path is the real-terminal entry point.
@@ -674,7 +674,6 @@ async function run(): Promise<void> {
     });
 
     if (hookProtocol === 'claude') {
-      // Original script emitted a systemMessage for pre-compact (when saved). SessionEnd stays silent. Preserve.
       if (result.saved && mode === 'pre-compact') {
         const systemMessage = `💾 Saved ${result.turns} turn${result.turns === 1 ? '' : 's'} to ${result.filename}`;
         process.stdout.write(

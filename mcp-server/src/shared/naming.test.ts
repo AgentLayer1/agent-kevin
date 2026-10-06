@@ -28,6 +28,10 @@ describe('agentEnvPrefix', () => {
     expect(agentEnvPrefix()).toBe('KEVIN_');
     expect(agentKeyName('CODE_PATH')).toBe('KEVIN_CODE_PATH');
   });
+
+  test("this agent's runtime dir is .kevin", () => {
+    expect(RUNTIME_DIR_DEFAULT).toBe('.kevin');
+  });
 });
 
 describe('runtimeDirName', () => {

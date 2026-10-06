@@ -1073,8 +1073,7 @@ const pageReports = (snap: StatusSnapshot): string => {
 
 // ── scheduler ─────────────────────────────────────────────────────────
 // Placeholder reminder of the recurring routines and when to run them. Every
-// job is manual today — lo-046 will fire them in-session against the
-// subscription bucket. `nextDate` returns the next calendar date the cadence
+// job is manual today. `nextDate` returns the next calendar date the cadence
 // lands on; `resolveNextRun` rolls it forward when today's slot has passed.
 
 interface ScheduledJob {
@@ -1527,7 +1526,7 @@ const MANIFEST_ICON: Record<ManifestEntry['status'], { icon: string; cls: string
 };
 
 /** The "what loads into every session" view — static @-imports plus the
- *  SessionStart injection. Lives on the Brain page (it's Kevin's context),
+ *  SessionStart injection. Lives on the Brain page (it's the agent's context),
  *  surfaced here as a standalone builder so pageBrain can mount it. */
 // Explanations for the load-bearing index files in the Context tab — the few
 // that aren't self-explanatory from their filename. Matched by label suffix.
@@ -1826,9 +1825,9 @@ const upgradeSeverityClass = (severity: string): string =>
 /** System → Changelog tab: every release from CHANGELOG.md, each with its
  *  Added/Changed/Fixed notes and its machine-actionable Upgrade block. */
 const renderChangelog = (snap: StatusSnapshot): string => {
-  const { upgradeState, releasesBehind, baselineVersion, version } = snap.runtime;
+  const { upgradeState, releasesBehind, baselineVersion, version, pluginName } = snap.runtime;
   if (!snap.changelog.length) {
-    return hint('No CHANGELOG.md found in the plugin yet. Cut one with /agent-kevin:release.');
+    return hint(`No CHANGELOG.md found in the plugin yet. Cut one with /${pluginName}:release.`);
   }
   const banner =
     upgradeState === 'pending'

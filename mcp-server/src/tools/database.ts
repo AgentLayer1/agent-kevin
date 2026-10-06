@@ -28,7 +28,7 @@ import { z } from 'zod';
 
 const { Pool } = pg;
 
-/** Connection discovery lives in config (the sole env reader); re-exported here
+/** Connection discovery lives in @/shared/env (the sole env reader); re-exported here
  *  so the status collector's dynamic `import('database')` keeps finding it. */
 export const discoverConnections = dbConnections;
 
