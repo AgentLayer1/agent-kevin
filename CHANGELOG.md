@@ -84,6 +84,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **The manual gains two workflow rules:** once a branch has a PR, corrections land as forward
   commits on it; and the home's git history is its own, committed by sync only while local-only.
 - init no longer suggests pinning the home in the shell rc: a pin is for a single-home machine.
+- **SOUL asks for complete answers.** Every question the operator asked gets answered, each by name,
+  and a decision handed back says in plain words what it means and what Kevin would pick.
 
 ### Fixed
 - Database passwords pasted raw with URL-reserved characters connect.
@@ -95,6 +97,7 @@ and prompts per optional one. The new template files are the source of truth for
   question renders as one quote, and the dashboard's empty-changelog hint names the running plugin.
 
 ### Upgrade
+- `template/SOUL.md: optional` — Writing Style gains one line: answer every question asked, by name, and hand decisions back with a plain explanation and a recommendation.
 - `template/AGENTS.md: mandatory` — the Workflow section gains the PR forward-commit rule, the knowledge lifecycle gains the home-history line, and the tree lists `.obsidian/`.
 - `script: required` — run skills/upgrade/scripts/0.6.4.ts (a Codex home still on `gpt-6-astra` moves to `gpt-6.1-sol`, once; any other model, and homes without Codex, are left as they are).
 - `manual: none` — sync will offer a monthly self-review (brain, then rules); a home never reviewed is offered one once its oldest session is a month old.
