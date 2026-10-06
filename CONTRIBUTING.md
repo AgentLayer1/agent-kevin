@@ -15,8 +15,8 @@ Open an issue before architectural changes — Kevin's contract with `<HOME>/` m
 ## Dev setup
 
 ```bash
-git clone https://github.com/AgentLayer1/agentlayer-claude-marketplace
-cd agentlayer-claude-marketplace/agent-kevin/mcp-server
+git clone https://github.com/AgentLayer1/agent-kevin
+cd agent-kevin/mcp-server
 bun install         # installs deps + downloads chromium via the postinstall hook
 ```
 
@@ -45,8 +45,8 @@ bun ../scripts/session-start.ts
 From inside Claude Code:
 
 ```text
-/plugin marketplace add /absolute/path/to/agentlayer-claude-marketplace
-/plugin install agent-kevin@agentlayer
+/plugin marketplace add /absolute/path/to/agent-kevin
+/plugin install agent-kevin@agentdev-kevin
 ```
 
 After edits, run `/reload-plugins` inside Claude Code to pick up changes without restarting. New skills or hook scripts may require a full `/exit` and relaunch.
@@ -67,12 +67,16 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
 4. **Scratch files get a `mktemp` name, never a hand-picked one.** `$TMPDIR` resolves to `/tmp/claude-<uid>` — it's per-**user**, not per-session, so every Claude Code session running concurrently on the machine shares one directory. A fixed path like `$TMPDIR/prompt.md`, or one keyed only on a run parameter, will be silently overwritten mid-read by another session doing the same thing. Use `mktemp "$TMPDIR/<prefix>-XXXXXX"` (or `mktemp -d` for a directory); both work under the sandbox. No session-id env var is exposed, so there is nothing native to key off instead.
 5. Test by re-running `/reload-plugins` and invoking the skill explicitly.
 
+A skill that is part of Kevin's standing capability set lives here in plugin source, never in one operator's `.claude/skills/`. Output meant to re-orient someone (session cards, digests) gets real sentences, three to five per item, not metadata fragments.
+
 ## Adding an MCP tool
 
 1. Add a file under `mcp-server/src/tools/<your-tool>.ts` exporting a `tools: ToolDef[]` array. Use `defineTool({ name, description, inputSchema, handler })` from `@/shared/types`.
 2. Register it in `mcp-server/src/server.ts` by adding an import and spreading the array into the `TOOLS` constant.
 3. Add the tool name to `skills/init/SKILL.md`'s `permissions.allow` list (use the `mcp__plugin_agent-kevin_kevin__<tool_name>` prefix). Pack-gated tools go in the matching `configure-skills` walk instead of the init baseline.
 4. `bun run typecheck` must pass before submitting.
+
+In the plugin's `.mcp.json`, `env` entries hold only host-owned interpolations (`${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`) or literal values. A server already inherits the session's environment, so never redeclare a user variable as `"X": "${X}"`.
 
 **Tests never touch a real agent home.** `mcp-server/bunfig.toml` preloads `src/test.ts` (and the root `bunfig.toml` preloads the same file, so a run from the repo root is covered too), which pins `AGENT_HOME` to a fresh throwaway tree for the whole run (and deletes any inherited per-agent override, which would beat it), so a suite that resolves a config path can't write into anyone's brain. A suite needing its own fixture home just sets `AGENT_HOME` (paths and secrets both resolve live, so import order doesn't matter) — save the preload's value and restore it afterwards rather than deleting the variable, or later suites fall back to resolving from cwd.
 
@@ -81,8 +85,8 @@ After edits, run `/reload-plugins` inside Claude Code to pick up changes without
 The public demo at agentlayer.one/demo/dashboard is rendered from a fictional home (Acme's agent Ace, operator Alex Chen) that `skills/dashboard/scripts/demo-home.ts` seeds from the real templates, dated relative to now. Rerun it whenever the dashboard or the templates change:
 
 ```bash
-bun skills/dashboard/scripts/demo-home.ts --out <agentlayer-mono>/apps/agentlayer/public/demo/dashboard.html \
-  --avatar <agentlayer-mono>/apps/agentlayer/public/demo/assets/ace-avatar.jpg
+bun skills/dashboard/scripts/demo-home.ts --out <site-repo>/public/demo/dashboard.html \
+  --avatar <site-repo>/public/demo/assets/ace-avatar.jpg
 ```
 
 It renders in isolation (its own `HOME`, environment, and working directory), rewrites every temp and machine path to `/home/alex`, and refuses to write if any real path survives. The docs screenshots are taken from that file with `browser_screenshot` on `file://…/dashboard.html#<page>/<subtab>`.
