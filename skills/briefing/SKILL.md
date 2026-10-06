@@ -12,6 +12,8 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevi
 
 # Briefing
 
+> **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
+
 Three reads of the same state at different depths: the morning brief orients, the evening wrap closes the day, and the pulse checks for fire.
 
 ## Help

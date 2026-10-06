@@ -113,5 +113,5 @@ One procedure, so the week's tasks and `TASKS.md` never drift apart:
 4. **Stamp the cadence** so sync stops nudging for weekly goals until next week, only after the goals are written:
 
    ```bash
-   bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/watermark.ts" goals-week "<YYYY-MM-DD>"
+   bun "<plugin root>/skills/sync/scripts/watermark.ts" goals-week "<YYYY-MM-DD>"
    ```

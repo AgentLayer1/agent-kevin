@@ -22,7 +22,7 @@ Do these in order. Steps 1-3 are reversible; after step 4 (move), be deliberate.
 
 > **Path note:** Resolve the absolute path once at the top of your session:
 > ```bash
-> PROJECTS=$(bun -e 'import { FOLDERS } from "'"$CLAUDE_PLUGIN_ROOT"'/mcp-server/src/config"; console.log(FOLDERS.PROJECTS)')
+> PROJECTS=$(bun -e 'import { FOLDERS } from "<plugin root>/mcp-server/src/config"; console.log(FOLDERS.PROJECTS)')
 > ```
 > Then use `$PROJECTS/<project>/...` in any file operation.
 

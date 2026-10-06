@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
@@ -7,6 +7,7 @@ import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/nam
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
+import { type ReviewWatermark, selfReviewDue } from "./self-review-due";
 
 /**
  * Read-only cadence detector for sync and a bare `/goals`. Prints a JSON array of
@@ -37,7 +38,7 @@ const cadence = Object.entries(RETIRED_CADENCE_KEYS).reduce<Record<string, strin
   const latest = [acc[key], stamps[old]].filter((value): value is string => typeof value === "string").sort().at(-1);
   return latest ? { ...acc, [key]: latest } : acc;
 }, stamps);
-const selfReview = readJson<{ lastRun?: string }>(join(dataDir, "review.json")) ?? {};
+const selfReview = readJson<ReviewWatermark>(join(dataDir, "review.json")) ?? {};
 
 const now = new Date();
 const parseDate = (value: string | undefined): Date | null =>
@@ -79,21 +80,20 @@ due.push(
     .map((goal) => ({ invoke: goal.invoke, label: goal.label, lastRun: cadence[goal.key] ?? null })),
 );
 
-const feedbackMtime = ((): Date | null => {
+const feedbackChangedOn = ((): string | null => {
   try {
-    return statSync(join(home, "knowledge/raw/user/feedback.md")).mtime;
+    return todayDate(statSync(join(home, "knowledge/raw/user/feedback.md")).mtime);
   } catch {
     return null;
   }
 })();
-const lastReview = parseDate(selfReview.lastRun);
-const reviewAgeDays = lastReview === null ? Infinity : (now.getTime() - lastReview.getTime()) / 86_400_000;
-const hasNewFeedback = feedbackMtime !== null && (lastReview === null || feedbackMtime > lastReview);
-// Context decays without new feedback, so a home that has run the pass before is nudged on the
-// calendar too; a home that never ran it still waits for feedback, so a fresh init stays quiet.
-if ((reviewAgeDays >= 14 && hasNewFeedback) || (lastReview !== null && reviewAgeDays >= 30)) {
-  due.push({ invoke: "self-review", label: "Self-review", lastRun: selfReview.lastRun ?? null });
-}
+const oldestSessionDay =
+  (existsSync(FOLDERS.SESSIONS) ? readdirSync(FOLDERS.SESSIONS) : [])
+    .map((name) => name.match(/^(\d{4}-\d{2}-\d{2})\.md$/)?.[1])
+    .filter((day): day is string => day !== undefined)
+    .sort()[0] ?? null;
+const review = selfReviewDue(selfReview, todayDate(), feedbackChangedOn, oldestSessionDay);
+if (review) due.push(review);
 
 // The close records are the watermark: an entity is due when last month's record is missing. A
 // profile the tax engine refuses surfaces as its own item rather than dropping every other nudge.

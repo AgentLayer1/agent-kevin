@@ -95,6 +95,36 @@ describe('skills', () => {
   test('relative links inside skill folders resolve', () => {
     expect(markdownFiles(SKILLS).flatMap(brokenLinks)).toEqual([]);
   });
+
+  // Claude Code fills in ${CLAUDE_PLUGIN_ROOT} only in a loaded SKILL.md, never in a file read later,
+  // and the Bash tool doesn't have the variable, so in a playbook it would run as `/skills/...`.
+  const playbookFiles = skillDirs
+    .filter((skill) => existsSync(join(SKILLS, skill, 'references')))
+    .flatMap((skill) => markdownFiles(join(SKILLS, skill, 'references')).map((file) => ({ skill, file })));
+
+  test('playbooks write <plugin root>, never CLAUDE_PLUGIN_ROOT', () => {
+    expect(
+      playbookFiles
+        .filter(({ file }) => readFileSync(file, 'utf-8').includes('CLAUDE_PLUGIN_ROOT'))
+        .map(({ file }) => relative(ROOT, file))
+    ).toEqual([]);
+  });
+
+  test('a skill whose playbooks write <plugin root> states the path in its SKILL.md', () => {
+    const skills = [
+      ...new Set(
+        playbookFiles
+          .filter(({ file }) => readFileSync(file, 'utf-8').includes('<plugin root>'))
+          .map(({ skill }) => skill)
+      )
+    ];
+    expect(
+      skills.filter(
+        (skill) =>
+          !readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf-8').includes('**Plugin root:** `${CLAUDE_PLUGIN_ROOT}`')
+      )
+    ).toEqual([]);
+  });
 });
 
 describe('retired skills', () => {
@@ -105,7 +135,7 @@ describe('retired skills', () => {
   });
 });
 
-describe.each(['briefing', 'engineer', 'focus', 'goals', 'media', 'project', 'seed', 'seo', 'tax'])(
+describe.each(['briefing', 'engineer', 'focus', 'goals', 'media', 'project', 'seed', 'self-review', 'seo', 'tax'])(
   '%s help',
   (skill) => {
     test('lists every playbook the router names', () => {

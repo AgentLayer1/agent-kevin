@@ -5,6 +5,8 @@ description: Validate and iterate on a Mermaid diagram before it ships. Use when
 
 # Mermaid
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 Broken Mermaid is the failure this skill exists to prevent: a diagram that parses in the author's head but throws (or paints nothing) when the reader opens the file. It has shipped before. The fix is a gate, not vigilance: every diagram gets parse-checked before it is presented, and the diagrams that matter visually get looked at.
 
 Two tiers, escalate only as needed:

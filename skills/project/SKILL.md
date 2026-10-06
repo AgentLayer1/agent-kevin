@@ -11,6 +11,8 @@ description: >
 
 # Project
 
+> **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
+
 A project is a folder with a README and its tasks. Creating one puts it in the knowledge index, the task tools and the flywheel; archiving one keeps it for history and takes it off every active surface.
 
 ## Help

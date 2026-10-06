@@ -25,7 +25,7 @@ Steps 1–2 are reversible. After step 3 (folder creation), stay deliberate.
 
 > **Path note:** Resolve the absolute path once at the top of your session:
 > ```bash
-> PROJECTS=$(bun -e 'import { FOLDERS } from "'"$CLAUDE_PLUGIN_ROOT"'/mcp-server/src/config"; console.log(FOLDERS.PROJECTS)')
+> PROJECTS=$(bun -e 'import { FOLDERS } from "<plugin root>/mcp-server/src/config"; console.log(FOLDERS.PROJECTS)')
 > ```
 > Then use `$PROJECTS/<slug>/...` in any file operation.
 

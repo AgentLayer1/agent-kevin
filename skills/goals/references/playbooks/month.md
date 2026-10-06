@@ -77,7 +77,7 @@ Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPa
 So `sync` knows monthly goals were just set and stops nudging until next month, record today's date. Do this **only after the themes are actually written** — a skipped or aborted interview must leave the watermark untouched so it stays due:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/watermark.ts" goals-month "<YYYY-MM-DD>"
+bun "<plugin root>/skills/sync/scripts/watermark.ts" goals-month "<YYYY-MM-DD>"
 ```
 
 Substitute `<YYYY-MM-DD>` with today's date. Read-modify-write preserves the sibling skills' watermarks.

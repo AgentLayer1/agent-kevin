@@ -69,7 +69,7 @@ Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPa
 So `sync` knows yearly goals were just set and stops nudging until the next quarter, record today's date. Do this **only after the quarters are actually written** — a skipped or aborted interview must leave the watermark untouched so it stays due:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/watermark.ts" goals-year "<YYYY-MM-DD>"
+bun "<plugin root>/skills/sync/scripts/watermark.ts" goals-year "<YYYY-MM-DD>"
 ```
 
 Substitute `<YYYY-MM-DD>` with today's date. Read-modify-write preserves the sibling skills' watermarks.

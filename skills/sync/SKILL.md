@@ -6,6 +6,8 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_a
 
 # Sync
 
+> **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
+
 One pass through every maintenance op, in dependency order, ending in a single status line the user can scan in a second. Use this when you've been away for a while, when you want to start a session fresh, or when something feels stale and you don't want to think about which skill to run.
 
 ## Arguments
@@ -74,6 +76,8 @@ If anything is pending, loop:
 4. `mcp__plugin_agent-kevin_kevin__compile_write` with the `itemId`.
 5. Goto 1.
 
+When the loop compiled at least one item, run knowledge-compile's [gap pass](../knowledge-compile/SKILL.md#gap-pass-on-completion) as written. It is the only writer of `## Open Questions`, a section loaded into every session, and without it the section keeps flagging gaps that were filled long ago.
+
 If nothing is pending, skip to step 2.
 
 Track: how many items processed, any errors.
@@ -104,18 +108,15 @@ Lint with `fix:true` already calls this internally — running it again is a no-
 
 ### 5. Flywheel pass
 
-Run the [flywheel](../flywheel/SKILL.md) protocol — cross-project work sweep. Touch each active project at least briefly, advance/update/close tasks, capture decisions. Placement is deliberate: after the wiki is clean (steps 1-4) so the flywheel reads a current memory index, but **before** scan + dashboard (steps 6 and 10) so those reflect the post-flywheel task state.
+Read the flywheel skill in full, [`../flywheel/SKILL.md`](../flywheel/SKILL.md) from this skill's base directory, then run its protocol as written: the session catch-up, the sweep with its stalled-task test, the archive sweep, roadmap reconciliation, concepts, decisions, and the persisted snapshot. Placement is deliberate: after the wiki is clean (steps 1-4) so the flywheel reads a current memory index and today's compiled daily summaries, but **before** scan + dashboard (steps 6 and 11) so those reflect the post-flywheel task state.
 
-Quick form for one-shot execution:
-1. Read `<HOME>/knowledge/memory/index.md` `## Active Threads` for current portfolio state, then the `ROADMAP` object in `<HOME>/roadmap.html` (grep for `const ROADMAP`, read from there to EOF) as the strategic frame — plus `projects/<slug>/roadmap.html` for any project you go deep on.
-2. For each active project, `mcp__plugin_agent-kevin_kevin__task_query` with `{ project, status: "active" }` and `{ project, status: "open" }`.
-3. For each task: **advance** (concrete work), **update** (`task_thread` with new info, `task_update` for status/priority changes), **close** (`task_close`), or **defer** (set blocked + reason).
-4. **Archive sweep — unconditional.** Move every `status: done` / `status: cancelled` task file from `projects/<slug>/tasks/` into `projects/<slug>/tasks/archive/`. This is a deterministic janitor that runs every sync, independent of whether step 3 made any mutations. Discover candidates with `grep -l '^status: \(done\|cancelled\)' projects/*/tasks/*.md`; for each match, `mkdir -p` the project's archive dir and `mv` the file in. Don't touch files already under `archive/`.
-5. If cross-cutting patterns emerge across ≥2 projects, draft a `<HOME>/knowledge/concepts/<slug>.md` and add a bullet to `knowledge/index.md` `## Concepts`.
-6. Log architectural decisions to `<HOME>/knowledge/memory/index.md` `## Recent Decisions`, and flip any roadmap milestone `status` this run actually moved (status values only, evidence-backed; structural changes and drift go in the output for the operator, never a regeneration).
-7. **Persist flywheel snapshot.** Call `mcp__plugin_agent-kevin_kevin__report_write` with `category: 'briefings'`, `slug: 'flywheel'`, `skill: 'flywheel'`, a one-line title, a body covering projects touched + tasks moved + concepts drafted, and `status: 'findings'` if anything moved (closes, updates, threads, concepts, decisions) or `status: 'clean'` if only the archive sweep ran. The morning brief reads these to pick up the trail across sessions.
+Inside sync, these overrides apply, and nothing else differs:
 
-Bound the breadth: touch every active project, don't sink the whole session into one. The archive sweep (step 4) is the one mechanical action that always runs — closing tasks throughout the week without archiving lets `Recently Closed` accumulate and clutters the active dirs. Steps 4 and 7 are unconditional; everything else fires only when there's real work to do. Skip the in-skill wrap summary — that lands in step 7 below as part of the sync output. Flywheel's orient sub-steps (dashboard refresh, TASKS.md read, task_scan) are intentionally fanned out across sync's steps 6-10 (scan at 6, the dust-settled read at 7, the dashboard render last at 10) so they reflect post-flywheel — and post-briefing — state, not pre-flywheel.
+- **No dashboard calls.** Skip every `dashboard` call the protocol makes (in orient and after the archive sweep). Step 11 renders once at the end, so the dashboards reflect post-flywheel and post-briefing state. Since nothing has re-rendered `TASKS.md` this run, take the sweep's task list from `task_query` per project (`{ project, status: "active" }` and `{ project, status: "open" }`) rather than from its Active section: a task file edited by hand never re-renders it.
+- **No optional `task_scan`** in orient; step 6 runs it.
+- **No wrap** (protocol step 8); its content goes in the ⚙️ Flywheel output block.
+- **No stalled-task question** (protocol step 9); step 13 asks it. Carry the stalled list forward.
+- **Persist before step 6**, with the stalled list as it stands. Step 13's answers land in the task files.
 
 ### 6. Surface what needs attention
 
@@ -167,9 +168,17 @@ Returns a JSON array of `{ invoke, label, lastRun }` for each due item (`invoke`
 - **goals month** — a new calendar month has begun since `lastRun`.
 - **goals year** — a new calendar quarter has begun since `lastRun`.
 - **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Sync only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
-- **self-review** — `raw/user/feedback.md` has new entries since self-review's `lastRun` **and** that run is >14 days old, or a previous run is 30 or more days old regardless of feedback. The second clause is for the prune pass: loaded context goes stale with no new corrections. A home that never ran it waits for feedback, so a fresh init isn't nudged.
+- **self-review** — the brain pass is monthly: due when `brainLastRun` is 30 or more days old, or absent on a home whose oldest session day-file is a month old (a fresh init stays quiet). The rules pass keeps its feedback rule: new entries in `raw/user/feedback.md` since `lastRun` and that run over 14 days old, or 30 days regardless. `invoke` names what's due (`self-review`, `self-review brain`, `self-review rules`). `snoozeUntil` (Tomorrow) and `skippedOn` (Skip this month) hold it off; step 13 asks it first, on its own.
 
-Watermarks live in `.kevin/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.kevin/review.json` (`lastRun`, owned by self-review). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
+Watermarks live in `.kevin/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.kevin/review.json` (`lastRun` and `brainLastRun`, owned by self-review; `snoozeUntil`, `skippedOn` and `skips`, written by step 13). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
+
+**Also take the brain's inventory.** Read-only, and cheap:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/self-review/scripts/brain-audit.ts"
+```
+
+Read its `counts` into the `🧹 Brain` output line, so decay stays visible between monthly reviews. No questions come from it here; the self-review's brain pass asks them.
 
 ### 7. Read the dust-settled state
 
@@ -242,11 +251,18 @@ Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` sta
 
 ### 13. Closing interview — what's next (only when something's actionable)
 
-After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
+After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no stalled task from the flywheel, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
 
-When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions:
+**Self-review first, on its own.** When step 6's cadence check listed a `self-review…` item, ask about it before anything else, in its own `AskUserQuestion`: "<label> is due (last run <lastRun, or never>; <the 🧹 Brain counts> waiting)", with **Run it now** · **Tomorrow** · **Skip this month**.
 
-1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/self-review`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one.
+- **Run it now** → skip the rest of this interview: the review is the next move. Run self-review through the Skill tool (`agent-kevin:self-review` with the rest of `invoke` as its argument, e.g. `brain`). When `invoke` includes the brain pass (`self-review`, `self-review brain`), hand it the flywheel's stalled tasks, which it asks first. For `self-review rules`, which has no place for them, ask the stalled-task questions (3 and 4 below) in their own call and apply them before starting it.
+- **Tomorrow** → `bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/review-defer.ts" tomorrow`. **Skip this month** → the same script with `skip`. Then continue with the interview below, unchanged.
+
+Self-review is never one of question 1's options.
+
+When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions, plus one per stalled task (questions 3 and 4 below). When stalled tasks are the only thing surfaced, ask just those.
+
+1. **"What do you want to tackle next?"** — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, a line from the flywheel's Untracked work ("File a task for <stream>"), the due cadence (`/goals week interview`, `/goals month`, `/goals year`), or the pending `/upgrade`. Each label is the action itself ("Nudge Shiny on al-005", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one. A stalled task is never an option here; it gets its own question below.
 
    **Freshness gate — verify every candidate against current ground truth before offering it (do NOT skip).** The failure mode here is offering something the operator *already did*, often in the very sessions this sync just compiled. The Pending list in `memory/index.md`, the cadence watermarks, and even today's briefing are lagging views — a task can be closed, a bug already fixed, or a chore already handled between when that state was written and now. So for each candidate, confirm it's still open against the freshest source before it earns a slot:
    - **Task-backed candidate** → re-read the task's frontmatter `status` (a `done`/`cancelled`/`blocked`-on-someone-else task is not a "tackle next"). Prefer items whose status/thread you touched *this run* (flywheel step 5) over anything read only from the stale Pending list.
@@ -254,13 +270,14 @@ When there *is* something to act on, end with a single `AskUserQuestion` call ca
    - **Cadence/upgrade candidate** → only surface if the step-6 check *this run* said it's due (watermark null/stale) AND you didn't see it satisfied in today's sessions. A cadence the operator just ran or consciously skipped is not a fresh suggestion.
    - **Prefer today's deltas.** The best next-move candidates come from what *moved* this run — a task closed today that unblocks a dependent, a follow-up the just-compiled sessions explicitly named as "next", a flag raised in the briefing. Rank those above anything lifted from long-standing Pending bullets. If freshness-checking empties the list, offer fewer options (or none — re-gate: a fully-verified-empty list means skip the interview).
 2. **"Act on it now, or queue it as a task?"** — options `Act now` / `Queue as a task`.
+3. and 4. **One question per stalled task** from the flywheel (step 5), most overdue first, at most two; the rest stay listed in its report. Each names the task and how long it's been overdue, with the options and their effects from the flywheel's step 9 (Push a week · Park · Blocked · Cancel). Before asking, re-read each one's frontmatter: step 6 or a concurrent session may have moved it, and a task no longer open or active, or updated today, is dropped from the questions. Apply each answer as that step says; an unanswered question changes nothing. The task's `updated` moves to today, so it isn't stalled on the next run.
 
-Then honor the second answer:
+Apply the stalled-task answers first, so nothing below can skip them. Then honor the second answer:
 
 - **Act now** → do the chosen step this session. External/outbound actions (emails, messages, public posts, `git push`, anything that leaves the machine) still confirm first per the operating rules — an interview pick is not standing authorization for those.
 - **Queue as a task** → if the choice maps to an existing task, `task_thread` a note and bump priority/status as fitting; otherwise `task_create` one. Confirm the id/title back in a single line, then stop.
 
-**Cadence and upgrade picks:** a due goals cadence or self-review picked with **Act now** runs through the Skill tool (`agent-kevin:goals` with the rest of `invoke` as its argument, e.g. `week interview`; `agent-kevin:self-review`), and **Queue as a task** files it like any other pick. A tax close needs the operator's documents, and `upgrade` chains sync itself, so sync invoking it would recurse: for those two, both answers collapse to the same thing — surface the exact slash command for the operator to type.
+**Cadence and upgrade picks:** a due goals cadence picked with **Act now** runs through the Skill tool (`agent-kevin:goals` with the rest of `invoke` as its argument, e.g. `week interview`), and **Queue as a task** files it like any other pick. A tax close needs the operator's documents, and `upgrade` chains sync itself, so sync invoking it would recurse: for those two, both answers collapse to the same thing — surface the exact slash command for the operator to type.
 
 ## Output
 
@@ -278,6 +295,8 @@ One block, tight. Skip empty sections — don't pad.
   - Projects touched: <project1, project2, ...>
   - Tasks closed: <ids | none>
   - Tasks updated/threaded: <ids | none>
+  - Untracked work: <n streams, asked below | none>
+  - Stalled: <ids, asked below | none>
   - New concepts: <slugs | none>
 
 📋 Tasks
@@ -285,6 +304,8 @@ One block, tight. Skip empty sections — don't pad.
   - 👉 Needs attention:
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
+
+🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · oldest waiting since <date>   (omit when every count is 0)
 
 🖥 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, or held by a worktree>

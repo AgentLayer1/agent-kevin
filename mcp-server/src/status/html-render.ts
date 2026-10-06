@@ -1221,7 +1221,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   {
     when: 'Once a month',
     say: `/${plugin}:self-review`,
-    what: 'The agent reviews its own behavior against your feedback and proposes improvements.'
+    what: 'Sync asks when it is due. Cleans up stale tasks, quiet projects, outdated memory and articles with you, then turns your feedback into better rules.'
   },
   {
     when: 'Save anything',
