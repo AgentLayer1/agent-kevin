@@ -28,7 +28,7 @@ that name in this file, and they are not treated the same:
 
 ## Step 0 — Resolve HOME and check idempotency
 
-Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (override via `KEVIN_HOME` in the shell rc). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
+Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (`KEVIN_HOME` overrides it; set it only on a machine with exactly one home, see Step 9). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
