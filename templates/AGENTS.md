@@ -53,6 +53,7 @@ The agent home directory is the single source of truth for memory.
 ├── SOUL.md                          # {{AGENT_NAME}}'s character
 ├── IDENTITY.md                      # {{AGENT_NAME}}'s role
 ├── USER.md                          # YOUR headline + links to {{KNOWLEDGE_REL}}/user/
+├── .obsidian/                       # Obsidian vault config (vault root = HOME; code lives in a separate tree)
 ├── .claude/
 │   ├── CLAUDE.md                    # Claude Code bridge: @-imports this manual + the identity stack, plus Claude-only rules
 │   ├── settings.json                # shared policy: pre-granted tool permissions, deny list, sandbox (written by /init)
@@ -102,6 +103,8 @@ Raw → compiled lifecycle:
 - Capture any input into `raw/inbox/` (use `kevin capture` / the MCP `capture` tool, or drop a file directly), correction-style feedback into `raw/user/feedback.md` via `capture --kind=feedback` (or appended directly)
 - Run `/agent-kevin:knowledge-compile` — {{AGENT_NAME}} synthesises wiki articles, updating `{{KNOWLEDGE_REL}}/user/`, `{{KNOWLEDGE_REL}}/concepts/`, `{{KNOWLEDGE_REL}}/memory/`, and occasionally `USER.md`
 - Sessions stay on disk; inbox items archive after compile; feedback hash-tracked
+
+The HOME's git history is its own: sync commits it only while the repo is local-only on `main`, and nothing here ever pushes it.
 
 ## Task System
 
@@ -193,7 +196,7 @@ Don't do this by hand. The `setup-worktree` skill does both steps: it pins which
 - If something goes sideways, STOP and re-plan immediately.
 - Never mark a task complete without proving it works (tests pass, staging deploy clean, etc.).
 - "Phase 1 must be perfect before Phase 2" — willing to spend a session getting foundation right.
-- Commit per phase for tractable review; rejects megacommits. Commit or push only when asked; one approval covers that commit, not the next.
+- Commit per phase for tractable review; rejects megacommits. Commit or push only when asked; one approval covers that commit, not the next. Once a branch has a PR, corrections land as forward commits on that branch, never a parallel branch.
 - A version bump, CHANGELOG entry, and tag are one release act owned by the repo's release process ("bump the version" means cut a release). A pushed tag never moves; later work rides into the next version.
 - Repo state comes from git: before saying anything is pushed, pending, tagged, or ahead, run `git status -sb` or `git log origin/<branch>..<branch>` in the same turn. A memory line about a repo is a dated snapshot. Run `git remote -v` before suggesting a push, PR, or remote workflow; some repos are local-only on purpose.
 - Derived state is not the source of truth: a task's status comes from its frontmatter, not a Pending list, session logs, or earlier messages. Generated state (lockfiles, `Package.resolved`, TASKS.md, dashboards) has one author: change the input and regenerate, never hand-edit the output.

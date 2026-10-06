@@ -500,11 +500,11 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 > - sync via a cloud-synced folder (`<CLOUD_EXAMPLE>` — a path outside the home)
 > - keep them in a separate git repo
 > - share `projects/` across multiple Kevin homes
-
-Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/OneDrive`) on `windows`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a Windows/WSL/Linux home.
 >
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
+
+Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/OneDrive`) on `windows`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a Windows/WSL/Linux home.
 
 If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
 
