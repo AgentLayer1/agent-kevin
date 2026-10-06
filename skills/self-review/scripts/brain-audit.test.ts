@@ -55,12 +55,17 @@ const home = () => {
 };
 
 describe('brain-audit', () => {
-  test('a task is stale from 30 days untouched, and dormant only when no operator turn names it for 60', () => {
-    const { task, session, run } = home();
+  test('a task is stale from 30 days untouched until kept, and dormant only when no operator turn names it for 60', () => {
+    const { write, task, session, run } = home();
     task({ id: 'ac-001', project: 'acme', updated: 29 });
     task({ id: 'ac-002', project: 'acme', updated: 30 });
     task({ id: 'ac-003', project: 'acme', updated: 31 });
     task({ id: 'ac-004', project: 'acme', status: 'done', updated: 90 });
+    task({ id: 'ac-005', project: 'acme', updated: 40 });
+    write(
+      join(runtimeDirName(), 'review.json'),
+      JSON.stringify({ asked: { 'task:ac-005': { date: daysAgo(10), answer: 'keep', hash: '' } } })
+    );
     session(10, '**User:** where is ac-002?\n\n**Assistant:** ac-003 is still overdue.');
     const stale = run().tasks.stale.map((row: { id: string; dormant: boolean }) => `${row.id}:${row.dormant}`);
     expect(stale).toEqual(['ac-003:true', 'ac-002:false']);
@@ -112,12 +117,12 @@ describe('brain-audit', () => {
     expect(texts(memory.openQuestions)).toEqual(['- **[stale]** an old gap']);
   });
 
-  test('unsettled archived decisions from 90 days, stale articles, and old captures grouped by month', () => {
+  test('unsettled archived decisions from 45 days, stale articles, and old captures grouped by month', () => {
     const { write, run, age } = home();
     const settledLine = `- **${daysAgo(25)}** — settled by an earlier pass.`;
     write(
       'knowledge/memory/archive/decisions-2026-10.md',
-      `# Decisions\n\n- **${daysAgo(5)}** — not reached yet.\n${settledLine}\n- **${daysAgo(95)}** — outside the window.\n- ${daysAgo(6)} — an older, unbolded entry.\n`
+      `# Decisions\n\n- **${daysAgo(5)}** — not reached yet.\n${settledLine}\n- **${daysAgo(44)}** — inside the window.\n- **${daysAgo(46)}** — outside the window.\n- ${daysAgo(6)} — an older, unbolded entry.\n`
     );
     write(
       join(runtimeDirName(), 'review.json'),
@@ -137,7 +142,7 @@ describe('brain-audit', () => {
     age('reports/captures/old-frames', 40);
     age('reports/captures/new-frames', 40);
     const audit = run();
-    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(6), daysAgo(5)]);
+    expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(44), daysAgo(6), daysAgo(5)]);
     expect(audit.articles.map((row: { path: string }) => row.path)).toEqual(['knowledge/concepts/old-idea.md']);
     expect(audit.storage.captures).toEqual([
       {

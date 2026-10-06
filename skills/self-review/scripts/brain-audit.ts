@@ -36,6 +36,7 @@ const DORMANT_DAYS = 60;
 const ACTIVE_OLD_DAYS = 60;
 const QUIET_THREAD_DAYS = 14;
 const KEEP_QUIET_DAYS = 90;
+const DECISION_DAYS = 45;
 const CAPTURE_DAYS = 30;
 const SESSION_WINDOW_DAYS = 90;
 const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
@@ -130,7 +131,11 @@ const taskRow = (task: (typeof openTasks)[number]) => {
 };
 const byOldest = <Row extends { updated: string }>(rows: Row[]): Row[] =>
   rows.toSorted((left, right) => left.updated.localeCompare(right.updated));
-const staleTasks = byOldest(openTasks.filter((task) => (age(task.updated) ?? Infinity) >= STALE_DAYS).map(taskRow));
+const staleTasks = byOldest(
+  openTasks
+    .filter((task) => (age(task.updated) ?? Infinity) >= STALE_DAYS && !keptQuiet(`task:${task.id}`))
+    .map(taskRow)
+);
 const activeOld = byOldest(
   openTasks
     .filter(
@@ -192,11 +197,10 @@ const memoryLines = (name: string) =>
     .toSorted((left, right) => SIGNAL_ORDER.indexOf(left.signal) - SIGNAL_ORDER.indexOf(right.signal));
 const openQuestions = memoryLines('Open Questions').filter((row) => row.text.includes('[stale]'));
 
-// Archived decisions from the last 90 days that no pass has settled yet. The archive is permanent;
-// the window matches how long `asked` keeps an answer, so a settled decision never comes back.
+// Archived decisions from the last 45 days that no pass has settled yet. The archive is permanent;
+// the window is shorter than `asked` keeps an answer, so a settled decision never comes back, and
+// one monthly pass plus a two-week grace covers every decision once.
 const since = watermark.brainLastRun && isDate(watermark.brainLastRun) ? watermark.brainLastRun : '';
-// A first pass looks back one month, not three, so it starts with a sitting's worth.
-const decisionWindow = since === '' ? 31 : KEEP_QUIET_DAYS;
 const archiveDir = join(FOLDERS.MEMORY, 'archive');
 const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : [])
   .filter((name) => /^decisions-\d{4}-\d{2}\.md$/.test(name))
@@ -211,7 +215,7 @@ const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : []
         text: line
       }))
   )
-  .filter((entry) => entry.date !== '' && (age(entry.date) ?? Infinity) < decisionWindow && !settled(entry.key))
+  .filter((entry) => entry.date !== '' && (age(entry.date) ?? Infinity) < DECISION_DAYS && !settled(entry.key))
   .toSorted((left, right) => left.date.localeCompare(right.date));
 
 // Articles: concepts and user facets untouched for 60 days and unmentioned by slug for 60.
