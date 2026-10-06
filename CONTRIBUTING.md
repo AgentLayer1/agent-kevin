@@ -51,8 +51,6 @@ From inside Claude Code:
 
 After edits, run `/reload-plugins` inside Claude Code to pick up changes without restarting. New skills or hook scripts may require a full `/exit` and relaunch.
 
-To see what a changed skill actually does in a session without touching a real home, run it against a throwaway home: [TESTING.md](TESTING.md).
-
 ## Adding a new skill
 
 1. Create `skills/<your-skill>/SKILL.md` with frontmatter:
