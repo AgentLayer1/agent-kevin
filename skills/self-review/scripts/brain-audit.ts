@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * The brain pass's decay inventory: stale and dormant tasks, dormant projects, memory-index lines
- * worth a question, decisions archived since the last brain pass, stale articles, and storage.
+ * worth a question, archived decisions no pass has settled, stale articles, and old captures.
  * Every bucket is a date comparison or a count; the interview judges, this only detects. Read-only.
  *
  * Usage: brain-audit.ts [--home <dir>] [--today YYYY-MM-DD]   (else the agent's home variable, else the cwd)
@@ -61,19 +61,15 @@ const watermark: Watermark = (() => {
     return {};
   }
 })();
-/** An item answered Keep stays quiet for 90 days, and only while its text is unchanged. */
-const keptQuiet = (key: string, currentHash = ''): boolean => {
-  const entry = watermark.asked?.[key];
-  if (!entry || entry.answer !== 'keep') {
-    return false;
-  }
-  const sinceAsked = age(entry.date);
-  return sinceAsked !== null && sinceAsked < KEEP_QUIET_DAYS && (entry.hash ?? '') === currentHash;
-};
 /** Any answer settles an item for 90 days, whatever it was. */
 const settled = (key: string): boolean => {
   const sinceAsked = age(watermark.asked?.[key]?.date ?? '');
   return sinceAsked !== null && sinceAsked < KEEP_QUIET_DAYS;
+};
+/** A Keep settles an item only while its text is unchanged. */
+const keptQuiet = (key: string, currentHash = ''): boolean => {
+  const entry = watermark.asked?.[key];
+  return entry?.answer === 'keep' && settled(key) && (entry.hash ?? '') === currentHash;
 };
 
 // Operator mentions: whole-word hits inside `**User:**` turns of the dated session day-files.
@@ -87,19 +83,24 @@ const sessionDays = (existsSync(FOLDERS.SESSIONS) ? readdirSync(FOLDERS.SESSIONS
   .filter((day) => day !== '' && day <= TODAY)
   .sort();
 const windowDays = sessionDays.filter((day) => (age(day) ?? Infinity) <= SESSION_WINDOW_DAYS);
-const turnsByDay = windowDays.map((day) => ({ day, text: userTurns(read(join(FOLDERS.SESSIONS, `${day}.md`))) }));
-const escape = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** Newest day an operator turn names any of `words` as a whole word, or null within the window. */
-const lastMention = (words: string[]): string | null => {
-  const patterns = words
-    .filter((word) => word.length > 0)
-    .map((word) => new RegExp(`(?<![\\w-])${escape(word)}(?![\\w-])`, 'i'));
-  return turnsByDay.findLast(({ text }) => patterns.some((pattern) => pattern.test(text)))?.day ?? null;
+// Each day's operator words, once: ids and slugs are runs of word characters and hyphens, so set
+// membership is the whole-word match (`tax` never hits "syntax") without rescanning every day per item.
+const wordsByDay = windowDays.map((day) => ({
+  day,
+  words: new Set(
+    userTurns(read(join(FOLDERS.SESSIONS, `${day}.md`)))
+      .toLowerCase()
+      .match(/[\w-]+/g) ?? []
+  )
+}));
+/** Newest day an operator turn names any of `names` as a whole word, or null within the window. */
+const lastMention = (names: string[]): string | null => {
+  const wanted = names.filter((name) => name.length > 0).map((name) => name.toLowerCase());
+  return wordsByDay.findLast(({ words }) => wanted.some((name) => words.has(name)))?.day ?? null;
 };
 const quietFor = (mention: string | null, days: number): boolean =>
   mention === null || (age(mention) ?? Infinity) >= days;
 
-// Tasks.
 const tasks = scanAllTasks().map((task) => task.frontmatter);
 const closedIds = new Set([
   ...scanArchivedTasks().map((task) => task.frontmatter.id),
@@ -172,6 +173,7 @@ const section = (name: string): string[] =>
     .split('\n')
     .filter((line) => line.startsWith('- '));
 const memoryRow = (name: string) => (line: string) => {
+  const lineHash = hash(line);
   const ids = [...new Set(line.match(TASK_ID) ?? [])].filter((id) => knownIds.has(id));
   const mention = ids.length > 0 ? lastMention(ids) : null;
   const signal =
@@ -180,7 +182,7 @@ const memoryRow = (name: string) => (line: string) => {
       : ids.length > 0 && quietFor(mention, QUIET_THREAD_DAYS)
         ? 'quiet'
         : 'none';
-  return { key: `memory:${name}:${hash(line)}`, hash: hash(line), text: line, ids, lastMention: mention, signal };
+  return { key: `memory:${name}:${lineHash}`, hash: lineHash, text: line, ids, lastMention: mention, signal };
 };
 const SIGNAL_ORDER = ['closed', 'quiet', 'none'];
 const memoryLines = (name: string) =>
@@ -241,7 +243,6 @@ const staleArticles = articleDirs
   .filter((article) => !keptQuiet(article.key, article.hash))
   .toSorted((left, right) => left.updated.localeCompare(right.updated));
 
-// Storage.
 // Dot-paths are skipped, as the inbox lister does: secrets live there and a sandbox may deny them.
 const filesUnder = (path: string): string[] =>
   statSync(path).isDirectory()
@@ -250,17 +251,6 @@ const filesUnder = (path: string): string[] =>
         .flatMap((name) => filesUnder(join(path, name)))
     : [path];
 const sizeOf = (path: string): number => filesUnder(path).reduce((sum, file) => sum + statSync(file).size, 0);
-const reportDirs = existsSync(FOLDERS.REPORTS)
-  ? readdirSync(FOLDERS.REPORTS).filter(
-      (name) => !name.startsWith('.') && statSync(join(FOLDERS.REPORTS, name)).isDirectory()
-    )
-  : [];
-const reports = Object.fromEntries(
-  reportDirs.map((name) => {
-    const dir = join(FOLDERS.REPORTS, name);
-    return [name, { files: filesUnder(dir).length, bytes: sizeOf(dir) }];
-  })
-);
 // Old captures, one group per month: a question per file would drown the interview, and the
 // group's exact paths are what a yes deletes.
 const capturesDir = join(FOLDERS.REPORTS, 'captures');
@@ -293,9 +283,6 @@ const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice
     };
   })
   .filter((group) => !keptQuiet(group.key));
-const inbox = existsSync(FOLDERS.INBOX_RAW)
-  ? readdirSync(FOLDERS.INBOX_RAW).filter((name) => !name.startsWith('.')).length
-  : 0;
 
 const memory = {
   threads: memoryLines('Active Threads'),
@@ -318,7 +305,7 @@ const audit = {
   memory,
   decisions: archivedDecisions,
   articles: staleArticles,
-  storage: { reports, captures, inbox },
+  storage: { captures },
   counts: {
     staleTasks: staleTasks.length,
     dormantTasks: staleTasks.filter((task) => task.dormant).length,
