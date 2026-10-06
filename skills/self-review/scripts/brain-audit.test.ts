@@ -126,7 +126,12 @@ describe('brain-audit', () => {
     );
     write(
       join(runtimeDirName(), 'review.json'),
-      JSON.stringify({ asked: { [`decision:${hashBuffer(settledLine)}`]: { date: daysAgo(20), answer: 'leave' } } })
+      JSON.stringify({
+        asked: {
+          [`decision:${hashBuffer(settledLine)}`]: { date: daysAgo(20), answer: 'leave' },
+          [`capture:${daysAgo(70).slice(0, 7)}`]: { date: daysAgo(10), answer: 'keep', hash: '' }
+        }
+      })
     );
     write('knowledge/concepts/old-idea.md', `---\ntitle: Old\nupdated: ${daysAgo(61)}\n---\n\nbody\n`);
     write('knowledge/concepts/fresh-idea.md', `---\ntitle: Fresh\nupdated: ${daysAgo(59)}\n---\n\nbody\n`);
@@ -141,6 +146,8 @@ describe('brain-audit', () => {
     age('reports/captures/old-frames/frame-1.png', 40);
     age('reports/captures/old-frames', 40);
     age('reports/captures/new-frames', 40);
+    write('reports/captures/kept.png', 'k');
+    age('reports/captures/kept.png', 70);
     const audit = run();
     expect(audit.decisions.map((row: { date: string }) => row.date)).toEqual([daysAgo(44), daysAgo(6), daysAgo(5)]);
     expect(audit.articles.map((row: { path: string }) => row.path)).toEqual(['knowledge/concepts/old-idea.md']);
@@ -154,5 +161,6 @@ describe('brain-audit', () => {
         bytes: 4
       }
     ]);
+    expect(audit.counts.oldCaptureFiles).toBe(3);
   });
 });

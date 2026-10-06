@@ -321,7 +321,7 @@ const audit = {
       openQuestions.length,
     decisions: archivedDecisions.length,
     staleArticles: staleArticles.length,
-    oldCaptureFiles: oldCaptures.length,
+    oldCaptureFiles: captures.reduce((sum, group) => sum + group.files.length + group.folders.length, 0),
     oldestWaiting
   }
 };
