@@ -46,7 +46,7 @@ const current = ((): Record<string, unknown> => {
 })();
 const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 const skips = typeof current.skips === 'number' ? current.skips : 0;
-const next =
+const next: Record<string, unknown> =
   choice === 'tomorrow' ? { ...current, snoozeUntil: tomorrow } : { ...current, skippedOn: today, skips: skips + 1 };
 writeFileAtomic(file, `${JSON.stringify(next, null, 2)}\n`);
 console.log(JSON.stringify({ choice, snoozeUntil: next.snoozeUntil ?? null, skippedOn: next.skippedOn ?? null }));

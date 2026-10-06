@@ -15,7 +15,8 @@ export interface ReviewDue {
 }
 
 const MONTH = 30;
-const isDate = (value: string | undefined): value is string => value !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isDate = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /**
  * Whether sync should offer self-review today, and which passes. The brain pass is monthly, and a
