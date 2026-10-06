@@ -17,7 +17,7 @@ State the chosen window explicitly at the top of the interview so the operator c
 2. **Full task board** — `mcp__plugin_agent-kevin_kevin__task_query` across **all** statuses and priorities. Long-blocked chains and the P3 graveyard reveal what a year keeps deferring.
 3. **Project visions** — each `<HOME>/projects/<slug>/README.md`; yearly outcomes should trace to a project's reason for existing, not a task list.
 4. **Memory** — `<HOME>/knowledge/memory/index.md` Active Threads + Recent Decisions for hard external dates (filings, renewals, school years) that pin quarters down.
-5. **Your durable preferences** — `<HOME>/USER.md` (family-first framing matters most at this horizon).
+5. **Your durable preferences** — `<HOME>/USER.md` (the personal commitments they named matter most at this horizon).
 
 ## Interview
 
@@ -78,4 +78,4 @@ Substitute `<YYYY-MM-DD>` with today's date. Read-modify-write preserves the sib
 
 - Quarters get outcomes, not task lists — if it fits in a week, it belongs in weekly goals.
 - Don't invent outcomes the operator didn't agree to in the interview.
-- Family and faith commitments outrank project ambition when quarters collide; surface the collision, let the operator choose.
+- Personal commitments the operator named outrank project ambition when quarters collide; surface the collision, let the operator choose.

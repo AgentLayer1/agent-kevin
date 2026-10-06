@@ -24,7 +24,7 @@ Runs one SERP query. Flags are positional-flexible — both `--flag=value` and `
 | `--num=<n>` | 10 | Number of organic results (up to 100) |
 | `--device=<d>` | `desktop` | `desktop` \| `mobile` \| `tablet` — mobile SERPs often differ (different carousels, AI overview presence) |
 | `--location=<city>` | — | Physical location string (e.g. `"Austin, Texas"`) for localised results |
-| `--google-domain=<d>` | `google.com` | TLD variant (`google.com.my` for Malaysia, etc.) |
+| `--google-domain=<d>` | `google.com` | TLD variant (`google.co.uk` for the UK, etc.) |
 
 ```bash
 # Top 10 organic + SERP features for a query

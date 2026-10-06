@@ -2,13 +2,13 @@
 
 A single phone-screen of orientation: what matters today, what's moved since yesterday, where the world shifted on the topics that touch your work. The previous daemon-era briefing was rich on purpose — match that depth, not a 30-line summary.
 
-Target: ~400–600 words, eight sections, one concrete first move, banana sign-off.
+Target: ~400–600 words, eight sections, one concrete first move, agent-emoji sign-off.
 
 ## Inputs to gather (parallelise where possible)
 
 1. **Active threads + pending** — read `<HOME>/knowledge/memory/index.md` (`## Active Threads`, `## Pending`, `## Recent Decisions`).
 2. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. **Read all of them.** Same for yesterday's last session if briefing runs before any session today.
-3. **Today's project deltas** — `Bash`: `find <HOME>/projects -type f -name '*.md' -newermt '<today> 00:00' -not -path '*/node_modules/*'` to surface files touched today. Also `git -C <HOME> log --since='36 hours ago' --oneline` and `git -C <HOME>/projects log --since='36 hours ago' --oneline` (if a separate gitdir exists).
+3. **Today's project deltas** — `Bash`: `find <HOME>/projects -type f -name '*.md' -newermt '<today> 00:00' -not -path '*/node_modules/*'` to surface files touched today. Also `git -C <HOME> log --since='36 hours ago' --oneline`.
 4. **Tasks**:
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
@@ -71,7 +71,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
 
 📈 Goals
   • Today: <daily goal, or "not set — `/goals day`">
-  • Monthly: <theme or "not set — N Hijri-month fires <date>"> — <status / risk>
+  • Monthly: <theme or "not set — `/goals month`"> — <status / risk>
   • Weekly: <goal> — <on-track / at-risk / blown, with the specific signal>
   • Weekly: ... (one bullet per weekly goal)
 

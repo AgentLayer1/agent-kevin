@@ -7,7 +7,7 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 **The day being wrapped** (`<day>` below, as `YYYY-MM-DD`) is today, or yesterday when it is before 3am (sync's day boundary). The inputs cover it from its 00:00 until now, which before 3am spans two calendar dates: read both dates' session files, use its 00:00 as the `since` and `-newermt` bound, and count tasks closed on either date. The header and the daily goals scored name the day being wrapped.
 
 1. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. Read all flavors (both dates' files before 3am). **Do not** read session logs older than the day being wrapped to fill bullets.
-2. **Today's git activity** — `git -C <HOME> log --since='<day> 00:00' --oneline` and same for `<HOME>/projects` if separate gitdir.
+2. **Today's git activity** — `git -C <HOME> log --since='<day> 00:00' --oneline`.
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt '<day> 00:00' -not -path '*/node_modules/*'`.
 4. **Closed today** — `grep -rl --include='*.md' '^closed: <date>' <HOME>/projects`, once per date being wrapped (it also finds tasks sync already archived). `task_query` has no closed-date filter.
 5. **Active / open P0–P1** — `{status:"active"}`, `{status:"open", priority:"P0"}`, `{status:"open", priority:"P1"}`.

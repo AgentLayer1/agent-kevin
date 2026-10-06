@@ -115,4 +115,4 @@ Add `auth: { loginPath, homePath }` to a target when the flow logs in (then `run
 
 ## Selector tuning
 
-Selectors are the only thing to retune when a site changes. On failure, `step()` writes `<step>-FAILED.png` + an aria snapshot to the run's capture dir. Read those, fix the locator (prefer `getByRole`/`getByLabel`), re-run — a persisted login (for auth flows) skips re-login.
+Selectors are the only thing to retune when a site changes. On failure, `step()` writes `<step>-FAILED.png` to the run's capture dir and prints an aria snapshot to stderr. Read those, fix the locator (prefer `getByRole`/`getByLabel`), re-run — a persisted login (for auth flows) skips re-login.
