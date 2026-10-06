@@ -1,7 +1,7 @@
 ---
 name: upgrade
 description: Apply pending HOME migrations after a plugin code update. `/plugin update` refreshes plugin code (skills, hooks, MCP server, templates) but never touches a home's scaffolded files (AGENTS.md, SOUL.md, settings, rules) or runs bun install. This skill reads the CHANGELOG's Upgrade blocks from the home's recorded baseline up to the installed version, backs up, runs bun install when needed, auto-applies functionality-critical changes, and asks before touching anything you may have personalized. Use when the SessionStart banner / dashboard shows "upgrade available" or "enable update tracking", or the user says "upgrade kevin", "apply the update", "I just ran /plugin update".
-allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__ping, mcp__plugin_agent-kevin_kevin__run_upgrade, mcp__plugin_agent-kevin_kevin__codex_setup
+allowed-tools: Bash, Read, Write, Edit, Skill(agent-kevin:sync), mcp__plugin_agent-kevin_kevin__ping, mcp__plugin_agent-kevin_kevin__run_upgrade, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__github_fast_forward
 ---
 
 # Upgrade — apply pending HOME migrations
@@ -28,6 +28,11 @@ HOME_DIR="${KEVIN_HOME:-$PWD}"
 [ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
 [ -d "$PLUGIN_ROOT/.claude-plugin" ] || echo "SET PLUGIN_ROOT: $PLUGIN_ROOT is not the plugin checkout"
+
+# Detect whether the loaded plugin is a git checkout (directory marketplace /
+# developer clone); a version-pinned cache dir is handled by the AVAILABLE guard below.
+git -C "$PLUGIN_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "GIT_CHECKOUT" || echo "NOT_A_CHECKOUT"
+
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 VERSION_FILE="$HOME_DIR/.kevin/version.json"
 # NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
@@ -71,6 +76,24 @@ ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 
 Confirm `$HOME_DIR` is a real Kevin home (it has `SOUL.md`). If not, stop and tell
 the user to run this from their agent home (or set `KEVIN_HOME`).
+
+**`GIT_CHECKOUT` → bring the plugin code current before reading versions.** Call
+`github_fast_forward` with `repos: ["<PLUGIN_ROOT>"]` — it runs outside the Bash
+sandbox (where SSH remotes have no agent access), fetches over HTTPS with the
+read-only PAT, and is strictly forward-only: a dirty, off-main, or diverged
+checkout is reported, never touched. Read its per-branch status:
+
+- `UPDATED` — code moved. The on-disk CHANGELOG and templates (what this skill
+  applies) are now current: re-read `INSTALLED` from `plugin.json`, proceed with the
+  reconcile, and finish by telling the user to restart the session (its loaded
+  skill/MCP code is still the old copy).
+- `CURRENT` — already latest; proceed.
+- `SKIPPED_DIRTY` / `AHEAD` / `NOT_FAST_FORWARD` — a developer mid-work: say so,
+  leave the checkout alone, proceed with what's on disk.
+- `NOT_CONFIGURED` (no GitHub pack) — fall back to a plain
+  `git -C "$PLUGIN_ROOT" pull --ff-only` in Bash, only when on `main` and clean;
+  if that fails (sandboxed transport can't auth), say the code may be stale and
+  proceed with what's on disk.
 
 ## Step 0b — Registration preflight
 
@@ -147,15 +170,22 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
   re-trust line, any owed install lines, and a changed status line's relaunch note exactly as
   Step 6 words them (this path never reaches Step 6), then stop.
 - **`BASELINE` present and `BASELINE` newer than `INSTALLED`** (downgrade / stale code) →
-  tell the user to run `/plugin marketplace update <marketplace>` then
-  `/plugin update agent-kevin@<marketplace>` and restart, then re-run this. Stop.
+  refresh the plugin per **Refreshing a cache install** below, then have the user
+  restart and re-run this. Stop.
 - **`AVAILABLE` set and newer than `INSTALLED`** (the loaded copy is a pinned cache dir
   and the marketplace source has a newer release) → the CHANGELOG next to that copy
   predates the newer release, so its migrations can't be read from here and the home
-  would silently reconcile to an older template set. Tell the user to run
-  `/plugin marketplace update <marketplace>`, `/plugin update agent-kevin@<marketplace>`,
-  restart, then re-run this. Stop — unless they'd rather land the older baseline now
-  and upgrade again after.
+  would silently reconcile to an older template set. Refresh the plugin per
+  **Refreshing a cache install** below, then have the user restart and re-run this.
+  Stop — unless they'd rather land the older baseline now and upgrade again after.
+
+  **Refreshing a cache install:** try it for the user first — probe whether the CLI
+  exposes plugin management (`claude plugin --help`); if it does, run
+  `claude plugin marketplace update <marketplace>` then
+  `claude plugin update agent-kevin@<marketplace>`. If the subcommand doesn't exist,
+  fall back to telling them to run `/plugin marketplace update <marketplace>` and
+  `/plugin update agent-kevin@<marketplace>` themselves. Either way a session restart
+  follows before re-running this skill.
 - **`BASELINE` present, `< INSTALLED`** → **range mode**: select entries with
   `baseline < version <= installed`.
 - **No `version.json`** → **onboard mode** (this home predates update tracking, e.g.
@@ -463,6 +493,8 @@ Any hit means a merge wrote a template placeholder verbatim. **Restore those fil
 the Step 3 backup, fix the resolution, and re-run the merge** — do not hand-patch the
 token and carry on, because a token you resolved wrongly in one section was probably
 resolved wrongly in the others too. Do not stamp the baseline until this is clean.
+
+## Step 5 — Stamp the new baseline
 
 Rewrite `$HOME_DIR/.kevin/version.json`: set `templateVersion` to `$INSTALLED`,
 preserve `initializedAt` (on the onboard path there's none — set it to today),
