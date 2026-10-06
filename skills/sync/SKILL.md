@@ -37,7 +37,7 @@ Fast-forward the default branches of every repo Kevin grounds against, so the re
 mcp__plugin_agent-kevin_kevin__github_fast_forward
 ```
 
-No arguments: repos default to `AGENT_CODE_PATH` plus `AGENT_GIT_REPOS` (per-agent spellings like `KEVIN_CODE_PATH` override). Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `🖥 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `🖥 Code` line.
+No arguments: repos default to `AGENT_CODE_PATH` plus `AGENT_GIT_REPOS` (per-agent spellings like `KEVIN_CODE_PATH` override). Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `💻 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `💻 Code` line.
 
 **Why an MCP tool and not Bash here.** The Claude Code seatbelt gives non-proxied clients no DNS at all, so a `git fetch` over an SSH remote dies at hostname resolution — under a sandboxed session the Bash version of this step was a guaranteed no-op for any repo with a `git@github.com:` remote, which is most of them. The MCP server runs outside that sandbox, the same reason the rest of the `github_*` family lives there. It authenticates with the fine-grained read-only PAT (`GITHUB_TOKEN`) over HTTPS rather than the operator's SSH key: a scoped, rotatable, fetch-only credential instead of one that can also push and force-push everywhere. The checkout's own remote is left exactly as it is, so the operator's pushes keep using their key.
 
@@ -55,9 +55,9 @@ Why each guard is there — this step touches the operator's working repos, so i
 - **`--prune` only removes remote-tracking refs.** Local branches whose upstream disappeared are left alone (verified) — pruning `origin/feature` never deletes `feature`.
 - **A failed fetch is not a failed sync.** No pack, no grant, no network — report it and continue. Code freshness is a convenience here, not a precondition for the knowledge chain.
 
-Report the outcome in the `🖥 Code` line of the output block. `UPDATED` collapses to a count (`main +12`); a run that's entirely `CURRENT` collapses to a single "all current" line. `AHEAD` means the branch has unpushed local commits and origin has nothing new — informational, not a problem, and emphatically not a divergence. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
+Report the outcome in the `💻 Code` line of the output block. `UPDATED` collapses to a count (`main +12`); a run that's entirely `CURRENT` collapses to a single "all current" line. `AHEAD` means the branch has unpushed local commits and origin has nothing new — informational, not a problem, and emphatically not a divergence. `NOT_FAST_FORWARD` and `SKIPPED_DIRTY` are worth surfacing (that branch is now knowingly behind); `CLAIMED_BY_WORKTREE` is normal on a multi-worktree machine and should read as informational, not as a problem. Never "fix" a diverged, dirty, or worktree-held branch — surface it and let the operator decide.
 
-`NOT_CONFIGURED` means the GitHub pack isn't set up in this home (no `GITHUB_TOKEN`): the tool reports it instead of failing, nothing was touched, and the right line is one neutral clause — `🖥 Code — skipped (GitHub pack not configured)` — plus `/agent-kevin:configure-skills` if the operator wants it on. Never dress this up as a problem; the rest of the chain is unaffected.
+`NOT_CONFIGURED` means the GitHub pack isn't set up in this home (no `GITHUB_TOKEN`): the tool reports it instead of failing, nothing was touched, and the right line is one neutral clause — `💻 Code — skipped (GitHub pack not configured)` — plus `/agent-kevin:configure-skills` if the operator wants it on. Never dress this up as a problem; the rest of the chain is unaffected.
 
 `FETCH_FAILED` carries a `reason`, and the three cases need different words. `NO_ACCESS` means the token authenticated but isn't authorized for that repo — it needs `Contents: Read`, and for an org repo an admin has to approve it; say that plainly instead of implying the repo is broken. `AUTH` is narrower: GitHub rejected the credential itself (expired, revoked, malformed), so the fix is re-minting, not re-scoping. `NETWORK` is just no egress. `NO_ACCESS` covers three observed shapes — `403` for a PAT the org hasn't approved, `403` for an approved PAT missing `Contents: Read`, and `404 Repository not found` for a repo the token can't see, since GitHub hides private-repo existence. The code alone doesn't separate the two `403`s, but one probe does: a pending token can only read *public* resources, so if `github_pr_list` returns private PRs the token is already approved and the missing grant is `Contents: Read`. Run that check before naming a cause.
 
@@ -307,12 +307,12 @@ One block, tight. Skip empty sections — don't pad.
 
 🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · oldest waiting since <date>   (omit when every count is 0)
 
-🖥 Code (omit entirely when no repos are configured)
+💻 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, or held by a worktree>
 
 🎯 Focus — <n PRs (n ready) · n reviews owed · n replies owed, the last with Slack only | a source it couldn't read, in a few words>
 
-🖥 Dashboard — <HOME>/dashboard.html refreshed
+📊 Dashboard — <HOME>/dashboard.html refreshed
 
 💾 Brain — <N commits (knowledge, projects, reports, state) | clean | skipped (<reason>) | blocked (<detail>)>
   - left uncommitted: <paths — only when the script reports any>
