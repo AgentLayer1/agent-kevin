@@ -6,7 +6,7 @@ The agent's data, not its rules: tasks nobody touches, projects gone quiet, memo
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # under Codex replace <SKILL_BASE_DIR> with this skill's base directory
+PLUGIN_ROOT="<plugin root>"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/brain-audit.ts" --home "$HOME_DIR"
 ```
 

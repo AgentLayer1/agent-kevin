@@ -5,6 +5,8 @@ description: Monthly upkeep of the agent's brain and rules, with the operator. T
 
 # Self-Review
 
+> **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
+
 Keep the agent's brain and context lean and correct, and close the feedback loop, with the operator in the room. Stale, wrong and crowded data costs as much as missing data: it gets acted on, and it buries what's live.
 
 ## Core principles
@@ -38,7 +40,7 @@ Keep the agent's brain and context lean and correct, and close the feedback loop
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
 [ -f "$HOME_DIR/SOUL.md" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # under Codex replace <SKILL_BASE_DIR> with this skill's base directory
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DIR"
 ```
 
