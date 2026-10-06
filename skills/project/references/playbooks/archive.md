@@ -12,7 +12,7 @@ Retire a completed or cancelled project so it's preserved for history but no lon
 - `<reason>` — one-line why (shipped / cancelled / rolled into X)
 
 ## Why this design
-- `archive/` sits at the repo root (not under `PROJECTS_ROOT`) so the knowledge-pipeline's `syncProjectIndex()` doesn't mistake "archive" for a project. Every internal scanner (`syncProjectIndex`, `tasks/scan.ts`, `tasks/mutate.ts`, `lint.ts`) routes through `FOLDERS.PROJECTS` — moving a project out of that folder automatically removes it from all scanners with zero config changes.
+- `archive/` sits at the repo root (not under `PROJECTS_ROOT`) so no scanner mistakes "archive" for a project. Every internal scanner (the task tools, the dashboard and focus views, seed) routes through `FOLDERS.PROJECTS` — moving a project out of that folder automatically removes it from all scanners with zero config changes.
 - Historical session logs in `knowledge/raw/sessions/` and `knowledge/raw/archive/` are point-in-time records and stay untouched. Breaking links there is acceptable; they're compiled into transient memory and eventually pruned.
 - Task files travel with the project into `archive/`. Their internal path references (e.g., `Projects/support-agent/src/...`) become historical — they describe what was true when the work was done.
 
@@ -83,12 +83,7 @@ Append to `knowledge/raw/sessions/YYYY-MM-DD.md` (or `YYYY-MM-DD-cli.md` for CLI
 ```
 
 ### 6. Refresh the knowledge index
-```
-mcp__plugin_agent-kevin_kevin__compile_next
-```
-This runs `syncProjectIndex()` (see `mcp-server/src/knowledge/utils.ts`) which regenerates the `## Projects` table in `knowledge/index.md` from the current contents of `projects/` — the archived project drops off automatically. `syncProjectIndex()` is deterministic and will update the index even if the LLM-backed session compile fails (e.g., "Not logged in").
-
-If the whole compile command errors, fall back to manually editing `knowledge/index.md` (delete the row from the Projects table).
+Delete the project's row from the `## Projects` table in `<HOME>/knowledge/index.md`. The table is kept by hand: nothing regenerates it, so a row left behind stays there.
 
 ### 6a. Repoint dangling project links in compiled knowledge
 Compiled articles under `knowledge/concepts/` and `knowledge/memory/` may still link to `../projects/<project>/README.md`. Those 404 now.

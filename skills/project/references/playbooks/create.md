@@ -15,7 +15,7 @@ Stand up a new project so it shows up in the knowledge index, the task CLI, and 
 The 2-letter task prefix is **not an input** — it's derived from the slug (see step 2). You don't choose or register it; you just tell the user what it'll be.
 
 ## Why this design
-- `<HOME>/projects/<slug>/` is the single source of truth. The MCP server's `syncProjectIndex()` scans `projects/` and regenerates the `## Projects` table in `knowledge/index.md` deterministically on every compile — no manual index edit needed.
+- `<HOME>/projects/<slug>/` is the single source of truth. The `## Projects` table in `knowledge/index.md` is kept by hand, so step 4 adds the row.
 - The 2-letter prefix is **derived from the filesystem**, not registered anywhere. `getProjectPrefix()` in `mcp-server/src/tasks/scan.ts` prefers the most-used prefix among existing task filenames, and falls back to deriving from the slug for an empty project. The old hardcoded `TASKS.PREFIX_MAP` in `config.ts` is gone. Nothing to edit — the prefix exists the moment the folder does.
 - Tasks folder exists from day one so `mcp__plugin_agent-kevin_kevin__task_scan` and the Obsidian dashboard don't special-case empty projects, and so prefix derivation has a directory to look at.
 
@@ -79,7 +79,7 @@ If the project later earns a plan-on-a-page, it goes at `projects/<slug>/roadmap
 
 ### 4. Refresh the knowledge index
 
-Run the project sync (the next compile will do this automatically, but you can trigger it explicitly via the MCP server's `syncProjectIndex`, or by calling `mcp__plugin_agent-kevin_kevin__compile_next` if you have pending work).
+Add a row to the `## Projects` table in `<HOME>/knowledge/index.md`, in the shape the existing rows use: `| [<Name>](../projects/<slug>/README.md) | <one-line description> |`. Nothing regenerates the table, so a project without a row stays invisible to the wiki.
 
 ### 5. Verify
 
