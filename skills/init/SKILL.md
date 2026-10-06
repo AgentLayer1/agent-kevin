@@ -1484,8 +1484,48 @@ Substitute `<NAME>` with the operator's name from Step 4a and `<YYYY-MM-DD>` wit
 
 **Write `knowledge/memory/index.md` — strict preservation.** This is the highest-stakes file in the tree — months of `/agent-kevin:knowledge-compile` output (Active Threads, Recent Decisions, Learnings) live here.
 
-- File missing OR file body is empty/whitespace-only → write the master-index scaffold with empty placeholder sections.
+- File missing OR file body is empty/whitespace-only → write the master-index scaffold below.
 - File exists with any non-whitespace body content → **never overwrite**. Skip the write entirely, no prompt. The Step 0 prompt already committed to preserving this; honour it unconditionally.
+
+Scaffold (substitute `<YYYY-MM-DD>` with today's date; the section order is the one compile keeps, and compile's gap pass adds `## Open Questions` itself):
+
+```markdown
+---
+title: Memory — Hot Context
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+---
+
+# Memory
+
+Living summary of what's active, recent, and important. Loaded every session.
+
+## Active Threads
+
+_(empty — `/agent-kevin:knowledge-compile` populates this from session transcripts)_
+
+## Recent Decisions
+
+_(empty — load-bearing decisions land here, dated and one line each)_
+
+## Pending
+
+_(empty — items still waiting on someone, one line each)_
+
+## Key Context
+
+_(empty — stable facts every session needs)_
+
+## Learnings
+
+_Synthesised from [raw/user/feedback.md](../raw/user/feedback.md). Source of truth for feedback-driven self-correction._
+
+_(empty — populated on compile from feedback corrections)_
+
+## Daily Memory
+
+_(empty — compile lists each `memory/YYYY-MM-DD.md` here, most recent first)_
+```
 
 For `projects/TASKS.md`, write this scaffold — the task-list sections render automatically when the `dashboard` tool first runs (which the auto-rebuild on the user's first task creation will trigger):
 
