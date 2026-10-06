@@ -232,7 +232,7 @@ Environment (shared AGENT_* names; this agent's spelling, e.g. KEVIN_HOME, overr
   AGENT_RUNTIME_DIR=<name>          Override the runtime data-dir folder name (default: .kevin)
 
 Examples:
-  kevin capture "remember to follow up with tracy on constitution lodgement"
+  kevin capture "remember to follow up with the accountant on the annual filing"
   kevin capture --file=~/notes/board-meeting.md --title="Board meeting 2026-05-28"
   kevin capture --url=https://docs.anthropic.com/en/docs/claude-code/overview
   pbpaste | kevin capture --stdin --title="Clipped article"

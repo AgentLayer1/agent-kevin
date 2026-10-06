@@ -8,7 +8,7 @@ const log = createLogger('tasks.link');
 
 /**
  * Build a map from task ID (e.g. `mb-014`) to the file's basename without
- * extension (e.g. `mb-014-mdec-pre-incorporation-compliance-checklist-setup-`).
+ * extension (e.g. `ab-014-acme-onboarding-compliance-checklist-setup-`).
  * The basename is what Obsidian's wikilink resolver will match.
  */
 export const buildTaskMap = (): Map<string, string> => {

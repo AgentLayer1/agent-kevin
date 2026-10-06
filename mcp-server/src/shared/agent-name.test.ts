@@ -36,7 +36,7 @@ const identity = (name: string): string => `# Identity\n\n## Who\n\n- **Name:** 
 
 describe('agentDisplayName', () => {
   test('reads a renamed agent from IDENTITY.md', () => {
-    expect(withIdentity(identity('Vikrum'), agentDisplayName)).toBe('Vikrum');
+    expect(withIdentity(identity('Vega'), agentDisplayName)).toBe('Vega');
   });
 
   test('multi-word names survive intact', () => {
@@ -82,8 +82,8 @@ describe('agentDisplayName', () => {
     try {
       writeFileSync(resolve(home, 'IDENTITY.md'), identity('Kevin'));
       expect(agentDisplayName()).toBe('Kevin');
-      writeFileSync(resolve(home, 'IDENTITY.md'), identity('Vikrum'));
-      expect(agentDisplayName()).toBe('Vikrum');
+      writeFileSync(resolve(home, 'IDENTITY.md'), identity('Vega'));
+      expect(agentDisplayName()).toBe('Vega');
     } finally {
       if (priorHome === undefined) delete process.env.AGENT_HOME;
       else process.env.AGENT_HOME = priorHome;

@@ -111,15 +111,15 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   goals: {
     daily: [],
     weekly: [],
-    monthly: ['Ship the MD Status application'],
-    yearly: ['Q3: land MD Status; Q4: first customer']
+    monthly: ['Ship the partner onboarding flow'],
+    yearly: ['Q3: launch the beta; Q4: first customer']
   },
-  memoryThreads: ['al-005 MD portal blocked on 2-member rule', 'Acme Corp = day job, Ring 1'],
-  memoryDecisions: ['BP v2.4→v2.5: third-party AI scrubbed'],
+  memoryThreads: ['ab-005 vendor portal blocked on a signing rule', 'Acme Corp = primary client'],
+  memoryDecisions: ['Spec v2.4→v2.5: vendor list trimmed'],
   memoryLearnings: ['One approval is not blanket commit license.'],
-  memoryPending: ['al-014 corporate bank account awaiting CIMB HQ.'],
+  memoryPending: ['ab-014 supplier contract awaiting legal review.'],
   memoryDailyFiles: [
-    { name: '2026-06-10', href: 'knowledge/memory/2026-06-10.md', summary: 'al-016 decided; BP reworked.' }
+    { name: '2026-06-10', href: 'knowledge/memory/2026-06-10.md', summary: 'ab-016 decided; spec reworked.' }
   ],
   sessions: [
     {
@@ -129,7 +129,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
       time: '09:12',
       turns: 13,
       cwd: '~/Documents/Agents/Kevin',
-      briefing: 'Morning sync and MDEC portal work',
+      briefing: 'Morning sync and vendor portal work',
       isCommand: false
     },
     {
@@ -237,7 +237,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         title: 'Blocked task',
         due: '',
         status: 'blocked',
-        blockedBy: 'Awaiting CIMB HQ approval'
+        blockedBy: 'Awaiting legal review'
       })
     ],
     touchedToday: [taskRef({ id: 'lo-002', title: 'Due today task', updated: '2026-06-11' })],
@@ -355,9 +355,9 @@ describe('renderDashboardHtml', () => {
         }
       })
     );
-    expect(html).toContain('Ship the MD Status application');
+    expect(html).toContain('Ship the partner onboarding flow');
     expect(html).toContain('Due today task');
-    expect(html).toContain('Awaiting CIMB HQ approval');
+    expect(html).toContain('Awaiting legal review');
     expect(html).toContain('Ongoing');
     expect(html).toContain('Tasks touched');
     // The Ongoing feed's Sessions group now comes from the radar digest, with
@@ -467,11 +467,11 @@ describe('renderDashboardHtml', () => {
 
   test('brain page carries threads, decisions, concepts, and the memory tab', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('al-005 MD portal blocked on 2-member rule');
-    expect(html).toContain('BP v2.4→v2.5: third-party AI scrubbed');
+    expect(html).toContain('ab-005 vendor portal blocked on a signing rule');
+    expect(html).toContain('Spec v2.4→v2.5: vendor list trimmed');
     expect(html).toContain('Projects cross-pollinate into deeper skills');
     expect(html).toContain('One approval is not blanket commit license.');
-    expect(html).toContain('al-014 corporate bank account awaiting CIMB HQ.');
+    expect(html).toContain('ab-014 supplier contract awaiting legal review.');
     expect(html).toContain(`obsidian://open?path=${encodeURIComponent('/tmp/home/knowledge/memory/2026-06-10.md')}`);
   });
 
@@ -518,7 +518,7 @@ describe('renderDashboardHtml', () => {
 
   test('daily memory renders as rows with manifest summaries', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('al-016 decided; BP reworked.');
+    expect(html).toContain('ab-016 decided; spec reworked.');
   });
 
   test('persona page renders Kevin from IDENTITY/SOUL, not file names', () => {
@@ -531,7 +531,7 @@ describe('renderDashboardHtml', () => {
 
   test('sessions page lists captured sessions with briefings', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('Morning sync and MDEC portal work');
+    expect(html).toContain('Morning sync and vendor portal work');
     expect(html).toContain('13 turns');
   });
 
@@ -719,7 +719,7 @@ describe('renderDashboardHtml', () => {
 
   test('today carries goals, news, and the commands feed', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('Q3: land MD Status; Q4: first customer');
+    expect(html).toContain('Q3: launch the beta; Q4: first customer');
     expect(html).toContain('href="https://example.com/fable"');
     // Link-less headlines render as plain text, never as empty anchors.
     expect(html).toContain('NEEP Category-I EP salary RM20K/mo confirmed');
@@ -827,7 +827,7 @@ describe('renderDashboardHtml', () => {
   test('sessions page drops command sessions and groups by day', () => {
     const html = renderDashboardHtml(makeSnapshot());
     const sessions = html.slice(html.indexOf('data-page="sessions"'), html.indexOf('data-page="brain"'));
-    expect(sessions).toContain('Morning sync and MDEC portal work');
+    expect(sessions).toContain('Morning sync and vendor portal work');
     expect(sessions).not.toContain('agent-kevin:sync morning');
     expect(sessions).toContain('13 turns');
   });

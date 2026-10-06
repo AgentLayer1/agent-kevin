@@ -681,7 +681,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/assets/kevin-avatar.jpg" "$HOME_DIR/.claude/assets/kev
 
 **Renamed agent with an avatar staged in Step 1b** — copy the operator's file to a
 name-matching destination (lowercase the name, keep the source extension), e.g.
-`.claude/assets/vikrum-avatar.png`, and set `AGENT_AVATAR` to that home-relative path.
+`.claude/assets/vega-avatar.png`, and set `AGENT_AVATAR` to that home-relative path.
 Don't ship Kevin's face under someone else's name.
 
 **Renamed agent, no avatar** — copy nothing and leave `AGENT_AVATAR` empty; Step 3

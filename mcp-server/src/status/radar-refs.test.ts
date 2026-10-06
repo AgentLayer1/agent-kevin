@@ -9,9 +9,10 @@ import {
   type RadarTaskRef
 } from './radar-refs';
 
+// Fictitious task IDs only — no real project data in a public artifact.
 const taskIndex = new Map<string, RadarTaskRef>([
-  ['lo-002', { title: 'MCP integrations', filePath: '/home/projects/life-os/tasks/lo-002-mcp.md' }],
-  ['al-005', { title: 'Apply for MD Status', filePath: '/home/projects/agent-layer/tasks/al-005-apply.md' }]
+  ['ab-001', { title: 'First example task', filePath: '/home/projects/acme/tasks/ab-001-first.md' }],
+  ['cd-002', { title: 'Second example task', filePath: '/home/projects/acme/tasks/cd-002-second.md' }]
 ]);
 
 const userLine = (text: string) => JSON.stringify({ type: 'user', message: { content: text } });
@@ -24,30 +25,30 @@ const toolResult = (text: string) =>
 
 describe('isConversationUserText', () => {
   test('rejects system-reminders, skill payloads, and interrupts', () => {
-    expect(isConversationUserText('<system-reminder>al-005</system-reminder>')).toBe(false);
+    expect(isConversationUserText('<system-reminder>ab-001</system-reminder>')).toBe(false);
     expect(isConversationUserText('Base directory for this skill: /x')).toBe(false);
     expect(isConversationUserText('[Request interrupted by user]')).toBe(false);
     expect(isConversationUserText('   ')).toBe(false);
-    expect(isConversationUserText('please work on al-005')).toBe(true);
+    expect(isConversationUserText('please work on ab-001')).toBe(true);
   });
 });
 
 describe('conversationTextFromLines', () => {
   test('keeps user prose, assistant text, and tool_use inputs; drops context + tool results', () => {
     const lines = [
-      userLine('let us tackle lo-002 today'),
-      userLine('<system-reminder>al-005 zb-001 huge context dump</system-reminder>'),
-      assistantText('I will start on lo-002'),
-      assistantToolUse({ file_path: '/home/projects/life-os/tasks/lo-002-mcp.md' }),
-      toolResult('al-005 zb-001 al-014 — task board dumped by a tool result'),
+      userLine('let us tackle ab-001 today'),
+      userLine('<system-reminder>cd-002 ef-003 huge context dump</system-reminder>'),
+      assistantText('I will start on ab-001'),
+      assistantToolUse({ file_path: '/home/projects/acme/tasks/ab-001-first.md' }),
+      toolResult('cd-002 ef-003 gh-004 — task board dumped by a tool result'),
       'not json at all'
     ];
     const text = conversationTextFromLines(lines);
-    expect(text).toContain('lo-002');
-    expect(text).toContain('I will start on lo-002');
-    expect(text).toContain('lo-002-mcp.md');
+    expect(text).toContain('ab-001');
+    expect(text).toContain('I will start on ab-001');
+    expect(text).toContain('ab-001-first.md');
     // Context dump (system-reminder) and tool-result board are excluded.
-    expect(text).not.toContain('zb-001');
+    expect(text).not.toContain('ef-003');
     expect(text).not.toContain('huge context dump');
     expect(text).not.toContain('task board dumped');
   });
@@ -55,10 +56,10 @@ describe('conversationTextFromLines', () => {
 
 describe('extractSessionRefs', () => {
   test('keeps only indexed IDs, orders by frequency then id', () => {
-    const text = 'al-005 lo-002 lo-002 lo-002 al-005 en-033 zz-999';
+    const text = 'cd-002 ab-001 ab-001 ab-001 cd-002 xy-099 zz-999';
     const refs = extractSessionRefs(text, taskIndex);
-    // lo-002 (×3) before al-005 (×2); en-033/zz-999 not in the index → dropped.
-    expect(refs.taskIds).toEqual(['lo-002', 'al-005']);
+    // ab-001 (×3) before cd-002 (×2); xy-099/zz-999 not in the index → dropped.
+    expect(refs.taskIds).toEqual(['ab-001', 'cd-002']);
   });
 
   test('collects deduped plan hrefs', () => {
@@ -74,8 +75,8 @@ describe('extractSessionRefs', () => {
 
 describe('openerAnchor', () => {
   test('builds an anchor through the opener template, escaping href & label', () => {
-    expect(openerAnchor('al-005', '/a b/c.md', 'obsidian://open?path={path}&paneType=tab')).toBe(
-      '<a href="obsidian://open?path=%2Fa%20b%2Fc.md&amp;paneType=tab">al-005</a>'
+    expect(openerAnchor('ab-001', '/a b/c.md', 'obsidian://open?path={path}&paneType=tab')).toBe(
+      '<a href="obsidian://open?path=%2Fa%20b%2Fc.md&amp;paneType=tab">ab-001</a>'
     );
     expect(openerAnchor('plan <v2>', '/x.md', 'x://{path}')).toContain('>plan &lt;v2&gt;</a>');
   });
@@ -87,15 +88,15 @@ describe('composeMetaRows', () => {
 
   test('emits one row per task and per plan as HTML divs', () => {
     const rows = composeMetaRows(
-      { taskIds: ['lo-002', 'al-005'], planHrefs: ['reports/plans/foo-bar.md'] },
+      { taskIds: ['ab-001', 'cd-002'], planHrefs: ['reports/plans/foo-bar.md'] },
       taskIndex,
       planTitles,
       url,
       '/home'
     );
     expect(rows).toContain('<div class="rmeta-row"><span class="rmeta-tag">🔗</span> <a href="obsidian://open?path=');
-    expect(rows).toContain('>lo-002</a> MCP integrations');
-    expect(rows).toContain('>al-005</a> Apply for MD Status');
+    expect(rows).toContain('>ab-001</a> First example task');
+    expect(rows).toContain('>cd-002</a> Second example task');
     expect(rows).toContain('<span class="rmeta-tag">📋</span> <a href="obsidian://open?path=');
     expect(rows).toContain('>My Plan Title</a>');
     expect(rows).toContain(encodeURIComponent('/home/reports/plans/foo-bar.md'));

@@ -119,10 +119,10 @@ Case-sensitive, word-boundary, and path-guarded.
 cd "$HOME_DIR"
 rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l \
   | while IFS= read -r file; do
-      perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vikrum}g' "$file"
+      perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vega}g' "$file"
     done
 # The bridge is prose too, but it lives under .claude/ where rg does not look.
-[ -f .claude/CLAUDE.md ] && perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vikrum}g' .claude/CLAUDE.md
+[ -f .claude/CLAUDE.md ] && perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vega}g' .claude/CLAUDE.md
 ```
 
 Three properties do the work, and all three are required:
@@ -134,7 +134,7 @@ Three properties do the work, and all three are required:
   without matching inside a longer word.
 - **The `/` and `\` lookarounds.** These are what stop the sweep from rewriting the home
   path. Without them, ``~/Documents/Agents/Kevin/`` becomes
-  ``~/Documents/Agents/Vikrum/`` and every documented path in the brain points nowhere.
+  ``~/Documents/Agents/Vega/`` and every documented path in the brain points nowhere.
   Both sides are needed: the home appears with a trailing slash, without one at end of
   line, and backslash-separated on Windows.
 

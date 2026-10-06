@@ -190,12 +190,12 @@ describe('0.4.0 manual migration', () => {
   test('IDENTITY.md names the agent, not the legacy title', () => {
     const home = makeHome();
     write(home, 'CLAUDE.md', legacyManual('knowledge', 'projects', 'Scout'));
-    write(home, 'IDENTITY.md', '# Identity\n\n## Who\n\n- **Name:** Vikrum\n');
+    write(home, 'IDENTITY.md', '# Identity\n\n## Who\n\n- **Name:** Vega\n');
 
     const { report } = run(home);
-    expect(report.agentName).toBe('Vikrum');
-    expect(read(home, 'AGENTS.md')).toContain("# AGENTS.md — Vikrum's Operating Manual");
-    expect(read(home, '.claude/CLAUDE.md')).toContain('bridge for Vikrum');
+    expect(report.agentName).toBe('Vega');
+    expect(read(home, 'AGENTS.md')).toContain("# AGENTS.md — Vega's Operating Manual");
+    expect(read(home, '.claude/CLAUDE.md')).toContain('bridge for Vega');
   });
 
   test('a partial earlier run (AGENTS.md written, legacy file left) is completed without merging', () => {
