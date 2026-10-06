@@ -43,6 +43,62 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.4] - 2026-10-07
+
+### Added
+- **A monthly brain pass in self-review.** An inventory script finds decay: tasks untouched for 30
+  days, projects quiet for 60, memory lines that went false, archived decisions from the last 45
+  days that no permanent article holds, articles current state has outrun, and captures older than
+  a month. The pass asks about each, four questions at a time with the evidence and a recommendation
+  first, and applies every batch before the next. A Keep stays quiet for 90 days while the item is
+  unchanged. A bare `/self-review` runs the brain pass, then the rules pass.
+- **Sync offers the self-review when it's due**, first and on its own: Run it now, Tomorrow, or Skip
+  this month. The brain pass comes due every 30 days; skips are counted. Every sync also prints a
+  🧹 Brain line with the inventory's counts, so decay stays visible between reviews.
+- **The flywheel reads sessions.** It catches up on the daily memory written since its last report,
+  adds a thread note to tasks the sessions moved, and lists up to five work streams no task tracks.
+  An overdue task untouched since the last run is **stalled** and gets one decision (Push a week,
+  Park, Blocked, Cancel) instead of another "still unchanged" note.
+- `/self-review help` prints the menu.
+- **Upgrade brings the plugin itself current first.** A git-checkout install is fast-forwarded
+  through `github_fast_forward` before versions are read; a stale cache install is refreshed
+  through the CLI's plugin commands when it has them.
+- **init writes a concrete memory-index scaffold**, with the sections compile keeps, in its order.
+
+### Changed
+- **Sync runs the flywheel skill's own protocol** with five sync-specific overrides, instead of a
+  copy that had drifted. It still reads tasks live through `task_query`.
+- **Sync refreshes Open Questions whenever it compiles.** Only a manual compile used to, so a gap
+  that had been filled could stay flagged for months.
+- **Self-review is two playbooks**: brain (the data) and rules (the prompt surface).
+- **Playbooks get the plugin root from their skill.** Claude Code fills `${CLAUDE_PLUGIN_ROOT}` only
+  inline in a loaded `SKILL.md`, not in files read later; the skill states the path and playbooks
+  write `<plugin root>`. Codex resolves it from the skill's base directory.
+- **Codex homes default to GPT-6.1 Sol** (high) instead of Astra.
+- **Project create and archive edit the knowledge index's Projects row themselves.** Nothing
+  regenerates that table; the playbooks had promised a sync that never existed.
+- Sync's Code and Dashboard lines use 💻 and 📊, which keep their space in a terminal.
+- **Shipped defaults come from the operator.** The yearly plan weighs the personal commitments they
+  named, sync's news clusters follow their signal topics, and the monthly goals line points at
+  `/goals month`.
+- **The manual gains two workflow rules:** once a branch has a PR, corrections land as forward
+  commits on it; and the home's git history is its own, committed by sync only while local-only.
+- init no longer suggests pinning the home in the shell rc: a pin is for a single-home machine.
+
+### Fixed
+- Database passwords pasted raw with URL-reserved characters connect.
+- The briefings' "files touched today" check works where `find` is bfs, and the evening wrap before
+  3am reads the day it is wrapping.
+- The morning brief signs with the agent's own emoji, and the CLI's `compile status` help lists
+  the inbox, the queue's real third kind.
+- Upgrade's steps run 4, 5, 6 again (the baseline stamp had lost its heading), init's storage
+  question renders as one quote, and the dashboard's empty-changelog hint names the running plugin.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — the Workflow section gains the PR forward-commit rule, the knowledge lifecycle gains the home-history line, and the tree lists `.obsidian/`.
+- `script: required` — run skills/upgrade/scripts/0.6.4.ts (a Codex home still on `gpt-6-astra` moves to `gpt-6.1-sol`, once; any other model, and homes without Codex, are left as they are).
+- `manual: none` — sync will offer a monthly self-review (brain, then rules); a home never reviewed is offered one once its oldest session is a month old.
+
 ## [0.6.3] - 2026-10-02
 
 ### Added
