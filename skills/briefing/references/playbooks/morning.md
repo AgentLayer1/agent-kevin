@@ -8,7 +8,7 @@ Target: ~400–600 words, eight sections, one concrete first move, banana sign-o
 
 1. **Active threads + pending** — read `<HOME>/knowledge/memory/index.md` (`## Active Threads`, `## Pending`, `## Recent Decisions`).
 2. **Today's raw sessions** — `Glob` `<HOME>/knowledge/raw/sessions/<today>*.md`. **Read all of them.** Same for yesterday's last session if briefing runs before any session today.
-3. **Today's project deltas** — `Bash`: `find <HOME>/projects -type f -name '*.md' -newermt 'today 00:00' -not -path '*/node_modules/*'` to surface files touched today. Also `git -C <HOME> log --since='36 hours ago' --oneline` and `git -C <HOME>/projects log --since='36 hours ago' --oneline` (if a separate gitdir exists).
+3. **Today's project deltas** — `Bash`: `find <HOME>/projects -type f -name '*.md' -newermt '<today> 00:00' -not -path '*/node_modules/*'` to surface files touched today. Also `git -C <HOME> log --since='36 hours ago' --oneline` and `git -C <HOME>/projects log --since='36 hours ago' --oneline` (if a separate gitdir exists).
 4. **Tasks**:
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
