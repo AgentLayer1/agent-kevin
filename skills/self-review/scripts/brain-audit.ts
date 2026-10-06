@@ -7,7 +7,7 @@
  * Usage: brain-audit.ts [--home <dir>] [--today YYYY-MM-DD]   (else the agent's home variable, else the cwd)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
@@ -44,6 +44,8 @@ const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
 const isDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const age = (date: string): number | null => (isDate(date) ? daysBetween(date, TODAY) : null);
 const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8').replace(/\r\n/g, '\n') : '');
+// Forward slashes on every OS: these paths become `asked` keys and must not change with the host.
+const homeRelative = (path: string): string => relative(FOLDERS.HOME, path).split(sep).join('/');
 const hash = (text: string): string => hashBuffer(text.trim().replace(/\s+/g, ' '));
 
 interface Asked {
@@ -233,8 +235,8 @@ const staleArticles = articleDirs
     const updated = splitFrontmatter(content).frontmatter.match(/^updated:\s*['"]?(\d{4}-\d{2}-\d{2})/m)?.[1] ?? '';
     const slug = basename(path, '.md');
     return {
-      key: `article:${relative(FOLDERS.HOME, path)}`,
-      path: relative(FOLDERS.HOME, path),
+      key: `article:${homeRelative(path)}`,
+      path: homeRelative(path),
       updated,
       daysSinceUpdate: age(updated),
       lastMention: lastMention([slug]),
@@ -264,7 +266,7 @@ const oldCaptures = (existsSync(capturesDir) ? readdirSync(capturesDir).filter((
     const folder = statSync(path).isDirectory();
     // A folder is as old as its newest file: a recording's frames and transcript land after it.
     const newest = Math.max(statSync(path).mtimeMs, ...filesUnder(path).map((file) => statSync(file).mtimeMs));
-    return { path: relative(FOLDERS.HOME, path), folder, modified: todayDate(new Date(newest)), bytes: sizeOf(path) };
+    return { path: homeRelative(path), folder, modified: todayDate(new Date(newest)), bytes: sizeOf(path) };
   })
   .filter((capture) => (age(capture.modified) ?? 0) >= CAPTURE_DAYS);
 const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice(0, 7)))]
