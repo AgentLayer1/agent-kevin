@@ -43,6 +43,34 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.6.5] - 2026-10-07
+
+### Added
+- **A home records which plugin owns it.** `.kevin/version.json` now carries `"plugin": "agent-kevin"`,
+  and the runtime's home walk-up and logger refuse a data dir recorded for another plugin, so two
+  agents can share a folder name without one resolving into the other's home. A baseline with no
+  record still matches until init or upgrade stamps it.
+- **Paths in chat stay bare** in the manual template's Platform section: some terminals (cmux among
+  them) preview a Cmd-clicked markdown path only when it carries no `:line` and no hyperlink.
+
+### Changed
+- **Skills spot an agent home by its data dir, not `SOUL.md`.** Upgrade and self-review now look for
+  `.kevin/version.json` or `.kevin/knowledge.json`, the runtime's own check since v0.3.28; every
+  agent's home has a `SOUL.md`, so the old check matched a sibling's. The manual template drops
+  "where SOUL.md lives" from the launch-from-the-home rule.
+
+### Removed
+- **The runtime-dir override** (`AGENT_RUNTIME_DIR` / `KEVIN_RUNTIME_DIR`). Only the server honoured
+  it: skill text, init's secrets deny rules and the Codex wiring all assume `.kevin`, so a renamed
+  folder left the secrets store outside every sandbox rule. The folder name is now fixed.
+
+### Fixed
+- A deferred-capture test could read `index.json` instead of the day file when APFS listed it first.
+
+### Upgrade
+- `template/AGENTS.md: mandatory` — the Platform section drops "where SOUL.md lives" from the launch rule and gains the bare-paths-in-chat rule.
+- `manual: none` — only if this home set `KEVIN_RUNTIME_DIR` or `AGENT_RUNTIME_DIR`: rename its data folder back to `.kevin` and delete the variable from settings, or the home is no longer recognised. Homes that never set it need nothing; the upgrade's `home-baseline.ts` run adds the `plugin` record on its own.
+
 ## [0.6.4] - 2026-10-07
 
 ### Added
