@@ -273,6 +273,7 @@ async function run(): Promise<void> {
           ok: isInitialized(),
           timezone: TIMEZONE,
           home: FOLDERS.HOME,
+          data: FOLDERS.DATA,
           knowledge: FOLDERS.KNOWLEDGE,
           projects: FOLDERS.PROJECTS
         },

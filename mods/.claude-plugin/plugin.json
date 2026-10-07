@@ -1,0 +1,7 @@
+{
+  "name": "agent-kevin",
+  "version": "0.0.0",
+  "description": "Test harness for this plugin's mods: `claude plugin test mods`. Never installed; the plugin loads mods/hooks/register.ts through hooks/claude.json.",
+  "author": { "name": "AgentLayer", "url": "https://agentlayer.one" },
+  "types": "./types/index.d.ts"
+}

@@ -1,3 +1,5 @@
 [test]
 # Same throwaway-home pin as mcp-server/bunfig.toml, so a run from the repo root can't write into the checkout.
 preload = ["./mcp-server/src/test.ts"]
+# The mods' tests run under `claude plugin test mods`, against the engine's own test kit.
+pathIgnorePatterns = ["mods/**"]

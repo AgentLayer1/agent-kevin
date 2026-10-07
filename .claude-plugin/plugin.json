@@ -21,6 +21,7 @@
     "google-search-console"
   ],
   "hooks": "./hooks/claude.json",
+  "types": "./mods/types/index.d.ts",
   "mcpServers": {
     "kevin": {
       "command": "bun",
