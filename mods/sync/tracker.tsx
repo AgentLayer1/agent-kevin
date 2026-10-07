@@ -135,12 +135,13 @@ export const registerSync = (on: On): void => {
   on('tool.call', { tool: /__sync_stats$/ }, async ($) => {
     const run = await read($, syncRun);
     if (run === null) {
-      return { result: { error: 'No sync is running in this session.' } };
+      return { result: 'No sync is running in this session.' };
     }
     const after = await snapshot($).catch(() => null);
     await update($, syncRun, (current) => (current ? { ...current, after } : current));
     const now = await $.clock.now();
-    return { result: statsPayload({ ...run, after }, now, await history($)) };
+    // A tool result is text or content blocks, never an object.
+    return { result: JSON.stringify(statsPayload({ ...run, after }, now, await history($))) };
   });
 
   on('turn.complete', async ($, e, next) => {

@@ -10,7 +10,8 @@ const startSync = ($: Engine) => $.skill.prompt({ skill: 'agent-kevin:sync', tex
 
 const stats = async ($: Engine) => {
   const answer = await $.tool.call({ tool: 'mcp__agent-kevin__sync_stats' });
-  return answer.result as {
+  expect(typeof answer.result).toBe('string');
+  return JSON.parse(String(answer.result)) as {
     phase: string | null;
     actions: Record<string, number>;
     compileBacklog: { before: number | null; after: number | null };
@@ -69,7 +70,7 @@ describe('sync tracking', () => {
     fakeHost(on);
     await $.tool.call({ tool: `${MCP}compile_write`, itemId: 'x' });
     const answer = await $.tool.call({ tool: 'mcp__agent-kevin__sync_stats' });
-    expect(answer.result).toEqual({ error: 'No sync is running in this session.' });
+    expect(answer.result).toBe('No sync is running in this session.');
   });
 
   test('the end of the turn finishes the run and keeps it in the history', async ($, on) => {
