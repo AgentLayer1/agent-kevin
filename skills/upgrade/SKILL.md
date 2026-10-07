@@ -505,8 +505,8 @@ set `lastUpgrade` to now (ISO-8601 with tz offset), and append a history entry
 date +%Y-%m-%dT%H:%M:%S%z   # use for lastUpgrade / history.at
 ```
 
-(Write the JSON with the Write tool, preserving any existing `initializedAt` and
-prior `history` entries.)
+(Write the JSON with the Write tool, preserving any existing `plugin`, `initializedAt`
+and prior `history` entries.)
 
 Then snapshot the templates this home now tracks, so the next upgrade has its base:
 
@@ -527,6 +527,11 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
 ```
 
 - **`gitignore`** is already written, the same reconcile init Step 7 runs.
+- **`identity`** is already written: `stamped` means `version.json` now records this plugin
+  (`plugin`), which is how the runtime tells this agent's data dir from a sibling's. `current` and
+  `no-baseline` need nothing. `mismatch` means the baseline records another plugin, so this is not
+  this agent's home: stop and tell the operator which plugin it names. `unreadable` means
+  `version.json` didn't parse; restore it from the brain repo.
 - **`settings.allowMissing`** / **`settings.askMissing`** are the init Step 7 entries the home
   lacks (Step 7 is the source of truth; never restate the lists here). An entry the operator put
   in `ask` or `deny` is their decision and is never granted; `remove_worktree` is never listed.

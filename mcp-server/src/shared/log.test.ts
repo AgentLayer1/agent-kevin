@@ -64,6 +64,20 @@ describe('file logging', () => {
     );
   });
 
+  test('refuses a data dir recorded for another plugin', async () => {
+    await withHome(
+      (home) => {
+        mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), JSON.stringify({ plugin: 'agent-other' }));
+      },
+      async (home) => {
+        const { log } = await import(`@/shared/log?otherplugin=${Date.now()}`);
+        log.info('should stay on stderr only');
+        expect(existsSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'))).toBe(false);
+      }
+    );
+  });
+
   // The planted-dir regression: a bare data dir (only runtime artifacts, no
   // marker file) is what the pre-guard logger left in worktrees. It must not
   // re-arm file logging there.

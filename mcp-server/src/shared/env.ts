@@ -1,6 +1,6 @@
-import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName, resolveEnv } from '@/shared/naming';
+import { RUNTIME_DIR, agentKeyName, isOwnDataDir, resolveEnv } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 /**
@@ -95,10 +95,10 @@ const homeAbove = (start: string): string | undefined => {
  * the pre-init logger plant `.kevin/logs/` there, and once the dir existed
  * every later hook resolved that repo as the home and captured sessions into
  * it. Guards use this to fail loud instead of writing into a repo or another
- * agent's tree.
+ * agent's tree. A marker whose `version.json` records another plugin is that
+ * plugin's home, not this one's (`isOwnDataDir`).
  */
-export const isAgentHome = (path: string): boolean =>
-  HOME_MARKER_FILES.some((file) => existsSync(resolve(expandTilde(path), RUNTIME_DIR, file)));
+export const isAgentHome = (path: string): boolean => isOwnDataDir(resolve(expandTilde(path), RUNTIME_DIR));
 
 /** `<HOME>/<data-dir>/secrets`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
 const secretsDir = (): string => resolve(agentHomePath(), RUNTIME_DIR, 'secrets');

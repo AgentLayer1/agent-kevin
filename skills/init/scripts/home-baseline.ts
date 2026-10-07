@@ -6,16 +6,17 @@
  * any retired skill's grant an older release left behind. The home's two settings files are read as
  * the one view Claude Code acts on, so an entry kept in `settings.local.json` counts as present.
  * The core deny list and the sandbox block are gap-filled against the user settings, the same
- * test init applies. `--write` writes the `.gitignore` (without it, a dry run); settings are only
- * reported, for the caller to merge.
+ * test init applies. It also records this plugin in the data dir's `version.json`, which is how a
+ * home tells this agent's data dir from a sibling's. `--write` writes the `.gitignore` and that
+ * record (without it, a dry run); settings are only reported, for the caller to merge.
  *
  * Usage: home-baseline.ts --home <dir> [--claude-dir <dir>] [--write]
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
-import { resolveEnv } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, pluginName, recordedPlugin, resolveEnv } from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde, isInside } from '../../../mcp-server/src/shared/paths';
 import { readMergedSettings } from '../../../mcp-server/src/home/settings-scope';
@@ -33,8 +34,49 @@ if (!homeFlag) {
 const home = resolve(homeFlag);
 const claudeDir = resolve(flag('claude-dir') ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'));
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
+const PLUGIN = pluginName();
+const write = args.includes('--write');
 
-const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'));
+const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), write);
+
+type Identity =
+  | { state: 'current' | 'missing' | 'stamped' | 'no-baseline' | 'unreadable' }
+  | { state: 'mismatch'; recorded: string };
+
+// A home recorded for another plugin is never rewritten: that would hand its data dir to this agent.
+const stampPlugin = (dataDir: string): Identity => {
+  const file = join(dataDir, 'version.json');
+  if (!existsSync(file)) {
+    return { state: 'no-baseline' };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(file, 'utf-8'));
+  } catch {
+    return { state: 'unreadable' };
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { state: 'unreadable' };
+  }
+  const recorded = recordedPlugin(dataDir);
+  if (recorded === PLUGIN) {
+    return { state: 'current' };
+  }
+  if (recorded !== undefined) {
+    return { state: 'mismatch', recorded };
+  }
+  if (!write) {
+    return { state: 'missing' };
+  }
+  const stamped = Object.fromEntries([
+    ['plugin', PLUGIN],
+    ...Object.entries(parsed).filter(([key]) => key !== 'plugin')
+  ]);
+  writeFileSync(`${file}.tmp`, `${JSON.stringify(stamped, null, 2)}\n`);
+  renameSync(`${file}.tmp`, file);
+  return { state: 'stamped' };
+};
+const identity = stampPlugin(join(home, RUNTIME_DIR));
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {
@@ -69,7 +111,6 @@ if (!haikuModel) {
   throw new Error('init SKILL.md no longer names the ANTHROPIC_DEFAULT_HAIKU_MODEL baseline');
 }
 const retiredHaikuModels = ['claude-sonnet-4-6'];
-const PLUGIN = 'agent-kevin';
 const LISTS = ['allow', 'ask', 'deny'] as const;
 
 interface HomeSettings {
@@ -107,6 +148,7 @@ process.stdout.write(
   JSON.stringify(
     {
       gitignore,
+      identity,
       settings: {
         allowMissing: baselineAllow.filter((entry) => !decidedForAllow.has(entry)),
         askMissing: baselineAsk.filter((entry) => !decidedForAsk.has(entry)),

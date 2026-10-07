@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from './naming';
-import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName, pluginName } from './naming';
+import { agentHomePath, env, isAgentHome, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
 
@@ -113,6 +113,32 @@ describe('agentHomePath', () => {
       expect(agentHomePath()).toBe(process.cwd());
       expect(process.env.AGENT_HOME).toBeUndefined();
     });
+  });
+
+  // Once two agents share a data-dir name, the recorded plugin is what keeps one
+  // agent out of the other's brain.
+  test('ignores a data dir whose version.json records another plugin', () => {
+    const otherHome = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-other-plugin-')));
+    scaffoldDataDir(otherHome);
+    writeFileSync(resolve(otherHome, RUNTIME_DIR, 'version.json'), JSON.stringify({ plugin: 'agent-other' }));
+    writeFileSync(resolve(otherHome, RUNTIME_DIR, 'knowledge.json'), '{}\n');
+    expect(isAgentHome(otherHome)).toBe(false);
+    withCwd(otherHome, () => {
+      expect(agentHomePath()).toBe(process.cwd());
+      expect(process.env.AGENT_HOME).toBeUndefined();
+    });
+  });
+
+  test.each([
+    ['records this plugin', () => JSON.stringify({ plugin: pluginName() })],
+    ['predates the record', () => JSON.stringify({ templateVersion: '0.6.4' })],
+    ['records a non-string plugin', () => JSON.stringify({ plugin: 7 })],
+    ['is not JSON', () => 'not json']
+  ])('anchors on a data dir whose version.json %s', (_label, content) => {
+    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-recorded-')));
+    scaffoldDataDir(home);
+    writeFileSync(resolve(home, RUNTIME_DIR, 'version.json'), content());
+    expect(isAgentHome(home)).toBe(true);
   });
 
   test('falls back to cwd without writing the env when no home exists above', () => {

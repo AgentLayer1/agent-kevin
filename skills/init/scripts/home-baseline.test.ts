@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -290,5 +290,53 @@ describe('home-baseline settings', () => {
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-sonnet-4-6' })).toBe('claude-sonnet-5-5');
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-sonnet-5-5' })).toBeNull();
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5' })).toBeNull();
+  });
+});
+
+describe('home-baseline identity', () => {
+  const withBaseline = (content: string): { home: string; file: string } => {
+    const home = scratchHome();
+    mkdirSync(join(home, '.kevin'));
+    const file = join(home, '.kevin', 'version.json');
+    writeFileSync(file, content);
+    return { home, file };
+  };
+  const BASELINE = { templateVersion: '0.6.4', initializedAt: '2026-01-01', history: [] };
+
+  test('records this plugin first in a baseline that lacks it, keeping every other field', () => {
+    const { home, file } = withBaseline(JSON.stringify(BASELINE));
+    expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
+    expect(JSON.parse(readFileSync(file, 'utf-8'))).toEqual({ plugin: 'agent-kevin', ...BASELINE });
+    expect(Object.keys(JSON.parse(readFileSync(file, 'utf-8')))[0]).toBe('plugin');
+    expect(run(home, ['--write']).identity).toEqual({ state: 'current' });
+  });
+
+  test('a dry run reports the missing record and writes nothing', () => {
+    const before = JSON.stringify(BASELINE);
+    const { home, file } = withBaseline(before);
+    expect(run(home).identity).toEqual({ state: 'missing' });
+    expect(readFileSync(file, 'utf-8')).toBe(before);
+  });
+
+  test('never rewrites a baseline recorded for another plugin', () => {
+    const before = JSON.stringify({ plugin: 'agent-other', ...BASELINE });
+    const { home, file } = withBaseline(before);
+    expect(run(home, ['--write']).identity).toEqual({ state: 'mismatch', recorded: 'agent-other' });
+    expect(readFileSync(file, 'utf-8')).toBe(before);
+  });
+
+  test('replaces a non-string plugin value', () => {
+    const { home, file } = withBaseline(JSON.stringify({ ...BASELINE, plugin: 7 }));
+    expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
+    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe('agent-kevin');
+  });
+
+  test('leaves an unreadable baseline alone and creates none where there is none', () => {
+    const { home, file } = withBaseline('not json');
+    expect(run(home, ['--write']).identity).toEqual({ state: 'unreadable' });
+    expect(readFileSync(file, 'utf-8')).toBe('not json');
+    const bare = scratchHome();
+    expect(run(bare, ['--write']).identity).toEqual({ state: 'no-baseline' });
+    expect(existsSync(join(bare, '.kevin', 'version.json'))).toBe(false);
   });
 });

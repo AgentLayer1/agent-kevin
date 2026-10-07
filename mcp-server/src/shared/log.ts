@@ -32,7 +32,7 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
-import { HOME_MARKER_FILES, RUNTIME_DIR, resolveEnv } from '@/shared/naming';
+import { RUNTIME_DIR, isOwnDataDir, resolveEnv } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -81,11 +81,13 @@ function resolveLogFile(): string | null {
   // planted the very dir every guard read as the marker, so a hook firing in a
   // foreign repo turned that repo into "the home" and captured sessions into
   // it. stderr still carries every line; file output waits for a home that
-  // genuinely exists.
+  // genuinely exists, and is this plugin's.
   const dataDir = resolve(readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd(), RUNTIME_DIR);
-  return HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file)))
-    ? resolve(dataDir, 'logs', 'app.log')
-    : null;
+  try {
+    return isOwnDataDir(dataDir) ? resolve(dataDir, 'logs', 'app.log') : null;
+  } catch {
+    return null; // a broken manifest can't confirm the home — stderr only
+  }
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

@@ -810,7 +810,7 @@ Two records inside `.kevin/` must survive a clone or restore, so we un-ignore th
 bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --write
 ```
 
-With no `.gitignore` it copies the template. Over an existing one it appends each template rule the home lacks under `# agent-kevin`, places every `!` negation after the rule it carves out of (git can't re-include a file whose parent dir is ignored), and rewrites a bare `.kevin/` in place to the template's `.kevin/*`. The operator's other lines are never removed or reordered. Every upgrade that applies a release runs the same script, so a home that drifts converges.
+With no `.gitignore` it copies the template. Over an existing one it appends each template rule the home lacks under `# agent-kevin`, places every `!` negation after the rule it carves out of (git can't re-include a file whose parent dir is ignored), and rewrites a bare `.kevin/` in place to the template's `.kevin/*`. The operator's other lines are never removed or reordered. The same run records this plugin in `.kevin/version.json` (`plugin`), which is how the runtime tells this agent's data dir from a sibling's. Every upgrade that applies a release runs the same script, so a home that drifts converges.
 
 Write project settings so the plugin auto-loads on subsequent launches AND the **always-on core** MCP tools are pre-granted (no per-call confirm prompts). Pack-gated tools are NOT granted here — they land in `permissions.allow` only when the matching `configure-skills` walk runs (Step 8 inline or `/agent-kevin:configure-skills` later).
 

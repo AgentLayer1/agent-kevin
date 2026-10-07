@@ -1,10 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
  * Agent naming — the bottom of the config stack: this agent's env-var prefix,
- * the resolution rule that pairs it with the shared `AGENT_*` names, and the
- * name of its runtime data dir.
+ * the resolution rule that pairs it with the shared `AGENT_*` names, the name
+ * of its runtime data dir, and how a data dir is recognised as this agent's.
  *
  * Env naming: every knob has a shared, agent-neutral `AGENT_*` name — the one
  * code reads, docs teach, and machine-level settings (`~/.claude/settings.json`)
@@ -27,7 +27,45 @@ import { resolve } from 'node:path';
  * agent.
  */
 
+let cachedPluginName: string | undefined;
 let cachedEnvPrefix: string | undefined;
+
+// Resolved relative to this file, never an env var: wherever this code runs
+// from (repo checkout, marketplace cache, fork) IS the plugin whose name it is.
+const MANIFEST_PATH = resolve(import.meta.dir, '..', '..', '..', '.claude-plugin', 'plugin.json');
+
+const brokenManifest = (reason: string, cause?: unknown): Error =>
+  new Error(
+    `Cannot derive this agent's env prefix: ${reason} (${MANIFEST_PATH}). Every per-agent override — ` +
+      `<AGENT>_HOME, <AGENT>_CODE_PATH, <AGENT>_DB_* — would be ignored, and the home would fall back ` +
+      `to a cwd walk-up. Fix the plugin manifest.`,
+    { cause }
+  );
+
+/**
+ * This plugin's manifest name (`agent-kevin`), read once. Throws when the
+ * manifest can't be read; only successes are cached, so a transient read
+ * failure can't poison the process.
+ */
+export const pluginName = (): string => {
+  if (cachedPluginName === undefined) {
+    cachedPluginName = readPluginName();
+  }
+  return cachedPluginName;
+};
+
+const readPluginName = (): string => {
+  let name: unknown;
+  try {
+    name = (JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as { name?: unknown }).name;
+  } catch (cause) {
+    throw brokenManifest('the plugin manifest is missing or malformed', cause);
+  }
+  if (typeof name !== 'string' || !name) {
+    throw brokenManifest(`the plugin manifest has no usable "name"`);
+  }
+  return name;
+};
 
 /**
  * This agent's own env-var prefix (`KEVIN_` for the `agent-kevin` plugin),
@@ -43,33 +81,14 @@ export const agentEnvPrefix = (): string => {
   return cachedEnvPrefix;
 };
 
-// Resolved relative to this file, never an env var: wherever this code runs
-// from (repo checkout, marketplace cache, fork) IS the plugin whose name it is.
 const deriveEnvPrefix = (): string => {
-  const manifestPath = resolve(import.meta.dir, '..', '..', '..', '.claude-plugin', 'plugin.json');
-  const broken = (reason: string, cause?: unknown): Error =>
-    new Error(
-      `Cannot derive this agent's env prefix: ${reason} (${manifestPath}). Every per-agent override — ` +
-        `<AGENT>_HOME, <AGENT>_CODE_PATH, <AGENT>_DB_* — would be ignored, and the home would fall back ` +
-        `to a cwd walk-up. Fix the plugin manifest.`,
-      { cause }
-    );
-  let name: unknown;
-  try {
-    name = (JSON.parse(readFileSync(manifestPath, 'utf-8')) as { name?: unknown }).name;
-  } catch (cause) {
-    throw broken('the plugin manifest is missing or malformed', cause);
-  }
-  const short =
-    typeof name === 'string'
-      ? name
-          .replace(/^agent-/, '')
-          .toUpperCase()
-          .replace(/[^A-Z0-9]+/g, '_')
-          .replace(/^_+|_+$/g, '')
-      : '';
+  const short = pluginName()
+    .replace(/^agent-/, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
   if (!short) {
-    throw broken(`the plugin manifest has no usable "name"`);
+    throw brokenManifest(`the plugin manifest has no usable "name"`);
   }
   return `${short}_`;
 };
@@ -114,3 +133,32 @@ export const RUNTIME_DIR = '.kevin';
  * files are git-tracked in a brain repo, so a fresh clone still resolves.
  */
 export const HOME_MARKER_FILES = ['version.json', 'knowledge.json'] as const;
+
+/**
+ * The plugin a data dir's `version.json` says scaffolded it, or undefined when
+ * the file is missing, unreadable, or predates the `plugin` field.
+ */
+export const recordedPlugin = (dataDir: string): string | undefined => {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(resolve(dataDir, 'version.json'), 'utf-8'));
+    return typeof parsed === 'object' && parsed !== null && 'plugin' in parsed && typeof parsed.plugin === 'string'
+      ? parsed.plugin
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * True when `dataDir` carries a home marker and was scaffolded by this plugin.
+ * The folder name alone can't tell two agents apart once they share it, so a
+ * recorded plugin must be this one; an unrecorded one still matches, which
+ * keeps every home from before the field resolving.
+ */
+export const isOwnDataDir = (dataDir: string): boolean => {
+  if (!HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file)))) {
+    return false;
+  }
+  const recorded = recordedPlugin(dataDir);
+  return recorded === undefined || recorded === pluginName();
+};
