@@ -43,7 +43,7 @@ operator's checklist:
 ✅ Seed applied — this agent is now <agentName>.
 
 Left for you (values never go through chat):
-1. Fill these in <HOME>/.kevin/secrets/.env via your editor: <secretKeysToFill>
+1. Fill these in <HOME>/.state/secrets/.env via your editor: <secretKeysToFill>
 2. Fill these in <HOME>/.claude/settings.local.json env: <settingsEnvPlanted>
 3. Restart Claude Code (and any Codex session from this home) so the new MCP servers,
    permissions, and identity load.

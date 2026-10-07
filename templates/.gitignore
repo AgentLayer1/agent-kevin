@@ -15,9 +15,9 @@ certificates/
 # rolled back, the next blind compile re-ingests everything and corrupts memory)
 # and the template baseline (what version this home's files are reconciled to;
 # if lost, upgrade-tracking resets and "are you behind?" breaks).
-.kevin/*
-!.kevin/knowledge.json
-!.kevin/version.json
+.state/*
+!.state/knowledge.json
+!.state/version.json
 
 # playwright capture artifacts (screenshots, pdfs, recordings — binary, regenerable)
 reports/captures/

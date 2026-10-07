@@ -185,6 +185,7 @@ describe('0.6.1 skill consolidation', () => {
 
   test('moves cadence keys, the later date winning either way', () => {
     const home = makeHome({
+      '.kevin/version.json': '{}',
       '.kevin/cadence.json': JSON.stringify({
         'weekly-goals': '2026-09-21',
         'goals-week': '2026-09-28',
@@ -211,7 +212,7 @@ describe('0.6.1 skill consolidation', () => {
   });
 
   test('an unreadable cadence file is noted, not fatal', () => {
-    const home = makeHome({ '.kevin/cadence.json': '{"weekly-goals": ' });
+    const home = makeHome({ '.kevin/version.json': '{}', '.kevin/cadence.json': '{"weekly-goals": ' });
     expect(run(home)).toMatchObject({ ok: true, cadence: [], notes: [expect.stringContaining('cadence.json')] });
   });
 

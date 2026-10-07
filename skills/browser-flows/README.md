@@ -24,7 +24,7 @@ browser_flows (MCP tool, runs in the MCP server)
 
 **Why a tool and not a Bash script:** a headed browser **can't launch from the Bash tool** — the macOS seatbelt blocks it (mach/WindowServer). The `kevin` MCP server is *not* under that seatbelt, so the tool spawns the flow from there and the window opens fine.
 
-**Login is manual and persistent:** for a target with `auth`, the flow opens the site and waits for you to log in by hand (your real session — no API keys). The session is saved to a per-env profile in `.kevin/browser/`, so later runs skip the login. Public-site flows (like `hacker-news`) have no `auth` and skip the wait entirely.
+**Login is manual and persistent:** for a target with `auth`, the flow opens the site and waits for you to log in by hand (your real session — no API keys). The session is saved to a per-env profile in `.state/browser/`, so later runs skip the login. Public-site flows (like `hacker-news`) have no `auth` and skip the wait entirely.
 
 ## Using it
 

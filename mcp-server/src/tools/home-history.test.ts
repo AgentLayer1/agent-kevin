@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 /** Its own throwaway home, pinned before the tool resolves paths, so nothing lands in a real checkout. */
 const ROOT = realpathSync(mkdtempSync(resolve(tmpdir(), 'home-history-tool-')));
@@ -17,7 +17,7 @@ let tools: typeof import('@/tools/home-history').tools;
 beforeAll(async () => {
   mkdirSync(resolve(HOME, RUNTIME_DIR), { recursive: true });
   mkdirSync(resolve(HOME, '.claude'));
-  writeFileSync(resolve(HOME, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
+  writeFileSync(resolve(HOME, RUNTIME_DIR, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
   writeFileSync(resolve(HOME, '.claude', 'settings.local.json'), JSON.stringify({ env: { AGENT_HOME_GIT_DIR: GIT_DIR } }));
   execFileSync('git', ['-C', HOME, 'init', '-q', '-b', 'main', '--separate-git-dir', GIT_DIR], { env: process.env });
   execFileSync('git', ['--git-dir', GIT_DIR, 'config', 'agent.home', HOME], { env: process.env });

@@ -1,4 +1,4 @@
-import { RUNTIME_DIR } from '@/shared/naming';
+import { dataDirOf } from '@/shared/naming';
 import { agentHomePath, env, isAgentHome, loadedSecretKeyNames } from '@/shared/env';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ const fromEnv = (key: string, fallback: string) => expandTilde(env(key) || fallb
 // `AGENT_HOME`, so repeat calls are an env read plus a `resolve`.
 const homeRoot = (): string => agentHomePath();
 const knowledgeRoot = (): string => fromEnv('AGENT_KNOWLEDGE', resolve(homeRoot(), 'knowledge'));
-const dataRoot = (): string => resolve(homeRoot(), RUNTIME_DIR);
+const dataRoot = (): string => dataDirOf(homeRoot());
 const secretsRoot = (): string => resolve(dataRoot(), 'secrets');
 
 // Env values + secret loading live in `@/shared/env` (a config-free module — see

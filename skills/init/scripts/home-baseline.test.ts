@@ -60,61 +60,61 @@ afterAll(() => {
 });
 
 describe('home-baseline gitignore', () => {
-  test('rewrites a bare .kevin/ so the compile cursor and baseline become trackable', () => {
-    const home = scratchHome({ gitignore: 'node_modules/\n.kevin/\n' });
+  test('rewrites a bare .state/ so the compile cursor and baseline become trackable', () => {
+    const home = scratchHome({ gitignore: 'node_modules/\n.state/\n' });
     const report = run(home, ['--write']);
-    expect(report.gitignore.rewritten).toEqual(['.kevin/']);
-    expect(report.gitignore.added).toContain('!.kevin/knowledge.json');
+    expect(report.gitignore.rewritten).toEqual(['.state/']);
+    expect(report.gitignore.added).toContain('!.state/knowledge.json');
     expect(report.gitignore.added).toContain('reports/captures/');
-    expect(gitignoreOf(home).startsWith('node_modules/\n.kevin/*\n')).toBe(true);
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(false);
-    expect(ignored(home, '.kevin/version.json')).toBe(false);
-    expect(ignored(home, '.kevin/secrets/.env')).toBe(true);
-    expect(ignored(home, '.kevin/logs/server.log')).toBe(true);
+    expect(gitignoreOf(home).startsWith('node_modules/\n.state/*\n')).toBe(true);
+    expect(ignored(home, '.state/knowledge.json')).toBe(false);
+    expect(ignored(home, '.state/version.json')).toBe(false);
+    expect(ignored(home, '.state/secrets/.env')).toBe(true);
+    expect(ignored(home, '.state/logs/server.log')).toBe(true);
     expect(ignored(home, 'reports/captures/shot.png')).toBe(true);
   });
 
   test('rewrites the anchored and slashless bare forms too', () => {
-    const home = scratchHome({ gitignore: '/.kevin\n' });
-    expect(run(home, ['--write']).gitignore.rewritten).toEqual(['/.kevin']);
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(false);
-    expect(ignored(home, '.kevin/secrets/.env')).toBe(true);
+    const home = scratchHome({ gitignore: '/.state\n' });
+    expect(run(home, ['--write']).gitignore.rewritten).toEqual(['/.state']);
+    expect(ignored(home, '.state/knowledge.json')).toBe(false);
+    expect(ignored(home, '.state/secrets/.env')).toBe(true);
   });
 
   test('adds the missing cursor negation to a home that only un-ignores version.json', () => {
-    const operator = '# mine\nbuild/\n.kevin/*\n!.kevin/version.json\n';
+    const operator = '# mine\nbuild/\n.state/*\n!.state/version.json\n';
     const home = scratchHome({ gitignore: operator });
     const report = run(home, ['--write']);
     expect(report.gitignore.rewritten).toEqual([]);
-    expect(report.gitignore.added).toContain('!.kevin/knowledge.json');
-    expect(report.gitignore.added).not.toContain('.kevin/*');
-    expect(report.gitignore.added).not.toContain('!.kevin/version.json');
+    expect(report.gitignore.added).toContain('!.state/knowledge.json');
+    expect(report.gitignore.added).not.toContain('.state/*');
+    expect(report.gitignore.added).not.toContain('!.state/version.json');
     expect(gitignoreOf(home).startsWith(operator)).toBe(true);
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(false);
-    expect(ignored(home, '.kevin/secrets/.env')).toBe(true);
+    expect(ignored(home, '.state/knowledge.json')).toBe(false);
+    expect(ignored(home, '.state/secrets/.env')).toBe(true);
     expect(ignored(home, 'build/out.js')).toBe(true);
   });
 
   test('re-adds a negation the operator placed above the rule it carves out of', () => {
-    const operator = '!.kevin/knowledge.json\n.kevin/*\n!.kevin/version.json\n';
+    const operator = '!.state/knowledge.json\n.state/*\n!.state/version.json\n';
     const home = scratchHome({ gitignore: operator });
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(true);
-    expect(run(home, ['--write']).gitignore.added).toContain('!.kevin/knowledge.json');
+    expect(ignored(home, '.state/knowledge.json')).toBe(true);
+    expect(run(home, ['--write']).gitignore.added).toContain('!.state/knowledge.json');
     expect(gitignoreOf(home).startsWith(operator)).toBe(true);
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(false);
+    expect(ignored(home, '.state/knowledge.json')).toBe(false);
   });
 
   test('appends an anchor before its negation when the home has neither', () => {
     const home = scratchHome({ gitignore: '.DS_Store' });
     const { added } = run(home, ['--write']).gitignore;
-    expect(added.indexOf('.kevin/*')).toBeLessThan(added.indexOf('!.kevin/knowledge.json'));
+    expect(added.indexOf('.state/*')).toBeLessThan(added.indexOf('!.state/knowledge.json'));
     expect(gitignoreOf(home).startsWith('.DS_Store\n\n# agent-kevin\n')).toBe(true);
-    expect(ignored(home, '.kevin/knowledge.json')).toBe(false);
-    expect(ignored(home, '.kevin/secrets/.env')).toBe(true);
+    expect(ignored(home, '.state/knowledge.json')).toBe(false);
+    expect(ignored(home, '.state/secrets/.env')).toBe(true);
   });
 
   test('keeps CRLF line endings', () => {
-    const home = scratchHome({ gitignore: 'build/\r\n.kevin/\r\n' });
+    const home = scratchHome({ gitignore: 'build/\r\n.state/\r\n' });
     run(home, ['--write']);
     expect(gitignoreOf(home).replaceAll('\r\n', '')).not.toContain('\n');
   });
@@ -126,7 +126,7 @@ describe('home-baseline gitignore', () => {
   });
 
   test('a second run changes nothing', () => {
-    const home = scratchHome({ gitignore: '.kevin/\n' });
+    const home = scratchHome({ gitignore: '.state/\n' });
     run(home, ['--write']);
     const after = gitignoreOf(home);
     expect(run(home, ['--write']).gitignore).toEqual({ created: false, added: [], rewritten: [] });
@@ -135,9 +135,9 @@ describe('home-baseline gitignore', () => {
   });
 
   test('reports without --write and leaves the file alone', () => {
-    const home = scratchHome({ gitignore: '.kevin/\n' });
-    expect(run(home).gitignore.rewritten).toEqual(['.kevin/']);
-    expect(gitignoreOf(home)).toBe('.kevin/\n');
+    const home = scratchHome({ gitignore: '.state/\n' });
+    expect(run(home).gitignore.rewritten).toEqual(['.state/']);
+    expect(gitignoreOf(home)).toBe('.state/\n');
   });
 });
 
@@ -294,10 +294,10 @@ describe('home-baseline settings', () => {
 });
 
 describe('home-baseline identity', () => {
-  const withBaseline = (content: string): { home: string; file: string } => {
+  const withBaseline = (content: string, dir = '.kevin'): { home: string; file: string } => {
     const home = scratchHome();
-    mkdirSync(join(home, '.kevin'));
-    const file = join(home, '.kevin', 'version.json');
+    mkdirSync(join(home, dir));
+    const file = join(home, dir, 'version.json');
     writeFileSync(file, content);
     return { home, file };
   };
@@ -338,5 +338,25 @@ describe('home-baseline identity', () => {
     const bare = scratchHome();
     expect(run(bare, ['--write']).identity).toEqual({ state: 'no-baseline' });
     expect(existsSync(join(bare, '.kevin', 'version.json'))).toBe(false);
+    expect(existsSync(join(bare, '.state', 'version.json'))).toBe(false);
+  });
+
+  test('a .state recording this plugin is current', () => {
+    const { home } = withBaseline(JSON.stringify({ plugin: 'agent-kevin', ...BASELINE }), '.state');
+    expect(run(home, ['--write']).identity).toEqual({ state: 'current' });
+  });
+
+  // Upgrade's baseline rewrite can drop the record, and an unrecorded .state no longer counts as a home.
+  test('restores a record dropped from .state', () => {
+    const { home, file } = withBaseline(JSON.stringify(BASELINE), '.state');
+    expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
+    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe('agent-kevin');
+  });
+
+  test('never rewrites a .state recorded for another plugin', () => {
+    const before = JSON.stringify({ plugin: 'agent-other', ...BASELINE });
+    const { home, file } = withBaseline(before, '.state');
+    expect(run(home, ['--write']).identity).toEqual({ state: 'mismatch', recorded: 'agent-other' });
+    expect(readFileSync(file, 'utf-8')).toBe(before);
   });
 });

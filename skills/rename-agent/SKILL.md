@@ -25,7 +25,7 @@ Two gates, both intentional: don't "fix" either by adding a grant.
 | `IDENTITY.md` → `Name`, `Emoji`, `Avatar` | `/agent-kevin:*` slash commands |
 | The avatar image file | `mcp__plugin_agent-kevin_kevin__*` tool names |
 | Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `KEVIN_*` / `AGENT_*` env vars |
-| Prose in `knowledge/`, `projects/`, reports | `.kevin/` runtime dir |
+| Prose in `knowledge/`, `projects/`, reports | |
 | | `enabledPlugins` in `.claude/settings.local.json` |
 
 The right-hand column is plumbing. None of it surfaces in conversation, and changing
@@ -71,9 +71,9 @@ rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l | he
 - **`knowledge/raw/sessions/`** — captured historical transcripts, an append-only record
   of what was actually said. Rewriting them fabricates history, costs a large diff, and
   buys nothing. If the operator insists, say why not once, then do as they ask.
-- **Anything under a dot-directory** — `.git/`, `.kevin/`, `.claude/`, `.mcp.json`.
+- **Anything under a dot-directory** — `.git/`, `.state/`, `.claude/`, `.mcp.json`.
   ripgrep skips hidden paths by default, so this is free, and **you must not pass
-  `--hidden` to get around it.** `.kevin/` is runtime state (compile cursor, logs,
+  `--hidden` to get around it.** `.state/` is runtime state (compile cursor, logs,
   config) and `.claude/settings*.json` plus `.mcp.json` are harness config holding
   absolute paths and permission rules. A stray edit there breaks the session rather
   than mislabeling a document. **One exception, swept explicitly in Step 4:**
@@ -127,7 +127,7 @@ rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l \
 
 Three properties do the work, and all three are required:
 
-- **Exact case.** Every plumbing token is lowercase (`agent-kevin`, `.kevin`,
+- **Exact case.** Every plumbing token is lowercase (`agent-kevin`,
   `kevin-avatar`, `bin/kevin`) or uppercase (`KEVIN_HOME`), so `Kevin` cannot reach
   them. **Never add `-i`.**
 - **`\b` word boundary.** Catches `Kevin's` (the boundary sits before the apostrophe)
@@ -158,7 +158,7 @@ Then verify. Two checks, and the second one matters more:
 rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' . .claude/CLAUDE.md || echo "clean"
 
 # 2. Home paths survived intact — this must still return hits, not zero.
-rg -n 'Agents/Kevin|agent-kevin|\.kevin/|KEVIN_' --glob '!knowledge/raw/sessions/**' | head -20
+rg -n 'Agents/Kevin|agent-kevin|KEVIN_' --glob '!knowledge/raw/sessions/**' | head -20
 ```
 
 If check 2 comes back empty on a home that had path references before the sweep,
@@ -174,8 +174,8 @@ real false-positive class. Scan for them rather than trusting the count.
 Do not commit. The HOME is the operator's, and some homes have a separated git dir the
 agent can't write to anyway. Print what changed and let them commit.
 
-Close with what did NOT change and why, in two lines: the slash commands, tool names,
-env prefix and `.kevin/` dir still say kevin because they come from the plugin
+Close with what did NOT change and why, in two lines: the slash commands, tool names
+and env prefix still say kevin because they come from the plugin
 manifest, and that's what keeps `/plugin update` working. Nobody sees them but you.
 
 ## Notes

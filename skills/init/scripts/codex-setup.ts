@@ -111,8 +111,9 @@ const settingList = (key: keyof NonNullable<ClaudeSettings['permissions']>): str
     const list = settings.permissions?.[key];
     return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
   });
-const runtimeDir = `.${agent}`;
-const secretsDir = resolve(homeDir, runtimeDir, 'secrets');
+// Both names while homes move from the agent-named folder to the shared one.
+const runtimeDirs = ['.state', `.${agent}`];
+const secretsDirs = runtimeDirs.map((name) => resolve(homeDir, name, 'secrets'));
 
 /** Directories the agent works in outside the home, in the order the settings name them. */
 const insideHome = (path: string): boolean => {
@@ -427,12 +428,12 @@ const agentTables = [
   'extends = ":workspace"',
   '',
   `[permissions.${agent}.filesystem]`,
-  `${tomlString(secretsDir)} = "deny"`,
+  ...secretsDirs.map((dir) => `${tomlString(dir)} = "deny"`),
   ...absoluteDenies.map((glob) => `${tomlString(glob)} = "deny"`),
   '',
   `[permissions.${agent}.filesystem.":workspace_roots"]`,
   '".git" = "write"',
-  `${tomlString(`**/${runtimeDir}/secrets/**`)} = "deny"`,
+  ...runtimeDirs.map((name) => `${tomlString(`**/${name}/secrets/**`)} = "deny"`),
   ...[...new Set(['**/*.env', '**/.env.*', ...relativeDenies])].map((glob) => `${tomlString(glob)} = "deny"`),
   '',
   `[permissions.${agent}.network]`,

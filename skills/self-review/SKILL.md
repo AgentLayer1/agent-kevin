@@ -39,12 +39,12 @@ Keep the agent's brain and context lean and correct, and close the feedback loop
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -f "$HOME_DIR/.kevin/version.json" ] || [ -f "$HOME_DIR/.kevin/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -f "$HOME_DIR/.state/version.json" ] || [ -f "$HOME_DIR/.state/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DIR"
 ```
 
-`NOT_AN_AGENT_HOME` → stop and ask the operator to relaunch from the agent home.
+`NOT_AN_AGENT_HOME` → stop. When `$HOME_DIR/.kevin/` exists, the home predates 0.7.0: ask the operator to run `/agent-kevin:upgrade` first, which moves it to `.state/`. Otherwise ask them to relaunch from the agent home.
 
 `context-weight.ts` prints the **always-loaded stack per host**, with bytes per file and a total. The two stacks differ: Claude Code loads the bridge, everything it `@`-imports (recursively, prose only: an `@path` inside a fenced block or a code span is not an import, and a bare `@word` that names no file is a mention), and every `.md` under `.claude/rules/` without a `paths:` scope; Codex loads `AGENTS.md` natively and gets the identity stack (SOUL, IDENTITY, USER, the knowledge index, the memory index, the task dashboard) from the SessionStart hook, never the bridge or the rules. A non-zero exit means an import did not resolve: fix or report that before using the totals. Record both totals as this sitting's baseline, before either pass changes anything; Finish reports the deltas. A rules-file deletion is a Claude-only saving; say so.
 

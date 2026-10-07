@@ -30,7 +30,7 @@ export const parentOf = (path: string): string => {
 };
 
 /**
- * The data dir's folder name (`.kevin`) from the CLI's `ping` output, or '' when it can't be read.
+ * The data dir's folder name (`.state`) from the CLI's `ping` output, or '' when it can't be read.
  */
 export const dataDirNameIn = (ping: string): string => {
   try {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from '@/shared/naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
 
 /**
  * The logger must never scaffold anything, and file output only engages for a
@@ -54,7 +54,10 @@ describe('file logging', () => {
     await withHome(
       (home) => {
         mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
-        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
+        writeFileSync(
+          resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]),
+          `${JSON.stringify({ plugin: pluginName() })}\n`
+        );
       },
       async (home) => {
         const { log } = await import(`@/shared/log?marker=${Date.now()}`);
@@ -74,6 +77,25 @@ describe('file logging', () => {
         const { log } = await import(`@/shared/log?otherplugin=${Date.now()}`);
         log.info('should stay on stderr only');
         expect(existsSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'))).toBe(false);
+      }
+    );
+  });
+
+  // The 0.7.0 upgrade moves the data dir while the server that ran it keeps logging.
+  test('follows the data dir when it moves under a running process', async () => {
+    await withHome(
+      (home) => {
+        mkdirSync(resolve(home, LEGACY_RUNTIME_DIR), { recursive: true });
+        writeFileSync(resolve(home, LEGACY_RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
+      },
+      async (home) => {
+        const { log } = await import(`@/shared/log?moved=${Date.now()}`);
+        log.info('before the move');
+        renameSync(resolve(home, LEGACY_RUNTIME_DIR), resolve(home, RUNTIME_DIR));
+        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), JSON.stringify({ plugin: pluginName() }));
+        log.info('after the move');
+        expect(existsSync(resolve(home, LEGACY_RUNTIME_DIR))).toBe(false);
+        expect(readFileSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'), 'utf-8')).toContain('after the move');
       }
     );
   });

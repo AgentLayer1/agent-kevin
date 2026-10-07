@@ -16,7 +16,14 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
-import { RUNTIME_DIR, pluginName, recordedPlugin, resolveEnv } from '../../../mcp-server/src/shared/naming';
+import {
+  LEGACY_RUNTIME_DIR,
+  RUNTIME_DIR,
+  ownDataDir,
+  pluginName,
+  recordedPlugin,
+  resolveEnv
+} from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde, isInside } from '../../../mcp-server/src/shared/paths';
 import { readMergedSettings } from '../../../mcp-server/src/home/settings-scope';
@@ -76,7 +83,14 @@ const stampPlugin = (dataDir: string): Identity => {
   renameSync(`${file}.tmp`, file);
   return { state: 'stamped' };
 };
-const identity = stampPlugin(join(home, RUNTIME_DIR));
+// Only init and upgrade run this, in a home they checked, so an unrecorded `.state` is this agent's
+// with its record dropped (upgrade's baseline rewrite can lose it), and the stamp restores it. A data
+// dir recorded for another plugin is still the one looked at, so it reports as a mismatch.
+const identity = stampPlugin(
+  ownDataDir(home) ??
+    [RUNTIME_DIR, LEGACY_RUNTIME_DIR].map((name) => join(home, name)).find((dir) => existsSync(dir)) ??
+    join(home, RUNTIME_DIR)
+);
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {

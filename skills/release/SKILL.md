@@ -253,7 +253,7 @@ $upgrade
 ## Notes
 
 - The dashboard's Changelog tab + the "upgrade available" badge read `CHANGELOG.md`
-  and the consumer's `.kevin/version.json` automatically — no extra step here.
+  and the consumer's `.state/version.json` automatically — no extra step here.
 - Tags are the source of truth for "last release" once they exist; keep tagging every
   release so future `git log` ranges stay accurate.
 - This skill is producer-only and slash-invoked. Consumers never run it.

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RUNTIME_DIR, agentKeyName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, agentKeyName, pluginName } from '../../../mcp-server/src/shared/naming';
 import { selfReviewDue } from './self-review-due';
 
 const TODAY = '2026-10-31';
@@ -47,7 +47,7 @@ describe('review-defer', () => {
     const root = mkdtempSync(join(tmpdir(), 'review-defer-'));
     dirs.push(root);
     mkdirSync(join(root, RUNTIME_DIR), { recursive: true });
-    writeFileSync(join(root, RUNTIME_DIR, 'version.json'), '{}');
+    writeFileSync(join(root, RUNTIME_DIR, 'version.json'), `${JSON.stringify({ plugin: pluginName() })}\n`);
     writeFileSync(join(root, RUNTIME_DIR, 'review.json'), seed);
     const proc = spawnSync(process.execPath, [join(import.meta.dir, 'review-defer.ts'), choice, '--today', TODAY], {
       env: { ...process.env, [agentKeyName('HOME')]: root }

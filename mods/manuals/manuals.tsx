@@ -65,7 +65,7 @@ async function grants($: EngineInterface): Promise<string[]> {
 }
 
 /**
- * The plugin's data dir name (`.kevin`), from the CLI that owns it; '' when it can't be read.
+ * The plugin's data dir name (`.state`), from the CLI that owns it; '' when it can't be read.
  */
 async function dataDirName($: EngineInterface): Promise<string> {
   if (dataDirCache === undefined) {

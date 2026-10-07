@@ -6,7 +6,7 @@ The agent's instructions and the feedback loop: prune the prompt surface and mem
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -f "$HOME_DIR/.kevin/version.json" ] || [ -f "$HOME_DIR/.kevin/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -f "$HOME_DIR/.state/version.json" ] || [ -f "$HOME_DIR/.state/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="<plugin root>"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/plugin-source.ts" --home "$HOME_DIR"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "<source, or $PLUGIN_ROOT in consumer mode>"
@@ -36,7 +36,7 @@ Read every surface where corrections and decay actually show up.
 8. `<HOME>/reports/plans/`: self-review-authored plans only (frontmatter `skill: self-review`). The folder also holds raw plan-mode saves with no frontmatter; ignore those.
 9. Prior cycle reports: `<HOME>/reports/briefings/*self-review*.md`. These are the cycle count: a theme named in two prior reports is in its third cycle.
 10. `$PLUGIN_ROOT/skills/`: what's installed, so Track C never proposes something already covered.
-11. `<HOME>/.kevin/review.json`, the watermark. Feedback and session entries dated on or before `lastProcessed` are already triaged; re-open one only if it recurred after that date. Rules in `confirmedWorking` are validated; don't re-propose them unless violated since. Entries in `retired` were removed on trial; any violation after their date means restore them (Step 2). Absent file = first run: process everything. `--full` ignores `lastProcessed` for the feedback log and re-triages every entry: run it when the watermark may have closed rules that were never promoted.
+11. `<HOME>/.state/review.json`, the watermark. Feedback and session entries dated on or before `lastProcessed` are already triaged; re-open one only if it recurred after that date. Rules in `confirmedWorking` are validated; don't re-propose them unless violated since. Entries in `retired` were removed on trial; any violation after their date means restore them (Step 2). Absent file = first run: process everything. `--full` ignores `lastProcessed` for the feedback log and re-triages every entry: run it when the watermark may have closed rules that were never promoted.
 
 ## Step 2 — Prune pass
 
@@ -147,7 +147,7 @@ Summarise for the sitting's report (SKILL.md, Finish):
 
 The summary names every edit, plan path, and watched theme, and hands every deleted line to Finish for `## Removed`.
 
-Then hand Finish this watermark update for `<HOME>/.kevin/review.json`. Finish writes it after the report, so each new `retired` entry's `report` is the relPath the report write returned. It merges with the prior file (the brain pass's keys stay as they are):
+Then hand Finish this watermark update for `<HOME>/.state/review.json`. Finish writes it after the report, so each new `retired` entry's `report` is the relPath the report write returned. It merges with the prior file (the brain pass's keys stay as they are):
 
 ```json
 {

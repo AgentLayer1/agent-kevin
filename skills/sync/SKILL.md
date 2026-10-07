@@ -130,15 +130,16 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, dueSoon, stale, priority
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
-# NOT_AN_AGENT_HOME → STOP the whole sync: no .kevin/ data dir means $HOME_DIR
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+[ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+# NOT_AN_AGENT_HOME → STOP the whole sync: no marked data dir means $HOME_DIR
 # isn't this agent's scaffolded home, so every downstream read/write would hit
 # the wrong tree. Tell the operator to set KEVIN_HOME or relaunch from the
 # agent home.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-if [ -f "$HOME_DIR/.kevin/version.json" ]; then
-  BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$HOME_DIR/.kevin/version.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -f "$DATA_DIR/version.json" ]; then
+  BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$DATA_DIR/version.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 else
   BASELINE=""
 fi
@@ -170,7 +171,7 @@ Returns a JSON array of `{ invoke, label, lastRun }` for each due item (`invoke`
 - **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Sync only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
 - **self-review** — the brain pass is monthly: due when `brainLastRun` is 30 or more days old, or absent on a home whose oldest session day-file is a month old (a fresh init stays quiet). The rules pass keeps its feedback rule: new entries in `raw/user/feedback.md` since `lastRun` and that run over 14 days old, or 30 days regardless. `invoke` names what's due (`self-review`, `self-review brain`, `self-review rules`). `snoozeUntil` (Tomorrow) and `skippedOn` (Skip this month) hold it off; step 13 asks it first, on its own.
 
-Watermarks live in `.kevin/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.kevin/review.json` (`lastRun` and `brainLastRun`, owned by self-review; `snoozeUntil`, `skippedOn` and `skips`, written by step 13). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
+Watermarks live in `.state/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.state/review.json` (`lastRun` and `brainLastRun`, owned by self-review; `snoozeUntil`, `skippedOn` and `skips`, written by step 13). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
 
 **Also take the brain's inventory.** Read-only, and cheap:
 
@@ -182,11 +183,11 @@ Read its `counts` into the `🧹 Brain` output line, so decay stays visible betw
 
 ### 7. Read the dust-settled state
 
-After all mutations above, both `projects/TASKS.md` and the lint report at `.kevin/lint.md` are current — `TASKS.md` auto-regenerates on every task mutation (flywheel's closes/updates already rewrote it), and `task_scan` is read-only, so post-scan state equals post-flywheel state. Read them once each — these are your sources for the summary, not the per-tool return values:
+After all mutations above, both `projects/TASKS.md` and the lint report at `.state/lint.md` are current — `TASKS.md` auto-regenerates on every task mutation (flywheel's closes/updates already rewrote it), and `task_scan` is read-only, so post-scan state equals post-flywheel state. Read them once each — these are your sources for the summary, not the per-tool return values:
 
 ```
 Read <HOME>/projects/TASKS.md
-Read <HOME>/.kevin/lint.md
+Read <HOME>/.state/lint.md
 Read <HOME>/knowledge/memory/index.md   # for narrative context
 ```
 

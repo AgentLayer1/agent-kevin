@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 /**
  * The agent's display name — what it calls itself, as opposed to the plugin's
- * namespace (`agent-kevin`, `KEVIN_*`, `.kevin/`), which never changes.
+ * namespace (`agent-kevin`, `KEVIN_*`), which never changes.
  *
  * Single source: `IDENTITY.md`'s `- **Name:**` field, which is what
  * `/agent-kevin:init` writes and `/agent-kevin:rename-agent` edits. Falls back

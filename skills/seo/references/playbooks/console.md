@@ -1,6 +1,6 @@
 # Console — Google Search Console data (`/seo console`)
 
-Real search traffic data for the configured site. The `GSC_SITE_URL` env var names the Search Console property; the authenticated OAuth2 client lives under `.kevin/secrets/google/` and is **shared with the [speed](speed.md) playbook** — one consent flow covers both.
+Real search traffic data for the configured site. The `GSC_SITE_URL` env var names the Search Console property; the authenticated OAuth2 client lives under `.state/secrets/google/` and is **shared with the [speed](speed.md) playbook** — one consent flow covers both.
 
 ## Commands
 
@@ -104,4 +104,4 @@ If commands fail with "Tokens not minted" — the one-time OAuth dance hasn't be
 mcp__plugin_agent-kevin_kevin__google_auth
 ```
 
-This opens a browser, captures Google's consent, and persists the refresh token to `.kevin/secrets/google/google-tokens.json` (alongside the OAuth client JSON, in the deny-gated secrets dir) — **the same token serves Search Console and PageSpeed**, so you only run `auth` once. You handle this once per install; Kevin should not normally need to run `auth`.
+This opens a browser, captures Google's consent, and persists the refresh token to `.state/secrets/google/google-tokens.json` (alongside the OAuth client JSON, in the deny-gated secrets dir) — **the same token serves Search Console and PageSpeed**, so you only run `auth` once. You handle this once per install; Kevin should not normally need to run `auth`.

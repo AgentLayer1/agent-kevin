@@ -32,7 +32,7 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
-import { RUNTIME_DIR, isOwnDataDir, resolveEnv } from '@/shared/naming';
+import { ownDataDir, resolveEnv } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -62,7 +62,7 @@ let minLevel: Level = ((readEnv('AGENT_LOG_LEVEL') ?? process.env.LOG_LEVEL) as 
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 /**
- * Resolved at first write to avoid forcing a circular import on `@/config`
+ * Resolved at write time, not imported from `@/config`, to avoid a circular import
  * (which would drag the whole FOLDERS tree into hook scripts that just want
  * to log a line). `AGENT_LOG_FILE` tells us where to write; `=off` disables.
  */
@@ -82,9 +82,9 @@ function resolveLogFile(): string | null {
   // foreign repo turned that repo into "the home" and captured sessions into
   // it. stderr still carries every line; file output waits for a home that
   // genuinely exists, and is this plugin's.
-  const dataDir = resolve(readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd(), RUNTIME_DIR);
   try {
-    return isOwnDataDir(dataDir) ? resolve(dataDir, 'logs', 'app.log') : null;
+    const dataDir = ownDataDir(readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd());
+    return dataDir ? resolve(dataDir, 'logs', 'app.log') : null;
   } catch {
     return null; // a broken manifest can't confirm the home — stderr only
   }
@@ -155,16 +155,15 @@ function serializeMeta(meta: unknown): string {
 
 // ── Emit ──────────────────────────────────────────────────────────────
 
-let cachedLogFile: string | null | undefined;
-
+// Resolved per write, never cached: the 0.7.0 upgrade moves the data dir under a running server.
 function writeToFile(line: string): void {
-  if (cachedLogFile === undefined) cachedLogFile = resolveLogFile();
-  if (cachedLogFile === null) return;
+  const logFile = resolveLogFile();
+  if (logFile === null) return;
   try {
-    const dir = cachedLogFile.slice(0, cachedLogFile.lastIndexOf('/'));
+    const dir = logFile.slice(0, logFile.lastIndexOf('/'));
     if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true });
-    rotateIfNeeded(cachedLogFile);
-    appendFileSync(cachedLogFile, line + '\n');
+    rotateIfNeeded(logFile);
+    appendFileSync(logFile, line + '\n');
   } catch {
     // best-effort file write — never crash the caller
   }

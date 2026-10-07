@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { RUNTIME_DIR } from '@/shared/naming';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
@@ -23,7 +23,7 @@ const sha256 = (bytes: Buffer): string => `sha256:${createHash('sha256').update(
 const makeHome = (): string => {
   const home = mkdtempSync(join(tmpdir(), 'seed-home-'));
   mkdirSync(join(home, RUNTIME_DIR), { recursive: true });
-  writeFileSync(join(home, RUNTIME_DIR, 'version.json'), '{}\n');
+  writeFileSync(join(home, RUNTIME_DIR, 'version.json'), `${JSON.stringify({ plugin: pluginName() })}\n`);
   return home;
 };
 

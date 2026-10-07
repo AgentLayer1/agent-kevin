@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_DIR, agentKeyName } from "../../../mcp-server/src/shared/naming";
+import { agentKeyName, dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 
@@ -25,7 +25,7 @@ if (!isAgentHome(home)) {
   process.exit(1);
 }
 
-const file = join(home, RUNTIME_DIR, "cadence.json");
+const file = join(dataDirOf(home), "cadence.json");
 const readJson = (): Record<string, string> => {
   try {
     return JSON.parse(readFileSync(file, "utf8")) as Record<string, string>;

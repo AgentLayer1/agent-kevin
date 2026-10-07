@@ -25,7 +25,8 @@ ask before anything optional.
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -d "$HOME_DIR/.kevin" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+[ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
 [ -d "$PLUGIN_ROOT/.claude-plugin" ] || echo "SET PLUGIN_ROOT: $PLUGIN_ROOT is not the plugin checkout"
 
@@ -34,8 +35,8 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fill
 git -C "$PLUGIN_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "GIT_CHECKOUT" || echo "NOT_A_CHECKOUT"
 
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-VERSION_FILE="$HOME_DIR/.kevin/version.json"
-# NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no .kevin/ data
+VERSION_FILE="$DATA_DIR/version.json"
+# NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no marked data
 # dir, so it isn't this agent's scaffolded home (likely a code repo or a
 # mislaunched session). Tell the operator to set KEVIN_HOME or relaunch from
 # the agent home.
@@ -74,8 +75,14 @@ echo "installed=$INSTALLED baseline=${BASELINE:-<none>} available=${AVAILABLE:-<
 ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 ```
 
-Confirm `$HOME_DIR` is a real Kevin home (its `.kevin/` holds `version.json` or `knowledge.json`). If not, stop and tell
+Confirm `$HOME_DIR` is a real Kevin home (its data dir holds `version.json` or `knowledge.json`). If not, stop and tell
 the user to run this from their agent home (or set `KEVIN_HOME`).
+
+**`$DATA_DIR` is resolved in every block, never carried over.** In 0.7.0 the data dir moved from `.kevin/`
+to `.state/`, and this skill runs on both sides of that move: the 0.7.0 script in Step 4
+performs it. Each block below that touches the data dir starts with the same resolution line, so a
+path from before the move is never reused after it. Never create `.state/` by hand in a home that
+still has `.kevin/`: the 0.7.0 script refuses to move onto a `.state/` it doesn't own.
 
 **`GIT_CHECKOUT` → bring the plugin code current before reading versions.** Call
 `github_fast_forward` with `repos: ["<PLUGIN_ROOT>"]` — it runs outside the Bash
@@ -120,7 +127,7 @@ no settings rename → continue to Step 1. Otherwise (a finding, a rename, or bo
 2. Apply `settings` now, not in Step 4: Step 1 may end this run early (already up to date,
    stale code), and a home whose key names a marketplace that no longer exists loads no plugin
    next session. Copy each home settings file (`settings.json`, `settings.local.json`) that
-   holds one of the keys to `$HOME_DIR/.kevin/updates/registration-$(date +%Y%m%d-%H%M%S)/`, then
+   holds one of the keys to `$DATA_DIR/updates/registration-$(date +%Y%m%d-%H%M%S)/`, then
    `Read` it, rename the `enabledPlugins` key and the `extraKnownMarketplaces` key from `from` to
    `to` (values untouched, nothing else changes), and `Write` the full JSON back. Name the backup
    path in the Step 6 report.
@@ -242,8 +249,9 @@ Snapshot every HOME file the plan will touch, before any write. `.gitignore`,
 reconcile may change them on any run.
 
 ```bash
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
 TS=$(date +%Y%m%d-%H%M%S)
-BACKUP="$HOME_DIR/.kevin/updates/${BASELINE:-init}-to-${INSTALLED}-${TS}"
+BACKUP="$DATA_DIR/updates/${BASELINE:-init}-to-${INSTALLED}-${TS}"
 mkdir -p "$BACKUP"
 # for each file in the plan that exists:
 #   mkdir -p "$BACKUP/$(dirname REL)"; cp "$HOME_DIR/REL" "$BACKUP/REL"
@@ -275,6 +283,8 @@ fix and re-run. Migrations are idempotent, so a re-run after a partial failure i
 safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
+The 0.7.0 script moves `.kevin/` to `.state/`; its report names any `.mcp.json` servers it
+repointed and the deny rules it added. Every block after it resolves `$DATA_DIR` again (Step 0).
 
 **settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
 an entry naming a path on this machine (an absolute folder, as an older release's code-root action
@@ -338,7 +348,8 @@ never writes a user-level file, and the home's profile carries the user-level de
 operator pastes:
 
 ```bash
-bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$HOME_DIR/.kevin/updates/codex-user-config.md"
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$DATA_DIR/updates/codex-user-config.md"
 ```
 
 On native Windows (Git Bash, where `uname -s` starts with `MINGW` or `MSYS`) the step runs
@@ -408,9 +419,10 @@ wrote (never to be lost). Only the templates as they stood at the home's baselin
 the two apart, so materialize them, then run the drift lever against both:
 
 ```bash
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
 BASE_TPL=""
-if [ -d "$HOME_DIR/.kevin/template-base" ]; then
-  BASE_TPL="$HOME_DIR/.kevin/template-base"
+if [ -d "$DATA_DIR/template-base" ]; then
+  BASE_TPL="$DATA_DIR/template-base"
 elif [ -n "$BASELINE" ] && git -C "$PLUGIN_ROOT" rev-parse -q --verify "refs/tags/v$BASELINE" >/dev/null 2>&1; then
   BASE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/template-base-XXXXXX")
   git -C "$PLUGIN_ROOT" archive "v$BASELINE" templates | tar -x -C "$BASE_DIR" && BASE_TPL="$BASE_DIR/templates"
@@ -496,7 +508,7 @@ resolved wrongly in the others too. Do not stamp the baseline until this is clea
 
 ## Step 5 — Stamp the new baseline
 
-Rewrite `$HOME_DIR/.kevin/version.json`: set `templateVersion` to `$INSTALLED`,
+Rewrite `$DATA_DIR/version.json`: set `templateVersion` to `$INSTALLED`,
 preserve `initializedAt` (on the onboard path there's none — set it to today),
 set `lastUpgrade` to now (ISO-8601 with tz offset), and append a history entry
 `{ "from": "<baseline-or-null>", "to": "<installed>", "at": "<now>" }`.
@@ -511,14 +523,15 @@ and prior `history` entries.)
 Then snapshot the templates this home now tracks, so the next upgrade has its base:
 
 ```bash
-rm -rf "$HOME_DIR/.kevin/template-base" && cp -R "$PLUGIN_ROOT/templates" "$HOME_DIR/.kevin/template-base"
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+rm -rf "$DATA_DIR/template-base" && cp -R "$PLUGIN_ROOT/templates" "$DATA_DIR/template-base"
 ```
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
 writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` / `permissions.deny`
 entries, its sandbox, its `plansDirectory` and its Haiku-tier model once, and no template merge
 touches them, so a home
-that missed one stays behind forever. The `.gitignore` gap loses data: without `!.kevin/knowledge.json` the compile
+that missed one stays behind forever. The `.gitignore` gap loses data: without `!.state/knowledge.json` the compile
 cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
 unconditionally, never via a CHANGELOG block, so a home that skipped releases still converges:
 
@@ -594,11 +607,12 @@ then on every write to the file the new rule names is judged as Instruction Pois
 Never transcribe the block or compare its prose by eye — generate and check it:
 
 ```bash
+DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
 bun "$PLUGIN_ROOT/skills/init/scripts/automode-block.ts" --home "$HOME_DIR" --check \
-  --out "$HOME_DIR/.kevin/updates/automode-block.md"
+  --out "$DATA_DIR/updates/automode-block.md"
 ```
 
-It prints a JSON report and writes a readable note to `.kevin/updates/automode-block.md`
+It prints a JSON report and writes a readable note to `.state/updates/automode-block.md`
 (status, the sentences that changed per rule, the full replacement strings, the full block),
 so the operator can open it after the session instead of scrolling back. In the JSON: `status` is `absent`
 (never adopted), `stale` (one or more rules differ from the current text), or `current`;

@@ -237,9 +237,11 @@ describe('codex-setup mcp registration', () => {
       env: { AGENT_HOME: home, KEVIN_HOME: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
     });
     expect(config.permissions.kevin.extends).toBe(':workspace');
+    expect(config.permissions.kevin.filesystem[join(home, '.state', 'secrets')]).toBe('deny');
     expect(config.permissions.kevin.filesystem[join(home, '.kevin', 'secrets')]).toBe('deny');
     expect(config.permissions.kevin.filesystem[':workspace_roots']).toEqual({
       '.git': 'write',
+      '**/.state/secrets/**': 'deny',
       '**/.kevin/secrets/**': 'deny',
       '**/*.env': 'deny',
       '**/.env.*': 'deny'

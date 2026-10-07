@@ -323,7 +323,7 @@ write(
   )
 );
 write(
-  '.kevin/lint.md',
+  '.state/lint.md',
   `# Knowledge Lint Report\n\nDate: ${isoOf(minutesAgo(40))}\n\n## Summary\n\n- Remaining issues: 2\n- Errors: 0\n- Warnings: 1\n- Suggestions: 1\n\n## Memory budget\n\n- **WARN**: Active Threads bullet 1 is 262 characters (budget 250)\n- **SUGGESTION**: concepts/brain-fed-planning has no inbound links\n`
 );
 write(
@@ -452,7 +452,7 @@ write(
   )}\n`
 );
 write(
-  '.kevin/knowledge.json',
+  '.state/knowledge.json',
   `${JSON.stringify(
     {
       ingested: Object.fromEntries(
@@ -717,7 +717,7 @@ Weekly active workspaces 1,840 to 2,100
 
 // The last queue pull and a dated roadmap, so Today opens on a real focus view.
 write(
-  '.kevin/focus/queue.json',
+  '.state/focus/queue.json',
   `${JSON.stringify(
     {
       fetchedAt: minutesAgo(35).toISOString(),
@@ -976,11 +976,11 @@ write(
 
 // Runtime state, settings, rules, logs.
 write(
-  '.kevin/version.json',
-  `${JSON.stringify({ templateVersion: plugin.version, initializedAt: day(-60), history: [] }, null, 2)}\n`
+  '.state/version.json',
+  `${JSON.stringify({ plugin: plugin.name, templateVersion: plugin.version, initializedAt: day(-60), history: [] }, null, 2)}\n`
 );
 write(
-  '.kevin/logs/app.log',
+  '.state/logs/app.log',
   [minutesAgo(35), minutesAgo(33), minutesAgo(31)]
     .map(
       (when, index) =>
@@ -996,7 +996,7 @@ write(
       extraKnownMarketplaces: { agentlayer: { source: { source: 'github', repo: 'AgentLayer1/agent-kevin' } } },
       permissions: {
         allow: ['mcp__plugin_agent-kevin_kevin__task_query', 'Skill(agent-kevin:engineer)', 'Skill(agent-kevin:sync)'],
-        deny: ['Read(./.kevin/secrets/**)']
+        deny: ['Read(./.state/secrets/**)']
       }
     },
     null,

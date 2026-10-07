@@ -28,6 +28,7 @@ import { agentDisplayName } from '@/shared/agent-name';
 import { readCadence } from '@/shared/cadence';
 import { daysBetween, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
+import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
@@ -424,6 +425,23 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
         '',
         '**Report this to the operator.** Do not move or delete the files yourself; the upgrade',
         'backs up, verifies, and rolls back, and a by-hand move has none of that.'
+      ].join('\n')
+    );
+  }
+
+  // A session still on the pre-0.7.0 plugin writes to the legacy folder after the upgrade moved it.
+  if (basename(FOLDERS.DATA) === RUNTIME_DIR && existsSync(resolve(FOLDERS.HOME, LEGACY_RUNTIME_DIR))) {
+    entries.push({ label: 'data folder', status: 'unavailable', bytes: 0, note: `${LEGACY_RUNTIME_DIR}/ is back` });
+    parts.push(
+      [
+        '## ⚠️ Two data folders',
+        '',
+        `\`${LEGACY_RUNTIME_DIR}/\` exists beside \`${RUNTIME_DIR}/\`, which is the one in use. A session still running the`,
+        'plugin from before the move wrote there after the upgrade, so whatever it saved (often the compile',
+        'cursor `knowledge.json` or `cadence.json`) is not being read.',
+        '',
+        `**Report this to the operator.** They close that session, compare what is in \`${LEGACY_RUNTIME_DIR}/\`, and`,
+        `move anything newer into \`${RUNTIME_DIR}/\` before removing it. Do not move or delete it yourself.`
       ].join('\n')
     );
   }

@@ -20,7 +20,7 @@ that name in this file, and they are not treated the same:
   `AGENTS.md`, uses `<AGENT_NAME>` from Step 1b. Where the prose below says "Kevin" in
   a sentence addressed to the operator, substitute it. Before Step 1b the name isn't
   known yet, so say "your agent" rather than guessing.
-- **The plugin.** `agent-kevin`, `/agent-kevin:*`, `KEVIN_*`, `.kevin/`,
+- **The plugin.** `agent-kevin`, `/agent-kevin:*`, `KEVIN_*`, `.state/`,
   `kevin-avatar.jpg`, `bin/kevin`. These are the product and its namespace, not the
   persona. They stay exactly as written no matter what the operator picks.
 
@@ -37,21 +37,23 @@ if [ -f "$HOME_DIR/SOUL.md" ]; then
 elif git -C "$HOME_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "CWD_IS_A_REPO at $HOME_DIR"
 fi
+[ -d "$HOME_DIR/.kevin" ] && [ ! -d "$HOME_DIR/.state" ] && echo "LEGACY_DATA_DIR at $HOME_DIR"
 [ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Documents" ] && echo "ICLOUD_DOCUMENTS_SYNC=on"
 ```
 
-`SOUL.md` is the idempotency marker here, and **deliberately not the `.kevin/` data dir**
+`SOUL.md` is the idempotency marker here, and **deliberately not the `.state/` data dir**
 that the resolver and every runtime guard key on. Those answer "is this *this* agent's
 home"; init asks the broader question "would scaffolding here destroy something", and the
 answer is yes for any agent's home, not just this one. Every agent's home carries a
-`SOUL.md` and only this one's carries this one's data dir, so the wider marker is what
+`SOUL.md` and only this one's data dir records this plugin, so the wider marker is what
 stops a re-run from overwriting a *sibling* agent's identity files. Don't "fix" this to
 match the others. (`AGENTS.md` would be wrong in the other direction — it may pre-exist in
 any project the plugin is installed into, and init appends to it when it does.)
 
 Act on the probes before anything else:
 
-- **`CWD_IS_A_REPO`** — cwd is inside a git work tree that isn't a Kevin home: almost certainly a code repo, and scaffolding a brain into a repo pollutes it (SOUL.md, knowledge/, `.kevin/` all land in the working tree). `AskUserQuestion`:
+- **`LEGACY_DATA_DIR`** — this home predates 0.7.0: its data dir is still `.kevin/`. Re-running init would scaffold a second data dir beside it. Tell the operator to run `/agent-kevin:upgrade` instead, which moves `.kevin/` to `.state/`, and **STOP**.
+- **`CWD_IS_A_REPO`** — cwd is inside a git work tree that isn't a Kevin home: almost certainly a code repo, and scaffolding a brain into a repo pollutes it (SOUL.md, knowledge/, `.state/` all land in the working tree). `AskUserQuestion`:
 
   > **This looks like a code repo, not a home for Kevin's brain.** You launched `claude` in `<HOME_DIR>`, which is a git repository without a Kevin scaffold. Where should the home live?
   > - **`~/Documents/Agents/<AgentName>` (recommended)** — exit, `mkdir -p` it, relaunch `claude` there, re-run `/agent-kevin:init`
@@ -231,7 +233,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 The plugin is called `agent-kevin`, but the agent it scaffolds does not have to be
 called Kevin. The **display name** (what it calls itself, what the dashboard renders,
 how you address it) is pure data in `IDENTITY.md`. The **namespace** (`/agent-kevin:`
-commands, `KEVIN_*` env vars, the `.kevin/` data dir, MCP tool names) comes from the
+commands, `KEVIN_*` env vars, the `.state/` data dir, MCP tool names) comes from the
 plugin manifest and stays put either way. Renaming costs nothing and breaks nothing.
 
 **On a re-init, the current name is the default, not `Kevin`.** Step 0's re-run path
@@ -641,20 +643,21 @@ KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}}"
 PROJECTS_ROOT="${KEVIN_PROJECTS:-${AGENT_PROJECTS:-$HOME_DIR/projects}}"
 REPORTS_ROOT="${KEVIN_REPORTS:-${AGENT_REPORTS:-$HOME_DIR/reports}}"
 
-mkdir -p "$HOME_DIR"/.kevin/{config,logs} "$HOME_DIR"/.claude/assets
+mkdir -p "$HOME_DIR"/.state/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
 mkdir -p "$PROJECTS_ROOT" "$REPORTS_ROOT"
 ```
 
-**Record the template baseline.** Write `$HOME_DIR/.kevin/version.json` stamping the plugin version this home was scaffolded from. This is the anchor the SessionStart banner + dashboard use to detect pending HOME migrations, and the "from" point `/agent-kevin:upgrade` reconciles from. A fresh home equals the installed version, so it starts `current` (never falsely flagged). **Skip the write if the file already exists** (a re-init must not reset an upgrade-tracked baseline).
+**Record the template baseline.** Write `$HOME_DIR/.state/version.json` stamping the plugin version this home was scaffolded from, and the plugin that owns it: `.state` is a name every agent shares, so the runtime only treats it as this agent's home once `plugin` names this plugin. This is the anchor the SessionStart banner + dashboard use to detect pending HOME migrations, and the "from" point `/agent-kevin:upgrade` reconciles from. A fresh home equals the installed version, so it starts `current` (never falsely flagged). **Skip the write if the file already exists** (a re-init must not reset an upgrade-tracked baseline).
 
 ```bash
-VERSION_FILE="$HOME_DIR/.kevin/version.json"
+VERSION_FILE="$HOME_DIR/.state/version.json"
 if [ ! -f "$VERSION_FILE" ]; then
   PLUGIN_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  PLUGIN_NAME=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
   TODAY=$(date +%Y-%m-%d)
-  printf '{\n  "templateVersion": "%s",\n  "initializedAt": "%s",\n  "history": []\n}\n' "$PLUGIN_VERSION" "$TODAY" > "$VERSION_FILE"
-  cp -R "${CLAUDE_PLUGIN_ROOT}/templates" "$HOME_DIR/.kevin/template-base"
+  printf '{\n  "plugin": "%s",\n  "templateVersion": "%s",\n  "initializedAt": "%s",\n  "history": []\n}\n' "$PLUGIN_NAME" "$PLUGIN_VERSION" "$TODAY" > "$VERSION_FILE"
+  cp -R "${CLAUDE_PLUGIN_ROOT}/templates" "$HOME_DIR/.state/template-base"
 fi
 ```
 
@@ -663,7 +666,7 @@ The `template-base` copy is what the next upgrade merges against: it tells a lin
 **Queue the first-session welcome.** Init can't ask what to do first, because the operator relaunches before anything runs. So it leaves a flag the SessionStart hook reads: while `welcome` is `pending`, the first session opens by asking where to start, the roadmap first ([references/welcome.md](references/welcome.md)), and clears the flag once answered. **Skip the write if the file already exists**, so a re-init of a running home never re-welcomes.
 
 ```bash
-CADENCE_FILE="$HOME_DIR/.kevin/cadence.json"
+CADENCE_FILE="$HOME_DIR/.state/cadence.json"
 [ -f "$CADENCE_FILE" ] || printf '{\n  "welcome": "pending"\n}\n' > "$CADENCE_FILE"
 ```
 
@@ -802,15 +805,15 @@ context every session from then on.
 
 If `COLLISION="yes"`, note this for the Step 9 status block so the user knows the manual was appended below their existing `AGENTS.md`. Their instructions and Kevin's coexist in one file that every harness reads, and the `.claude/CLAUDE.md` bridge still pulls in the identity stack for Claude Code.
 
-Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append every template rule it lacks (`.claude/settings.local.json` holds local config, `.kevin/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `reports/captures/` keeps binary captures out of history, `.obsidian/workspace.json` churns on every Obsidian pane move). The first two must be gitignored or the user will leak secrets (`.kevin/secrets/` lives under `.kevin/*`) / churn on every Kevin run; the rest keep the working tree clean.
+Write a `.gitignore` so the home dir is safe to track in git out of the box. **Collision-aware**: if one already exists, don't overwrite — but append every template rule it lacks (`.claude/settings.local.json` holds local config, `.state/*` ignores the secrets dir + runtime tokens + logs while **tracking the `knowledge.json` compile cursor and the `version.json` template baseline**, `reports/captures/` keeps binary captures out of history, `.obsidian/workspace.json` churns on every Obsidian pane move). The first two must be gitignored or the user will leak secrets (`.state/secrets/` lives under `.state/*`) / churn on every Kevin run; the rest keep the working tree clean.
 
-Two records inside `.kevin/` must survive a clone or restore, so we un-ignore them while keeping the rest (tokens, logs) ignored: the compile cursor (`.kevin/knowledge.json`) is the *only* record of what's been ingested — rolled back (iCloud, restore, fresh clone), the next blind compile re-ingests everything and corrupts memory; the template baseline (`.kevin/version.json`) records which plugin version this home's scaffolded files are reconciled to — lost, upgrade-tracking resets to onboarding and the "you're behind" signal breaks.
+Two records inside `.state/` must survive a clone or restore, so we un-ignore them while keeping the rest (tokens, logs) ignored: the compile cursor (`.state/knowledge.json`) is the *only* record of what's been ingested — rolled back (iCloud, restore, fresh clone), the next blind compile re-ingests everything and corrupts memory; the template baseline (`.state/version.json`) records which plugin version this home's scaffolded files are reconciled to — lost, upgrade-tracking resets to onboarding and the "you're behind" signal breaks.
 
 ```bash
 bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --write
 ```
 
-With no `.gitignore` it copies the template. Over an existing one it appends each template rule the home lacks under `# agent-kevin`, places every `!` negation after the rule it carves out of (git can't re-include a file whose parent dir is ignored), and rewrites a bare `.kevin/` in place to the template's `.kevin/*`. The operator's other lines are never removed or reordered. The same run records this plugin in `.kevin/version.json` (`plugin`), which is how the runtime tells this agent's data dir from a sibling's. Every upgrade that applies a release runs the same script, so a home that drifts converges.
+With no `.gitignore` it copies the template. Over an existing one it appends each template rule the home lacks under `# agent-kevin`, places every `!` negation after the rule it carves out of (git can't re-include a file whose parent dir is ignored), and rewrites a bare `.state/` in place to the template's `.state/*`. The operator's other lines are never removed or reordered. The same run records this plugin in `.state/version.json` (`plugin`), which is how the runtime tells this agent's data dir from a sibling's. Every upgrade that applies a release runs the same script, so a home that drifts converges.
 
 Write project settings so the plugin auto-loads on subsequent launches AND the **always-on core** MCP tools are pre-granted (no per-call confirm prompts). Pack-gated tools are NOT granted here — they land in `permissions.allow` only when the matching `configure-skills` walk runs (Step 8 inline or `/agent-kevin:configure-skills` later).
 
@@ -876,7 +879,7 @@ Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resol
   "Read(**/.env.production)",
   "Read(**/.env.staging)",
   "Read(**/.env.test)",
-  "Read(//**/.kevin/secrets/**)",
+  "Read(//**/.state/secrets/**)",
   "Read(**/secrets/**)",
   "Read(**/credentials/**)",
   "Read(**/*.pem)",
@@ -1017,11 +1020,11 @@ The `defaultMode` line matters as much as the sentences: the *built-in* auto def
 
 ```bash
 bun "${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/automode-block.ts" --home "$HOME_DIR" \
-  --out "$HOME_DIR/.kevin/updates/automode-block.md"
+  --out "$HOME_DIR/.state/updates/automode-block.md"
 ```
 
 It prints the block with `<HOME_DIR>` substituted and writes a readable note at
-`.kevin/updates/automode-block.md` so the operator can open it after the session (the upgrade
+`.state/updates/automode-block.md` so the operator can open it after the session (the upgrade
 skill regenerates and re-checks that note on every run). Paste the printed output into the
 Step 9 summary verbatim.
 
@@ -1048,10 +1051,10 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
   "autoAllowBashIfSandboxed": true,
   "allowUnsandboxedCommands": false,
   "filesystem": {
-    "denyRead": [".kevin/secrets"]
+    "denyRead": [".state/secrets"]
   },
   "credentials": {
-    "files": [{ "path": ".kevin/secrets", "mode": "deny" }]
+    "files": [{ "path": ".state/secrets", "mode": "deny" }]
   },
   "network": {
     "allowedDomains": [
@@ -1069,10 +1072,10 @@ Baseline `sandbox` block to write when global `sandbox.enabled !== true`:
 ```
 
 The `filesystem.denyRead` directory entry is the **second** layer protecting secrets: it
-blocks `cat`/`grep` of `.kevin/secrets/` via the **Bash** tool, which a `permissions.deny
+blocks `cat`/`grep` of `.state/secrets/` via the **Bash** tool, which a `permissions.deny
 Read(...)` rule does **not** cover (that gates the Read tool only). It points at the
-directory (no glob) so the OS denies it and everything under it — a `**/.kevin/secrets/**`
-glob would miss, because gitignore-style `**` won't descend into the `.kevin` dot-dir. The
+directory (no glob) so the OS denies it and everything under it — a `**/.state/secrets/**`
+glob would miss, because gitignore-style `**` won't descend into the `.state` dot-dir. The
 `credentials.files` entry applies the same file-read block (and is the home for env-var
 unsetting) on Claude Code v2.1.187+, and is ignored on older versions. Both the Read-tool
 and sandbox layers are needed. (Sandbox is unavailable on native Windows — there the
@@ -1368,7 +1371,7 @@ Also write `.claude/settings.local.json`: this machine's half of the settings (s
 
 Lists union with what the file already holds, deduped; existing scalars win except `enabledPlugins` as above. `Read` it first (treat as `{}` if absent) and `Write` the merged JSON, same as the shared file.
 
-**Secrets live in `.kevin/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.kevin/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, and the `seo` skill's audit) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.kevin/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
+**Secrets live in `.state/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.state/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, and the `seo` skill's audit) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.state/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
 Env spelling: HOME-scoped keys are written under their shared, agent-neutral `AGENT_*` names — the file's location already scopes them to this agent, and the HOME stays portable. The agent's own prefix (`KEVIN_*`) is a valid override everywhere and always wins; it's required only in machine-wide `~/.claude/settings.json`, where the prefix is what keeps one agent's value from reaching every agent on the box (which is why `KEVIN_HOME` keeps it).
 
@@ -1417,7 +1420,7 @@ We intentionally do **not** prompt for any secret values in chat (see the rule b
 
 **Never solicit values via chat** — secrets must not enter the session transcript or the Anthropic API. The session-capture hook redacts known prefixes (`pplx-…`, `sk-…`, `AIza…`, etc.) as defense-in-depth, but the safer move is to keep values off the wire entirely.
 
-The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants), plant the non-secret `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists — but defer all secret lines and *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
+The Step 8 pack walks handle non-secret config (permission grants, Google OAuth file drop, host-scoped curl grants), plant the non-secret `GSC_SITE_URL` placeholder, and ensure `.state/secrets/.env` exists — but defer all secret lines and *value* entry to the editor. Step 9's "Next" block instructs the user explicitly.
 
 **Write `knowledge/index.md` — preservation-aware.** Operators add catalog bullets over time (linking to concepts they've authored manually).
 
@@ -1598,12 +1601,12 @@ Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a 
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. The report is `{ hooks, mcp, rules, entries, profile, notes }`, each file as `{ path, changed }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), a `SessionEnd` and a `PreCompact` entry capture the session (the second one before Codex compacts a long thread, as on Claude Code), a `PreToolUse` entry runs the cwd-drift guard (below), the `[mcp_servers.kevin]` table launches the server with both home variables set, any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table so a pack activated in Step 8 reaches Codex whether it was wired before or after, and a `[tui]` table sets the footer status line (model with reasoning, directory, branch, approval mode, context used) unless the home already has one, and a `[skills]` table sets `max_context_tokens = 10000`, the most Codex allows for its per-turn skills catalog (the default is 2% of the model window, which trims the plugin's descriptions), unless the home already sets one. The posture is read from this home's Claude settings so the hosts never drift: a `[permissions.kevin]` profile denies the model every read of `.kevin/secrets/` and of any `.env` (the MCP server still reads them itself), makes `.git` writable so commits stay routine, and lists the code path and any `additionalDirectories` as workspace roots; every `Bash(…)` pattern in `permissions.ask` becomes a `prefix_rule` that prompts the operator, the same gate Claude Code applies; `approvals_reviewer` stays `user` (a reviewer model denied named pushes and local commits on this plugin's tests, so it is opt-in). Other hooks, other MCP servers, other rules files, and other settings are preserved; `notes` names a policy key the operator set differently, which is kept. Under Codex (`KEVIN_HARNESS=codex`) run it without asking. Under Claude Code, ask once, always, with `AskUserQuestion`: "Do you also run OpenAI Codex from this home?" (options: "Yes, wire it now" / "No, Claude Code only"). A yes runs the generator now and carries the Codex lines of the relaunch block into Step 9; a no writes nothing, and `$upgrade` run from a Codex session wires the home later. Never skip the question silently: a home that is never asked never gets wired, and the only other route is a manual generator run. On native Windows (`$KEVIN_OS=windows`) it runs the same way (the hook commands carry the home as a double-quoted `--home=` argument, shaped to parse under sh and PowerShell alike), but say once that Codex on Windows is unverified: no Windows box has exercised the wiring, and Kevin's skills are bash while Codex runs its shell through PowerShell there.
+If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. The report is `{ hooks, mcp, rules, entries, profile, notes }`, each file as `{ path, changed }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), a `SessionEnd` and a `PreCompact` entry capture the session (the second one before Codex compacts a long thread, as on Claude Code), a `PreToolUse` entry runs the cwd-drift guard (below), the `[mcp_servers.kevin]` table launches the server with both home variables set, any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table so a pack activated in Step 8 reaches Codex whether it was wired before or after, and a `[tui]` table sets the footer status line (model with reasoning, directory, branch, approval mode, context used) unless the home already has one, and a `[skills]` table sets `max_context_tokens = 10000`, the most Codex allows for its per-turn skills catalog (the default is 2% of the model window, which trims the plugin's descriptions), unless the home already sets one. The posture is read from this home's Claude settings so the hosts never drift: a `[permissions.kevin]` profile denies the model every read of `.state/secrets/` and of any `.env` (the MCP server still reads them itself), makes `.git` writable so commits stay routine, and lists the code path and any `additionalDirectories` as workspace roots; every `Bash(…)` pattern in `permissions.ask` becomes a `prefix_rule` that prompts the operator, the same gate Claude Code applies; `approvals_reviewer` stays `user` (a reviewer model denied named pushes and local commits on this plugin's tests, so it is opt-in). Other hooks, other MCP servers, other rules files, and other settings are preserved; `notes` names a policy key the operator set differently, which is kept. Under Codex (`KEVIN_HARNESS=codex`) run it without asking. Under Claude Code, ask once, always, with `AskUserQuestion`: "Do you also run OpenAI Codex from this home?" (options: "Yes, wire it now" / "No, Claude Code only"). A yes runs the generator now and carries the Codex lines of the relaunch block into Step 9; a no writes nothing, and `$upgrade` run from a Codex session wires the home later. Never skip the question silently: a home that is never asked never gets wired, and the only other route is a manual generator run. On native Windows (`$KEVIN_OS=windows`) it runs the same way (the hook commands carry the home as a double-quoted `--home=` argument, shaped to parse under sh and PowerShell alike), but say once that Codex on Windows is unverified: no Windows box has exercised the wiring, and Kevin's skills are bash while Codex runs its shell through PowerShell there.
 
 Then print the user-level note: Codex ignores telemetry and provider keys in a project config, the analytics, feedback, animation, and update-check keys are the operator's own rather than the home's, the context window is a cost choice for every session on the machine (the note asks for the cap Codex's model catalog serves, since a larger request is clamped to it), and the plugin never writes a user-global file, so generate the paste-ready block and quote it in Step 9 verbatim:
 
 ```bash
-bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$HOME_DIR/.kevin/updates/codex-user-config.md"
+bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$HOME_DIR/.state/updates/codex-user-config.md"
 ```
 
 **Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all four entries, or Codex sessions start without Kevin's context and are never captured.
@@ -1623,7 +1626,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 `AskUserQuestion` (**multi-select**, so the user can tick any combination):
 
 > **Activate skill packs now?**
-> Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt), plants the non-secret `GSC_SITE_URL` placeholder in `settings.local.json`, and ensures `.kevin/secrets/.env` exists for the secret keys you'll add via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
+> Each pack already ships loaded with the plugin. Activating a pack grants its MCP tool permissions in `settings.json` (so calls don't re-prompt), plants the non-secret `GSC_SITE_URL` placeholder in `settings.local.json`, and ensures `.state/secrets/.env` exists for the secret keys you'll add via your editor. Skip entirely if you want to come back later via `/agent-kevin:configure-skills`.
 >
 > - ☐ SEO pack (the seo skill: audit · Search Console · PageSpeed · SERP · rank; plus wordpress-rest)
 > - ☑ Browser pack **(recommended)** (browser screenshot/pdf/record + browser-flows + optional Perplexity search)
@@ -1639,7 +1642,7 @@ Default-select **Browser** (recommended — Playwright's capture tools work imme
 **Also default-tick GitHub when Step 4b captured a real code path.** `github_fast_forward` is what keeps those checkouts current during `/agent-kevin:sync`, and it needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's code silently never refreshes — the one failure mode that degrades *answers* rather than surfacing an error, since Kevin keeps grounding confidently against a frozen checkout. An operator who just told init where their code lives has effectively asked for this. Leave it unticked when Step 4b returned `skip` (no checkout, nothing to fast-forward — the common case for a Kevin home). Either way it stays a tick the operator can clear.
 
 Behavior on the response:
-- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Xcode (A.2f) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.kevin/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
+- **Each ticked option**: run the matching configure-skills section in order — SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → Xcode (A.2f) → Third-party (F). The walks **never prompt for API key values or connection strings in chat** — they add MCP grants to `settings.json`, plant the `GSC_SITE_URL` placeholder, and ensure `.state/secrets/.env` exists. The user adds the secret lines + values via their editor after relaunch.
 - **Nothing ticked**: skip — note "skill packs not activated — run `/agent-kevin:configure-skills` after relaunch" for Step 9's status block. Don't touch settings files.
 
 For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow the matching section. Honor every per-skill skip option inside that flow; don't force the user through items they don't want.
@@ -1680,13 +1683,13 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > `<HISTORY_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
-For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules) · user-level keys: .kevin/updates/codex-user-config.md`; otherwise omit the row.
+For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules) · user-level keys: .state/updates/codex-user-config.md`; otherwise omit the row.
 
 For `<WORLD_ROW>`, from Step 5d: what landed, e.g. `✅ Your world    3 projects · roadmap draft · company profile · 4 documents in the inbox`; when every part was skipped → `⏳ Your world    nothing yet — drop documents into <KNOWLEDGE>/raw/inbox/ any time and run /agent-kevin:knowledge-compile`.
 
-For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.kevin/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.kevin/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
+For `<SKILL_PACK_ROW>`, render the row based on what Step 8 did. Note: "activated" here means permissions granted + `.state/secrets/.env` ensured (and the `GSC_SITE_URL` placeholder planted), not key values — those come from the user editing `.state/secrets/.env` (secrets) and `settings.local.json` (`GSC_SITE_URL`).
 - If user skipped Step 8 entirely → `⏳ Skill packs   none activated — run /agent-kevin:configure-skills later`
-- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .kevin/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; PERPLEXITY_API_KEY in .kevin/secrets/.env is optional), Database (perms granted; fill AGENT_DB_<NAME> in .kevin/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .kevin/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .kevin/updates/xcode-sandbox.md and the sudo enablement)">`
+- If user activated any pack → `✅ Skill packs   <list, e.g. "SEO (perms granted; fill SERPAPI_KEY + OPENPAGERANK_API_KEY in .state/secrets/.env, GSC_SITE_URL in settings.local.json), Browser (perms granted; PERPLEXITY_API_KEY in .state/secrets/.env is optional), Database (perms granted; fill AGENT_DB_<NAME> in .state/secrets/.env), GitHub (perms granted; fill GITHUB_TOKEN in .state/secrets/.env), Xcode (xcode MCP server registered + rules seeded; two manual steps left — see .state/updates/xcode-sandbox.md and the sudo enablement)">`
 
 For `<HISTORY_ROW>`: history turned on → `✅ History      on, kept in <gitDir> (a snapshot every sync)`; declined, or git not installed → `⏳ History      off — turn it on any time with /agent-kevin:history`; stopped before the first snapshot (setup reported `refused` or `failed`) → `⏳ History      not started — finish it with /agent-kevin:history`; the folder already had version history set up some other way (`managed-by-you`) → `✅ History      your own setup, left as it is`; its saved history is gone (`history-missing`) and the operator chose not to start over → `⏳ History      not started — start a new one with /agent-kevin:history`.
 
@@ -1704,15 +1707,15 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > 🚀 **Next**
 >
 > **Fill any secret/env values.** Two files, by sensitivity:
-> - **Secrets → `<HOME_DIR>/.kevin/secrets/.env`** (0600, deny-gated, gitignored; Kevin loads it into the environment at boot). If you ticked SEO / Browser / Database at Step 8, the walk created this file — add the lines you need (it's deny-gated, so you fill it yourself):
+> - **Secrets → `<HOME_DIR>/.state/secrets/.env`** (0600, deny-gated, gitignored; Kevin loads it into the environment at boot). If you ticked SEO / Browser / Database at Step 8, the walk created this file — add the lines you need (it's deny-gated, so you fill it yourself):
 >   - `PERPLEXITY_API_KEY` — Browser pack, optional: briefings use the built-in web search without it; the key adds recency and country filters (sign up at https://perplexity.ai/settings/api)
 >   - `SERPAPI_KEY` — SEO pack (https://serpapi.com)
 >   - `OPENPAGERANK_API_KEY` — SEO pack (https://openpagerank.com)
 >   - `AGENT_DB_<NAME>` — Database pack: one Postgres connection string per line
 >   - `GITHUB_TOKEN` — GitHub pack: a fine-grained, read-only PAT (PRs·Issues·Metadata·Actions·Contents — NOT Workflows; there is no Checks permission for PATs). Needs the `gh` CLI on PATH (`brew install gh`).
-> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `AGENT_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.kevin/secrets/google/google-oauth-client.json`.
+> - **Private config → `<HOME_DIR>/.claude/settings.local.json`** `env`: init wrote `AGENT_HOME_TIMEZONE` (your home base — sessions flag traveling when the machine timezone differs), plus `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` if you gave a codebase path at Step 4b. Set `GSC_SITE_URL` here (your Search Console property — not a secret, and Bash-based SEO skills read it from here) before running `mcp__plugin_agent-kevin_kevin__google_auth`. For Google, drop the OAuth client JSON at `<HOME_DIR>/.state/secrets/google/google-oauth-client.json`.
 >
-> Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.kevin/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
+> Didn't tick a pack at Step 8? Run `/agent-kevin:configure-skills` later — it adds permissions, ensures `.state/secrets/.env` exists, and tells you the lines to add via your editor. Tools whose key is missing stay loaded but return "missing env var" if called — add the line any time later and the next session picks it up.
 >
 > **Always launch <AGENT_NAME> from its home — `<HOME_DIR>`.** The habit is `cd <HOME_DIR> && claude` every time. The home is then resolved from where you launched, and a session that `cd`s off into a repo mid-flight still resolves correctly, because the launch directory doesn't roam even when your shell does.
 >

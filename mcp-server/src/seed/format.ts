@@ -18,7 +18,7 @@
  * with no source home (the website wizard). Every manifest field beyond
  * formatVersion/agentName/files is optional.
  *
- * What never travels, regardless of producer: secret VALUES, `.kevin/` state,
+ * What never travels, regardless of producer: secret VALUES, the data dir (`.state/`),
  * USER.md, knowledge/{user,memory,raw}, tasks, and session transcripts. The
  * operating manual travels only as curated sections under the `AGENTS.md`
  * path, which import APPENDS to the recipient's scaffolded manual (never
@@ -50,7 +50,7 @@ export interface SeedManifest {
   files: SeedFileEntry[];
   /** Permission entries to merge into the recipient's settings.json (reviewed at export). */
   permissions?: { allow?: string[]; ask?: string[] };
-  /** Secret env key NAMES the setup needs — recipient fills values in `.kevin/secrets/.env`. */
+  /** Secret env key NAMES the setup needs — recipient fills values in `.state/secrets/.env`. */
   secretKeys?: string[];
   /** Non-secret env key NAMES planted empty in the recipient's settings.local.json `env` block. */
   settingsEnv?: string[];
@@ -108,7 +108,7 @@ export const validateSeedPath = (path: string): string | null => {
  * Credential-shaped env key names. These never belong in a bundle's
  * `settingsEnv` (an empty placeholder there would invite putting a secret in
  * settings.local.json) — a credential the setup needs travels as a `secretKeys`
- * NAME instead, filled by the recipient in `.kevin/secrets/.env`.
+ * NAME instead, filled by the recipient in `.state/secrets/.env`.
  */
 export const CREDENTIAL_KEY_RE = /(_TOKEN|_KEY|_SECRET|_PASSWORD|_CREDENTIALS?)($|_)/;
 
@@ -171,7 +171,7 @@ const CORE_GRANTS = new Set([
 
 interface PackDef {
   grants: string[];
-  /** Secret key names the pack's tools read from `.kevin/secrets/.env`. */
+  /** Secret key names the pack's tools read from `.state/secrets/.env`. */
   secretKeys: string[];
   /** Non-secret keys the pack plants in settings.local.json `env`. */
   settingsEnv: string[];

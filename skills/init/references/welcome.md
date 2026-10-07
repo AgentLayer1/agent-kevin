@@ -1,6 +1,6 @@
 # Welcome — the first session after init
 
-Init can't ask what to do first: the operator has to exit and relaunch before the plugin, the identity files and the hooks take effect. So init leaves `"welcome": "pending"` in `<HOME>/.kevin/cadence.json`, and the SessionStart hook points here until the question has been answered. Ask it once, run the pick, and clear the flag.
+Init can't ask what to do first: the operator has to exit and relaunch before the plugin, the identity files and the hooks take effect. So init leaves `"welcome": "pending"` in `<HOME>/.state/cadence.json`, and the SessionStart hook points here until the question has been answered. Ask it once, run the pick, and clear the flag.
 
 `<PLUGIN_ROOT>` below is the plugin root the session context names.
 

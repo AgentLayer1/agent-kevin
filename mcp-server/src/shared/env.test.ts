@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName, pluginName } from './naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from './naming';
 import { agentHomePath, env, isAgentHome, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
@@ -10,7 +10,7 @@ import { loadSettingsEnv } from './settings-env';
 /** Scaffold a marked agent data dir under `home` (what init produces). */
 const scaffoldDataDir = (home: string): void => {
   mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
-  writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
+  writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
 };
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
@@ -129,16 +129,31 @@ describe('agentHomePath', () => {
     });
   });
 
-  test.each([
-    ['records this plugin', () => JSON.stringify({ plugin: pluginName() })],
-    ['predates the record', () => JSON.stringify({ templateVersion: '0.6.4' })],
-    ['records a non-string plugin', () => JSON.stringify({ plugin: 7 })],
-    ['is not JSON', () => 'not json']
-  ])('anchors on a data dir whose version.json %s', (_label, content) => {
+  test('anchors on a .state whose version.json records this plugin', () => {
     const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-recorded-')));
     scaffoldDataDir(home);
-    writeFileSync(resolve(home, RUNTIME_DIR, 'version.json'), content());
     expect(isAgentHome(home)).toBe(true);
+  });
+
+  const unproven = [
+    ['predates the record', JSON.stringify({ templateVersion: '0.6.4' })],
+    ['records a non-string plugin', JSON.stringify({ plugin: 7 })],
+    ['is not JSON', 'not json']
+  ];
+  const homeWithVersion = (dir: string, content: string): string => {
+    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-unproven-')));
+    mkdirSync(resolve(home, dir), { recursive: true });
+    writeFileSync(resolve(home, dir, 'version.json'), content);
+    return home;
+  };
+
+  // A home the 0.7.0 upgrade hasn't moved yet keeps working through its agent-named dir.
+  test.each(unproven)('anchors on a legacy data dir whose version.json %s', (_label, content) => {
+    expect(isAgentHome(homeWithVersion(LEGACY_RUNTIME_DIR, content))).toBe(true);
+  });
+
+  test.each(unproven)('does not anchor on a .state whose version.json %s', (_label, content) => {
+    expect(isAgentHome(homeWithVersion(RUNTIME_DIR, content))).toBe(false);
   });
 
   test('falls back to cwd without writing the env when no home exists above', () => {
@@ -250,16 +265,54 @@ describe('readEnvFile', () => {
       }
     );
   });
+
+  // A home the upgrade hasn't moved yet still keeps its keys in the legacy store.
+  test('refuses the legacy secret store too', () => {
+    const home = mkdtempSync(resolve(tmpdir(), 'kevin-home-'));
+    const legacyPath = resolve(home, LEGACY_RUNTIME_DIR, 'secrets', '.env');
+    mkdirSync(resolve(home, LEGACY_RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(legacyPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
+
+    withHomeEnv(
+      () => {
+        process.env.AGENT_HOME = home;
+      },
+      () => {
+        expect(readEnvFile(legacyPath)).toEqual({});
+      }
+    );
+  });
 });
 
 describe.skipIf(secretsReadBlocked())('loadSecretsEnv', () => {
-  /** A home whose secrets store holds `key=value`. */
-  const homeWithSecret = (key: string, value: string): string => {
+  /** A home whose secrets store holds `key=value`; `versionJson` decides whose it is. */
+  const homeWithSecret = (
+    key: string,
+    value: string,
+    versionJson = JSON.stringify({ plugin: pluginName() })
+  ): string => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-secrets-'));
     mkdirSync(resolve(home, RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(resolve(home, RUNTIME_DIR, 'version.json'), versionJson);
     writeFileSync(resolve(home, RUNTIME_DIR, 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
     return home;
   };
+
+  // A shared-name store this agent can't prove is its own (a sibling's, a tool's) is never read.
+  test.each([
+    ['records another plugin', JSON.stringify({ plugin: 'agent-other' })],
+    ['records no plugin', '{}']
+  ])('loads nothing from a .state that %s', (_label, versionJson) => {
+    const original = process.env.AGENT_HOME;
+    try {
+      process.env.AGENT_HOME = homeWithSecret('AGENT_PROBE_FOREIGN', 'not-ours', versionJson);
+      loadSecretsEnv();
+      expect(env('AGENT_PROBE_FOREIGN')).toBeUndefined();
+    } finally {
+      process.env.AGENT_HOME = original;
+      loadSecretsEnv();
+    }
+  });
 
   // Synchronous, like the assertions above, so the AGENT_HOME mutation can't interleave with
   // the other suites sharing process.env.

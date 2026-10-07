@@ -1,4 +1,4 @@
-import { RUNTIME_DIR, agentKeyName, isOwnDataDir, resolveEnv } from '@/shared/naming';
+import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, ownDataDir, resolveEnv } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -33,7 +33,7 @@ import { dirname, resolve, sep } from 'node:path';
 /**
  * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
  * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
- * carrying this agent's data dir (`RUNTIME_DIR`, created at init), else
+ * carrying this agent's data dir (`ownDataDir`, created at init), else
  * the same walk from the host's project dir. A bare cwd fallback anchors to
  * wherever the process happened to launch; for a session launched inside a code
  * repo that puts session captures, data-dir state, and logs INSIDE the repo, so
@@ -98,12 +98,20 @@ const homeAbove = (start: string): string | undefined => {
  * agent's tree. A marker whose `version.json` records another plugin is that
  * plugin's home, not this one's (`isOwnDataDir`).
  */
-export const isAgentHome = (path: string): boolean => isOwnDataDir(resolve(expandTilde(path), RUNTIME_DIR));
+export const isAgentHome = (path: string): boolean => ownDataDir(expandTilde(path)) !== undefined;
 
-/** `<HOME>/<data-dir>/secrets`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
-const secretsDir = (): string => resolve(agentHomePath(), RUNTIME_DIR, 'secrets');
+/**
+ * `<HOME>/<data-dir>/secrets/.env`, resolved live so a test that sets AGENT_HOME is honoured;
+ * null outside this agent's home, where no store is proven to be its own.
+ */
+const secretsEnvFile = (): string | null => {
+  const dataDir = ownDataDir(agentHomePath());
+  return dataDir ? resolve(dataDir, 'secrets', '.env') : null;
+};
 
-const secretsEnvFile = (): string => resolve(secretsDir(), '.env');
+// Both names, so a store the upgrade hasn't moved yet (or a stray legacy copy) stays out of reach.
+const gatedSecretsDirs = (): string[] =>
+  [RUNTIME_DIR, LEGACY_RUNTIME_DIR].map((name) => resolve(agentHomePath(), name, 'secrets'));
 
 /**
  * Minimal dotenv parser — private. Handing a raw env-file parser (or raw secret
@@ -151,8 +159,7 @@ function parseDotenv(raw: string): Record<string, string> {
 export function readEnvFile(path: string): Record<string, string> {
   const resolved = resolve(path);
   try {
-    const gated = secretsDir();
-    if (resolved === gated || resolved.startsWith(gated + sep)) {
+    if (gatedSecretsDirs().some((gated) => resolved === gated || resolved.startsWith(gated + sep))) {
       return {};
     }
   } catch {
@@ -166,7 +173,7 @@ export function readEnvFile(path: string): Record<string, string> {
 }
 
 const secretKeyNames: string[] = [];
-let loadedFrom: string | undefined;
+let loadedFrom: string | null | undefined;
 
 /**
  * Loads `<HOME>/<data-dir>/secrets/.env` into `process.env` (secrets win over
@@ -193,6 +200,9 @@ export function loadSecretsEnv(): void {
   }
   secretKeyNames.length = 0;
   loadedFrom = file;
+  if (file === null) {
+    return;
+  }
   let raw: string;
   try {
     raw = readFileSync(file, 'utf-8');
@@ -267,9 +277,13 @@ export const dbEnvKeyFor = (name: string): string => {
  * it holds only private, non-secret config.
  */
 export function scrubValues(text: string): string {
+  const file = secretsEnvFile();
+  if (file === null) {
+    return text;
+  }
   let secrets: Record<string, string>;
   try {
-    secrets = parseDotenv(readFileSync(secretsEnvFile(), 'utf-8'));
+    secrets = parseDotenv(readFileSync(file, 'utf-8'));
   } catch {
     return text; // no/unreadable secrets/.env — prefix heuristics in the caller still run
   }

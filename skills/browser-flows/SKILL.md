@@ -57,7 +57,7 @@ A flow resolves each field `params.x ?? process.env.SECRET ?? config.x ?? defaul
 
 **`.env`** is the thin secret overlay for the day a value must NOT be readable or committed (a real card against staging, a live password). The dispatcher loads it and injects it into **that flow's child alone** (scoped — one flow's secrets never reach another); the flow reads it from `process.env`. Values never pass through a param, never enter the conversation, and are unreadable by the agent's own Read/Bash. The run result lists the loaded key **names** only.
 
-- `.env` is always in **HOME**, never the plugin repo — beside a HOME flow's `index.ts`, or a same-named folder holding just `.env` for a built-in flow. The loader **refuses** anything under `.kevin/secrets/`, so a flow can't reach Kevin's own operational keys (genuinely-shared secrets go in `.kevin/secrets/.env`, inherited by all flows and overridden by a flow's own `.env`).
+- `.env` is always in **HOME**, never the plugin repo — beside a HOME flow's `index.ts`, or a same-named folder holding just `.env` for a built-in flow. The loader **refuses** anything under `.state/secrets/`, so a flow can't reach Kevin's own operational keys (genuinely-shared secrets go in `.state/secrets/.env`, inherited by all flows and overridden by a flow's own `.env`).
 - Ship a committed `.env.example` (the one `.env*` git tracks) listing the secret keys a flow expects; the real `.env` stays local.
 - A flow author's one rule: read secrets from `process.env`, and **never `log()` a secret value** — flow stdout is captured into the result.
 

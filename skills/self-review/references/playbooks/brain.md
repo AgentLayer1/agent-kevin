@@ -70,7 +70,7 @@ A typed answer ("Other") is applied as stated, when it maps to an effect above. 
 
 ## Step 4 — Record
 
-Merge into `<HOME>/.kevin/review.json`, keeping every other key:
+Merge into `<HOME>/.state/review.json`, keeping every other key:
 
 ```json
 {

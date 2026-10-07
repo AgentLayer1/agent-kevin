@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { LEGACY_RUNTIME_DIR } from '../shared/naming';
 import { secretsReadBlocked } from '../shared/sandbox-probe';
 
 // The plugin root is derived from this file's location rather than from config, because the
@@ -40,7 +41,7 @@ const lastJson = (stdout: string) =>
       .pop() ?? '{}'
   );
 
-describe.skipIf(secretsReadBlocked())('0.3.0 migration script (end-to-end on a temp HOME)', () => {
+describe.skipIf(secretsReadBlocked(LEGACY_RUNTIME_DIR))('0.3.0 migration script (end-to-end on a temp HOME)', () => {
   test('moves secrets, preserves non-secrets, relocates google, writes denies', () => {
     const home = seedHome();
     const proc = run(home);

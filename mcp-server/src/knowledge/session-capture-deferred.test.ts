@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 /**
  * Codex kills a SessionEnd hook after 3 seconds. A capture that cannot take the
@@ -37,7 +37,7 @@ const dayFile = (): string => {
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
   mkdirSync(DATA, { recursive: true });
-  writeFileSync(resolve(DATA, HOME_MARKER_FILES[0]), '{}\n');
+  writeFileSync(resolve(DATA, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
   ({ captureSession, drainDeferredCaptures } = await import('@/knowledge/session-capture'));
 });
 

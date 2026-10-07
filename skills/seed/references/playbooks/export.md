@@ -5,7 +5,7 @@ Build a seed bundle: a plain zip the recipient imports after their own `/agent-k
 recipient's own, freely editable. Nothing leaves this machine without the operator
 approving the exact contents.
 
-**Never in a bundle, no exceptions:** secret values, `.kevin/` state, USER.md,
+**Never in a bundle, no exceptions:** secret values, `.state/` state, USER.md,
 `knowledge/{user,memory,raw}`, tasks, session transcripts, the scaffolded AGENTS.md
 (curated sections travel as an AGENTS.md overlay section instead), machine-specific paths.
 The `seed_export` tool enforces the structural excludes; this skill enforces judgment —
@@ -109,6 +109,6 @@ Send it to your teammate along with:
    automatically after the scaffold. (On an already-initialized home, run
    /agent-kevin:seed import <bundle path> directly instead.)
 2. Review the dry-run plan the import shows before approving.
-3. Fill the listed credential keys in <their HOME>/.kevin/secrets/.env via their editor
+3. Fill the listed credential keys in <their HOME>/.state/secrets/.env via their editor
    (values never travel and never go through chat), then restart Claude Code.
 ```

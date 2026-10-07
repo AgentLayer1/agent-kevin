@@ -5,7 +5,7 @@
  * The projection is containment-first — every payload path is validated
  * against the format's allowed roots and resolved inside the home before a
  * single byte lands, so a hostile manifest can't touch settings, secrets,
- * `.kevin/` state, or anything else. Payload hashes are verified (a corrupt
+ * the data dir (`.state/`), or anything else. Payload hashes are verified (a corrupt
  * or tampered bundle fails loud, never half-applies).
  *
  * Beyond files, the manifest's setup fields are merged, never clobbered:
@@ -57,7 +57,7 @@ export interface SeedImportResult {
   /** MCP server names already present locally — never clobbered. */
   mcpServersSkipped: string[];
   settingsEnvPlanted: string[];
-  /** Secret key NAMES the operator must fill in `.kevin/secrets/.env` via their editor. */
+  /** Secret key NAMES the operator must fill in `.state/secrets/.env` via their editor. */
   secretKeysToFill: string[];
 }
 

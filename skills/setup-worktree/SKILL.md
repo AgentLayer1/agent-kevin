@@ -296,7 +296,7 @@ fork isn't orphaned. Remote connections are refused; `database_fork` only acts o
 
 **Resolving the source connection (the generic seam):** the tool needs a `KEVIN_DB_<NAME>`
 connection pointing at the repo's local Postgres server (e.g.
-`KEVIN_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.kevin/secrets/.env`** — since
+`KEVIN_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.state/secrets/.env`** — since
 v0.3.0 credential env vars live there, not in `.claude/settings.local.json`). It defaults to the
 first configured connection; when a repo has several, pick the right one in this order:
 
@@ -306,7 +306,7 @@ first configured connection; when a repo has several, pick the right one in this
    for the same line.
 3. Otherwise run `database_list` and, if exactly one connection matches the repo's local server, use it;
    if it's ambiguous or none is configured, **ask the operator** (and have them add the
-   `KEVIN_DB_<NAME>` env var to `.kevin/secrets/.env`) — don't guess.
+   `KEVIN_DB_<NAME>` env var to `.state/secrets/.env`) — don't guess.
 
 ## Notes
 

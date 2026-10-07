@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { followMove, type HistoryEnv, historyStatus, restorePointer, setupHistory } from '@/home/history';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 let root: string;
 let userHome: string;
@@ -35,8 +36,9 @@ const makeHome = (parent: string, name = 'Ada'): string => {
   const home = join(parent, name);
   write(join(home, 'SOUL.md'), '# Soul\n');
   write(join(home, 'knowledge', 'index.md'), '# Index\n');
-  write(join(home, '.kevin', 'knowledge.json'), '{}\n');
-  write(join(home, '.kevin', 'logs', 'app.log'), 'runtime noise\n');
+  write(join(home, RUNTIME_DIR, 'version.json'), `${JSON.stringify({ plugin: pluginName() })}\n`);
+  write(join(home, RUNTIME_DIR, 'knowledge.json'), '{}\n');
+  write(join(home, RUNTIME_DIR, 'logs', 'app.log'), 'runtime noise\n');
   return home;
 };
 
@@ -70,8 +72,8 @@ describe('setupHistory', () => {
     expect(result.status).toMatchObject({ state: 'on', layout: 'in-place' });
     expect(commitCount(home)).toBe(1);
     const tracked = git(home, 'ls-files').split('\n');
-    expect(tracked).toContain('.kevin/knowledge.json');
-    expect(tracked).not.toContain('.kevin/logs/app.log');
+    expect(tracked).toContain('.state/knowledge.json');
+    expect(tracked).not.toContain('.state/logs/app.log');
     expect(existsSync(join(home, '.claude', 'settings.local.json'))).toBe(false);
   });
 
@@ -169,9 +171,9 @@ describe('setupHistory', () => {
 
   test('an old .gitignore gains the template rules before the first snapshot', () => {
     const home = makeHome(join(root, 'local'));
-    write(join(home, '.gitignore'), '.kevin/\nmy-notes.tmp\n');
+    write(join(home, '.gitignore'), '.state/\nmy-notes.tmp\n');
     expect(setupHistory(home, {}, historyEnv).outcome).toBe('turned-on');
-    expect(git(home, 'ls-files').split('\n')).toContain('.kevin/knowledge.json');
+    expect(git(home, 'ls-files').split('\n')).toContain('.state/knowledge.json');
     expect(() => git(home, 'check-ignore', '-q', '.claude/settings.local.json.123.abc.tmp')).not.toThrow();
   });
 

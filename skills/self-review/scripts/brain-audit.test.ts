@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { hashBuffer } from '../../../mcp-server/src/knowledge/utils';
-import { RUNTIME_DIR } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const SCRIPT = join(import.meta.dir, 'brain-audit.ts');
 const TODAY = '2026-10-31';
@@ -33,7 +33,7 @@ const home = () => {
     mkdirSync(join(path, '..'), { recursive: true });
     writeFileSync(path, content);
   };
-  write(join(RUNTIME_DIR, 'version.json'), '{}');
+  write(join(RUNTIME_DIR, 'version.json'), `${JSON.stringify({ plugin: pluginName() })}\n`);
   write('SOUL.md', '# Soul\n');
   const task = ({ id, project, status = 'open', updated, created = updated }: TaskSeed) =>
     write(

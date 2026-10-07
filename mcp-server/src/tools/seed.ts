@@ -39,7 +39,7 @@ export const tools: ToolDef[] = [
         .array(z.string())
         .optional()
         .describe(
-          'Secret env key NAMES the setup needs (recipient fills values in .kevin/secrets/.env). Never values.'
+          'Secret env key NAMES the setup needs (recipient fills values in .state/secrets/.env). Never values.'
         ),
       settingsEnv: z
         .array(z.string())

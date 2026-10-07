@@ -35,7 +35,7 @@ describe('config path resolution', () => {
     const before = FOLDERS.SESSIONS;
     withHome(PROBE, () => {
       expect(FOLDERS.SESSIONS).toBe(`${PROBE}/knowledge/raw/sessions`);
-      expect(FOLDERS.DATA).toBe(`${PROBE}/.kevin`);
+      expect(FOLDERS.DATA).toBe(`${PROBE}/.state`);
     });
     expect(FOLDERS.SESSIONS).toBe(before);
   });
@@ -43,7 +43,7 @@ describe('config path resolution', () => {
   test('FILES follows it too, including the paths that get written to', () => {
     withHome(PROBE, () => {
       expect(FILES.SESSION_INDEX).toBe(`${PROBE}/knowledge/raw/sessions/index.json`);
-      expect(FILES.KNOWLEDGE_STATE).toBe(`${PROBE}/.kevin/knowledge.json`);
+      expect(FILES.KNOWLEDGE_STATE).toBe(`${PROBE}/.state/knowledge.json`);
       expect(FILES.SOUL).toBe(`${PROBE}/SOUL.md`);
     });
   });

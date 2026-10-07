@@ -92,7 +92,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── api/                         # /api-collections request collections
 │   ├── reviews/                     # engineer PR reviews, replies, walkthroughs + adversarial-review dossiers
 │   └── captures/                    # browser screenshots and PDFs
-└── .kevin/                           # plugin runtime (hidden)
+└── .state/                           # plugin runtime (hidden)
     ├── config/                      # config.json + Google OAuth tokens
     ├── knowledge.json               # compile state
     └── logs/
