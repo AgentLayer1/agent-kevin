@@ -78,6 +78,8 @@ and prompts per optional one. The new template files are the source of truth for
 ### Fixed
 - The log file is resolved on each write, so a long-running server stops writing to a folder that
   has moved.
+- Knowledge lint resolves links to archived tasks. The flywheel moves closed tasks to
+  `tasks/archive/`, and every link to one was reported as broken.
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.7.0.ts (records the plugin in `.kevin/version.json`, adds the `.state/secrets` deny rules and the `.state/` gitignore rules, renames `.kevin/` to `.state/`, and repoints every `.kevin/` path in the machine-local config, `.mcp.json` and `.claude/settings.local.json` (a pack server's secrets file, or an env value, hook or permission you added); every rewritten file is backed up under `.state/updates/`, and a re-run finishes a move that stopped partway).

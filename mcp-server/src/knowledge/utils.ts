@@ -62,7 +62,8 @@ export function extractWikilinks(content: string): string[] {
 
 /**
  * Resolvable task identifiers — full slugs (`en-027-provider-error-...`) plus
- * bare IDs (`en-027`) — collected from every `projects/<proj>/tasks/` directory.
+ * bare IDs (`en-027`) — collected from every `projects/<proj>/tasks/` directory
+ * and its `archive/`, where the flywheel moves closed tasks.
  * Not cached: the MCP server is long-lived and tasks are created mid-session, so
  * `checkBrokenLinks` loads this once per run and passes it down.
  */
@@ -74,13 +75,17 @@ export async function loadTaskTargets(): Promise<Set<string>> {
   } catch {
     return targets; // No projects directory — task links simply won't resolve.
   }
+  const taskDirs = projectDirs.flatMap((projectDir) => [
+    resolve(FOLDERS.PROJECTS, projectDir, 'tasks'),
+    resolve(FOLDERS.PROJECTS, projectDir, 'tasks', 'archive')
+  ]);
   await Promise.all(
-    projectDirs.map(async (projectDir) => {
+    taskDirs.map(async (taskDir) => {
       let files: string[];
       try {
-        files = await readdir(resolve(FOLDERS.PROJECTS, projectDir, 'tasks'));
+        files = await readdir(taskDir);
       } catch {
-        return; // Not a project dir, or it has no tasks/ subdir.
+        return; // Not a project dir, or it has no tasks/ (or tasks/archive/) subdir.
       }
       for (const file of files) {
         if (!file.endsWith('.md')) continue;
@@ -99,7 +104,7 @@ export async function loadTaskTargets(): Promise<Set<string>> {
  *  - a knowledge article by direct path (`concepts/foo`, `memory/2026-...`)
  *  - a bare slug in a known knowledge subdir (`service-decomposition` → concepts/)
  *  - a HOME-root doc (`USER`, `SOUL`, `IDENTITY`, `CLAUDE`; leading slash + `.md` tolerated)
- *  - a task file under `projects/<proj>/tasks/` by full slug or bare ID (`en-027`)
+ *  - a task file under `projects/<proj>/tasks/` or its `archive/` by full slug or bare ID (`en-027`)
  *
  * The wiki spans more than `knowledge/` — Obsidian's vault root is HOME, so links
  * legitimately cross into HOME-root docs and the task tree. Resolving only within

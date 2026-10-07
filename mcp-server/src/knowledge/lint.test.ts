@@ -21,3 +21,20 @@ describe('lint invalid frontmatter', () => {
     expect(report).not.toContain('concepts/acme-flat.md frontmatter');
   });
 });
+
+describe('lint broken links', () => {
+  test('resolves links to archived tasks and still flags missing ones', async () => {
+    const archive = join(FOLDERS.PROJECTS, 'acme', 'tasks', 'archive');
+    mkdirSync(archive, { recursive: true });
+    writeFileSync(join(archive, 'ac-001-retired-task.md'), '---\nid: ac-001\nstatus: done\n---\n');
+    mkdirSync(join(FOLDERS.KNOWLEDGE, 'concepts'), { recursive: true });
+    writeFileSync(
+      join(FOLDERS.KNOWLEDGE, 'concepts', 'acme-links.md'),
+      '---\ntitle: Acme links\n---\n\nSee [[ac-001-retired-task|ac-001]], [[ac-001]] and [[ac-999-never-filed]].\n'
+    );
+    const report = readFileSync((await run()).reportPath, 'utf-8');
+    expect(report).not.toContain('[[ac-001-retired-task]] in concepts/acme-links.md');
+    expect(report).not.toContain('[[ac-001]] in concepts/acme-links.md');
+    expect(report).toContain('[[ac-999-never-filed]] in concepts/acme-links.md points to non-existent article');
+  });
+});
