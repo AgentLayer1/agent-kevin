@@ -105,7 +105,9 @@ describe('sync band', () => {
       expect(text).toContain('feedback 0/1');
       expect(text).not.toContain('inbox');
       expect(text).toContain('stale 0/12');
-      expect(text).toContain('1 compiled');
+      expect(text).toContain('compiled 1');
+      expect(text).not.toContain('·  ');
+      expect(text).not.toMatch(/\d\/\d+\s*·/);
     });
 
     test(`shows waiting on you while sync asks a question on ${surface}`, async ($, on) => {

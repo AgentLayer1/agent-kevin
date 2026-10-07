@@ -237,7 +237,12 @@ export const registerSync = (on: On): void => {
             {item.grew ? <Text color="red"> +{item.grew}</Text> : null}
           </Box>
         ))}
-        {notes.length ? <Text dimColor>· {notes.join('  ')}</Text> : null}
+        {notes.map((note) => (
+          <Box key={note.label}>
+            <Text dimColor>{note.label} </Text>
+            <Text>{note.count}</Text>
+          </Box>
+        ))}
       </Box>
     );
 

@@ -241,12 +241,12 @@ export const progressOf = (run: SyncRun): SubProgress[] =>
 /**
  * What the run did, for the band's tail.
  */
-export const actionNotes = (actions: SyncActions): string[] =>
+export const actionNotes = (actions: SyncActions): { label: string; count: number }[] =>
   [
-    actions.compiled ? `${actions.compiled} compiled` : null,
-    actions.lintFixed ? `lint ${actions.lintFixed} fixed` : null,
-    actions.tasksClosed ? `${actions.tasksClosed} closed` : null
-  ].filter((item): item is string => item !== null);
+    { label: 'compiled', count: actions.compiled },
+    { label: 'lint fixed', count: actions.lintFixed },
+    { label: 'closed', count: actions.tasksClosed }
+  ].filter((item) => item.count > 0);
 
 /**
  * A fresh partial measurement laid over the latest one.
