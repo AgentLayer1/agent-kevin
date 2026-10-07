@@ -283,8 +283,8 @@ fix and re-run. Migrations are idempotent, so a re-run after a partial failure i
 safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
-The 0.7.0 script moves `.kevin/` to `.state/`; its report names any `.mcp.json` servers it
-repointed and the deny rules it added. Every block after it resolves `$DATA_DIR` again (Step 0).
+The 0.7.0 script moves `.kevin/` to `.state/`; its report names the deny rules it added and, under `repointed`,
+the machine-local config files (`.mcp.json`, `.claude/settings.local.json`) it rewrote to `.state/` paths. Every block after it resolves `$DATA_DIR` again (Step 0).
 
 **settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
 an entry naming a path on this machine (an absolute folder, as an older release's code-root action

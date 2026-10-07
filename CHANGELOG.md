@@ -80,7 +80,7 @@ and prompts per optional one. The new template files are the source of truth for
   has moved.
 
 ### Upgrade
-- `script: required` — run skills/upgrade/scripts/0.7.0.ts (records the plugin in `.kevin/version.json`, adds the `.state/secrets` deny rules and the `.state/` gitignore rules, renames `.kevin/` to `.state/`, and repoints `.mcp.json` servers that load `.kevin/secrets/.env`; every rewritten file is backed up under `.state/updates/`, and a re-run finishes a move that stopped partway).
+- `script: required` — run skills/upgrade/scripts/0.7.0.ts (records the plugin in `.kevin/version.json`, adds the `.state/secrets` deny rules and the `.state/` gitignore rules, renames `.kevin/` to `.state/`, and repoints every `.kevin/` path in the machine-local config, `.mcp.json` and `.claude/settings.local.json` (a pack server's secrets file, or an env value, hook or permission you added); every rewritten file is backed up under `.state/updates/`, and a re-run finishes a move that stopped partway).
 - `template/AGENTS.md: mandatory` — the Knowledge Structure tree names `.state/`.
 - `template/.gitignore: mandatory` — the runtime rules name `.state/`; the 0.7.0 script and the baseline reconcile apply it.
 - `manual: none` — close this agent's other sessions (Claude Code and Codex) before running the upgrade, and restart once it finishes. A session started on the older plugin stops recognising the home once the folder moves: its tools refuse and its transcript is not captured.

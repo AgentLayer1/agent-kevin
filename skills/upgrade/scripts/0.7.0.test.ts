@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { secretsReadBlocked } from '../../../mcp-server/src/shared/sandbox-probe';
 
 const SCRIPT = resolve(import.meta.dir, '0.7.0.ts');
 const PLUGIN = 'agent-kevin';
@@ -68,17 +69,23 @@ afterAll(() => homes.forEach((home) => rmSync(home, { recursive: true, force: tr
 
 describe('0.7.0 data dir move', () => {
   test('moves the legacy dir to .state, recording this plugin first and keeping every file', () => {
-    const home = legacyHome({ secrets: true });
+    const home = legacyHome();
     expect(run(home)).toEqual({
       status: 0,
-      report: expect.objectContaining({ ok: true, action: 'moved', stamp: 'stamped', mcp: true })
+      report: expect.objectContaining({ ok: true, action: 'moved', stamp: 'stamped', repointed: ['.mcp.json'] })
     });
     expect(existsSync(join(home, '.kevin'))).toBe(false);
     expect(read(home, '.state/version.json')).toEqual({ plugin: PLUGIN, templateVersion: '0.6.5', history: [] });
     expect(Object.keys(read(home, '.state/version.json') as object)[0]).toBe('plugin');
-    expect(readFileSync(join(home, '.state/secrets/.env'), 'utf-8')).toBe('ACME_TOKEN=fixture-not-a-secret\n');
     expect(existsSync(join(home, '.state/knowledge.json'))).toBe(true);
     expect(existsSync(join(home, '.state/template-base/AGENTS.md'))).toBe(true);
+  });
+
+  // A sandbox that carries the .state/secrets guard can't read the moved store back.
+  test.skipIf(secretsReadBlocked())('carries the secrets store across the move intact', () => {
+    const home = legacyHome({ secrets: true });
+    run(home);
+    expect(readFileSync(join(home, '.state/secrets/.env'), 'utf-8')).toBe('ACME_TOKEN=fixture-not-a-secret\n');
   });
 
   // A home whose legacy store was protected only by user-level settings has nothing to copy from.
@@ -139,6 +146,20 @@ describe('0.7.0 data dir move', () => {
     expect(servers.other).toEqual(MCP.mcpServers.other);
   });
 
+  test('repoints what the operator put in settings.local.json, and only legacy-folder paths', () => {
+    const home = legacyHome();
+    const local = {
+      env: { ACME_CREDENTIALS: '/home/user/.kevin/secrets/google/client.json', ACME_CACHE: '/srv/acme.kevin/cache' },
+      permissions: { allow: ['Read(.kevin/logs/**)'] }
+    };
+    write(home, '.claude/settings.local.json', json(local));
+    expect(run(home).report.repointed).toEqual(['.mcp.json', '.claude/settings.local.json']);
+    expect(read(home, '.claude/settings.local.json')).toEqual({
+      env: { ACME_CREDENTIALS: '/home/user/.state/secrets/google/client.json', ACME_CACHE: '/srv/acme.kevin/cache' },
+      permissions: { allow: ['Read(.state/logs/**)'] }
+    });
+  });
+
   test('backs up every file it rewrites before rewriting it', () => {
     const home = legacyHome();
     run(home);
@@ -160,7 +181,7 @@ describe('0.7.0 data dir move', () => {
       stamp: 'current',
       denies: [],
       gitignore: [],
-      mcp: false
+      repointed: []
     });
     expect(readFileSync(join(home, '.claude/settings.json'), 'utf-8')).toBe(settings);
     expect(readFileSync(join(home, '.mcp.json'), 'utf-8')).toBe(mcp);

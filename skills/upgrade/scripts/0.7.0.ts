@@ -5,17 +5,17 @@
  *
  * Order is the safety argument: validate, stamp the record, then point the protections at `.state`
  * before anything lands there (the secrets deny rules and the `.gitignore` that keeps the store out
- * of history; both additive), move the folder in one rename, and repoint the home's `.mcp.json`
- * servers that read the old secrets file. A failure before the move leaves only those additions; a
- * failure after it is finished by re-running. Every file it rewrites is backed up under
- * `<data dir>/updates/` first.
+ * of history; both additive), move the folder in one rename, and repoint the home's machine-local
+ * config (`.mcp.json`, `.claude/settings.local.json`) wherever it names a path inside the old folder.
+ * A failure before the move leaves only those additions; a failure after it is finished by
+ * re-running. Every file it rewrites is backed up under `<data dir>/updates/` first.
  *
  * Run by `/agent-kevin:upgrade` via `run_upgrade` (outside the Bash sandbox, which denies writes to
  * `.claude/settings.json`). Idempotent.
  * Contract: prints a single-line JSON report as its LAST stdout line; exits non-zero on failure.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
 import {
   LEGACY_RUNTIME_DIR,
@@ -124,19 +124,28 @@ const ensureStateDenies = (dataDir: string): string[] => {
   return missing.map(({ key, rule }) => `${key}: ${JSON.stringify(rule)}`);
 };
 
-/** Re-points `.mcp.json` servers that source the legacy secrets file, in any path form; the text is edited in place. */
-const repointMcp = (): boolean => {
-  const file = resolve(HOME, '.mcp.json');
-  const legacySecrets = `${LEGACY_RUNTIME_DIR}/secrets/`;
-  if (!existsSync(file) || !readFileSync(file, 'utf-8').includes(legacySecrets)) {
+/** A path segment naming the legacy data dir: `$d/.kevin/secrets`, `".kevin/logs"`, never `acme.kevin/`. */
+const LEGACY_SEGMENT = new RegExp(`(?<![\\w.-])${LEGACY_RUNTIME_DIR.replace('.', '\\.')}/`, 'g');
+
+/** Rewrites every legacy-folder path in one config file as text, in any path form; false when none. */
+const repoint = (relPath: string): boolean => {
+  const file = resolve(HOME, relPath);
+  const text = existsSync(file) ? readFileSync(file, 'utf-8') : '';
+  const updated = text.replace(LEGACY_SEGMENT, `${RUNTIME_DIR}/`);
+  if (updated === text) {
     return false;
   }
-  const updated = readFileSync(file, 'utf-8').split(legacySecrets).join(`${STATE_SECRETS}/`);
   JSON.parse(updated);
   backup(TARGET, file);
   writeAtomic(file, updated);
   return true;
 };
+
+/**
+ * The home's machine-local config, where a pack server sources the old secrets file or the operator
+ * wrote a path of their own (an env value, a hook, a permission); returns the files repointed.
+ */
+const repointLocalConfig = (): string[] => ['.mcp.json', join('.claude', 'settings.local.json')].filter(repoint);
 
 /** Everything that must point at `.state` around the move; idempotent, so a re-run finishes a failed one. */
 const prepare = (dataDir: string) => ({
@@ -151,7 +160,7 @@ const migrate = () => {
       action: 'already-moved',
       stamp: 'current',
       ...prepare(TARGET),
-      mcp: repointMcp(),
+      repointed: repointLocalConfig(),
       ...(leftover ? { warning: `${LEGACY} exists again beside ${TARGET}; an older session wrote to it` } : {})
     };
   }
@@ -181,7 +190,7 @@ const migrate = () => {
         `Close other sessions of this agent and any app with a file open in it (an editor, a sync client), then re-run the upgrade`
     );
   }
-  return { action: 'moved', stamp, ...prepared, mcp: repointMcp() };
+  return { action: 'moved', stamp, ...prepared, repointed: repointLocalConfig() };
 };
 
 try {
