@@ -108,6 +108,7 @@ const baselineAllow = jsonBlockAfter<{ permissions: { allow: string[] } }>(
 const baselineAsk = jsonBlockAfter<string[]>('Baseline `permissions.ask`');
 const baselinePythonDeny = jsonBlockAfter<string[]>('Baseline Python guard `permissions.deny`');
 const baselineCoreDeny = jsonBlockAfter<string[]>('Cross-platform core (always written)');
+const baselineSecrets = jsonBlockAfter<{ deny: string[]; denyRead: string[] }>('Baseline secrets guard');
 const osTailAnchors: Partial<Record<NodeJS.Platform, string>> = {
   darwin: '`macos`:',
   linux: '`linux` / `wsl`:',
@@ -131,16 +132,22 @@ interface HomeSettings {
   env?: Record<string, string>;
   plansDirectory?: string;
   permissions?: Partial<Record<'allow' | 'ask' | 'deny', string[]>>;
-  sandbox?: { enabled?: boolean; filesystem?: { allowWrite?: string[] }; network?: { allowedDomains?: string[] } };
+  sandbox?: {
+    enabled?: boolean;
+    filesystem?: { allowWrite?: string[]; denyRead?: string[] };
+    network?: { allowedDomains?: string[] };
+  };
 }
 const readSettings = (path: string): HomeSettings => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : {});
 const homeSettings = readMergedSettings(home);
 const settings = homeSettings.merged as HomeSettings;
 const userSettings = readSettings(join(claudeDir, 'settings.json'));
 const userCuratesDeny = (userSettings.permissions?.deny ?? []).length > 0;
-const baselineDeny = userCuratesDeny
-  ? baselinePythonDeny
-  : [...baselineCoreDeny, ...baselineOsDeny, ...baselinePythonDeny];
+const baselineDeny = [
+  ...(userCuratesDeny ? [] : [...baselineCoreDeny, ...baselineOsDeny]),
+  ...baselinePythonDeny,
+  ...baselineSecrets.deny
+];
 const sandboxDecided = settings.sandbox?.enabled !== undefined || userSettings.sandbox?.enabled === true;
 // A retired skill's grant counts as its successor's, so an old `ask` placement keeps deciding it.
 const listed = (...lists: ('allow' | 'ask' | 'deny')[]) =>
@@ -170,6 +177,7 @@ process.stdout.write(
         sandboxBlock: process.platform === 'win32' || sandboxDecided ? null : baselineSandbox,
         sandboxMissing: {
           allowWrite: missingFrom(settings.sandbox?.filesystem?.allowWrite, baselineUvSandbox.filesystem.allowWrite),
+          denyRead: missingFrom(settings.sandbox?.filesystem?.denyRead, baselineSecrets.denyRead),
           allowedDomains: missingFrom(
             settings.sandbox?.network?.allowedDomains,
             baselineUvSandbox.network.allowedDomains

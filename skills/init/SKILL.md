@@ -879,7 +879,6 @@ Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resol
   "Read(**/.env.production)",
   "Read(**/.env.staging)",
   "Read(**/.env.test)",
-  "Read(//**/.state/secrets/**)",
   "Read(**/secrets/**)",
   "Read(**/credentials/**)",
   "Read(**/*.pem)",
@@ -954,6 +953,15 @@ Baseline Python guard `permissions.deny` — **always written** (unioned with wh
   "Bash(python3 -m pip install*)",
   "Bash(uv pip install*--system*)"
 ]
+```
+
+Baseline secrets guard — **always written**, the `deny` entry into `permissions.deny` and the `denyRead` entry into the project `sandbox.filesystem`, unioned with whatever the operator already has. A curated global list can't be relied on here: it names the folders the operator knew about when they wrote it, and this store moved from `.kevin/secrets` to `.state/secrets` in 0.7.0. The Read rule gates the Read tool and the sandbox rule gates `cat`/`grep` through Bash, so both are needed:
+
+```json
+{
+  "deny": ["Read(//**/.state/secrets/**)"],
+  "denyRead": [".state/secrets"]
+}
 ```
 
 Baseline `permissions.ask` — **always written** (unioned with whatever the operator already has), unlike `deny` which yields to a curated global list:

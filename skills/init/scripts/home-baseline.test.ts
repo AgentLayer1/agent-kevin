@@ -227,6 +227,23 @@ describe('home-baseline settings', () => {
     expect(curated.settings.denyMissing).toContain('Bash(pip install*)');
   });
 
+  // A curated global list names the stores its author knew of, and this one moved in 0.7.0.
+  test('keeps the secrets store guarded even under a curated global deny list and sandbox', () => {
+    const global = { permissions: { deny: ['Read(//**/.kevin/secrets/**)'] }, sandbox: { enabled: true } };
+    const curated = run(scratchHome(), ['--claude-dir', claudeDirWith(global)]).settings;
+    expect(curated.denyMissing).toContain('Read(//**/.state/secrets/**)');
+    expect(curated.sandboxMissing.denyRead).toEqual(['.state/secrets']);
+    const guarded = scratchHome({
+      settings: {
+        permissions: { deny: ['Read(//**/.state/secrets/**)'] },
+        sandbox: { filesystem: { denyRead: ['.state/secrets'] } }
+      }
+    });
+    const settled = run(guarded, ['--claude-dir', claudeDirWith(global)]).settings;
+    expect(settled.denyMissing).not.toContain('Read(//**/.state/secrets/**)');
+    expect(settled.sandboxMissing.denyRead).toEqual([]);
+  });
+
   test('reports the sandbox block only when neither the home nor the user settings decide it', () => {
     if (process.platform === 'win32') {
       expect(fresh.sandboxBlock).toBeNull();
@@ -245,6 +262,7 @@ describe('home-baseline settings', () => {
   test('backfills the uv sandbox grants a home lacks, keeping its own entries', () => {
     expect(fresh.sandboxMissing).toEqual({
       allowWrite: ['~/.cache/uv'],
+      denyRead: ['.state/secrets'],
       allowedDomains: ['pypi.org', 'files.pythonhosted.org']
     });
     const home = scratchHome({
@@ -254,6 +272,7 @@ describe('home-baseline settings', () => {
     });
     expect(run(home).settings.sandboxMissing).toEqual({
       allowWrite: [],
+      denyRead: ['.state/secrets'],
       allowedDomains: ['pypi.org', 'files.pythonhosted.org']
     });
   });

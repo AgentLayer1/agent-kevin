@@ -550,8 +550,8 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   in `ask` or `deny` is their decision and is never granted; `remove_worktree` is never listed.
   The `ask` entries are the only gate that survives auto mode's classifier, so a home missing
   them has no enforced checkpoint before a push or an outbound request.
-- **`settings.denyMissing`** is what to add to `permissions.deny`: the Python guard always, and
-  init's core deny list while the user settings carry no deny list of their own. An entry the
+- **`settings.denyMissing`** is what to add to `permissions.deny`: the Python and secrets guards
+  always, and init's core deny list while the user settings carry no deny list of their own. An entry the
   operator already placed in any list is theirs and is skipped, so moving one to `ask` or `allow`
   is how they opt out.
 - **`settings.sandboxBlock`** is init's sandbox block, reported when neither the user settings
@@ -559,7 +559,8 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   native Windows. Deep-merge it into the project `sandbox` (existing values win, lists union), so
   a home whose sandbox came from user settings that later turned it off gets it back.
 - **`settings.sandboxMissing`** holds `allowWrite` and `allowedDomains` entries to add under
-  `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI.
+  `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI, and
+  `denyRead` entries to add under `sandbox.filesystem`, so Bash can't read the secrets store.
 - **`settings.retiredGrants`** lists a retired skill's grant still in a list (an older release's
   `settings:` action can re-add one after a newer script mapped it): replace each `entry` with its
   `replacement` entries in the same `list` (a prefix rule keeps itself and gains the successors it

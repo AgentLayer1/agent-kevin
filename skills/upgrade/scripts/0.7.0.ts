@@ -172,7 +172,15 @@ const migrate = () => {
   }
   const stamp = stampLegacy();
   const prepared = prepare(LEGACY);
-  renameSync(LEGACY, TARGET);
+  try {
+    renameSync(LEGACY, TARGET);
+  } catch (err) {
+    // Windows refuses to rename a folder while anything holds a file open inside it.
+    throw new Error(
+      `Could not move ${LEGACY} to ${TARGET} (${err instanceof Error ? err.message : String(err)}); nothing was moved. ` +
+        `Close other sessions of this agent and any app with a file open in it (an editor, a sync client), then re-run the upgrade`
+    );
+  }
   return { action: 'moved', stamp, ...prepared, mcp: repointMcp() };
 };
 
