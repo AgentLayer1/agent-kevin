@@ -82,6 +82,8 @@ declare module 'claude-code' {
   interface PluginState {
     'agent-kevin': {
       syncRun: SyncRun | null;
+      delivered: string[];
+      manualsThisTurn: string[];
       todayViews: Record<string, TodayView>;
       syncTick: number;
     };
