@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { routerPlaybooks } from '@/shared/playbooks';
 import { RETIRED_SKILLS } from '@/shared/retired-skills';
+import { PHASES } from '../../mods/sync/phases';
 
 const ROOT = resolve(import.meta.dir, '..', '..');
 const SKILLS = join(ROOT, 'skills');
@@ -147,3 +148,39 @@ describe.each(['briefing', 'engineer', 'focus', 'goals', 'media', 'project', 'se
     });
   }
 );
+
+describe("sync's progress mod", () => {
+  const syncText = readFileSync(join(SKILLS, 'sync', 'SKILL.md'), 'utf-8');
+  const flywheelText = readFileSync(join(SKILLS, 'flywheel', 'SKILL.md'), 'utf-8');
+  const frontmatter = readFrontmatter('sync');
+  const allowed =
+    typeof frontmatter === 'object' && frontmatter !== null && 'allowed-tools' in frontmatter
+      ? String(frontmatter['allowed-tools'])
+          .split(',')
+          .map((entry) => entry.trim())
+      : [];
+  const UNTRACKED = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'];
+  const tracked = (key: 'tools' | 'scripts' | 'skills'): string[] => PHASES.flatMap((phase) => [...phase[key]]);
+  const trackedTools = [...tracked('tools'), ...(PHASES.some((phase) => phase.reports.length) ? ['report_write'] : [])];
+
+  test("maps every tool and skill in sync's allowed-tools to a phase", () => {
+    const tools = allowed
+      .filter((entry) => !entry.startsWith('Skill(') && !UNTRACKED.includes(entry))
+      .map((entry) => (entry.includes('__') ? entry.slice(entry.lastIndexOf('__') + 2) : entry));
+    const skills = allowed
+      .filter((entry) => entry.startsWith('Skill('))
+      .map((entry) => entry.slice(entry.indexOf(':') + 1, -1));
+    expect(tools.filter((tool) => !trackedTools.includes(tool))).toEqual([]);
+    expect(skills.filter((skill) => !tracked('skills').includes(skill))).toEqual([]);
+  });
+
+  test('maps every script sync runs to a phase', () => {
+    const scripts = [...syncText.matchAll(/\/scripts\/([\w-]+\.ts)/g)].map((match) => match[1] ?? '');
+    expect([...new Set(scripts)].filter((script) => !tracked('scripts').includes(script))).toEqual([]);
+  });
+
+  test('every mapped name still appears in sync or the flywheel it runs', () => {
+    const named = [...tracked('tools'), ...tracked('scripts'), ...tracked('skills')];
+    expect(named.filter((name) => !syncText.includes(name) && !flywheelText.includes(name))).toEqual([]);
+  });
+});
