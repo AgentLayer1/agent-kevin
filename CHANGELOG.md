@@ -52,8 +52,8 @@ and prompts per optional one. The new template files are the source of truth for
     log, `/done` closes a task, and `/today` shows overdue and due-today work, the Hijri date and the
     last sync.
   - **Repo manuals attach on first touch.** The first read, write or shell command in a granted code
-    folder attaches that repo's `CLAUDE.md` (with its imports) or `AGENTS.md` to the tool result, once
-    per session. `/manuals` lists what is attached.
+    folder attaches that repo's `CLAUDE.md` (with its imports) or `AGENTS.md` to the tool result,
+    once, and again after a compaction or `/clear`. `/manuals` lists what is attached.
   - **Sync shows its progress** above the prompt (status, its twelve steps, counters for what it is
     clearing), and a `sync_stats` tool hands the report counted numbers instead of a tally.
 
@@ -63,7 +63,13 @@ and prompts per optional one. The new template files are the source of truth for
   not this agent's home and its secrets are never read. A home still on `.kevin/` keeps working
   until the upgrade moves it.
 - **The `.state/secrets` guard is always written** to the home's own settings, including homes whose
-  user settings carry their own deny list.
+  user settings carry their own deny list. The Codex profile denies both `.state/secrets` and the
+  old `.kevin/secrets`.
+- **init stops in a home still on `.kevin/`** and points to the upgrade, instead of scaffolding a
+  second data dir beside it.
+- **Session start flags a `.kevin/` that reappears beside `.state/`**: a session still on the older
+  plugin wrote there after the move, so the agent asks you to compare it and carry anything newer
+  into `.state/`.
 - Claude Code 2.1.287 or newer is required (mods): init and upgrade stop below it with
   `claude update`, and the SessionStart banner warns until the host is updated.
 
