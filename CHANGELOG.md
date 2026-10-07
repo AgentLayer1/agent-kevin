@@ -43,6 +43,41 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.7.0] - 2026-10-08
+
+### Added
+- **Mods (Claude Code).** The plugin loads one hooks module, `mods/hooks/register.ts`, beside its
+  command hooks. Codex runs as before.
+  - **Commands with no Claude turn:** `/capture` and `/lesson` write to the inbox and the feedback
+    log, `/done` closes a task, and `/today` shows overdue and due-today work, the Hijri date and the
+    last sync.
+  - **Repo manuals attach on first touch.** The first read, write or shell command in a granted code
+    folder attaches that repo's `CLAUDE.md` (with its imports) or `AGENTS.md` to the tool result, once
+    per session. `/manuals` lists what is attached.
+  - **Sync shows its progress** above the prompt (status, its twelve steps, counters for what it is
+    clearing), and a `sync_stats` tool hands the report counted numbers instead of a tally.
+
+### Changed
+- **The data dir is `.state/` for every agent.** `.kevin/` becomes `.state/`, and its
+  `version.json` records which plugin owns it; a `.state/` that records another plugin, or none, is
+  not this agent's home and its secrets are never read. A home still on `.kevin/` keeps working
+  until the upgrade moves it.
+- **The `.state/secrets` guard is always written** to the home's own settings, including homes whose
+  user settings carry their own deny list.
+- Claude Code 2.1.287 or newer is required (mods): init and upgrade stop below it with
+  `claude update`, and the SessionStart banner warns until the host is updated.
+
+### Fixed
+- The log file is resolved on each write, so a long-running server stops writing to a folder that
+  has moved.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.7.0.ts (records the plugin in `.kevin/version.json`, adds the `.state/secrets` deny rules and the `.state/` gitignore rules, renames `.kevin/` to `.state/`, and repoints `.mcp.json` servers that load `.kevin/secrets/.env`; every rewritten file is backed up under `.state/updates/`, and a re-run finishes a move that stopped partway).
+- `template/AGENTS.md: mandatory` — the Knowledge Structure tree names `.state/`.
+- `template/.gitignore: mandatory` — the runtime rules name `.state/`; the 0.7.0 script and the baseline reconcile apply it.
+- `manual: none` — close this agent's other sessions (Claude Code and Codex) before running the upgrade, and restart once it finishes. A session started on the older plugin stops recognising the home once the folder moves: its tools refuse and its transcript is not captured.
+- `manual: none` — only if you created a `.state/` folder by hand: the move stops without changing anything. Move what you put there into `.kevin/`, move `.state/` aside, and run the upgrade again.
+
 ## [0.6.5] - 2026-10-07
 
 ### Added
