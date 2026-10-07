@@ -27,7 +27,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { FOLDERS, PLUGIN_NAME } from '../../../mcp-server/src/config';
 import { type SettleReport, settleSettings } from '../../../mcp-server/src/home/settings-scope';
-import { runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR } from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, RETIRED_CADENCE_KEYS, RETIRED_SKILLS } from '../../../mcp-server/src/shared/retired-skills';
 
 const VERSION = '0.6.1';
@@ -36,7 +36,7 @@ const first = (...values: (string | undefined)[]): string | undefined =>
 
 const HOME = resolve(first(process.env.KEVIN_HOME, process.env.AGENT_HOME) ?? process.cwd());
 const SETTINGS_FILES = ['settings.json', 'settings.local.json'].map((name) => resolve(HOME, '.claude', name));
-const CADENCE = resolve(HOME, runtimeDirName(), 'cadence.json');
+const CADENCE = resolve(HOME, RUNTIME_DIR, 'cadence.json');
 const TASKS = resolve(FOLDERS.PROJECTS, 'TASKS.md');
 const GOALS_START = '<!-- GOALS:START -->';
 const GOALS_END = '<!-- GOALS:END -->';

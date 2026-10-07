@@ -11,7 +11,7 @@
 import '@/bootstrap';
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
 import { log } from '@/shared/log';
-import { runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 import { existsSync } from 'node:fs';
 import type { ToolDef } from '@/shared/types';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -64,13 +64,13 @@ for (const tool of TOOLS) {
                 // identity files. Same distinction SessionStart draws.
                 text: existsSync(FILES.SOUL)
                   ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no home ` +
-                    `marker (${runtimeDirName()}/version.json or ${runtimeDirName()}/knowledge.json), so it ` +
+                    `marker (${RUNTIME_DIR}/version.json or ${RUNTIME_DIR}/knowledge.json), so it ` +
                     `is either another agent's home or this one's data-dir state is missing after a restore. ` +
                     `Do NOT run init to repair it — that would offer to overwrite the identity files already ` +
                     `there. Restore those files from the backup or the brain repo (both are git-tracked), ` +
                     `or relaunch from the right home.`
                   : `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
-                    `(no home marker in ${runtimeDirName()}/ there). The home is resolved from the directory ` +
+                    `(no home marker in ${RUNTIME_DIR}/ there). The home is resolved from the directory ` +
                     `this session was launched in, so start Claude Code from the agent home — or run ` +
                     `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
               }

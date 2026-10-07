@@ -12,10 +12,10 @@
  * `AGENT_LOG_FILE` (or this agent's `<AGENT>_LOG_FILE`); disable file output
  * entirely with `=off`. Its only import is `shared/naming.ts`, which is
  * side-effect-free — never `@/config` or `@/shared/env`, whose import loads the
- * home's secrets. Naming lookups are wrapped: a broken manifest or a malformed
- * runtime-dir override degrades to the shared names, because logging must never
- * be the thing that crashes a caller. The env gate writes the resolved home back
- * to `AGENT_HOME`, which covers the default path below.
+ * home's secrets. Naming lookups are wrapped: a broken manifest degrades to the
+ * shared names, because logging must never be the thing that crashes a caller.
+ * The env gate writes the resolved home back to `AGENT_HOME`, which covers the
+ * default path below.
  *
  * File output rotates when it crosses MAX_LOG_BYTES (5MB) to a timestamped
  * sibling (`app.20260523-160300.log`). No auto-delete — operator prunes
@@ -32,7 +32,7 @@
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
  *   - any literal Bearer token / JWT pattern is masked
  */
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, resolveEnv, runtimeDirName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, resolveEnv } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -42,15 +42,6 @@ const readEnv = (key: string): string | undefined => {
     return resolveEnv(key);
   } catch {
     return process.env[key]?.trim() || undefined;
-  }
-};
-
-/** `runtimeDirName` that can't throw — a malformed override degrades to the default. */
-const runtimeDir = (): string => {
-  try {
-    return runtimeDirName();
-  } catch {
-    return RUNTIME_DIR_DEFAULT;
   }
 };
 
@@ -90,13 +81,11 @@ function resolveLogFile(): string | null {
   // planted the very dir every guard read as the marker, so a hook firing in a
   // foreign repo turned that repo into "the home" and captured sessions into
   // it. stderr still carries every line; file output waits for a home that
-  // genuinely exists. Both dir names are checked, mirroring `isAgentHome`'s
-  // runtime-dir migration window.
-  const home = readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd();
-  const dir = [...new Set([runtimeDir(), RUNTIME_DIR_DEFAULT])].find((candidate) =>
-    HOME_MARKER_FILES.some((file) => existsSync(resolve(home, candidate, file)))
-  );
-  return dir ? resolve(home, dir, 'logs', 'app.log') : null;
+  // genuinely exists.
+  const dataDir = resolve(readEnv('AGENT_HOME')?.replace(/\/$/, '') ?? process.cwd(), RUNTIME_DIR);
+  return HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file)))
+    ? resolve(dataDir, 'logs', 'app.log')
+    : null;
 }
 
 /** Env-var names whose values must never appear verbatim in any log line. */

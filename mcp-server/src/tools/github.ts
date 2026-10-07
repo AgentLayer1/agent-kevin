@@ -20,7 +20,7 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths } from '@/config';
-import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
@@ -58,7 +58,7 @@ const requireToken = (): string => {
   const token = env('GITHUB_TOKEN');
   if (!token) {
     throw new Error(
-      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${runtimeDirName()}/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).`
+      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${RUNTIME_DIR}/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).`
     );
   }
   return token;

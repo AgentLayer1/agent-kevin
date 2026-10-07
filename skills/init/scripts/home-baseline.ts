@@ -15,7 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import { reconcileHomeGitignore } from '../../../mcp-server/src/home/gitignore';
-import { resolveEnv, runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { resolveEnv } from '../../../mcp-server/src/shared/naming';
 import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde, isInside } from '../../../mcp-server/src/shared/paths';
 import { readMergedSettings } from '../../../mcp-server/src/home/settings-scope';
@@ -34,12 +34,7 @@ const home = resolve(homeFlag);
 const claudeDir = resolve(flag('claude-dir') ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'));
 const pluginRoot = resolve(import.meta.dir, '..', '..', '..');
 
-const gitignore = reconcileHomeGitignore(
-  home,
-  join(pluginRoot, 'templates', '.gitignore'),
-  args.includes('--write'),
-  runtimeDirName()
-);
+const gitignore = reconcileHomeGitignore(home, join(pluginRoot, 'templates', '.gitignore'), args.includes('--write'));
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
 const jsonBlockAfter = <T>(anchor: string): T => {

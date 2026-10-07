@@ -2,15 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from './naming';
 import { agentHomePath, env, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
 
-/** Scaffold `dir/` as a marked agent data dir under `home` (what init produces). */
-const scaffoldDataDir = (home: string, dir: string = RUNTIME_DIR_DEFAULT): void => {
-  mkdirSync(resolve(home, dir), { recursive: true });
-  writeFileSync(resolve(home, dir, HOME_MARKER_FILES[0]), '{}\n');
+/** Scaffold a marked agent data dir under `home` (what init produces). */
+const scaffoldDataDir = (home: string): void => {
+  mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+  writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
 };
 
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
@@ -103,39 +103,6 @@ describe('agentHomePath', () => {
     });
   });
 
-  // The migration window: the override flips machine-wide before a home's
-  // folder is renamed. The walk-up must still anchor on the default-named dir,
-  // or the home resolves to cwd and the secrets gate lands under the wrong root.
-  test('the walk-up still anchors on the default data dir while the override points elsewhere', () => {
-    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-window-')));
-    scaffoldDataDir(home);
-    const inner = resolve(home, 'projects');
-    mkdirSync(inner, { recursive: true });
-    process.env.AGENT_RUNTIME_DIR = '.workspace';
-    try {
-      withCwd(inner, () => {
-        expect(agentHomePath()).toBe(home);
-      });
-    } finally {
-      delete process.env.AGENT_RUNTIME_DIR;
-    }
-  });
-
-  test('the walk-up anchors on an AGENT_RUNTIME_DIR-overridden data dir', () => {
-    const home = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-override-')));
-    scaffoldDataDir(home, '.workspace');
-    const inner = resolve(home, 'projects');
-    mkdirSync(inner, { recursive: true });
-    process.env.AGENT_RUNTIME_DIR = '.workspace';
-    try {
-      withCwd(inner, () => {
-        expect(agentHomePath()).toBe(home);
-      });
-    } finally {
-      delete process.env.AGENT_RUNTIME_DIR;
-    }
-  });
-
   test('ignores a sibling agent home that lacks this agent data dir', () => {
     const siblingHome = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-sibling-')));
     writeFileSync(resolve(siblingHome, 'SOUL.md'), '# Soul\n');
@@ -162,8 +129,8 @@ describe('agentHomePath', () => {
   // mark a home; only init's state files do.
   test('a data dir holding only runtime artifacts (logs/) does not anchor the walk-up', () => {
     const repo = realpathSync(mkdtempSync(resolve(tmpdir(), 'kevin-planted-')));
-    mkdirSync(resolve(repo, RUNTIME_DIR_DEFAULT, 'logs'), { recursive: true });
-    writeFileSync(resolve(repo, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'), 'skip line\n');
+    mkdirSync(resolve(repo, RUNTIME_DIR, 'logs'), { recursive: true });
+    writeFileSync(resolve(repo, RUNTIME_DIR, 'logs', 'app.log'), 'skip line\n');
     withCwd(repo, () => {
       expect(agentHomePath()).toBe(process.cwd());
       expect(process.env.AGENT_HOME).toBeUndefined();
@@ -239,8 +206,8 @@ describe('readEnvFile', () => {
 
   test('refuses to read the agent secret store, even when a real .env sits there', () => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-home-'));
-    const secretsPath = resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env');
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
+    const secretsPath = resolve(home, RUNTIME_DIR, 'secrets', '.env');
+    mkdirSync(resolve(home, RUNTIME_DIR, 'secrets'), { recursive: true });
     writeFileSync(secretsPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
     const flowPath = resolve(home, '.claude', 'browser-flows', 'x', '.env');
     mkdirSync(resolve(home, '.claude', 'browser-flows', 'x'), { recursive: true });
@@ -252,32 +219,8 @@ describe('readEnvFile', () => {
       },
       () => {
         expect(readEnvFile(secretsPath)).toEqual({});
-        expect(readEnvFile(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', 'nested', '.env'))).toEqual({});
+        expect(readEnvFile(resolve(home, RUNTIME_DIR, 'secrets', 'nested', '.env'))).toEqual({});
         expect(readEnvFile(flowPath)).toEqual({ CARD: '4111111111111111' });
-      }
-    );
-  });
-
-  // The migration window: the runtime-dir name flips machine-wide before a given
-  // home's folder is renamed, so the store still sitting under the default name
-  // must stay gated — otherwise a flow .env path reads the agent's own keys.
-  test('still refuses the default secret store while the runtime dir points elsewhere', () => {
-    const home = mkdtempSync(resolve(tmpdir(), 'kevin-migrating-'));
-    const secretsPath = resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env');
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
-    writeFileSync(secretsPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
-
-    withHomeEnv(
-      () => {
-        process.env.AGENT_HOME = home;
-        process.env.AGENT_RUNTIME_DIR = '.workspace';
-      },
-      () => {
-        try {
-          expect(readEnvFile(secretsPath)).toEqual({});
-        } finally {
-          delete process.env.AGENT_RUNTIME_DIR;
-        }
       }
     );
   });
@@ -287,8 +230,8 @@ describe.skipIf(secretsReadBlocked())('loadSecretsEnv', () => {
   /** A home whose secrets store holds `key=value`. */
   const homeWithSecret = (key: string, value: string): string => {
     const home = mkdtempSync(resolve(tmpdir(), 'kevin-secrets-'));
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets'), { recursive: true });
-    writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
+    mkdirSync(resolve(home, RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(resolve(home, RUNTIME_DIR, 'secrets', '.env'), `${key}=${value}\n`, 'utf-8');
     return home;
   };
 
@@ -316,7 +259,7 @@ describe.skipIf(secretsReadBlocked())('loadSecretsEnv', () => {
     const original = process.env.AGENT_HOME;
     const withSecret = homeWithSecret('AGENT_PROBE_SECRET', 'present');
     const bare = mkdtempSync(resolve(tmpdir(), 'kevin-bare-'));
-    mkdirSync(resolve(bare, RUNTIME_DIR_DEFAULT), { recursive: true });
+    mkdirSync(resolve(bare, RUNTIME_DIR), { recursive: true });
     try {
       process.env.AGENT_HOME = withSecret;
       expect(env('AGENT_PROBE_SECRET')).toBe('present');

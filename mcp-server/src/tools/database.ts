@@ -20,7 +20,7 @@
  * `statement_timeout`, always rolled back — Postgres itself rejects any
  * write (error 25006), so reads are enforced by the server, not by parsing SQL.
  */
-import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 import { dbConnections, dbEnvKeyFor, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import pg from 'pg';
@@ -130,7 +130,7 @@ const getPool = (name: string, database?: string): pg.Pool => {
     const available = discoverConnections().map((connection) => connection.name);
     const hint = available.length
       ? `Available connections: ${available.join(', ')}.`
-      : `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string to ${runtimeDirName()}/secrets/.env.`;
+      : `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string to ${RUNTIME_DIR}/secrets/.env.`;
     throw new Error(`Unknown database connection "${name}" (looked for ${envKey}). ${hint}`);
   }
   const pool = new Pool({ connectionString: resolveConnectionString(url, database), max: 4 });
@@ -183,7 +183,7 @@ export const tools: ToolDef[] = [
       if (!connections.length) {
         return {
           connections: [],
-          hint: `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string (e.g. ${agentKeyName('DB_APP')}) to ${runtimeDirName()}/secrets/.env.`
+          hint: `No connections configured. Add a ${agentKeyName('DB_')}<NAME> connection string (e.g. ${agentKeyName('DB_APP')}) to ${RUNTIME_DIR}/secrets/.env.`
         };
       }
       return { connections };

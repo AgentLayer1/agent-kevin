@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 
 /**
  * The logger must never scaffold anything, and file output only engages for a
@@ -45,7 +45,7 @@ describe('file logging', () => {
       async (home) => {
         const { log } = await import(`@/shared/log?nomarker=${Date.now()}`);
         log.info('should not scaffold anything');
-        expect(existsSync(resolve(home, RUNTIME_DIR_DEFAULT))).toBe(false);
+        expect(existsSync(resolve(home, RUNTIME_DIR))).toBe(false);
       }
     );
   });
@@ -53,13 +53,13 @@ describe('file logging', () => {
   test('writes into a marked home data dir', async () => {
     await withHome(
       (home) => {
-        mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
-        writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+        mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
       },
       async (home) => {
         const { log } = await import(`@/shared/log?marker=${Date.now()}`);
         log.info('should land in the log file');
-        expect(existsSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'))).toBe(true);
+        expect(existsSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'))).toBe(true);
       }
     );
   });
@@ -69,11 +69,11 @@ describe('file logging', () => {
   // re-arm file logging there.
   test('refuses a data dir that carries no home marker', async () => {
     await withHome(
-      (home) => mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs'), { recursive: true }),
+      (home) => mkdirSync(resolve(home, RUNTIME_DIR, 'logs'), { recursive: true }),
       async (home) => {
         const { log } = await import(`@/shared/log?planted=${Date.now()}`);
         log.info('should stay on stderr only');
-        expect(existsSync(resolve(home, RUNTIME_DIR_DEFAULT, 'logs', 'app.log'))).toBe(false);
+        expect(existsSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'))).toBe(false);
       }
     );
   });

@@ -30,7 +30,7 @@ const HOME = resolve(first(process.env.KEVIN_HOME, process.env.AGENT_HOME) ?? pr
 const PLUGIN_ROOT = resolve(
   first(process.env.KEVIN_PLUGIN_ROOT, process.env.AGENT_PLUGIN_ROOT) ?? resolve(import.meta.dir, '..', '..', '..')
 );
-const RUNTIME_DIR = first(process.env.KEVIN_RUNTIME_DIR, process.env.AGENT_RUNTIME_DIR) ?? '.kevin';
+const RUNTIME_DIR = '.kevin';
 
 const AGENTS = resolve(HOME, 'AGENTS.md');
 const BRIDGE = resolve(HOME, '.claude', 'CLAUDE.md');
@@ -153,7 +153,7 @@ const operatorPreamble = (preamble: string): string =>
 const USER_MD = resolve(HOME, 'USER.md');
 const USER_SENTENCE_OLD = 'reads this every session (via `@-import` in `CLAUDE.md`).';
 const USER_SENTENCE_NEW = 'reads this every session (it is part of the identity stack loaded at session start).';
-const SWEEP_SKIP = new Set(['.git', '.kevin', 'node_modules', 'raw', 'reports', 'archive', 'tasks', RUNTIME_DIR]);
+const SWEEP_SKIP = new Set(['.git', RUNTIME_DIR, 'node_modules', 'raw', 'reports', 'archive', 'tasks']);
 const LINK_RE = /\[([^\]]*)\]\(([^)\s]+)\)/g;
 
 /** Every `.md` under the home the operator authors by hand — never transcripts, runtime state, reports, archives, or tasks. */

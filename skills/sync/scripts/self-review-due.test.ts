@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { agentKeyName, runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '../../../mcp-server/src/shared/naming';
 import { selfReviewDue } from './self-review-due';
 
 const TODAY = '2026-10-31';
@@ -46,15 +46,15 @@ describe('review-defer', () => {
   const run = (choice: string, seed = JSON.stringify({ lastRun: '2026-09-23', skips: 1 })) => {
     const root = mkdtempSync(join(tmpdir(), 'review-defer-'));
     dirs.push(root);
-    mkdirSync(join(root, runtimeDirName()), { recursive: true });
-    writeFileSync(join(root, runtimeDirName(), 'version.json'), '{}');
-    writeFileSync(join(root, runtimeDirName(), 'review.json'), seed);
+    mkdirSync(join(root, RUNTIME_DIR), { recursive: true });
+    writeFileSync(join(root, RUNTIME_DIR, 'version.json'), '{}');
+    writeFileSync(join(root, RUNTIME_DIR, 'review.json'), seed);
     const proc = spawnSync(process.execPath, [join(import.meta.dir, 'review-defer.ts'), choice, '--today', TODAY], {
       env: { ...process.env, [agentKeyName('HOME')]: root }
     });
     return {
       status: proc.status,
-      review: readFileSync(join(root, runtimeDirName(), 'review.json'), 'utf8')
+      review: readFileSync(join(root, RUNTIME_DIR, 'review.json'), 'utf8')
     };
   };
 

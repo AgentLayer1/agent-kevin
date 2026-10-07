@@ -1,4 +1,4 @@
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName, resolveEnv, runtimeDirName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName, resolveEnv } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -20,9 +20,8 @@ import { dirname, resolve, sep } from 'node:path';
  * repos, DB credentials — are kept apart by WHERE they live (each HOME's own
  * `.claude/settings.local.json` env block and secrets store), not by special
  * resolution rules. Machine-wide `~/.claude/settings.json` env is only for
- * genuinely shared knobs (timezone, log level, runtime-dir name); putting a
- * per-agent value there under the shared name would hand it to every agent on
- * the box.
+ * genuinely shared knobs (timezone, log level); putting a per-agent value there
+ * under the shared name would hand it to every agent on the box.
  *
  * Robustness: `env()` triggers `loadSecretsEnv()` first, and that load is keyed on
  * the resolved secrets file, so secrets are populated from the CURRENT home no
@@ -34,7 +33,7 @@ import { dirname, resolve, sep } from 'node:path';
 /**
  * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
  * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
- * carrying this agent's data dir (`runtimeDirName()`, created at init), else
+ * carrying this agent's data dir (`RUNTIME_DIR`, created at init), else
  * the same walk from the host's project dir. A bare cwd fallback anchors to
  * wherever the process happened to launch; for a session launched inside a code
  * repo that puts session captures, data-dir state, and logs INSIDE the repo, so
@@ -96,19 +95,15 @@ const homeAbove = (start: string): string | undefined => {
  * the pre-init logger plant `.kevin/logs/` there, and once the dir existed
  * every later hook resolved that repo as the home and captured sessions into
  * it. Guards use this to fail loud instead of writing into a repo or another
- * agent's tree. Accepts the DEFAULT dir name alongside the configured one,
- * mirroring `gatedSecretsDirs`: during a runtime-dir migration window the
- * override flips before a home's folder is renamed, and a walk-up that only
- * knew the new name would resolve the home to cwd — putting the secrets gate
- * under the wrong root.
+ * agent's tree.
  */
 export const isAgentHome = (path: string): boolean =>
-  [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].some((dir) =>
-    HOME_MARKER_FILES.some((file) => existsSync(resolve(expandTilde(path), dir, file)))
-  );
+  HOME_MARKER_FILES.some((file) => existsSync(resolve(expandTilde(path), RUNTIME_DIR, file)));
 
-/** `<HOME>/<data-dir>/secrets/.env`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
-const secretsEnvFile = (): string => resolve(agentHomePath(), runtimeDirName(), 'secrets', '.env');
+/** `<HOME>/<data-dir>/secrets`, resolved live (never frozen) so a test that sets AGENT_HOME is honoured. */
+const secretsDir = (): string => resolve(agentHomePath(), RUNTIME_DIR, 'secrets');
+
+const secretsEnvFile = (): string => resolve(secretsDir(), '.env');
 
 /**
  * Minimal dotenv parser — private. Handing a raw env-file parser (or raw secret
@@ -137,18 +132,6 @@ function parseDotenv(raw: string): Record<string, string> {
 }
 
 /**
- * Every `<HOME>/<data-dir>/secrets` the gate below must refuse — the store in
- * force AND the default one. Both, because the two disagree exactly during a
- * runtime-dir migration: `AGENT_RUNTIME_DIR` flips machine-wide before each
- * home's folder is actually renamed, and gating only the configured dir would
- * leave the real store (still under the default name) wide open in that window.
- */
-const gatedSecretsDirs = (): string[] => {
-  const home = agentHomePath();
-  return [...new Set([runtimeDirName(), RUNTIME_DIR_DEFAULT])].map((dir) => resolve(home, dir, 'secrets'));
-};
-
-/**
  * Parse a standalone `.env` file into a plain map — for callers that inject
  * scoped secrets into a *child* process's env WITHOUT polluting this process's
  * `process.env` (which would leak them into the global secret inventory and
@@ -161,18 +144,19 @@ const gatedSecretsDirs = (): string[] => {
  * Guard: this reader can NEVER touch the agent's own secret store
  * (`<HOME>/<data-dir>/secrets/`). That dir holds the agent's operational keys
  * (GitHub, Google, DB URLs); a flow-scoped loader must not be a path back into
- * it. Any path resolving inside a gated secrets dir returns `{}` — those secrets
- * flow only through `env()`, never this seam. Fails closed: if the gate itself
- * can't be resolved, nothing is read.
+ * it. Any path resolving inside it returns `{}` — those secrets flow only
+ * through `env()`, never this seam. Fails closed: if the gate itself can't be
+ * resolved, nothing is read.
  */
 export function readEnvFile(path: string): Record<string, string> {
   const resolved = resolve(path);
   try {
-    if (gatedSecretsDirs().some((gated) => resolved === gated || resolved.startsWith(gated + sep))) {
+    const gated = secretsDir();
+    if (resolved === gated || resolved.startsWith(gated + sep)) {
       return {};
     }
   } catch {
-    return {}; // can't establish the gate (unreadable manifest, bad override) — read nothing
+    return {}; // can't establish the gate (unreadable manifest) — read nothing
   }
   try {
     return parseDotenv(readFileSync(resolved, 'utf-8'));

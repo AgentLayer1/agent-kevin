@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 
 /**
  * Run `fn` against a throwaway home whose `IDENTITY.md` holds `body` (omit to
@@ -13,7 +13,7 @@ import { RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
  */
 const withIdentity = <T>(body: string | undefined, fn: () => T): T => {
   const home = mkdtempSync(resolve(tmpdir(), 'agent-name-test-'));
-  mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
+  mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
   if (body !== undefined) {
     writeFileSync(resolve(home, 'IDENTITY.md'), body);
   }
@@ -73,7 +73,7 @@ describe('agentDisplayName', () => {
 
   test('is read live, so a rename takes effect without a restart', () => {
     const home = mkdtempSync(resolve(tmpdir(), 'agent-name-live-'));
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
+    mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
     const ownKey = agentKeyName('HOME');
     const priorHome = process.env.AGENT_HOME;
     const priorOwn = process.env[ownKey];

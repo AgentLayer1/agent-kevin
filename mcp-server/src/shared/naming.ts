@@ -98,11 +98,11 @@ export const resolveEnv = (key: string): string | undefined =>
 export const agentKeyName = (suffix: string): string => `${agentEnvPrefix()}${suffix}`;
 
 /**
- * Folder name of the agent's runtime data dir — THE single place it's defined.
- * `.kevin` today; a future rename (or a conflict escape via the
- * `AGENT_RUNTIME_DIR` override) happens here.
+ * Folder name of the agent's runtime data dir. Fixed, not configurable: skill
+ * text and init's secrets deny rules spell it out, so a renamed dir would sit
+ * outside every sandbox rule.
  */
-export const RUNTIME_DIR_DEFAULT = '.kevin';
+export const RUNTIME_DIR = '.kevin';
 
 /**
  * Files that mark a data dir as a scaffolded agent home: the upgrade baseline
@@ -114,20 +114,3 @@ export const RUNTIME_DIR_DEFAULT = '.kevin';
  * files are git-tracked in a brain repo, so a fresh clone still resolves.
  */
 export const HOME_MARKER_FILES = ['version.json', 'knowledge.json'] as const;
-
-// A bare folder name, enforced rather than documented: this value is joined onto
-// HOME to locate the deny-gated secrets store, so a `/`, `\`, or `..` in it would
-// walk the store (and every guard keyed on it) outside the home.
-const BARE_FOLDER_NAME = /^[A-Za-z0-9._-]+$/;
-
-/** The runtime data dir name in force: per-agent override, then shared, then the default. */
-export const runtimeDirName = (): string => {
-  const configured = resolveEnv('AGENT_RUNTIME_DIR');
-  if (!configured) return RUNTIME_DIR_DEFAULT;
-  if (!BARE_FOLDER_NAME.test(configured) || configured === '.' || configured === '..') {
-    throw new Error(
-      `${agentKeyName('RUNTIME_DIR')}/AGENT_RUNTIME_DIR must be a bare folder name (letters, digits, ".", "_", "-"), not a path — got "${configured}".`
-    );
-  }
-  return configured;
-};

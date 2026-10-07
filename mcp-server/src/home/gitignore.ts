@@ -2,11 +2,10 @@
  * The home's `.gitignore`, reconciled against the plugin template: every template rule the home
  * lacks is appended under `# agent-kevin`, and the operator's own lines are never removed or
  * reordered. Shared by init, upgrade (via `skills/init/scripts/home-baseline.ts`) and home history.
- * A leaf on purpose (node builtins and naming only), so skill scripts can import it.
+ * A leaf on purpose (node builtins only), so skill scripts can import it.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RUNTIME_DIR_DEFAULT } from '../shared/naming';
 
 export interface GitignoreChange {
   created: boolean;
@@ -14,19 +13,8 @@ export interface GitignoreChange {
   added: string[];
 }
 
-/** The template's runtime folder and the one this home actually uses, when they differ. */
-export interface RuntimeRename {
-  from: string;
-  to: string;
-}
-
-const withRuntimeDir = (template: string, rename?: RuntimeRename): string =>
-  rename && rename.from !== rename.to
-    ? template.replace(new RegExp(`^(!?)${rename.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`, 'gm'), `$1${rename.to}/`)
-    : template;
-
-export const reconcileGitignore = (current: string, template: string, rename?: RuntimeRename) => {
-  const templateRules = withRuntimeDir(template, rename)
+export const reconcileGitignore = (current: string, template: string) => {
+  const templateRules = template
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line !== '' && !line.startsWith('#'));
@@ -65,16 +53,10 @@ export const reconcileGitignore = (current: string, template: string, rename?: R
 
 /**
  * Reconcile `<home>/.gitignore` with the template at `templatePath`; `write: false` is a dry run.
- * `runtimeDir` is the home's runtime folder, which replaces the template's when it was renamed.
  */
-export const reconcileHomeGitignore = (
-  home: string,
-  templatePath: string,
-  write: boolean,
-  runtimeDir: string = RUNTIME_DIR_DEFAULT
-): GitignoreChange => {
+export const reconcileHomeGitignore = (home: string, templatePath: string, write: boolean): GitignoreChange => {
   const gitignorePath = join(home, '.gitignore');
-  const template = withRuntimeDir(readFileSync(templatePath, 'utf-8'), { from: RUNTIME_DIR_DEFAULT, to: runtimeDir });
+  const template = readFileSync(templatePath, 'utf-8');
   const created = !existsSync(gitignorePath);
   const before = created ? '' : readFileSync(gitignorePath, 'utf-8');
   const gitignore = created ? { text: template, rewritten: [], added: [] } : reconcileGitignore(before, template);

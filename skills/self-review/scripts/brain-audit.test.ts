@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { hashBuffer } from '../../../mcp-server/src/knowledge/utils';
-import { runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR } from '../../../mcp-server/src/shared/naming';
 
 const SCRIPT = join(import.meta.dir, 'brain-audit.ts');
 const TODAY = '2026-10-31';
@@ -33,7 +33,7 @@ const home = () => {
     mkdirSync(join(path, '..'), { recursive: true });
     writeFileSync(path, content);
   };
-  write(join(runtimeDirName(), 'version.json'), '{}');
+  write(join(RUNTIME_DIR, 'version.json'), '{}');
   write('SOUL.md', '# Soul\n');
   const task = ({ id, project, status = 'open', updated, created = updated }: TaskSeed) =>
     write(
@@ -63,7 +63,7 @@ describe('brain-audit', () => {
     task({ id: 'ac-004', project: 'acme', status: 'done', updated: 90 });
     task({ id: 'ac-005', project: 'acme', updated: 40 });
     write(
-      join(runtimeDirName(), 'review.json'),
+      join(RUNTIME_DIR, 'review.json'),
       JSON.stringify({ asked: { 'task:ac-005': { date: daysAgo(10), answer: 'keep', hash: '' } } })
     );
     session(10, '**User:** where is ac-002?\n\n**Assistant:** ac-003 is still overdue.');
@@ -77,7 +77,7 @@ describe('brain-audit', () => {
     task({ id: 'ac-002', project: 'acme', status: 'active', updated: 5, created: 59 });
     task({ id: 'ac-003', project: 'acme', status: 'active', updated: 5, created: 90 });
     write(
-      join(runtimeDirName(), 'review.json'),
+      join(RUNTIME_DIR, 'review.json'),
       JSON.stringify({ asked: { 'task:ac-003': { date: daysAgo(5), answer: 'keep' } } })
     );
     task({ id: 'ta-001', project: 'tax', updated: 70 });
@@ -104,7 +104,7 @@ describe('brain-audit', () => {
       )
     );
     write(
-      join(runtimeDirName(), 'review.json'),
+      join(RUNTIME_DIR, 'review.json'),
       JSON.stringify({
         asked: { [`memory:Pending:${hashBuffer(kept)}`]: { date: daysAgo(10), answer: 'keep', hash: hashBuffer(kept) } }
       })
@@ -125,7 +125,7 @@ describe('brain-audit', () => {
       `# Decisions\n\n- **${daysAgo(5)}** — not reached yet.\n${settledLine}\n- **${daysAgo(44)}** — inside the window.\n- **${daysAgo(46)}** — outside the window.\n- ${daysAgo(6)} — an older, unbolded entry.\n`
     );
     write(
-      join(runtimeDirName(), 'review.json'),
+      join(RUNTIME_DIR, 'review.json'),
       JSON.stringify({
         asked: {
           [`decision:${hashBuffer(settledLine)}`]: { date: daysAgo(20), answer: 'leave' },

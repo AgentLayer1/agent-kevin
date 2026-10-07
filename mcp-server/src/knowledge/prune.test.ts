@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 
 const HOME = mkdtempSync(resolve(tmpdir(), 'prune-'));
 const PRELOAD_HOME = process.env.AGENT_HOME;
@@ -14,8 +14,8 @@ let pruneMemory: typeof import('@/knowledge/prune').pruneMemory;
 
 beforeAll(async () => {
   mkdirSync(resolve(MEMORY, 'archive'), { recursive: true });
-  mkdirSync(resolve(HOME, runtimeDirName()), { recursive: true });
-  writeFileSync(resolve(HOME, runtimeDirName(), 'version.json'), '{}\n');
+  mkdirSync(resolve(HOME, RUNTIME_DIR), { recursive: true });
+  writeFileSync(resolve(HOME, RUNTIME_DIR, 'version.json'), '{}\n');
   ({ pruneMemory } = await import('@/knowledge/prune'));
 });
 

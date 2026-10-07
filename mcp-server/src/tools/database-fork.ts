@@ -22,7 +22,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { agentKeyName, runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 import { dbConnections, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { assertDbName, decodeDbName, encodeConnectionCredentials, resolveConnectionString } from '@/tools/database';
@@ -45,7 +45,7 @@ const resolveConnection = (name?: string): { name: string; url: string } => {
   const connections = dbConnections();
   if (!connections.length) {
     throw new Error(
-      `No database connections configured. Add a ${agentKeyName('DB_')}<NAME> env var to ${runtimeDirName()}/secrets/.env.`
+      `No database connections configured. Add a ${agentKeyName('DB_')}<NAME> env var to ${RUNTIME_DIR}/secrets/.env.`
     );
   }
   const chosen = name ? connections.find((connection) => connection.name === name.toLowerCase()) : connections[0];

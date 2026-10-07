@@ -111,7 +111,7 @@ const settingList = (key: keyof NonNullable<ClaudeSettings['permissions']>): str
     const list = settings.permissions?.[key];
     return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
   });
-const runtimeDir = settingValue('RUNTIME_DIR') ?? `.${agent}`;
+const runtimeDir = `.${agent}`;
 const secretsDir = resolve(homeDir, runtimeDir, 'secrets');
 
 /** Directories the agent works in outside the home, in the order the settings name them. */

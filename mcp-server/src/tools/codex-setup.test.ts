@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR } from '@/shared/naming';
 
 /** Its own throwaway home, pinned before the tool resolves paths, so nothing lands in a real checkout. */
 const HOME = mkdtempSync(resolve(tmpdir(), 'codex-setup-tool-'));
@@ -12,8 +12,8 @@ process.env.AGENT_HOME = HOME;
 let tools: typeof import('@/tools/codex-setup').tools;
 
 beforeAll(async () => {
-  mkdirSync(resolve(HOME, RUNTIME_DIR_DEFAULT), { recursive: true });
-  writeFileSync(resolve(HOME, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+  mkdirSync(resolve(HOME, RUNTIME_DIR), { recursive: true });
+  writeFileSync(resolve(HOME, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
   ({ tools } = await import('@/tools/codex-setup'));
 });
 

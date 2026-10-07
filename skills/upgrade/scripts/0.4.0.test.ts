@@ -67,9 +67,7 @@ const run = (home: string, env: Record<string, string> = {}): Run => {
   // Strip every home/plugin override so an operator's shell can never point the
   // migration at a real brain from inside the test.
   const inherited = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([key]) => !/^(KEVIN|AGENT)_(HOME|PLUGIN_ROOT|RUNTIME_DIR|KNOWLEDGE|PROJECTS)$/.test(key)
-    )
+    Object.entries(process.env).filter(([key]) => !/^(KEVIN|AGENT)_(HOME|PLUGIN_ROOT|KNOWLEDGE|PROJECTS)$/.test(key))
   );
   const proc = spawnSync(process.execPath, [SCRIPT], {
     env: { ...inherited, AGENT_HOME: home, AGENT_PLUGIN_ROOT: PLUGIN_ROOT, ...env },

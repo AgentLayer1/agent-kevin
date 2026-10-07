@@ -229,7 +229,6 @@ Environment (shared AGENT_* names; this agent's spelling, e.g. KEVIN_HOME, overr
   AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
   AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)
   AGENT_TIMEZONE=<tz>               Override timezone (default: system tz)
-  AGENT_RUNTIME_DIR=<name>          Override the runtime data-dir folder name (default: .kevin)
 
 Examples:
   kevin capture "remember to follow up with the accountant on the annual filing"
@@ -312,10 +311,10 @@ async function run(): Promise<void> {
   // home state.
   const HOMELESS_OK = new Set(['session-start', 'session-capture', 'guard', 'worktree']);
   if (!isInitialized() && !HOMELESS_OK.has(group)) {
-    const { agentKeyName, runtimeDirName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
+    const { RUNTIME_DIR, agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     const homeKey = agentKeyName('HOME');
     console.error(
-      `${group}: ${FOLDERS.HOME} is not this agent's home (no home marker in ${runtimeDirName()}/ there).\n` +
+      `${group}: ${FOLDERS.HOME} is not this agent's home (no home marker in ${RUNTIME_DIR}/ there).\n` +
         `The home is resolved from the current directory, so this is what you get when\n` +
         `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
         `  ${homeKey}=/path/to/home kevin ${group}${command ? ` ${command}` : ''}`

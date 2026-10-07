@@ -26,7 +26,7 @@ import {
 } from '@/home/git-dir-record';
 import { reconcileHomeGitignore } from '@/home/gitignore';
 import { log as baseLog } from '@/shared/log';
-import { resolveEnv, runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR, resolveEnv } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { writeFileAtomic } from '@/shared/utils';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -440,7 +440,7 @@ const ensureIdentity = (home: string, name: string | undefined): void => {
  * whatever the operator's .gitignore negations say. Their contents are never read.
  */
 const exposedPrivatePaths = (home: string): string[] => {
-  const store = `${runtimeDirName()}/secrets/`;
+  const store = `${RUNTIME_DIR}/secrets/`;
   const untracked = gitRaw(home, ['ls-files', '-z', '--others', '--exclude-standard'])
     .split('\0')
     .filter((path) => path.startsWith(store));
@@ -510,7 +510,7 @@ export const setupHistory = (
     }
 
     ensureIdentity(home, options.name);
-    reconcileHomeGitignore(home, join(FOLDERS.TEMPLATES, '.gitignore'), true, runtimeDirName());
+    reconcileHomeGitignore(home, join(FOLDERS.TEMPLATES, '.gitignore'), true);
     const exposed = exposedPrivatePaths(home);
     if (exposed.length > 0) {
       return result(

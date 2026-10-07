@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { HOME_BINDING_KEY, recordedGitDir, stampClaims } from "../../../mcp-server/src/home/git-dir-record";
 import { agentHomePath, env, isAgentHome } from "../../../mcp-server/src/shared/env";
-import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
+import { RUNTIME_DIR, agentKeyName } from "../../../mcp-server/src/shared/naming";
 import { expandTilde } from "../../../mcp-server/src/shared/paths";
 
 /**
@@ -103,7 +103,7 @@ export const brainGroups = (home: string): Group[] => {
     {
       name: "state",
       message: "Sync: update state",
-      dirs: [runtimeDirName(), ".claude", ".codex", "archive"],
+      dirs: [RUNTIME_DIR, ".claude", ".codex", "archive"],
       files: ["dashboard.html", "roadmap.html", ".mcp.json"],
     },
   ];

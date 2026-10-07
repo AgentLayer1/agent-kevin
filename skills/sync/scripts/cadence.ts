@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
-import { agentKeyName, runtimeDirName } from "../../../mcp-server/src/shared/naming";
+import { RUNTIME_DIR, agentKeyName } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
@@ -31,7 +31,7 @@ const readJson = <T>(path: string): T | null => {
   }
 };
 
-const dataDir = join(home, runtimeDirName());
+const dataDir = join(home, RUNTIME_DIR);
 const stamps = readJson<Record<string, string>>(join(dataDir, "cadence.json")) ?? {};
 // A home that hasn't run the 0.6.1 upgrade still holds the old keys; the later stamp wins either way.
 const cadence = Object.entries(RETIRED_CADENCE_KEYS).reduce<Record<string, string>>((acc, [old, key]) => {

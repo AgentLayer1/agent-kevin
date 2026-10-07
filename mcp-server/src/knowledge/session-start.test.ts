@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FILES, FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 import { stampSync } from '@/shared/cadence';
 import { nowISO } from '@/shared/date';
@@ -53,15 +53,15 @@ describe('sessionStart', () => {
       () => sessionStart()
     );
     expect(result.systemMessage).toContain('Do NOT run init');
-    expect(result.systemMessage).toContain(RUNTIME_DIR_DEFAULT);
+    expect(result.systemMessage).toContain(RUNTIME_DIR);
     expect(result.additionalContext).toContain("another agent's home");
     expect(result.hasIssues).toBe(true);
     expect(result.error).toBeUndefined();
   });
 
   const markedHome = (home: string, files: Record<string, string>): void => {
-    mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
-    writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}');
+    mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+    writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}');
     mkdirSync(resolve(home, '.claude'), { recursive: true });
     for (const [rel, content] of Object.entries(files)) writeFileSync(resolve(home, rel), content);
   };
@@ -117,7 +117,7 @@ describe('sessionStart', () => {
     const result = await withHome(
       (home) =>
         markedHome(home, {
-          [`${RUNTIME_DIR_DEFAULT}/version.json`]: JSON.stringify({ templateVersion: PLUGIN_VERSION }),
+          [`${RUNTIME_DIR}/version.json`]: JSON.stringify({ templateVersion: PLUGIN_VERSION }),
           '.claude/settings.json': staleStatusLine
         }),
       () => sessionStart()
@@ -131,7 +131,7 @@ describe('sessionStart', () => {
     const result = await withHome(
       (home) =>
         markedHome(home, {
-          [`${RUNTIME_DIR_DEFAULT}/version.json`]: JSON.stringify({ templateVersion: '0.0.1' }),
+          [`${RUNTIME_DIR}/version.json`]: JSON.stringify({ templateVersion: '0.0.1' }),
           '.claude/settings.json': staleStatusLine
         }),
       () => sessionStart()
@@ -202,8 +202,8 @@ describe('sessionStart', () => {
   test('the home marker alone marks the home, with no SOUL.md needed', async () => {
     const result = await withHome(
       (home) => {
-        mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
-        writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+        mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
       },
       () => sessionStart()
     );
@@ -249,7 +249,7 @@ describe('sessionStart', () => {
     expect(result.systemMessage).toMatch(/○ history .*off · run /);
   });
 
-  const cadence = `${RUNTIME_DIR_DEFAULT}/cadence.json`;
+  const cadence = `${RUNTIME_DIR}/cadence.json`;
 
   test('welcome: a pending flag from init surfaces the welcome early in the context', async () => {
     const result = await withHome(

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR } from '@/shared/naming';
 
 /**
  * Codex kills a SessionEnd hook after 3 seconds. A capture that cannot take the
@@ -13,7 +13,7 @@ const HOME = mkdtempSync(resolve(tmpdir(), 'capture-deferred-'));
 const PRELOAD_HOME = process.env.AGENT_HOME;
 process.env.AGENT_HOME = HOME;
 
-const DATA = resolve(HOME, RUNTIME_DIR_DEFAULT);
+const DATA = resolve(HOME, RUNTIME_DIR);
 const SESSIONS = resolve(HOME, 'knowledge', 'raw', 'sessions');
 const LOCK = resolve(DATA, 'capture.lock');
 const PENDING = resolve(DATA, 'capture-pending.jsonl');

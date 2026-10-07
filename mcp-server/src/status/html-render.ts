@@ -30,7 +30,7 @@ import type { HistoryState } from '@/home/history';
 import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
 import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
-import { agentEnvPrefix, agentKeyName, runtimeDirName } from '@/shared/naming';
+import { RUNTIME_DIR, agentEnvPrefix, agentKeyName } from '@/shared/naming';
 import type {
   ContextGroup,
   ProfileSection,
@@ -978,7 +978,7 @@ const pageBrain = (snap: StatusSnapshot): string => {
               ['errors', `<span class="${lint.errors ? 'bad' : 'dim'}">${lint.errors}</span>`],
               ['warnings', `<span class="${lint.warnings ? 'warn' : 'dim'}">${lint.warnings}</span>`],
               ['suggestions', `<span class="dim">${lint.suggestions}</span>`],
-              ['report', mdLink(snap, `${runtimeDirName()}/lint.md`, 'open lint.md')]
+              ['report', mdLink(snap, `${RUNTIME_DIR}/lint.md`, 'open lint.md')]
             ]
           )
         ),
@@ -1775,7 +1775,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
       `${settings.secrets.filter((entry) => entry.present).length} set · values never shown`,
       settings.secrets.length
         ? `<div class="secrets-table">${table(['key', 'status'], secretRows)}</div>`
-        : hint(`No secrets configured. Add keys to ${runtimeDirName()}/secrets/.env (loaded at boot, never displayed).`)
+        : hint(`No secrets configured. Add keys to ${RUNTIME_DIR}/secrets/.env (loaded at boot, never displayed).`)
     )
   ].join('');
 

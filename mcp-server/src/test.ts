@@ -17,13 +17,13 @@ import { afterAll } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR_DEFAULT, agentKeyName } from './shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, agentKeyName } from './shared/naming';
 
 // `mkdtemp`, never a fixed name: $TMPDIR is per-uid, so a stable path would be shared with any
 // concurrent `bun test` run on this machine.
 const home = mkdtempSync(resolve(tmpdir(), 'kevin-test-home-'));
-mkdirSync(resolve(home, RUNTIME_DIR_DEFAULT), { recursive: true });
-writeFileSync(resolve(home, RUNTIME_DIR_DEFAULT, HOME_MARKER_FILES[0]), '{}\n');
+mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), '{}\n');
 process.env.AGENT_HOME = home;
 // A <AGENT>_HOME inherited from the operator's shell is this agent's override
 // prefix and would beat the pin above.

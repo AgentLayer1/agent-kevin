@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { todayDate } from '../../../mcp-server/src/shared/date';
 import { agentHomePath, isAgentHome } from '../../../mcp-server/src/shared/env';
-import { agentKeyName, runtimeDirName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, agentKeyName } from '../../../mcp-server/src/shared/naming';
 import { writeFileAtomic } from '../../../mcp-server/src/shared/utils';
 
 /**
@@ -27,7 +27,7 @@ if (!isAgentHome(home)) {
   process.exit(1);
 }
 
-const file = join(home, runtimeDirName(), 'review.json');
+const file = join(home, RUNTIME_DIR, 'review.json');
 // A missing watermark starts empty; a damaged one is left alone, since it holds the restore pointers.
 const current = ((): Record<string, unknown> => {
   if (!existsSync(file)) {
