@@ -39,7 +39,7 @@ Keep the agent's brain and context lean and correct, and close the feedback loop
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -f "$HOME_DIR/SOUL.md" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -f "$HOME_DIR/.kevin/version.json" ] || [ -f "$HOME_DIR/.kevin/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/context-weight.ts" --home "$HOME_DIR"
 ```

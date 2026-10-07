@@ -6,7 +6,7 @@ The agent's instructions and the feedback loop: prune the prompt surface and mem
 
 ```bash
 HOME_DIR="${KEVIN_HOME:-$PWD}"
-[ -f "$HOME_DIR/SOUL.md" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -f "$HOME_DIR/.kevin/version.json" ] || [ -f "$HOME_DIR/.kevin/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="<plugin root>"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/plugin-source.ts" --home "$HOME_DIR"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/template-drift.ts" --home "$HOME_DIR" --plugin "<source, or $PLUGIN_ROOT in consumer mode>"
