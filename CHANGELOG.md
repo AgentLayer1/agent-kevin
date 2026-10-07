@@ -70,6 +70,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **Session start flags a `.kevin/` that reappears beside `.state/`**: a session still on the older
   plugin wrote there after the move, so the agent asks you to compare it and carry anything newer
   into `.state/`.
+- **Sync's closing "what next" question takes several picks.** Act now works through them in order;
+  Queue files or threads a task for each.
 - Claude Code 2.1.287 or newer is required (mods): init and upgrade stop below it with
   `claude update`, and the SessionStart banner warns until the host is updated.
 
