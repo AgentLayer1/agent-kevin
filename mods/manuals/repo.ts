@@ -49,7 +49,10 @@ export const isUnder = (path: string, folder: string): boolean => {
 export const expandHome = (path: string, home: string | undefined): string =>
   home !== undefined && (path === '~' || path.startsWith('~/')) ? `${home}${path.slice(1)}` : path;
 
-const normalize = (path: string): string =>
+/**
+ * An absolute path with `.` and `..` resolved and repeat slashes dropped, so one file has one spelling.
+ */
+export const normalize = (path: string): string =>
   `/${path
     .split('/')
     .reduce<string[]>(

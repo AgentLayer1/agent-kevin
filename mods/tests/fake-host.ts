@@ -57,6 +57,14 @@ const ran = (exitCode: number, stdout: string, stderr = ''): { value: ProcessRun
 
 const stat = (kind: FsStat['kind']): { value: FsStat } => ({ value: { kind, size: 0, mtimeMs: 0, isLink: false } });
 
+// A real filesystem resolves '.' and '..' segments, so the fake does too.
+const resolved = (path: string): string =>
+  `/${path
+    .split('/')
+    .filter((segment) => segment !== '' && segment !== '.')
+    .reduce<string[]>((parts, segment) => (segment === '..' ? parts.slice(0, -1) : [...parts, segment]), [])
+    .join('/')}`;
+
 const items = (length: number): string[] => Array.from({ length }, (_unused, index) => `item-${index}`);
 
 const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult } => {
@@ -107,7 +115,7 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   });
   on('fs.read', (_$, e) => {
     host.fsCalls.push(e.path);
-    const text = host.files[e.path];
+    const text = host.files[resolved(e.path)];
     if (text === undefined) {
       throw new Error(`ENOENT ${e.path}`);
     }
@@ -115,10 +123,10 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   });
   on('fs.stat', (_$, e) => {
     host.fsCalls.push(e.path);
-    if (host.folders.includes(e.path)) {
+    if (host.folders.includes(resolved(e.path))) {
       return stat('dir');
     }
-    if (host.files[e.path] !== undefined) {
+    if (host.files[resolved(e.path)] !== undefined) {
       return stat('file');
     }
     throw new Error(`ENOENT ${e.path}`);

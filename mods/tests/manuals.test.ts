@@ -123,6 +123,15 @@ describe('repo instructions', () => {
     expect(attachedPaths(result)).toEqual([`${LIB}/AGENTS.md`]);
   });
 
+  test("a path spelled with '.' or '..' attaches nothing already attached", async ($, on) => {
+    fakeHost(on, repo());
+    await read($, `${APP}/packages/kit/index.ts`);
+    expect(contextOf(await $.tool.call({ tool: 'Bash', command: `cp -R ${APP}/packages/kit/. /out` }))).toEqual([]);
+    expect(attachedPaths(await read($, `${APP}/packages/kit/../ui/button.ts`))).toEqual([
+      `${APP}/packages/ui/AGENTS.md`
+    ]);
+  });
+
   test('reading an instruction file itself does not attach it again', async ($, on) => {
     fakeHost(on, repo());
     expect(attachedPaths(await read($, `${APP}/AGENTS.md`))).not.toContain(`${APP}/AGENTS.md`);

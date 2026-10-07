@@ -14,6 +14,7 @@ import {
   importsIn,
   isUnder,
   manualContext,
+  normalize,
   parentOf,
   pathsInCommand,
   resolveImport,
@@ -176,10 +177,11 @@ async function expand(
 async function withManuals(
   $: EngineInterface,
   result: ToolCallResult,
-  touched: readonly string[],
+  spelled: readonly string[],
   mayBeFolder: boolean,
   agentId: string | undefined
 ): Promise<ToolCallResult> {
+  const touched = spelled.map(normalize);
   if (result.deny !== undefined || touched.length === 0) {
     return result;
   }
