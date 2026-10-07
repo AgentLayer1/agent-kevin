@@ -30,7 +30,7 @@ const transcript = (name: string, turns: number): string => {
   return path;
 };
 const dayFile = (): string => {
-  const [file] = require('node:fs').readdirSync(SESSIONS) as string[];
+  const file = (require('node:fs').readdirSync(SESSIONS) as string[]).find((name) => name.endsWith('.md'));
   return file ? readFileSync(resolve(SESSIONS, file), 'utf-8') : '';
 };
 
