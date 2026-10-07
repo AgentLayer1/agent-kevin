@@ -137,6 +137,15 @@ describe('repo instructions', () => {
     expect(attachedPaths(await read($, `${APP}/README.md`))).toContain(`${APP}/AGENTS.md`);
   });
 
+  test('a precomputed or vetoed compaction keeps what is attached', async ($, on) => {
+    on('session.compact', { trigger: 'auto' }, () => ({ skip: 'vetoed' }));
+    fakeHost(on, repo());
+    await read($, `${APP}/README.md`);
+    await $.session.compact({ trigger: 'precompute', messages: [{ role: 'user', text: 'summary', toolUses: [] }] });
+    await $.session.compact({ trigger: 'auto', messages: [{ role: 'user', text: 'summary', toolUses: [] }] });
+    expect(attachedPaths(await read($, `${APP}/README.md`))).not.toContain(`${APP}/AGENTS.md`);
+  });
+
   test('/manuals lists what is in context', async ($, on) => {
     fakeHost(on, repo());
     expect((await run($, 'manuals')).text).toBe('No repo instructions attached yet.');

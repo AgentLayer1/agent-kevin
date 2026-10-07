@@ -227,10 +227,13 @@ export const registerManuals = (on: On): void => {
     return withManuals($, result, pathsInCommand(asPaths(e.command)[0] ?? '', await grants($)), true, e.agentId);
   });
 
-  on('session.compact', async ($, e, next) => {
+  // A precompute only prepares a summary and a vetoed one changes nothing: the manuals stay in context.
+  on('session.compact', { trigger: ['manual', 'auto', 'plugin'] }, async ($, e, next) => {
     const result = await next(e);
-    const prefix = `${loopOf(e.agentId)}:`;
-    await update($, delivered, (list) => list.filter((key) => !key.startsWith(prefix)));
+    if (result.skip === undefined) {
+      const prefix = `${loopOf(e.agentId)}:`;
+      await update($, delivered, (list) => list.filter((key) => !key.startsWith(prefix)));
+    }
     return result;
   });
 
