@@ -79,7 +79,7 @@ describe('the notice row', () => {
       const host = fakeHost(on, machine({ notices: [UPGRADE, { ...SYNC, level: 'alert' }] }));
       await start($, host);
       const row = await band($, surface);
-      const icon = await row.find({ type: 'Text', text: '↑' });
+      const icon = await row.find({ type: 'Text', text: '↑ ' });
       expect(icon?.props.color).toBe('yellow');
       expect((await row.find({ type: 'Text', text: '0.6.5 → 0.7.0' }))?.props.color).toBe('cyan');
       expect(await shown($, surface)).toContain('+1 more');

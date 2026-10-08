@@ -127,9 +127,8 @@ export const registerNotices = (on: On): void => {
     return (
       <Box flexDirection="column">
         <Box gap={1}>
-          <Text bold color={LEVEL_COLORS[top.level]}>
-            {top.icon}
-          </Text>
+          {/* The trailing space survives a font that draws the glyph wider than its one cell. */}
+          <Text bold color={LEVEL_COLORS[top.level]}>{`${top.icon} `}</Text>
           <Text bold>{top.title}</Text>
           {facts.map((fact) => (
             <Box key={fact.text} gap={1}>
