@@ -43,6 +43,36 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.7.1] - 2026-10-08
+
+### Added
+- **Notices.** Upgrade and sync nudges come from one place every surface reads. Each carries a
+  level (hint, nudge, alert) that rises with age and the command that acts on it; upgrade leads.
+  `kevin notices` prints them, and `kevin notices record` logs an act or a snooze in
+  `.state/notices.json` (hidden for the day; an unpinned notice drops a level after five snoozes
+  in a row).
+  - **Above the prompt (Claude Code terminal).** A mod draws the top notice as a row with its
+    facts, the average sync time and two buttons: run it now, or Tomorrow. It is also the Tab
+    suggestion, and an alert raises a toast. The row stays aside while the command it started runs.
+  - **In the banner** everywhere else (VS Code, desktop, `-p`, Codex), color-coded by level, and in
+    the terminal too until the row proves it draws.
+- **Sync offers a north-star roadmap** at its close while the home has no `roadmap.html`. A
+  HOME-root roadmap build asks for the north star and writes it into the Yearly Goals header, and
+  the year playbook reads it from the roadmap instead of asking each quarter.
+
+### Changed
+- The plugin's name, its MCP server key and the CLI path are derived from the manifest instead of
+  spelled across the code. The values are unchanged, so homes, settings and transcripts see the
+  same text.
+
+### Fixed
+- The status line reads on a light terminal. The model name, folder and branch were drawn in white
+  and bright hues; a light Claude Code theme, or the macOS light appearance when the theme is
+  `auto`, now switches them to colours that read there. Dark output is unchanged.
+
+### Upgrade
+None — code-only, no bun install or HOME changes.
+
 ## [0.7.0] - 2026-10-08
 
 ### Added
