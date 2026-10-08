@@ -2,6 +2,8 @@ import { mock } from 'claude-code/testing';
 import type { Engine, MockClock } from 'claude-code/testing';
 import type { FsStat, On, ProcessRunResult } from 'claude-code';
 
+import type { Notice } from '../types';
+
 export const HOME = '/fixture/home';
 export const USER_HOME = '/fixture/user';
 export const CODE = '/fixture/code';
@@ -32,6 +34,10 @@ export interface FakeMachine {
   cwd: (string | undefined)[];
   toolText: Record<string, string>;
   fsCalls: string[];
+  notices: Notice[];
+  toasts: string[];
+  suggestions: string[];
+  commands: string[];
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -48,6 +54,10 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   cwd: [],
   toolText: {},
   fsCalls: [],
+  notices: [],
+  toasts: [],
+  suggestions: [],
+  commands: [],
   ...overrides
 });
 
@@ -86,6 +96,9 @@ const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult }
         dueSoon: items(host.taskScan.dueSoon)
       })
     );
+  }
+  if (args === 'notices') {
+    return ran(0, JSON.stringify(host.notices));
   }
   if (args.startsWith('capture')) {
     return ran(0, JSON.stringify({ ok: true, relPath: 'knowledge/raw/inbox/fixture.md', duplicate: false }));
@@ -147,6 +160,21 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   on('turn.complete', () => ({ text: '', reason: 'answer' as const }));
   on('session.compact', (_$, e) => ({ messages: e.messages }));
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }));
+  on('session.start', (_$, e) => ({ cwd: e.cwd }));
+  on('command.register', (_$, e) => ({ value: { command: e.name } }));
+  on('tool.register', (_$, e) => ({ value: { tool: e.name } }));
+  on('ui.toast', (_$, e) => {
+    host.toasts.push(e.text);
+    return { value: undefined };
+  });
+  on('prompt.suggest', (_$, e) => {
+    host.suggestions.push(e.text);
+    return { isShown: true };
+  });
+  on('command.run', (_$, e) => {
+    host.commands.push(e.command);
+    return {};
+  });
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Box' as const }));
   on('ui.render', { component: 'CommandOutput' }, () => ({ type: 'Box' as const, props: { key: 'plain-row' } }));
   return Object.assign(host, { clock });

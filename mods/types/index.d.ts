@@ -78,6 +78,27 @@ export interface SyncHistoryEntry {
   after: SyncSnapshot | null;
 }
 
+/**
+ * One entry of `kevin notices`, mirrored from mcp-server/src/notices/notices.ts (a mod can't import Node code).
+ */
+export interface NoticeFact {
+  text: string;
+  tone?: 'accent' | 'good' | 'warn';
+}
+
+export interface Notice {
+  id: string;
+  rank: number;
+  level: 'hint' | 'nudge' | 'alert';
+  pinned: boolean;
+  icon: string;
+  label: string;
+  title: string;
+  facts: NoticeFact[];
+  command: string;
+  actionLabel: string;
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'agent-kevin': {
@@ -86,6 +107,8 @@ declare module 'claude-code' {
       manualsThisTurn: string[];
       todayViews: Record<string, TodayView>;
       syncTick: number;
+      notices: Notice[];
+      noticeSuppressed: boolean;
     };
   }
 }
