@@ -19,7 +19,7 @@
  *
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
-import { configuredRepoPaths } from '@/config';
+import { configuredRepoPaths, PLUGIN_NAME } from '@/config';
 import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
@@ -58,7 +58,7 @@ const requireToken = (): string => {
   const token = env('GITHUB_TOKEN');
   if (!token) {
     throw new Error(
-      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${RUNTIME_DIR}/secrets/.env as GITHUB_TOKEN (run /agent-kevin:configure-skills → GitHub pack for the walk).`
+      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${RUNTIME_DIR}/secrets/.env as GITHUB_TOKEN (run /${PLUGIN_NAME}:configure-skills → GitHub pack for the walk).`
     );
   }
   return token;
@@ -833,8 +833,7 @@ export const tools: ToolDef[] = [
       if (!token) {
         return report({
           repos: paths.map((path) => ({ repo: path, status: RepoSyncStatus.NotConfigured, branches: [] })),
-          detail:
-            'GITHUB_TOKEN not set — run /agent-kevin:configure-skills → GitHub pack. Checkouts were left untouched.'
+          detail: `GITHUB_TOKEN not set — run /${PLUGIN_NAME}:configure-skills → GitHub pack. Checkouts were left untouched.`
         });
       }
       // Repos are independent checkouts, so the ~1s authenticated fetches overlap. Safe only

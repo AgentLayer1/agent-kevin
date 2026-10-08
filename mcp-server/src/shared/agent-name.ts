@@ -1,4 +1,4 @@
-import { FILES, PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, FILES } from '@/config';
 import { readFileSync } from 'node:fs';
 
 /**
@@ -24,5 +24,5 @@ export const agentDisplayName = (): string => {
   } catch {
     // no IDENTITY.md — pre-init home
   }
-  return PLUGIN_NAME.replace(/^agent-/, '').replace(/^./, (first) => first.toUpperCase());
+  return AGENT_SLUG.replace(/^./, (first) => first.toUpperCase());
 };

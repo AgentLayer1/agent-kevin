@@ -26,7 +26,7 @@
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
  * anything else in the home.
  */
-import { PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, PLUGIN_NAME } from '@/config';
 import { createHash } from 'node:crypto';
 
 /** Hash used for `SeedFileEntry.hash` — one definition for producer and consumer. */
@@ -112,7 +112,7 @@ export const validateSeedPath = (path: string): string | null => {
  */
 export const CREDENTIAL_KEY_RE = /(_TOKEN|_KEY|_SECRET|_PASSWORD|_CREDENTIALS?)($|_)/;
 
-const MCP_PREFIX = `mcp__plugin_${PLUGIN_NAME}_kevin__`;
+const MCP_PREFIX = `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__`;
 
 const mcp = (names: string[]): string[] => names.map((name) => `${MCP_PREFIX}${name}`);
 

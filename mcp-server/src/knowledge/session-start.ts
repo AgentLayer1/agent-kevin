@@ -24,7 +24,7 @@
  * Always returns a result — internal errors are caught and emitted as an
  * empty payload + `error` field so the host never chokes on hook output.
  */
-import { FILES, FOLDERS, PLUGIN_NAME, isInitialized, staticContextFiles } from '@/config';
+import { AGENT_SLUG, FILES, FOLDERS, isInitialized, PLUGIN_NAME, staticContextFiles } from '@/config';
 import { assembleContext } from '@/context';
 import { drainDeferredCaptures } from '@/knowledge/session-capture';
 import { BANNER, BANNER_LINES, BANNER_TAG, stripAnsi } from '@/shared/banner';
@@ -82,8 +82,6 @@ const strandedHomeResult = (): SessionStartResult => {
   };
 };
 
-const CLI_NAME = PLUGIN_NAME.replace(/^agent-/, '');
-
 // Codex renders systemMessage through ratatui, which prints ANSI escapes as raw bytes.
 const PLAIN_BANNER = [...BANNER_LINES, BANNER_TAG].join('\n');
 
@@ -107,7 +105,7 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
         return `<!-- file: ${name} -->\n${readFileSync(path, 'utf-8').trimEnd()}`;
       } catch (err) {
         log.error(`hook failed (codex): ${name} unreadable`, err);
-        return `<!-- ${CLI_NAME}: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;
+        return `<!-- ${AGENT_SLUG}: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;
       }
     });
   // The static files never depend on git or reports, so a dynamic-lane failure costs
@@ -127,12 +125,12 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
       return {
         banner: `⚠ dynamic session context unavailable: ${message}`,
         hasIssues: true,
-        parts: [`<!-- ${CLI_NAME}: dynamic session context unavailable: ${message} -->`]
+        parts: [`<!-- ${AGENT_SLUG}: dynamic session context unavailable: ${message} -->`]
       };
     });
   const additionalContext =
     [
-      `<!-- ${CLI_NAME} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · a write refused outside the home and its listed roots is policy, not a prompt: the operator lists the directory in .claude/settings.local.json permissions.additionalDirectories and runs $upgrade · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
+      `<!-- ${AGENT_SLUG} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · a write refused outside the home and its listed roots is policy, not a prompt: the operator lists the directory in .claude/settings.local.json permissions.additionalDirectories and runs $upgrade · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
       ...files,
       ...lane.parts
     ].join('\n\n') + '\n';

@@ -19,6 +19,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined =>
@@ -90,6 +91,7 @@ const writeAt = (root: string, rel: string, content: string): void => {
 };
 
 const plugin = JSON.parse(readFileSync(join(REPO, '.claude-plugin', 'plugin.json'), 'utf-8'));
+const AGENT = String(plugin.name).replace(/^agent-/, '');
 const renderTemplate = (name: string, values: Record<string, string>): string =>
   Object.entries(values).reduce(
     (text, [key, value]) => text.replaceAll(`{{${key}}}`, value),
@@ -120,7 +122,7 @@ ${AVATAR ? '![Ace](assets/ace-avatar.jpg)\n' : ''}
 ## Who
 
 - **Name:** Ace
-- **Kind:** Company agent (agent-acme, forked from agent-kevin)
+- **Kind:** Company agent (agent-acme, forked from ${plugin.name})
 - **Vibe:** Sharp but approachable. Gets things done. Knows the codebase and the company.
 - **Emoji:** 🤖
 
@@ -380,7 +382,7 @@ const history: [string, number, number, string, string][] = [
     'fix the exporter timezone rounding and replay the 41 mismatched invoices as a regression test',
     '~/acme/platform'
   ],
-  [SESSION.sync, 0, 22, '/agent-kevin:sync', '~/agent-acme'],
+  [SESSION.sync, 0, 22, `/${plugin.name}:sync`, '~/agent-acme'],
   [
     '5e8c2a4f-1b7d-4c9e-a3f6-0d2b8e5c7a19',
     0,
@@ -417,7 +419,7 @@ const history: [string, number, number, string, string][] = [
     'confirm the funnel numbers on production before we brief the board',
     '~/acme/growth'
   ],
-  ['8e1a3c5d-7f9b-4d2e-b4a6-c8e0a2b4c6d8', -1, 11, '/agent-kevin:briefing evening', '~/agent-acme'],
+  ['8e1a3c5d-7f9b-4d2e-b4a6-c8e0a2b4c6d8', -1, 11, `/${plugin.name}:briefing evening`, '~/agent-acme'],
   [SESSION.soc2, -2, 31, 'soc2 evidence sprint: pull the access lists and draft the review docs', '~/acme'],
   [
     '4b6d8f0a-2c4e-4a6c-8e0b-2d4f6a8c0e21',
@@ -992,10 +994,14 @@ write(
   '.claude/settings.json',
   `${JSON.stringify(
     {
-      enabledPlugins: { 'agent-kevin@agentlayer': true },
+      enabledPlugins: { [`${plugin.name}@agentlayer`]: true },
       extraKnownMarketplaces: { agentlayer: { source: { source: 'github', repo: 'AgentLayer1/agent-kevin' } } },
       permissions: {
-        allow: ['mcp__plugin_agent-kevin_kevin__task_query', 'Skill(agent-kevin:engineer)', 'Skill(agent-kevin:sync)'],
+        allow: [
+          `mcp__plugin_${plugin.name}_${AGENT}__task_query`,
+          `Skill(${plugin.name}:engineer)`,
+          `Skill(${plugin.name}:sync)`
+        ],
         deny: ['Read(./.state/secrets/**)']
       }
     },
@@ -1021,7 +1027,7 @@ write('.claude/rules/mobile.md', rule(['apps/mobile/**'], '# Mobile Rules\n\n- P
 writeAt(
   FAKE_HOME,
   '.claude/settings.json',
-  `${JSON.stringify({ env: { KEVIN_HOME: '~/agent-acme', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, enabledPlugins: { 'skill-creator@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }, null, 2)}\n`
+  `${JSON.stringify({ env: { [agentKeyName('HOME')]: '~/agent-acme', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, enabledPlugins: { 'skill-creator@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }, null, 2)}\n`
 );
 
 // A host shim so the version check passes, and a git history so the brain shows commits.
@@ -1036,14 +1042,14 @@ git('init', '-q');
 git('add', '-A');
 git('commit', '-q', '-m', 'Sync: update knowledge');
 
-const render = spawnSync(process.execPath, [join(REPO, 'bin', 'kevin'), 'dashboard'], {
+const render = spawnSync(process.execPath, [join(REPO, 'bin', AGENT), 'dashboard'], {
   cwd: HOME_DIR,
   env: {
     PATH: `${shimDir}:${dirname(process.execPath)}:/opt/homebrew/bin:/usr/bin:/bin`,
     HOME: FAKE_HOME,
     TMPDIR: process.env.TMPDIR ?? tmpdir(),
     AGENT_TIMEZONE: TZ,
-    KEVIN_HOME: HOME_DIR,
+    [agentKeyName('HOME')]: HOME_DIR,
     AGENT_LOG_FILE: 'off'
   }
 });

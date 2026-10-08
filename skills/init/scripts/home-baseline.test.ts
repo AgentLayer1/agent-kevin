@@ -3,16 +3,19 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { agentKeyName, LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
+
+const PLUGIN_NAME = pluginName();
 
 const SCRIPT = resolve(import.meta.dir, 'home-baseline.ts');
 const TEMPLATE = readFileSync(resolve(import.meta.dir, '..', '..', '..', 'templates', '.gitignore'), 'utf-8');
 const MISSING_GRANTS = [
-  'Skill(agent-kevin:dashboard)',
-  'Skill(agent-kevin:focus)',
-  'Skill(agent-kevin:humanizer)',
-  'Skill(agent-kevin:setup-worktree)',
-  'Skill(agent-kevin:plan-spec)',
-  'mcp__plugin_agent-kevin_kevin__setup_worktree'
+  `Skill(${PLUGIN_NAME}:dashboard)`,
+  `Skill(${PLUGIN_NAME}:focus)`,
+  `Skill(${PLUGIN_NAME}:humanizer)`,
+  `Skill(${PLUGIN_NAME}:setup-worktree)`,
+  `Skill(${PLUGIN_NAME}:plan-spec)`,
+  `mcp__plugin_${PLUGIN_NAME}_kevin__setup_worktree`
 ];
 
 const dirs: string[] = [];
@@ -42,7 +45,7 @@ const claudeDirWith = (settings: object = {}): string => {
 };
 const run = (home: string, extra: string[] = [], reports?: string) => {
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => key !== 'KEVIN_REPORTS' && key !== 'AGENT_REPORTS')
+    Object.entries(process.env).filter(([key]) => key !== `${agentKeyName('REPORTS')}` && key !== 'AGENT_REPORTS')
   );
   const claudeDir = extra.includes('--claude-dir') ? [] : ['--claude-dir', claudeDirWith()];
   const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, ...claudeDir, ...extra], {
@@ -108,7 +111,7 @@ describe('home-baseline gitignore', () => {
     const home = scratchHome({ gitignore: '.DS_Store' });
     const { added } = run(home, ['--write']).gitignore;
     expect(added.indexOf('.state/*')).toBeLessThan(added.indexOf('!.state/knowledge.json'));
-    expect(gitignoreOf(home).startsWith('.DS_Store\n\n# agent-kevin\n')).toBe(true);
+    expect(gitignoreOf(home).startsWith(`.DS_Store\n\n# ${PLUGIN_NAME}\n`)).toBe(true);
     expect(ignored(home, '.state/knowledge.json')).toBe(false);
     expect(ignored(home, '.state/secrets/.env')).toBe(true);
   });
@@ -148,7 +151,7 @@ describe('home-baseline settings', () => {
 
   test('reports the baseline grants a home is missing, and keeps remove_worktree out', () => {
     expect(fresh.allowMissing).toEqual(expect.arrayContaining(MISSING_GRANTS));
-    expect(fresh.allowMissing).not.toContain('mcp__plugin_agent-kevin_kevin__remove_worktree');
+    expect(fresh.allowMissing).not.toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__remove_worktree`);
     const home = scratchHome({
       settings: {
         permissions: { allow: [...baselineAllowMinus(MISSING_GRANTS), 'Bash(make *)'], ask: fresh.askMissing }
@@ -164,15 +167,15 @@ describe('home-baseline settings', () => {
       settings: {
         permissions: {
           allow: baselineAllowMinus(MISSING_GRANTS),
-          ask: ['Skill(agent-kevin:plan-spec)'],
-          deny: ['Skill(agent-kevin:humanizer)']
+          ask: [`Skill(${PLUGIN_NAME}:plan-spec)`],
+          deny: [`Skill(${PLUGIN_NAME}:humanizer)`]
         }
       }
     });
     const missing = run(home).settings.allowMissing;
-    expect(missing).not.toContain('Skill(agent-kevin:plan-spec)');
-    expect(missing).not.toContain('Skill(agent-kevin:humanizer)');
-    expect(missing).toContain('Skill(agent-kevin:focus)');
+    expect(missing).not.toContain(`Skill(${PLUGIN_NAME}:plan-spec)`);
+    expect(missing).not.toContain(`Skill(${PLUGIN_NAME}:humanizer)`);
+    expect(missing).toContain(`Skill(${PLUGIN_NAME}:focus)`);
   });
 
   test('reports a retired skill grant with its successor, and its ask placement decides the successor', () => {
@@ -180,20 +183,20 @@ describe('home-baseline settings', () => {
       settings: {
         permissions: {
           allow: [
-            ...baselineAllowMinus(['Skill(agent-kevin:seed)', 'Skill(agent-kevin:briefing)']),
-            'Skill(agent-kevin:quick-pulse)'
+            ...baselineAllowMinus([`Skill(${PLUGIN_NAME}:seed)`, `Skill(${PLUGIN_NAME}:briefing)`]),
+            `Skill(${PLUGIN_NAME}:quick-pulse)`
           ],
-          ask: ['Skill(agent-kevin:seed-import)']
+          ask: [`Skill(${PLUGIN_NAME}:seed-import)`]
         }
       }
     });
     const { settings } = run(home);
     expect(settings.retiredGrants).toEqual([
-      { list: 'allow', entry: 'Skill(agent-kevin:quick-pulse)', replacement: ['Skill(agent-kevin:briefing)'] },
-      { list: 'ask', entry: 'Skill(agent-kevin:seed-import)', replacement: ['Skill(agent-kevin:seed)'] }
+      { list: 'allow', entry: `Skill(${PLUGIN_NAME}:quick-pulse)`, replacement: [`Skill(${PLUGIN_NAME}:briefing)`] },
+      { list: 'ask', entry: `Skill(${PLUGIN_NAME}:seed-import)`, replacement: [`Skill(${PLUGIN_NAME}:seed)`] }
     ]);
-    expect(settings.allowMissing).not.toContain('Skill(agent-kevin:seed)');
-    expect(settings.allowMissing).not.toContain('Skill(agent-kevin:briefing)');
+    expect(settings.allowMissing).not.toContain(`Skill(${PLUGIN_NAME}:seed)`);
+    expect(settings.allowMissing).not.toContain(`Skill(${PLUGIN_NAME}:briefing)`);
     expect(fresh.retiredGrants).toEqual([]);
   });
 
@@ -229,7 +232,10 @@ describe('home-baseline settings', () => {
 
   // A curated global list names the stores its author knew of, and this one moved in 0.7.0.
   test('keeps the secrets store guarded even under a curated global deny list and sandbox', () => {
-    const global = { permissions: { deny: ['Read(//**/.kevin/secrets/**)'] }, sandbox: { enabled: true } };
+    const global = {
+      permissions: { deny: [`Read(//**/${LEGACY_RUNTIME_DIR}/secrets/**)`] },
+      sandbox: { enabled: true }
+    };
     const curated = run(scratchHome(), ['--claude-dir', claudeDirWith(global)]).settings;
     expect(curated.denyMissing).toContain('Read(//**/.state/secrets/**)');
     expect(curated.sandboxMissing.denyRead).toEqual(['.state/secrets']);
@@ -313,7 +319,7 @@ describe('home-baseline settings', () => {
 });
 
 describe('home-baseline identity', () => {
-  const withBaseline = (content: string, dir = '.kevin'): { home: string; file: string } => {
+  const withBaseline = (content: string, dir = LEGACY_RUNTIME_DIR): { home: string; file: string } => {
     const home = scratchHome();
     mkdirSync(join(home, dir));
     const file = join(home, dir, 'version.json');
@@ -325,7 +331,7 @@ describe('home-baseline identity', () => {
   test('records this plugin first in a baseline that lacks it, keeping every other field', () => {
     const { home, file } = withBaseline(JSON.stringify(BASELINE));
     expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
-    expect(JSON.parse(readFileSync(file, 'utf-8'))).toEqual({ plugin: 'agent-kevin', ...BASELINE });
+    expect(JSON.parse(readFileSync(file, 'utf-8'))).toEqual({ plugin: `${PLUGIN_NAME}`, ...BASELINE });
     expect(Object.keys(JSON.parse(readFileSync(file, 'utf-8')))[0]).toBe('plugin');
     expect(run(home, ['--write']).identity).toEqual({ state: 'current' });
   });
@@ -347,7 +353,7 @@ describe('home-baseline identity', () => {
   test('replaces a non-string plugin value', () => {
     const { home, file } = withBaseline(JSON.stringify({ ...BASELINE, plugin: 7 }));
     expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
-    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe('agent-kevin');
+    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe(`${PLUGIN_NAME}`);
   });
 
   test('leaves an unreadable baseline alone and creates none where there is none', () => {
@@ -356,12 +362,12 @@ describe('home-baseline identity', () => {
     expect(readFileSync(file, 'utf-8')).toBe('not json');
     const bare = scratchHome();
     expect(run(bare, ['--write']).identity).toEqual({ state: 'no-baseline' });
-    expect(existsSync(join(bare, '.kevin', 'version.json'))).toBe(false);
+    expect(existsSync(join(bare, LEGACY_RUNTIME_DIR, 'version.json'))).toBe(false);
     expect(existsSync(join(bare, '.state', 'version.json'))).toBe(false);
   });
 
   test('a .state recording this plugin is current', () => {
-    const { home } = withBaseline(JSON.stringify({ plugin: 'agent-kevin', ...BASELINE }), '.state');
+    const { home } = withBaseline(JSON.stringify({ plugin: `${PLUGIN_NAME}`, ...BASELINE }), '.state');
     expect(run(home, ['--write']).identity).toEqual({ state: 'current' });
   });
 
@@ -369,7 +375,7 @@ describe('home-baseline identity', () => {
   test('restores a record dropped from .state', () => {
     const { home, file } = withBaseline(JSON.stringify(BASELINE), '.state');
     expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
-    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe('agent-kevin');
+    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe(`${PLUGIN_NAME}`);
   });
 
   test('never rewrites a .state recorded for another plugin', () => {

@@ -2,13 +2,15 @@ import { beforeAll, afterAll, describe, expect, test } from 'bun:test';
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { AGENT_SLUG } from '@/config';
+import { LEGACY_RUNTIME_DIR } from '@/shared/naming';
 
 // One hermetic HOME for the whole pipeline, overriding the preload's throwaway home so
 // capture and compile share a tree this file can assert against. `config` resolves paths live,
 // so the ordering no longer matters for paths — but AGENT_TIMEZONE is still read once at config
 // import, so it stays set at module scope, above the dynamic imports below. The compile suite
 // resets state in its own beforeAll to isolate from capture.
-const HOME = mkdtempSync(resolve(tmpdir(), 'kevin-pipeline-'));
+const HOME = mkdtempSync(resolve(tmpdir(), `${AGENT_SLUG}-pipeline-`));
 const PRELOAD_HOME = process.env.AGENT_HOME;
 process.env.AGENT_HOME = HOME;
 process.env.AGENT_TIMEZONE = 'Asia/Kuala_Lumpur';
@@ -26,8 +28,8 @@ let STATE_PATH: string;
 
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
-  mkdirSync(resolve(HOME, '.kevin'), { recursive: true });
-  writeFileSync(resolve(HOME, '.kevin', 'version.json'), '{}\n'); // isInitialized() gate — the marker file marks this agent's home
+  mkdirSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`), { recursive: true });
+  writeFileSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`, 'version.json'), '{}\n'); // isInitialized() gate — the marker file marks this agent's home
   ({ captureSession } = await import('@/knowledge/session-capture'));
   ({ pickNext, markComplete, getStatus } = await import('@/knowledge/compile'));
   ({ hashBuffer } = await import('@/knowledge/utils'));

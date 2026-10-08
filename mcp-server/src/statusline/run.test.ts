@@ -3,8 +3,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { AGENT_SLUG } from '@/config';
 
-const CLI = resolve(import.meta.dir, '..', '..', '..', 'bin', 'kevin');
+const CLI = resolve(import.meta.dir, '..', '..', '..', 'bin', `${AGENT_SLUG}`);
 const dirs: string[] = [];
 const scratch = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'statusline-run-'));
@@ -18,7 +19,7 @@ const plain = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, '').repl
 const run = (input: string, cwd: string, ...args: string[]) =>
   spawnSync(process.execPath, [CLI, 'statusline', ...args], { input, cwd, encoding: 'utf-8' });
 
-describe('kevin statusline', () => {
+describe(`${AGENT_SLUG} statusline`, () => {
   test('renders the footer from stdin outside any agent home, with the branch of the payload directory', () => {
     const repo = scratch();
     spawnSync('git', ['init', '-q', '-b', 'feature/x'], { cwd: repo });

@@ -3,8 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { AGENT_SLUG } from '@/config';
+import { LEGACY_RUNTIME_DIR } from '@/shared/naming';
 
-const HOME = mkdtempSync(resolve(tmpdir(), 'kevin-inbox-'));
+const HOME = mkdtempSync(resolve(tmpdir(), `${AGENT_SLUG}-inbox-`));
 const PRELOAD_HOME = process.env.AGENT_HOME;
 process.env.AGENT_HOME = HOME;
 
@@ -16,8 +18,8 @@ let markComplete: typeof import('@/knowledge/compile').markComplete;
 let getStatus: typeof import('@/knowledge/compile').getStatus;
 
 beforeAll(async () => {
-  mkdirSync(resolve(HOME, '.kevin'), { recursive: true });
-  writeFileSync(resolve(HOME, '.kevin', 'version.json'), '{}\n');
+  mkdirSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`), { recursive: true });
+  writeFileSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`, 'version.json'), '{}\n');
   mkdirSync(join(INBOX, 'acme-history', 'notes'), { recursive: true });
   mkdirSync(join(INBOX, '.hidden'), { recursive: true });
   writeFileSync(join(INBOX, 'acme-history', '00-readme.md'), '# Readme\n');
@@ -66,7 +68,7 @@ describe('inbox folders', () => {
 
 describe('inbox zips and binary files', () => {
   test.skipIf(!Bun.which('zip'))('a dropped zip is unpacked beside itself and the zip is archived', async () => {
-    const staging = mkdtempSync(resolve(tmpdir(), 'kevin-zip-'));
+    const staging = mkdtempSync(resolve(tmpdir(), `${AGENT_SLUG}-zip-`));
     mkdirSync(join(staging, 'bundle-notes'));
     writeFileSync(join(staging, 'bundle-notes', 'one.md'), '# One\n');
     execFileSync('zip', ['-qr', join(INBOX, 'bundle.zip'), 'bundle-notes'], { cwd: staging });

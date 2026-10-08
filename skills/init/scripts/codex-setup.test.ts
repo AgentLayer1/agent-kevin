@@ -3,13 +3,17 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { agentKeyName, LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
+
+const PLUGIN_NAME = pluginName();
+const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
 
 const SCRIPT = resolve(import.meta.dir, 'codex-setup.ts');
-const CLI = resolve(import.meta.dir, '..', '..', '..', 'bin', 'kevin');
+const CLI = resolve(import.meta.dir, '..', '..', '..', 'bin', `${AGENT_SLUG}`);
 const HOME = resolve('/Users/ada/Agents/Scout');
-const PLUGIN = resolve('/opt/kevin');
+const PLUGIN = resolve(`/opt/${AGENT_SLUG}`);
 const command = (rest: string, home = HOME, plugin = PLUGIN): string =>
-  `bun "${resolve(plugin, 'bin', 'kevin')}" ${rest} --home="${home}"`;
+  `bun "${resolve(plugin, 'bin', AGENT_SLUG)}" ${rest} --home="${home}"`;
 const dirs: string[] = [];
 const scratch = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'codex-setup-'));
@@ -68,7 +72,7 @@ describe('codex-setup hooks', () => {
 
   test('double-quotes paths with spaces and apostrophes, the one quoting sh and PowerShell share', () => {
     const home = resolve("/Users/ada/Agent's Homes/Scout");
-    const plugin = resolve('/opt/my kevin');
+    const plugin = resolve(`/opt/my ${AGENT_SLUG}`);
     const { json } = run('--home', home, '--plugin-root', plugin);
     expect(json.hooks.SessionEnd[0].hooks[0].command).toBe(
       command('session-capture --mode=session-end --hook-protocol=codex', home, plugin)
@@ -119,7 +123,7 @@ describe('codex-setup hooks', () => {
             hooks: [
               {
                 type: 'command',
-                command: 'AGENT_HOME=/x bun /old/kevin/bin/kevin session-start --hook-protocol=codex --slice=1/12',
+                command: `AGENT_HOME=/x bun /old/${AGENT_SLUG}/bin/${AGENT_SLUG} session-start --hook-protocol=codex --slice=1/12`,
                 timeout: 15
               }
             ]
@@ -129,7 +133,7 @@ describe('codex-setup hooks', () => {
             hooks: [
               {
                 type: 'command',
-                command: "AGENT_HOME='/x' bun '/old/kevin/bin/kevin' session-start --hook-protocol=codex --slice=2/12",
+                command: `AGENT_HOME='/x' bun '/old/${AGENT_SLUG}/bin/${AGENT_SLUG}' session-start --hook-protocol=codex --slice=2/12`,
                 timeout: 15
               }
             ]
@@ -141,8 +145,7 @@ describe('codex-setup hooks', () => {
             hooks: [
               {
                 type: 'command',
-                command:
-                  'AGENT_HOME=/x bun /old/kevin/bin/kevin session-capture --mode=session-end --hook-protocol=codex --detach',
+                command: `AGENT_HOME=/x bun /old/${AGENT_SLUG}/bin/${AGENT_SLUG} session-capture --mode=session-end --hook-protocol=codex --detach`,
                 timeout: 3
               }
             ]
@@ -152,7 +155,7 @@ describe('codex-setup hooks', () => {
     });
     const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(first.json.hooks.path, 'utf-8');
-    expect(written).not.toContain('/old/kevin');
+    expect(written).not.toContain(`/old/${AGENT_SLUG}`);
     expect(JSON.parse(written).hooks.SessionStart).toHaveLength(1);
     expect(JSON.parse(written).hooks.SessionEnd).toHaveLength(1);
     const again = run('--home', home, '--plugin-root', PLUGIN, '--write').json;
@@ -222,39 +225,39 @@ describe('codex-setup mcp registration', () => {
     expect(readFileSync(userConfig, 'utf-8')).toBe(userText);
   });
 
-  test('writes the kevin server, the permission profile, the shell env, and the policy keys for a bare home', () => {
+  test(`writes the ${AGENT_SLUG} server, the permission profile, the shell env, and the policy keys for a bare home`, () => {
     const home = scratch();
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(json.mcp).toEqual({ path: join(home, '.codex', 'config.toml'), changed: true });
     expect(json.entries).toBe(4);
     const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
-    expect(config.default_permissions).toBe('kevin');
+    expect(config.default_permissions).toBe(`${AGENT_SLUG}`);
     expect(config.approval_policy).toBe('on-request');
     expect(config.approvals_reviewer).toBe('user');
-    expect(config.mcp_servers.kevin).toEqual({
+    expect(config.mcp_servers[AGENT_SLUG]).toEqual({
       command: 'bun',
       args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')],
-      env: { AGENT_HOME: home, KEVIN_HOME: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
+      env: { AGENT_HOME: home, [agentKeyName('HOME')]: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
     });
-    expect(config.permissions.kevin.extends).toBe(':workspace');
-    expect(config.permissions.kevin.filesystem[join(home, '.state', 'secrets')]).toBe('deny');
-    expect(config.permissions.kevin.filesystem[join(home, '.kevin', 'secrets')]).toBe('deny');
-    expect(config.permissions.kevin.filesystem[':workspace_roots']).toEqual({
+    expect(config.permissions[AGENT_SLUG].extends).toBe(':workspace');
+    expect(config.permissions[AGENT_SLUG].filesystem[join(home, '.state', 'secrets')]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[join(home, LEGACY_RUNTIME_DIR, 'secrets')]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']).toEqual({
       '.git': 'write',
       '**/.state/secrets/**': 'deny',
-      '**/.kevin/secrets/**': 'deny',
+      [`**/${LEGACY_RUNTIME_DIR}/secrets/**`]: 'deny',
       '**/*.env': 'deny',
       '**/.env.*': 'deny'
     });
-    expect(config.permissions.kevin.workspace_roots).toBeUndefined();
-    expect(config.permissions.kevin.network).toEqual({ enabled: true });
-    expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, KEVIN_HOME: home });
+    expect(config.permissions[AGENT_SLUG].workspace_roots).toBeUndefined();
+    expect(config.permissions[AGENT_SLUG].network).toEqual({ enabled: true });
+    expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, [agentKeyName('HOME')]: home });
     expect(config.tui).toEqual({
       status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
       status_line_use_colors: true
     });
     expect(config.skills).toEqual({ max_context_tokens: 10_000 });
-    expect(json.profile).toEqual({ name: 'kevin', workspaceRoots: [], rules: [], servers: [] });
+    expect(json.profile).toEqual({ name: `${AGENT_SLUG}`, workspaceRoots: [], rules: [], servers: [] });
     expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
   });
 
@@ -267,12 +270,17 @@ describe('codex-setup mcp registration', () => {
       join(home, '.claude', 'settings.json'),
       JSON.stringify({
         permissions: {
-          deny: ['Read(//**/.kevin/secrets/**)', 'Read(~/.ssh/**)', 'Read(vault/**)', 'WebFetch(domain:example.com)'],
+          deny: [
+            `Read(//**/${LEGACY_RUNTIME_DIR}/secrets/**)`,
+            'Read(~/.ssh/**)',
+            'Read(vault/**)',
+            'WebFetch(domain:example.com)'
+          ],
           ask: [
             'Bash(git push)',
             'Bash(git push *)',
             'Bash(gh pr create:*)',
-            'mcp__plugin_agent-kevin_kevin__curl_run',
+            `mcp__plugin_${PLUGIN_NAME}_kevin__curl_run`,
             'Bash(rm -rf *)'
           ],
           additionalDirectories: [extra, join(home, 'projects')]
@@ -286,22 +294,22 @@ describe('codex-setup mcp registration', () => {
           AGENT_CODE_PATH: code,
           AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
           CLAUDE_CODE_OAUTH_TOKEN: 'sk-nope',
-          KEVIN_DB_KEY: 'nope'
+          [agentKeyName('DB_KEY')]: 'nope'
         }
       })
     );
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
-    expect(config.permissions.kevin.workspace_roots).toEqual({ [code]: true, [extra]: true });
-    expect(config.permissions.kevin.filesystem['/**/.kevin/secrets/**']).toBe('deny');
-    expect(config.permissions.kevin.filesystem[join(homedir(), '.ssh', '**')]).toBe('deny');
-    expect(config.permissions.kevin.filesystem[':workspace_roots']['vault/**']).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].workspace_roots).toEqual({ [code]: true, [extra]: true });
+    expect(config.permissions[AGENT_SLUG].filesystem[`/**/${LEGACY_RUNTIME_DIR}/secrets/**`]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[join(homedir(), '.ssh', '**')]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']['vault/**']).toBe('deny');
     expect(JSON.stringify(config)).not.toContain('example.com');
     expect(config.shell_environment_policy.set).toEqual({
       AGENT_CODE_PATH: code,
       AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
       AGENT_HOME: home,
-      KEVIN_HOME: home
+      [agentKeyName('HOME')]: home
     });
     expect(json.profile.rules).toEqual(['git push', 'gh pr create', 'rm -rf']);
     const rules = readFileSync(json.rules.path, 'utf-8');
@@ -337,9 +345,9 @@ describe('codex-setup mcp registration', () => {
       codexUser
     );
     const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
-    expect(config.permissions.kevin.filesystem[join(homedir(), '.ssh', 'id_*')]).toBe('deny');
-    expect(config.permissions.kevin.filesystem[join(homedir(), '.aws', '**')]).toBeUndefined();
-    expect(config.permissions.kevin.filesystem[':workspace_roots']['**/*.pem']).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[join(homedir(), '.ssh', 'id_*')]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem[join(homedir(), '.aws', '**')]).toBeUndefined();
+    expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']['**/*.pem']).toBe('deny');
     expect(JSON.stringify(config)).not.toContain('sudo');
     expect(json.notes).toEqual([expect.stringContaining('default_permissions')]);
   });
@@ -354,19 +362,23 @@ describe('codex-setup mcp registration', () => {
     const first = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const config = Bun.TOML.parse(readFileSync(first.json.mcp.path, 'utf-8')) as Record<string, any>;
     expect(config.approvals_reviewer).toBe('auto_review');
-    expect(config.default_permissions).toBe('kevin');
+    expect(config.default_permissions).toBe(`${AGENT_SLUG}`);
     expect(config.shell_environment_policy.inherit).toBe('core');
     expect(config.shell_environment_policy.exclude).toEqual(['AWS_*', 'AZURE_*']);
     expect(config.shell_environment_policy.set.EDITOR).toBe('vim');
     seed(
       home,
       'config.toml',
-      '[shell_environment_policy]\nset = { EDITOR = "vim", AGENT_CODE_PATH = "/gone", KEVIN_GIT_REPOS = "/gone" }\n'
+      `[shell_environment_policy]\nset = { EDITOR = "vim", AGENT_CODE_PATH = "/gone", ${agentKeyName('GIT_REPOS')} = "/gone" }\n`
     );
     const regen = Bun.TOML.parse(
       readFileSync(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.path, 'utf-8')
     ) as Record<string, any>;
-    expect(regen.shell_environment_policy.set).toEqual({ EDITOR: 'vim', AGENT_HOME: home, KEVIN_HOME: home });
+    expect(regen.shell_environment_policy.set).toEqual({
+      EDITOR: 'vim',
+      AGENT_HOME: home,
+      [agentKeyName('HOME')]: home
+    });
     expect(first.json.notes).toEqual([expect.stringContaining('approvals_reviewer is "auto_review"')]);
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
     seed(home, 'config.toml', 'sandbox_mode = "workspace-write"\n');
@@ -375,7 +387,7 @@ describe('codex-setup mcp registration', () => {
     expect(stderr).toContain('sandbox_mode');
   });
 
-  test("keeps the operator's other settings and servers, replaces an older kevin registration", () => {
+  test(`keeps the operator's other settings and servers, replaces an older ${AGENT_SLUG} registration`, () => {
     const home = scratch();
     seed(
       home,
@@ -383,11 +395,11 @@ describe('codex-setup mcp registration', () => {
       [
         'model = "gpt-6"',
         '',
-        '[mcp_servers.kevin]',
+        `[mcp_servers.${AGENT_SLUG}]`,
         'command = "bun"',
-        'args = ["/old/kevin/mcp-server/src/server.ts"]',
+        `args = ["/old/${AGENT_SLUG}/mcp-server/src/server.ts"]`,
         '',
-        '[mcp_servers.kevin.env]',
+        `[mcp_servers.${AGENT_SLUG}.env]`,
         'AGENT_HOME = "/x"',
         '',
         '[mcp_servers.other]',
@@ -399,12 +411,12 @@ describe('codex-setup mcp registration', () => {
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written).toContain('model = "gpt-6"\n\n[mcp_servers.other]\ncommand = "other"\n\n[tui]\n');
     expect(written).toContain(
-      'status_line_use_colors = true\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.kevin]\n'
+      `status_line_use_colors = true\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.${AGENT_SLUG}]\n`
     );
-    expect(written.startsWith('default_permissions = "kevin"\n')).toBe(true);
-    expect(written).not.toContain('/old/kevin');
+    expect(written.startsWith(`default_permissions = "${AGENT_SLUG}"\n`)).toBe(true);
+    expect(written).not.toContain(`/old/${AGENT_SLUG}`);
     expect(written).toContain(`AGENT_HOME = "${home}"`);
-    expect(written.match(/\[mcp_servers\.kevin\]/g)).toHaveLength(1);
+    expect(written.match(new RegExp(`\\[mcp_servers\\.${AGENT_SLUG}\\]`, 'g'))).toHaveLength(1);
   });
 
   test("keeps the operator's own status line, fills the footer keys into their [tui] table, and leaves a dotted tui alone", () => {
@@ -446,7 +458,7 @@ describe('codex-setup mcp registration', () => {
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written).toContain('enabled = false\n\n[tui]\n');
-    expect(written).toContain('\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.kevin]\n');
+    expect(written).toContain(`\n\n[skills]\nmax_context_tokens = 10000\n\n[mcp_servers.${AGENT_SLUG}]\n`);
     const added = Bun.TOML.parse(written) as Record<string, any>;
     expect(added.skills).toEqual({ max_context_tokens: 10_000, config: [{ name: 'imagegen', enabled: false }] });
     expect(json.notes).toEqual([]);
@@ -458,53 +470,65 @@ describe('codex-setup mcp registration', () => {
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written).toContain(`AGENT_HOME = ${JSON.stringify(home)}`);
-    expect(Bun.TOML.parse(written)).toMatchObject({ mcp_servers: { kevin: { env: { AGENT_HOME: home } } } });
+    expect(Bun.TOML.parse(written)).toMatchObject({ mcp_servers: { [AGENT_SLUG]: { env: { AGENT_HOME: home } } } });
   });
 
-  test("keeps the operator's own keys inside the kevin tables, and refuses one it cannot rewrite", () => {
+  test(`keeps the operator's own keys inside the ${AGENT_SLUG} tables, and refuses one it cannot rewrite`, () => {
     const home = scratch();
     seed(
       home,
       'config.toml',
-      '[mcp_servers.kevin]\ncommand = "bun"\nstartup_timeout_sec = 60\n\n[mcp_servers.kevin.env]\nAGENT_HOME = "/x"\nSERPAPI_KEY = "k"\n'
+      `[mcp_servers.${AGENT_SLUG}]\ncommand = "bun"\nstartup_timeout_sec = 60\n\n[mcp_servers.${AGENT_SLUG}.env]\nAGENT_HOME = "/x"\nSERPAPI_KEY = "k"\n`
     );
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const parsed = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as {
-      mcp_servers: { kevin: { startup_timeout_sec: number; env: Record<string, string> } };
+      mcp_servers: Record<string, { startup_timeout_sec: number; env: Record<string, string> }>;
     };
-    expect(parsed.mcp_servers.kevin.startup_timeout_sec).toBe(60);
-    expect(parsed.mcp_servers.kevin.env).toEqual({
+    expect(parsed.mcp_servers[AGENT_SLUG].startup_timeout_sec).toBe(60);
+    expect(parsed.mcp_servers[AGENT_SLUG].env).toEqual({
       AGENT_HOME: home,
-      KEVIN_HOME: home,
+      [agentKeyName('HOME')]: home,
       PLAYWRIGHT_BROWSERS_PATH: '0',
       SERPAPI_KEY: 'k'
     });
-    seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n[mcp_servers.kevin.extra]\nnested = 1\n');
+    seed(
+      home,
+      'config.toml',
+      `[mcp_servers.${AGENT_SLUG}]\ncommand = "bun"\n\n[mcp_servers.${AGENT_SLUG}.extra]\nnested = 1\n`
+    );
     const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
     expect(stderr).toContain('cannot rewrite');
   });
 
-  test('keeps an indented unrelated table that follows the kevin table', () => {
+  test(`keeps an indented unrelated table that follows the ${AGENT_SLUG} table`, () => {
     const home = scratch();
-    seed(home, 'config.toml', '[mcp_servers.kevin]\ncommand = "bun"\n\n  [mcp_servers.other]\ncommand = "keep-me"\n');
+    seed(
+      home,
+      'config.toml',
+      `[mcp_servers.${AGENT_SLUG}]\ncommand = "bun"\n\n  [mcp_servers.other]\ncommand = "keep-me"\n`
+    );
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const parsed = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as {
       mcp_servers: Record<string, { command: string; env?: Record<string, string> }>;
     };
     expect(parsed.mcp_servers.other.command).toBe('keep-me');
-    expect(parsed.mcp_servers.kevin.env?.AGENT_HOME).toBe(home);
+    expect(parsed.mcp_servers[AGENT_SLUG].env?.AGENT_HOME).toBe(home);
   });
 
-  test('recognises a quoted kevin table and never registers kevin twice', () => {
+  test(`recognises a quoted ${AGENT_SLUG} table and never registers ${AGENT_SLUG} twice`, () => {
     const home = scratch();
-    seed(home, 'config.toml', '[mcp_servers."kevin"]\ncommand = "bun"\nargs = ["/old/kevin/server.ts"]\n');
+    seed(
+      home,
+      'config.toml',
+      `[mcp_servers."${AGENT_SLUG}"]\ncommand = "bun"\nargs = ["/old/${AGENT_SLUG}/server.ts"]\n`
+    );
     const { code, json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).toBe(0);
     const written = readFileSync(json.mcp.path, 'utf-8');
-    expect(written.match(/\[mcp_servers\.("?)kevin\1\]/g)).toHaveLength(1);
+    expect(written.match(new RegExp(`\\[mcp_servers\\.("?)${AGENT_SLUG}\\1\\]`, 'g'))).toHaveLength(1);
     expect(Bun.TOML.parse(written)).toMatchObject({
-      mcp_servers: { kevin: { args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')] } }
+      mcp_servers: { [AGENT_SLUG]: { args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')] } }
     });
   });
 
@@ -529,13 +553,13 @@ describe('codex-setup mcp registration', () => {
     expect(existsSync(join(home, '.codex', 'hooks.json'))).toBe(false);
   });
 
-  test('refuses a kevin registration it cannot rewrite, such as an inline table, and writes nothing', () => {
+  test(`refuses a ${AGENT_SLUG} registration it cannot rewrite, such as an inline table, and writes nothing`, () => {
     const home = scratch();
-    const path = seed(home, 'config.toml', 'mcp_servers = { kevin = { command = "bun" } }\n');
+    const path = seed(home, 'config.toml', `mcp_servers = { ${AGENT_SLUG} = { command = "bun" } }\n`);
     const { code, stderr } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     expect(code).not.toBe(0);
     expect(stderr).toContain('remove it by hand');
-    expect(readFileSync(path, 'utf-8')).toBe('mcp_servers = { kevin = { command = "bun" } }\n');
+    expect(readFileSync(path, 'utf-8')).toBe(`mcp_servers = { ${AGENT_SLUG} = { command = "bun" } }\n`);
     expect(existsSync(join(home, '.codex', 'hooks.json'))).toBe(false);
   });
 });
@@ -553,18 +577,18 @@ describe('codex-setup pack servers', () => {
     const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
     expect(config.mcp_servers.xcode).toEqual(xcode);
     expect(config.mcp_servers.betterstack).toBeUndefined();
-    expect(config.mcp_servers.kevin.env.AGENT_HOME).toBe(home);
+    expect(config.mcp_servers[AGENT_SLUG].env.AGENT_HOME).toBe(home);
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
   });
 
-  test("replaces a hand-written xcode table ahead of kevin's, keeps the operator's own keys in it, carries the pack's env, and is idempotent", () => {
+  test(`replaces a hand-written xcode table ahead of ${AGENT_SLUG}'s, keeps the operator's own keys in it, carries the pack's env, and is idempotent`, () => {
     const home = scratch();
     registerMcp(home, { xcode: { ...xcode, env: { XCODE_MCP_LOG: '1' } } });
     seed(
       home,
       'config.toml',
       [
-        'default_permissions = "kevin"',
+        `default_permissions = "${AGENT_SLUG}"`,
         '',
         '[mcp_servers.xcode]',
         'command = "xcrun"',
@@ -574,9 +598,9 @@ describe('codex-setup pack servers', () => {
         '[mcp_servers.xcode.env]',
         'MINE = "kept"',
         '',
-        '[mcp_servers.kevin]',
+        `[mcp_servers.${AGENT_SLUG}]`,
         'command = "bun"',
-        'args = ["/old/kevin/mcp-server/src/server.ts"]',
+        `args = ["/old/${AGENT_SLUG}/mcp-server/src/server.ts"]`,
         ''
       ].join('\n')
     );
@@ -584,7 +608,7 @@ describe('codex-setup pack servers', () => {
     expect(json.notes).toEqual([]);
     const written = readFileSync(json.mcp.path, 'utf-8');
     expect(written.match(/\[mcp_servers\.xcode\]/g)).toHaveLength(1);
-    expect(written).not.toContain('/old/kevin');
+    expect(written).not.toContain(`/old/${AGENT_SLUG}`);
     const config = Bun.TOML.parse(written) as Record<string, any>;
     expect(config.mcp_servers.xcode).toEqual({
       command: 'xcrun',
@@ -608,7 +632,7 @@ describe('codex-setup pack servers', () => {
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.notes).toEqual([]);
     const config = Bun.TOML.parse(readFileSync(gone.json.mcp.path, 'utf-8')) as Record<string, any>;
     expect(config.mcp_servers.xcode).toBeUndefined();
-    expect(config.mcp_servers.kevin.command).toBe('bun');
+    expect(config.mcp_servers[AGENT_SLUG].command).toBe('bun');
     registerMcp(home, { xcode: { args: ['mcpbridge'] } });
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.profile.servers).toEqual([]);
   });

@@ -10,11 +10,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
 import { importSeed } from '@/seed/import';
+import { PLUGIN_NAME } from '@/config';
 
 const TEMPLATES = resolve(import.meta.dir, '..', '..', '..', 'templates');
 
@@ -78,14 +79,14 @@ beforeAll(() => {
           allow: [
             'Bash(ls *)',
             'Bash(curl https://acme.example/*)',
-            'mcp__plugin_agent-kevin_kevin__ping',
-            'mcp__plugin_agent-kevin_kevin__web_search',
-            'mcp__plugin_agent-kevin_kevin__browser_screenshot',
-            'mcp__plugin_agent-kevin_kevin__browser_pdf',
-            'mcp__plugin_agent-kevin_kevin__browser_markdown',
-            'mcp__plugin_agent-kevin_kevin__browser_record',
-            'mcp__plugin_agent-kevin_kevin__browser_flows',
-            'Skill(agent-kevin:sync)'
+            `mcp__plugin_${PLUGIN_NAME}_kevin__ping`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_pdf`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_markdown`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_record`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_flows`,
+            `Skill(${PLUGIN_NAME}:sync)`
           ],
           ask: ['Bash(git push *)']
         }
@@ -154,7 +155,7 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('CLAUDE.md')).not.toBeNull();
     expect(validateSeedPath('.claude/CLAUDE.md')).not.toBeNull();
     expect(validateSeedPath('knowledge/memory/index.md')).not.toBeNull();
-    expect(validateSeedPath('.kevin/secrets/.env')).not.toBeNull();
+    expect(validateSeedPath(`${LEGACY_RUNTIME_DIR}/secrets/.env`)).not.toBeNull();
     expect(validateSeedPath('.claude/settings.json')).not.toBeNull();
     expect(validateSeedPath('projects/acme/tasks/ac-001-private.md')).not.toBeNull();
     expect(validateSeedPath('projects/TASKS.md')).not.toBeNull();
@@ -181,9 +182,9 @@ describe('scanSeed', () => {
     expect(scan.settingsEnvKeys).toEqual(['GSC_SITE_URL']);
     const classes = new Map(scan.permissions.allow.map((grant) => [grant.entry, grant.class]));
     expect(classes.get('Bash(ls *)')).toBe('core');
-    expect(classes.get('mcp__plugin_agent-kevin_kevin__web_search')).toEqual({ pack: 'browser' });
+    expect(classes.get(`mcp__plugin_${PLUGIN_NAME}_kevin__web_search`)).toEqual({ pack: 'browser' });
     expect(classes.get('Bash(curl https://acme.example/*)')).toBe('custom');
-    expect(classes.get('Skill(agent-kevin:sync)')).toBe('skill');
+    expect(classes.get(`Skill(${PLUGIN_NAME}:sync)`)).toBe('skill');
   });
 });
 
@@ -223,10 +224,10 @@ describe('exportSeed', () => {
         extras: [{ path: 'AGENTS.md', content: '## Team conventions\n\nShip > start.\n' }],
         permissions: {
           allow: [
-            'mcp__plugin_agent-kevin_kevin__web_search',
-            'mcp__plugin_agent-kevin_kevin__browser_screenshot',
+            `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`,
+            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`,
             'Bash(curl https://acme.example/*)',
-            'Skill(agent-kevin:seed-export)'
+            `Skill(${PLUGIN_NAME}:seed-export)`
           ]
         },
         secretKeys: ['PERPLEXITY_API_KEY', 'MCP_ACME_TELEMETRY_TOKEN'],
@@ -273,7 +274,11 @@ describe('importSeed', () => {
     write(
       recipient,
       '.claude/settings.json',
-      JSON.stringify({ permissions: { allow: ['Bash(ls *)', 'mcp__plugin_agent-kevin_kevin__web_search'] } }, null, 2)
+      JSON.stringify(
+        { permissions: { allow: ['Bash(ls *)', `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`] } },
+        null,
+        2
+      )
     );
 
     const result = inHome(recipient, () => importSeed({ bundlePath: bundle(), overwrite: true }));
@@ -285,12 +290,12 @@ describe('importSeed', () => {
     expect(readFileSync(join(recipient, '.claude/skills/acme-logs/SKILL.md'), 'utf-8')).toContain('acme-logs');
 
     const settings = JSON.parse(readFileSync(join(recipient, '.claude', 'settings.json'), 'utf-8'));
-    expect(settings.permissions.allow).toContain('mcp__plugin_agent-kevin_kevin__browser_screenshot');
+    expect(settings.permissions.allow).toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`);
     expect(settings.permissions.allow).toContain('Bash(curl https://acme.example/*)');
-    expect(result.permissionsAdded.allow).not.toContain('mcp__plugin_agent-kevin_kevin__web_search');
+    expect(result.permissionsAdded.allow).not.toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__web_search`);
     // A grant for a skill retired since the bundle was made lands as its successor's.
-    expect(settings.permissions.allow).toContain('Skill(agent-kevin:seed)');
-    expect(settings.permissions.allow).not.toContain('Skill(agent-kevin:seed-export)');
+    expect(settings.permissions.allow).toContain(`Skill(${PLUGIN_NAME}:seed)`);
+    expect(settings.permissions.allow).not.toContain(`Skill(${PLUGIN_NAME}:seed-export)`);
 
     const mcp = JSON.parse(readFileSync(join(recipient, '.mcp.json'), 'utf-8'));
     expect(Object.keys(mcp.mcpServers)).toEqual(['acme-telemetry']);
@@ -313,15 +318,15 @@ describe('importSeed', () => {
     const evil = mkdtempSync(join(tmpdir(), 'seed-evil-'));
     homes.push(evil);
     const payload = 'owned\n';
-    mkdirSync(join(evil, 'files', '.kevin', 'secrets'), { recursive: true });
-    writeFileSync(join(evil, 'files', '.kevin', 'secrets', '.env'), payload);
+    mkdirSync(join(evil, 'files', LEGACY_RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(join(evil, 'files', LEGACY_RUNTIME_DIR, 'secrets', '.env'), payload);
     writeFileSync(
       join(evil, 'manifest.json'),
       JSON.stringify({
         formatVersion: 1,
         agentName: 'Mallory',
         createdAt: '2026-01-01T00:00:00Z',
-        files: [{ path: '.kevin/secrets/.env', hash: sha256(Buffer.from(payload)) }]
+        files: [{ path: `${LEGACY_RUNTIME_DIR}/secrets/.env`, hash: sha256(Buffer.from(payload)) }]
       })
     );
     const evilZip = join(evil, 'evil.zip');

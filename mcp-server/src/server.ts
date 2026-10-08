@@ -9,7 +9,7 @@
  * plugins must not touch disk.
  */
 import '@/bootstrap';
-import { FILES, FOLDERS, PLUGIN_NAME, isInitialized } from '@/config';
+import { AGENT_SLUG, FILES, FOLDERS, isInitialized, PLUGIN_NAME } from '@/config';
 import { log } from '@/shared/log';
 import { RUNTIME_DIR } from '@/shared/naming';
 import { existsSync } from 'node:fs';
@@ -26,7 +26,7 @@ const TOOLS: ToolDef[] = (
   await Promise.all(TOOL_MODULES.map(async (name): Promise<{ tools: ToolDef[] }> => import(`./tools/${name}`)))
 ).flatMap((mod) => mod.tools);
 
-const server = new McpServer({ name: 'kevin', version: '0.1.0' });
+const server = new McpServer({ name: AGENT_SLUG, version: '0.1.0' });
 
 /**
  * Tools that run without an agent home, mirroring the CLI's exemptions.
@@ -92,4 +92,4 @@ for (const tool of TOOLS) {
 }
 
 await server.connect(new StdioServerTransport());
-log.info(`kevin MCP server started — tools=${TOOLS.length}`);
+log.info(`${AGENT_SLUG} MCP server started — tools=${TOOLS.length}`);

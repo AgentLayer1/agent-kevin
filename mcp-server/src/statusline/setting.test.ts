@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { commandBinPath, statusLineDrift, statusLineSetting } from './setting';
+import { AGENT_SLUG, PLUGIN_NAME } from '@/config';
 
 const dirs: string[] = [];
 /** A home's `.claude` folder holding each named settings file. */
@@ -17,27 +18,34 @@ afterAll(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 });
 
-const BIN = resolve('/opt/kevin/bin/kevin');
+const BIN = resolve(`/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}`);
 
 describe('statusLineSetting', () => {
   test('runs the given script with bun, double-quoted, forward slashes only', () => {
-    expect(statusLineSetting(BIN)).toEqual({ type: 'command', command: 'bun "/opt/kevin/bin/kevin" statusline' });
-    expect(statusLineSetting('C:\\Users\\ada\\kevin\\bin\\kevin').command).toBe(
-      'bun "C:/Users/ada/kevin/bin/kevin" statusline'
+    expect(statusLineSetting(BIN)).toEqual({
+      type: 'command',
+      command: `bun "/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}" statusline`
+    });
+    expect(statusLineSetting(`C:\\Users\\ada\\${AGENT_SLUG}\\bin\\${AGENT_SLUG}`).command).toBe(
+      `bun "C:/Users/ada/${AGENT_SLUG}/bin/${AGENT_SLUG}" statusline`
     );
   });
 
   test('refuses a path a shell would expand inside the quotes', () => {
-    expect(() => statusLineSetting('/opt/$HOME/bin/kevin')).toThrow('may not contain');
+    expect(() => statusLineSetting(`/opt/$HOME/bin/${AGENT_SLUG}`)).toThrow('may not contain');
   });
 });
 
 describe('commandBinPath', () => {
   test('reads our own command back, quoted or not, and ignores anything else', () => {
-    expect(commandBinPath('bun "/opt/kevin/bin/kevin" statusline', 'kevin')).toBe('/opt/kevin/bin/kevin');
-    expect(commandBinPath('bun /opt/kevin/bin/kevin statusline --subagent', 'kevin')).toBe('/opt/kevin/bin/kevin');
-    expect(commandBinPath('bun "/opt/scout/bin/scout" statusline', 'kevin')).toBeUndefined();
-    expect(commandBinPath('~/.claude/statusline.sh', 'kevin')).toBeUndefined();
+    expect(commandBinPath(`bun "/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}" statusline`, `${AGENT_SLUG}`)).toBe(
+      `/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}`
+    );
+    expect(commandBinPath(`bun /opt/${AGENT_SLUG}/bin/${AGENT_SLUG} statusline --subagent`, `${AGENT_SLUG}`)).toBe(
+      `/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}`
+    );
+    expect(commandBinPath('bun "/opt/scout/bin/scout" statusline', `${AGENT_SLUG}`)).toBeUndefined();
+    expect(commandBinPath('~/.claude/statusline.sh', `${AGENT_SLUG}`)).toBeUndefined();
   });
 });
 
@@ -53,16 +61,18 @@ describe('statusLineDrift', () => {
   });
 
   test('names both paths when the command pins another checkout', () => {
-    const stale = settingsFile(JSON.stringify({ statusLine: statusLineSetting('/cache/agent-kevin/0.4.4/bin/kevin') }));
+    const stale = settingsFile(
+      JSON.stringify({ statusLine: statusLineSetting(`/cache/${PLUGIN_NAME}/0.4.4/bin/${AGENT_SLUG}`) })
+    );
     const drift = statusLineDrift(stale, BIN);
-    expect(drift).toContain('/cache/agent-kevin/0.4.4/bin/kevin');
-    expect(drift).toContain('/opt/kevin/bin/kevin');
-    expect(drift).toContain('/agent-kevin:upgrade');
+    expect(drift).toContain(`/cache/${PLUGIN_NAME}/0.4.4/bin/${AGENT_SLUG}`);
+    expect(drift).toContain(`/opt/${AGENT_SLUG}/bin/${AGENT_SLUG}`);
+    expect(drift).toContain(`/${PLUGIN_NAME}:upgrade`);
     expect(drift).toContain('.claude/settings.json');
   });
 
   test('reads the local file first, as Claude Code does', () => {
-    const stale = JSON.stringify({ statusLine: statusLineSetting('/cache/agent-kevin/0.4.4/bin/kevin') });
+    const stale = JSON.stringify({ statusLine: statusLineSetting(`/cache/${PLUGIN_NAME}/0.4.4/bin/${AGENT_SLUG}`) });
     const current = JSON.stringify({ statusLine: statusLineSetting(BIN) });
     expect(statusLineDrift(claudeDir({ 'settings.local.json': current, 'settings.json': stale }), BIN)).toBeUndefined();
     expect(statusLineDrift(claudeDir({ 'settings.local.json': stale, 'settings.json': current }), BIN)).toContain(

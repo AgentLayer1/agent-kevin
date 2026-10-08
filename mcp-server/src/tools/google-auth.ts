@@ -9,7 +9,7 @@
  *   2. Download the JSON, save as `<HOME>/<data-dir>/secrets/google/google-oauth-client.json`
  *   3. Run mcp__plugin_agent-kevin_kevin__google_auth — opens browser for consent, mints + persists tokens
  */
-import { FOLDERS } from '@/config';
+import { AGENT_SLUG, FOLDERS, PLUGIN_NAME } from '@/config';
 import { log } from '@/shared/log';
 import { writeJsonAtomic } from '@/shared/utils';
 import { google, type Auth } from 'googleapis';
@@ -60,7 +60,7 @@ function writeTokens(tokens: object): void {
 export function authorizedClient(): Auth.OAuth2Client {
   const tokensPath = tokensFile();
   if (!existsSync(tokensPath)) {
-    throw new Error(`Tokens not minted. Call mcp__plugin_agent-kevin_kevin__google_auth first.`);
+    throw new Error(`Tokens not minted. Call mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__google_auth first.`);
   }
   const { client_id, client_secret } = readClient();
   const tokens = JSON.parse(readFileSync(tokensPath, 'utf-8'));

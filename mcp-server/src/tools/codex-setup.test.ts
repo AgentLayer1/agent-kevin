@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { AGENT_SLUG } from '@/config';
 
 /** Its own throwaway home, pinned before the tool resolves paths, so nothing lands in a real checkout. */
 const HOME = mkdtempSync(resolve(tmpdir(), 'codex-setup-tool-'));
@@ -31,7 +32,7 @@ describe('codex_setup tool', () => {
     expect(result.ok).toBe(true);
     expect(result.report?.entries).toBe(4);
     expect(result.report?.hooks.path).toBe(resolve(HOME, '.codex', 'hooks.json'));
-    expect(existsSync(resolve(HOME, '.codex', 'rules', 'kevin.rules'))).toBe(true);
+    expect(existsSync(resolve(HOME, '.codex', 'rules', `${AGENT_SLUG}.rules`))).toBe(true);
     expect(readFileSync(resolve(HOME, '.codex', 'config.toml'), 'utf-8')).toContain(`AGENT_HOME = "${HOME}"`);
   });
 });

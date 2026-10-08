@@ -6,6 +6,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pluginName } from '../shared/naming';
 
 export interface GitignoreChange {
   created: boolean;
@@ -47,7 +48,7 @@ export const reconcileGitignore = (current: string, template: string) => {
 
   const body = lines.join(eol);
   const separated = body === '' ? '' : `${body.endsWith(eol) ? body : body + eol}${eol}`;
-  const text = added.length === 0 ? body : `${separated}# agent-kevin${eol}${added.join(eol)}${eol}`;
+  const text = added.length === 0 ? body : `${separated}# ${pluginName()}${eol}${added.join(eol)}${eol}`;
   return { text, rewritten, added };
 };
 

@@ -13,6 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import { pluginName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -92,7 +93,7 @@ const note = (): string => {
   const lines = [
     `# Auto-mode block for ${home}`,
     '',
-    `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC by the agent-kevin plugin. The plugin never`,
+    `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC by the ${pluginName()} plugin. The plugin never`,
     `edits \`${settingsPath}\`; every change below is yours to paste.`,
     ''
   ];

@@ -7,6 +7,7 @@
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { pluginName } from '../shared/naming';
 
 export interface StatusLineSetting {
   type: 'command';
@@ -66,5 +67,5 @@ export const statusLineDrift = (claudeDir: string, binPath: string): string | un
   if (!source || typeof source.command !== 'string') return undefined;
   const pinned = commandBinPath(source.command, basename(binPath));
   if (pinned === undefined || canonical(pinned) === canonical(binPath)) return undefined;
-  return `\`.claude/${source.name}\` runs the status line from \`${pinned}\`, not this plugin (\`${resolve(binPath)}\`), so the footer stays blank — run \`/agent-kevin:upgrade\` to re-point it`;
+  return `\`.claude/${source.name}\` runs the status line from \`${pinned}\`, not this plugin (\`${resolve(binPath)}\`), so the footer stays blank — run \`/${pluginName()}:upgrade\` to re-point it`;
 };

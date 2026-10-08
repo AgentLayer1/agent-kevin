@@ -69,6 +69,10 @@ export const MARKDOWN_URL = env('MARKDOWN_URL') || 'obsidian://open?path={path}&
  * harness-agnostic capture core stays one substitution away from a fork. */
 export const PLUGIN_NAME = 'agent-kevin';
 
+/** `kevin` for `agent-kevin`: the CLI's file name under `bin/`, the MCP server's key in the
+ *  manifest, and the agent's handle in task frontmatter and threads. */
+export const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
+
 /** Plugin version from `.claude-plugin/plugin.json`, read once at module load.
  *  Falls back to `0.0.0` if the manifest is missing or unparseable. */
 export const PLUGIN_VERSION = ((): string => {

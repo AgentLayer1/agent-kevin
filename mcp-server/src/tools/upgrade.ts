@@ -12,7 +12,7 @@
  * resolves the script by name, spawns it with bun, and returns its JSON report.
  * New migrations are a new script file + one CHANGELOG line — no change here.
  */
-import { FOLDERS } from '@/config';
+import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { agentEnvPrefix } from '@/shared/naming';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { spawnSync } from 'node:child_process';
@@ -63,8 +63,7 @@ function parseReport(stdout: string): unknown {
 export const tools: ToolDef[] = [
   defineTool({
     name: 'run_upgrade',
-    description:
-      "Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /agent-kevin:upgrade for each `script:` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error.",
+    description: `Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /${PLUGIN_NAME}:upgrade for each \`script:\` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error.`,
     inputSchema: {
       version: z
         .string()

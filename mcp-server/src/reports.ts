@@ -14,7 +14,7 @@
  * A per-process promise queue serialises concurrent calls so two skills writing
  * at the same time can't clobber the index.
  */
-import { FILES, FOLDERS } from '@/config';
+import { FILES, FOLDERS, PLUGIN_NAME } from '@/config';
 import { nowISO, nowTimeCompact, todayDate } from '@/shared/date';
 import { writeFileAtomic } from '@/shared/utils';
 import { existsSync } from 'node:fs';
@@ -62,7 +62,7 @@ const STATUS_ICON: Record<ReportStatus, string> = {
 
 const INDEX_PREAMBLE = `# Reports
 
-> Auto-maintained by the agent-kevin \`writeReport\` helper. Newest first within each day.
+> Auto-maintained by the ${PLUGIN_NAME} \`writeReport\` helper. Newest first within each day.
 `;
 
 let queue: Promise<unknown> = Promise.resolve();

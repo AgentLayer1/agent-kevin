@@ -12,6 +12,7 @@
  * a few KB.
  */
 import {
+  AGENT_SLUG,
   CONTEXT,
   extraGitRepos,
   FILES,
@@ -442,10 +443,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
   // A due upgrade re-points the footer itself, and the banner's upgrade line already says to run it.
   const statusLine =
     getUpgradeStatus().state === 'current'
-      ? statusLineDrift(
-          resolve(FOLDERS.HOME, '.claude'),
-          resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, ''))
-        )
+      ? statusLineDrift(resolve(FOLDERS.HOME, '.claude'), resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG))
       : undefined;
   if (statusLine) {
     entries.push({ label: 'status line', status: 'unavailable', bytes: 0, note: 'needs upgrade' });

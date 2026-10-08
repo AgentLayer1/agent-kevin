@@ -8,13 +8,15 @@
  *    test file could point a suite at the operator's real brain and have it write session
  *    captures there.
  * 2. `process.env` is read in one place. See the second describe block.
+ * 3. The agent's names derive from one constant, so they must match what ships under them.
  *
  * `AGENT_HOME` mutations here stay synchronous (no awaits) so they can't interleave with the
  * other suites that share `process.env` — same discipline as `shared/env.test.ts`.
  */
 import { describe, expect, test } from 'bun:test';
-import { FILES, FOLDERS } from '@/config';
-import { readdirSync, readFileSync } from 'node:fs';
+import { AGENT_SLUG, FILES, FOLDERS, PLUGIN_NAME } from '@/config';
+import { pluginName } from '@/shared/naming';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const PROBE = '/tmp/kevin-config-probe';
@@ -89,5 +91,27 @@ describe('process.env is consolidated into shared/env.ts', () => {
       offenders,
       `Read env via @/shared/env (env()/dbConnections()) instead of process.env in: ${offenders.join(', ')}`
     ).toEqual([]);
+  });
+});
+
+describe("the agent's names", () => {
+  const manifest = JSON.parse(readFileSync(resolve(FOLDERS.ROOT, '.claude-plugin', 'plugin.json'), 'utf-8')) as {
+    mcpServers: Record<string, unknown>;
+  };
+
+  test('the plugin name is the manifest name', () => {
+    expect(PLUGIN_NAME).toBe(pluginName());
+  });
+
+  test('the slug names the CLI and the MCP server the manifest registers', () => {
+    expect(existsSync(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG))).toBe(true);
+    expect(Object.keys(manifest.mcpServers)).toEqual([AGENT_SLUG]);
+  });
+
+  test("the mods' state contract is keyed by the plugin name", () => {
+    const contract = readFileSync(resolve(FOLDERS.ROOT, 'mods', 'types', 'index.d.ts'), 'utf-8');
+    const testHarness = readFileSync(resolve(FOLDERS.ROOT, 'mods', '.claude-plugin', 'plugin.json'), 'utf-8');
+    expect(contract).toContain(`'${PLUGIN_NAME}': {`);
+    expect((JSON.parse(testHarness) as { name: string }).name).toBe(PLUGIN_NAME);
   });
 });

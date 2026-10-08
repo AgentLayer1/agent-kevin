@@ -1,4 +1,4 @@
-import { FOLDERS, TIMEZONE } from '@/config';
+import { AGENT_SLUG, FOLDERS, TIMEZONE } from '@/config';
 import { createLogger } from '@/shared/log';
 import {
   PostWriteDriftError,
@@ -122,7 +122,7 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
   const filePath = join(FOLDERS.PROJECTS, opts.project, 'tasks', fileName);
 
   const fm: TaskFrontmatter = {
-    ...defaultFrontmatter(opts.project, opts.title, opts.assignee ?? ['kevin']),
+    ...defaultFrontmatter(opts.project, opts.title, opts.assignee ?? [AGENT_SLUG]),
     id,
     ...(opts.priority && { priority: opts.priority }),
     ...(opts.type && { type: opts.type }),
@@ -282,7 +282,7 @@ const applyBucket = (rule: ApplyRule): string[] => {
       } else {
         updateTask(task.frontmatter.id, rule.update(task));
       }
-      appendThread(task.frontmatter.id, 'kevin', rule.message(task), 'warning');
+      appendThread(task.frontmatter.id, AGENT_SLUG, rule.message(task), 'warning');
       ids.push(task.frontmatter.id);
     } catch (err) {
       log.error(`Failed to apply ${rule.stage} to ${task.frontmatter.id}`, err);

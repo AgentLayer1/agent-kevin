@@ -13,6 +13,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 300;
@@ -58,7 +59,12 @@ const parseArgs = (argv: readonly string[]): { flags: Map<string, string>; terms
   while (index < argv.length) {
     const token = argv[index];
     if (!token.startsWith('--')) {
-      terms.push(...token.split(',').map((part) => part.trim()).filter(Boolean));
+      terms.push(
+        ...token
+          .split(',')
+          .map((part) => part.trim())
+          .filter(Boolean)
+      );
       index += 1;
       continue;
     }
@@ -136,7 +142,9 @@ const parseRecords = (raw: string): SessionRecord[] =>
 const buildMatch = (path: string, raw: string, hits: Record<string, number>, loweredTerms: string[]): MatchInfo => {
   const records = parseRecords(raw);
 
-  const customTitle = records.filter((record) => record.type === 'custom-title' && record.customTitle).at(-1)?.customTitle;
+  const customTitle = records
+    .filter((record) => record.type === 'custom-title' && record.customTitle)
+    .at(-1)?.customTitle;
   const aiTitle = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle;
 
   const body = records.filter(
@@ -152,19 +160,18 @@ const buildMatch = (path: string, raw: string, hits: Record<string, number>, low
   // text but are still resumable — and often exactly what a search is after.
   const slashCommands = [
     ...new Set(
-      userRecords
-        .flatMap((record) => {
-          const content = record.message?.content;
-          const texts =
-            typeof content === 'string'
-              ? [content]
-              : Array.isArray(content)
-                ? content.map(blockText).filter((text): text is string => text !== null)
-                : [];
-          return texts
-            .map((text) => /<command-name>([^<]+)<\/command-name>/.exec(text)?.[1])
-            .filter((name): name is string => Boolean(name));
-        })
+      userRecords.flatMap((record) => {
+        const content = record.message?.content;
+        const texts =
+          typeof content === 'string'
+            ? [content]
+            : Array.isArray(content)
+              ? content.map(blockText).filter((text): text is string => text !== null)
+              : [];
+        return texts
+          .map((text) => /<command-name>([^<]+)<\/command-name>/.exec(text)?.[1])
+          .filter((name): name is string => Boolean(name));
+      })
     )
   ];
 
@@ -175,7 +182,9 @@ const buildMatch = (path: string, raw: string, hits: Record<string, number>, low
     started: timestamps[0] ?? null,
     last_timestamp: timestamps.at(-1) ?? null,
     cwds: [...new Set(body.map((record) => record.cwd).filter((cwd): cwd is string => Boolean(cwd)))],
-    git_branches: [...new Set(body.map((record) => record.gitBranch).filter((branch): branch is string => Boolean(branch)))],
+    git_branches: [
+      ...new Set(body.map((record) => record.gitBranch).filter((branch): branch is string => Boolean(branch)))
+    ],
     first_user_msg: userMessages.length > 0 ? clip(userMessages[0], USER_SNIPPET) : null,
     slash_commands: slashCommands,
     user_turns: userMessages.length,
@@ -205,8 +214,8 @@ const loweredTerms = [...new Set(terms.map((term) => term.toLowerCase()))];
 
 // Default roots mirror list_sessions.ts: cwd, the agent HOME, and the code tree, built
 // in-process because a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows.
-const agentHome = process.env.KEVIN_HOME?.trim() || process.env.AGENT_HOME?.trim();
-const codePath = process.env.KEVIN_CODE_PATH?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const agentHome = process.env[agentKeyName('HOME')]?.trim() || process.env.AGENT_HOME?.trim();
+const codePath = process.env[agentKeyName('CODE_PATH')]?.trim() || process.env.AGENT_CODE_PATH?.trim();
 const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
   .filter((path): path is string => Boolean(path))
   .join(',');
@@ -226,12 +235,15 @@ const scopes =
 const encodedScopes = scopes === null ? null : scopes.map(encodeCwd);
 
 const hoursFlag = flags.get('hours');
-const hours = hoursFlag !== undefined && !Number.isNaN(Number.parseFloat(hoursFlag)) ? Number.parseFloat(hoursFlag) : null;
+const hours =
+  hoursFlag !== undefined && !Number.isNaN(Number.parseFloat(hoursFlag)) ? Number.parseFloat(hoursFlag) : null;
 const cutoffMs = hours === null ? null : Date.now() - hours * 3600 * 1000;
 
 const matches = listTranscripts(PROJECTS_DIR)
   .filter((path) => !basename(path).startsWith('agent-')) // subagent sidechains aren't resumable
-  .filter((path) => encodedScopes === null || encodedScopes.some((encoded) => inScope(basename(dirname(path)), encoded)))
+  .filter(
+    (path) => encodedScopes === null || encodedScopes.some((encoded) => inScope(basename(dirname(path)), encoded))
+  )
   // mtime is never earlier than the last record, so it's a safe superset gate for --hours.
   .filter((path) => cutoffMs === null || statSync(path).mtimeMs >= cutoffMs)
   .flatMap((path) => {
@@ -245,8 +257,7 @@ const matches = listTranscripts(PROJECTS_DIR)
   .filter((match) => match.user_turns > 0 || match.slash_commands.length > 0) // hook-only / empty shells
   .sort(
     (first, second) =>
-      second.total_hits - first.total_hits ||
-      (second.last_timestamp ?? '').localeCompare(first.last_timestamp ?? '')
+      second.total_hits - first.total_hits || (second.last_timestamp ?? '').localeCompare(first.last_timestamp ?? '')
   );
 
 process.stdout.write(

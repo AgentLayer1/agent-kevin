@@ -16,7 +16,8 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { followMove, type HistoryEnv, historyStatus, restorePointer, setupHistory } from '@/home/history';
-import { RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
+import { PLUGIN_NAME } from '@/config';
 
 let root: string;
 let userHome: string;
@@ -79,7 +80,7 @@ describe('setupHistory', () => {
 
   test('a synced home keeps its history in the local state folder, recorded with both grants', () => {
     const home = makeHome(syncedRoot);
-    const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
+    const gitDir = join(userHome, '.local', 'state', `${PLUGIN_NAME}`, 'Documents-Ada.git');
     expect(historyStatus(home, historyEnv).historyFolder).toBe(gitDir);
     const result = setupHistory(home, {}, historyEnv);
     expect(result.outcome).toBe('turned-on');
@@ -108,9 +109,9 @@ describe('setupHistory', () => {
 
   test('steps around a file where the history folder would go, and refuses a synced one', () => {
     const home = makeHome(syncedRoot);
-    write(join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git'), 'not a folder');
+    write(join(userHome, '.local', 'state', `${PLUGIN_NAME}`, 'Documents-Ada.git'), 'not a folder');
     expect(historyStatus(home, historyEnv).historyFolder).toBe(
-      join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada-2.git')
+      join(userHome, '.local', 'state', `${PLUGIN_NAME}`, 'Documents-Ada-2.git')
     );
     const everywhereSynced = { ...historyEnv, syncedBy: () => 'iCloud Drive' };
     expect(setupHistory(home, {}, everywhereSynced).outcome).toBe('refused');
@@ -133,15 +134,15 @@ describe('setupHistory', () => {
       JSON.stringify({
         env: { AGENT_CODE_PATH: '/code/acme' },
         permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code'] },
-        sandbox: { filesystem: { allowWrite: ['/code'], denyRead: ['.kevin/secrets'] } }
+        sandbox: { filesystem: { allowWrite: ['/code'], denyRead: [`${LEGACY_RUNTIME_DIR}/secrets`] } }
       })
     );
     setupHistory(home, {}, historyEnv);
-    const gitDir = join(userHome, '.local', 'state', 'agent-kevin', 'Documents-Ada.git');
+    const gitDir = join(userHome, '.local', 'state', `${PLUGIN_NAME}`, 'Documents-Ada.git');
     expect(settingsOf(home)).toEqual({
       env: { AGENT_CODE_PATH: '/code/acme', AGENT_HOME_GIT_DIR: gitDir },
       permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code', gitDir] },
-      sandbox: { filesystem: { allowWrite: ['/code', gitDir], denyRead: ['.kevin/secrets'] } }
+      sandbox: { filesystem: { allowWrite: ['/code', gitDir], denyRead: [`${LEGACY_RUNTIME_DIR}/secrets`] } }
     });
   });
 
@@ -458,7 +459,7 @@ describe('link repair and platform', () => {
       expect(historyStatus(home, oneDrive)).toMatchObject({
         state: 'off',
         homeSyncedBy: 'OneDrive',
-        historyFolder: join(userHome, 'AppData', 'Local', 'agent-kevin', 'Documents-Ada.git')
+        historyFolder: join(userHome, 'AppData', 'Local', `${PLUGIN_NAME}`, 'Documents-Ada.git')
       });
     } finally {
       if (platform) {

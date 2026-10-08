@@ -11,6 +11,7 @@
  * through repoRelative()/tildify so absolute machine paths never leak.
  */
 import {
+  AGENT_SLUG,
   FILES,
   FOLDERS,
   HOME_TIMEZONE,
@@ -478,8 +479,10 @@ export interface StatusSnapshot {
 }
 
 const MARKDOWN_RE = /\.md$/;
-const SECRET_KEY_RE =
-  /(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|KEVIN_DB|AGENT_DB)/i;
+const SECRET_KEY_RE = new RegExp(
+  `(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|${agentKeyName('DB')}|AGENT_DB)`,
+  'i'
+);
 /** A connection string with embedded credentials — `scheme://user:pass@host`.
  *  Caught by value so DB URLs are masked regardless of their env-var name. */
 const CRED_URL_RE = /:\/\/[^\s:@/]+:[^\s@/]+@/;
@@ -611,10 +614,10 @@ interface HookConfig {
   hooks?: Array<{ command?: string }>;
 }
 
-/** Reduce a hook command to a readable `kevin <verb>` summary. */
+/** Reduce a hook command to a readable `<agent> <verb>` summary. */
 const summarizeHookCommand = (command: string): string => {
-  const match = command.match(/bin\/kevin"?\s+([a-z-]+(?:\s+--?[a-z-]+=?\S*)?)/);
-  return match ? `kevin ${match[1]}` : command.split(/\s+/).slice(0, 3).join(' ');
+  const match = command.match(new RegExp(`bin/${AGENT_SLUG}"?\\s+([a-z-]+(?:\\s+--?[a-z-]+=?\\S*)?)`));
+  return match ? `${AGENT_SLUG} ${match[1]}` : command.split(/\s+/).slice(0, 3).join(' ');
 };
 
 const collectHooks = (): StatusSnapshot['hooks'] => {
@@ -1417,7 +1420,7 @@ const collectLint = (): LintReport => {
 const collectCli = (): CliSection[] => {
   let content = '';
   try {
-    content = readFileSync(resolve(FOLDERS.ROOT, 'bin', PLUGIN_NAME.replace(/^agent-/, '')), 'utf-8');
+    content = readFileSync(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG), 'utf-8');
   } catch {
     return [];
   }
@@ -1472,7 +1475,7 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
   const upgrade = getUpgradeStatus();
   return {
     version: manifest?.version ?? '0.0.0',
-    pluginName: manifest?.name ?? 'agent-kevin',
+    pluginName: manifest?.name ?? PLUGIN_NAME,
     home: FOLDERS.HOME,
     pluginRoot: FOLDERS.ROOT,
     timezone: TIMEZONE,

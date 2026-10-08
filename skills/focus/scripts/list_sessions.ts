@@ -11,6 +11,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 400;
@@ -155,7 +156,9 @@ const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
 
   // `/rename` writes a custom-title record; Claude Code itself prefers it over the
   // first-prompt ai-title, so an operator-set name wins here too.
-  const customTitle = records.filter((record) => record.type === 'custom-title' && record.customTitle).at(-1)?.customTitle;
+  const customTitle = records
+    .filter((record) => record.type === 'custom-title' && record.customTitle)
+    .at(-1)?.customTitle;
   const aiTitle = records.filter((record) => record.type === 'ai-title' && record.aiTitle).at(-1)?.aiTitle;
   const title = customTitle ?? aiTitle ?? null;
 
@@ -219,8 +222,8 @@ const hours =
 // pre-filled --scope): cwd and env reach a native process in native form,
 // while a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows
 // and resolves against the wrong drive.
-const agentHome = process.env.KEVIN_HOME?.trim() || process.env.AGENT_HOME?.trim();
-const codePath = process.env.KEVIN_CODE_PATH?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const agentHome = process.env[agentKeyName('HOME')]?.trim() || process.env.AGENT_HOME?.trim();
+const codePath = process.env[agentKeyName('CODE_PATH')]?.trim() || process.env.AGENT_CODE_PATH?.trim();
 const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
   .filter((path): path is string => Boolean(path))
   .join(',');
@@ -244,7 +247,9 @@ const cutoff = now - hours * 3600 * 1000;
 
 const sessions = listTranscripts(PROJECTS_DIR)
   .filter((path) => !basename(path).startsWith('agent-')) // subagent sidechain transcripts
-  .filter((path) => encodedScopes === null || encodedScopes.some((encoded) => inScope(basename(dirname(path)), encoded)))
+  .filter(
+    (path) => encodedScopes === null || encodedScopes.some((encoded) => inScope(basename(dirname(path)), encoded))
+  )
   .map((path) => ({ path, mtimeMs: statSync(path).mtimeMs }))
   .filter(({ mtimeMs }) => mtimeMs >= cutoff)
   .map(({ path, mtimeMs }) => buildInfo(path, mtimeMs, now))
