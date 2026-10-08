@@ -358,6 +358,27 @@ describe('sessionStart', () => {
     expect(codex.systemMessage).not.toContain('\x1b[');
   });
 
+  test("sync: the interactive terminal leaves notices to the mod's row; other entrypoints keep them", async () => {
+    const files = syncedDaysAgo(9);
+    const banner = async (entrypoint: string) => {
+      process.env.CLAUDE_CODE_ENTRYPOINT = entrypoint;
+      try {
+        return stripAnsi(
+          (
+            await withHome(
+              (home) => markedHome(home, files),
+              () => sessionStart()
+            )
+          ).systemMessage
+        );
+      } finally {
+        delete process.env.CLAUDE_CODE_ENTRYPOINT;
+      }
+    };
+    expect(await banner('cli')).not.toContain('Sync:');
+    expect(await banner('claude-vscode')).toContain('Sync:      Brain 9 days behind');
+  });
+
   test('sync: a snooze from any surface hides the banner line for the day', async () => {
     const result = await withHome(
       (home) => markedHome(home, syncedDaysAgo(9)),

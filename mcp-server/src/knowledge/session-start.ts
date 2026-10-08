@@ -82,6 +82,12 @@ const strandedHomeResult = (): SessionStartResult => {
   };
 };
 
+/**
+ * The interactive terminal draws the notices mod's row above the prompt; every other Claude
+ * surface (VS Code, desktop, `-p`, the SDK) runs this hook without it, so the banner keeps them.
+ */
+const modDrawsNotices = (): boolean => resolveEnv('CLAUDE_CODE_ENTRYPOINT') === 'cli';
+
 // Codex renders systemMessage through ratatui, which prints ANSI escapes as raw bytes.
 const PLAIN_BANNER = [...BANNER_LINES, BANNER_TAG].join('\n');
 
@@ -151,7 +157,7 @@ export async function sessionStart(): Promise<SessionStartResult> {
       log.info('hook fired (pre-init)');
       return PRE_INIT_RESULT;
     }
-    const { context, banner, hasIssues } = await assembleContext();
+    const { context, banner, hasIssues } = await assembleContext({ withNotices: !modDrawsNotices() });
     // Mirror what the operator sees into the log file so context-assembly
     // issues (missing knowledge dir, git unavailable, oversized payload) are
     // diagnosable after the fact.

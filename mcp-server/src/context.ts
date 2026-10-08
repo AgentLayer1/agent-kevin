@@ -534,17 +534,24 @@ const manualLayoutIssues = (): string[] => {
   return issues;
 };
 
-export async function assembleContext(): Promise<AssembledContext> {
+/**
+ * `withNotices: false` leaves the notices to a surface that draws them itself.
+ */
+export async function assembleContext({
+  withNotices = true
+}: { withNotices?: boolean } = {}): Promise<AssembledContext> {
   const { entries, parts } = await gatherContext(healHistoryLink());
 
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
   }
-  const notices = await collectNotices().catch((err: unknown) => {
-    log.error('notices skipped', err);
-    return [];
-  });
+  const notices = withNotices
+    ? await collectNotices().catch((err: unknown) => {
+        log.error('notices skipped', err);
+        return [];
+      })
+    : [];
   const banner = renderBanner(entries, context.length, notices);
   const hasIssues = entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
   return { context, banner, hasIssues };
