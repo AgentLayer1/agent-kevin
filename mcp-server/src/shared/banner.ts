@@ -23,3 +23,21 @@ export const BANNER = [
   ...BANNER_LINES.map((line) => colorize(line, YELLOW_BOLD)),
   colorize(BANNER_TAG, CYAN_BOLD)
 ].join('\n');
+
+export const ANSI = {
+  bold: `${ESC}1m`,
+  dim: `${ESC}2m`,
+  red: `${ESC}31m`,
+  green: `${ESC}32m`,
+  yellow: `${ESC}33m`,
+  cyan: `${ESC}36m`
+} as const;
+
+/**
+ * One colored fragment, reset at its end so fragments compose within a line.
+ */
+export const paint = (text: string, ...codes: string[]): string =>
+  codes.length ? `${codes.join('')}${text}${RESET}` : text;
+
+// Codex's ratatui renderer prints escapes as raw bytes, and log files read better without them.
+export const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, '');

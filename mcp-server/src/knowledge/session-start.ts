@@ -27,7 +27,7 @@
 import { FILES, FOLDERS, PLUGIN_NAME, isInitialized, staticContextFiles } from '@/config';
 import { assembleContext } from '@/context';
 import { drainDeferredCaptures } from '@/knowledge/session-capture';
-import { BANNER, BANNER_LINES, BANNER_TAG } from '@/shared/banner';
+import { BANNER, BANNER_LINES, BANNER_TAG, stripAnsi } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { RUNTIME_DIR, resolveEnv } from '@/shared/naming';
 import { existsSync, readFileSync } from 'node:fs';
@@ -112,9 +112,9 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
   // only the lane, the same containment Claude's path has.
   const lane = await assembleContext()
     .then(({ context, banner, hasIssues }) => {
-      (hasIssues ? log.warn.bind(log) : log.info.bind(log))('hook fired (codex)\n' + banner);
+      (hasIssues ? log.warn.bind(log) : log.info.bind(log))('hook fired (codex)\n' + stripAnsi(banner));
       return {
-        banner,
+        banner: stripAnsi(banner),
         hasIssues,
         parts: context.trim() ? [`<!-- session context (dynamic lane) -->\n${context.trimEnd()}`] : []
       };
@@ -156,7 +156,7 @@ export async function sessionStart(): Promise<SessionStartResult> {
     // issues (missing knowledge dir, git unavailable, oversized payload) are
     // diagnosable after the fact.
     const emit = hasIssues ? log.warn.bind(log) : log.info.bind(log);
-    emit('hook fired (post-init)\n' + banner);
+    emit('hook fired (post-init)\n' + stripAnsi(banner));
     return { systemMessage: '\n' + banner, additionalContext: context, hasIssues };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

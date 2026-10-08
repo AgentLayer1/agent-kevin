@@ -6,6 +6,8 @@ import { resolve } from 'node:path';
 import { FILES, FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
 import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
+import { recordOutcome } from '@/notices/ledger';
+import { ANSI, stripAnsi } from '@/shared/banner';
 import { stampSync } from '@/shared/cadence';
 import { nowISO } from '@/shared/date';
 import { statusLineSetting } from '@/statusline/setting';
@@ -229,7 +231,10 @@ describe('sessionStart', () => {
     const result = await withHome(
       (home) => {
         mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
-        writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
+        writeFileSync(
+          resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]),
+          `${JSON.stringify({ plugin: pluginName() })}\n`
+        );
       },
       () => sessionStart()
     );
@@ -252,7 +257,18 @@ describe('sessionStart', () => {
           writeFileSync(resolve(home, 'knowledge', 'index.md'), '# Index\n');
           git(home, 'init', '-q', '-b', 'main', '--separate-git-dir', gitDir);
           git(home, 'config', 'agent.home', realpathSync(home));
-          git(home, '-c', 'user.name=Ada', '-c', 'user.email=ada@localhost', 'commit', '-q', '--allow-empty', '-m', 'one');
+          git(
+            home,
+            '-c',
+            'user.name=Ada',
+            '-c',
+            'user.email=ada@localhost',
+            'commit',
+            '-q',
+            '--allow-empty',
+            '-m',
+            'one'
+          );
           rmSync(resolve(home, '.git'));
         },
         async () => ({ start: await sessionStart(), pointer: readFileSync(resolve(FOLDERS.HOME, '.git'), 'utf-8') })
@@ -316,15 +332,41 @@ describe('sessionStart', () => {
   });
 
   test.each([
-    ['a stale sync', syncedDaysAgo(4), '(last 4 days ago)'],
-    ['no sync on record', {}, '(none on record)']
-  ])('sync: %s nudges a sync in the banner', async (_label, files, since) => {
+    ['a stale sync', syncedDaysAgo(4), 'Brain 4 days behind'],
+    ['no sync on record', {}, 'Brain never synced']
+  ])('sync: %s nudges a sync in the banner', async (_label, files, title) => {
     const result = await withHome(
       (home) => markedHome(home, files),
       () => sessionStart()
     );
-    expect(result.systemMessage).toContain(`🔄 Sync:      run /agent-kevin:sync ${since}`);
+    expect(stripAnsi(result.systemMessage)).toContain(`⟳  Sync:      ${title} · run /agent-kevin:sync`);
     expect(result.additionalContext).not.toContain('Sync:');
+  });
+
+  test('sync: the icon is colored by level in Claude and plain in Codex', async () => {
+    const files = syncedDaysAgo(9);
+    const claude = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStart()
+    );
+    const codex = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStartCodex()
+    );
+    expect(claude.systemMessage).toContain(`${ANSI.bold}${ANSI.red}⟳`);
+    expect(codex.systemMessage).toContain('⟳  Sync:      Brain 9 days behind');
+    expect(codex.systemMessage).not.toContain('\x1b[');
+  });
+
+  test('sync: a snooze from any surface hides the banner line for the day', async () => {
+    const result = await withHome(
+      (home) => markedHome(home, syncedDaysAgo(9)),
+      async () => {
+        recordOutcome('sync', 'snoozed');
+        return sessionStart();
+      }
+    );
+    expect(result.systemMessage).not.toContain('Sync:');
   });
 
   test("sync: a stamp clears the nudge and keeps the goals skill's watermarks", async () => {

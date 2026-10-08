@@ -24,9 +24,11 @@ import {
 } from '@/config';
 import { followMove, historyStatus, restorePointer } from '@/home/history';
 import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
+import type { Notice, NoticeFact, NoticeLevel } from '@/notices/notices';
+import { collectNotices } from '@/notices/notices';
 import { agentDisplayName } from '@/shared/agent-name';
+import { ANSI, paint } from '@/shared/banner';
 import { readCadence } from '@/shared/cadence';
-import { daysBetween, todayDate } from '@/shared/date';
 import { log as baseLog } from '@/shared/log';
 import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
@@ -217,13 +219,22 @@ const STATUS_ICON: Record<ManifestEntry['status'], string> = {
  */
 const welcomePending = (): boolean => readCadence().welcome === 'pending';
 
-/**
- * Calendar days since `stamp` in the operator's timezone, or `null` without a valid stamp.
- */
-const daysSince = (stamp: string | undefined): number | null => {
-  const at = Date.parse(stamp ?? '');
-  return Number.isNaN(at) ? null : daysBetween(todayDate(new Date(at)), todayDate());
+const LEVEL_COLOR: Record<NoticeLevel, string> = { hint: ANSI.cyan, nudge: ANSI.yellow, alert: ANSI.red };
+const TONE_COLOR: Record<NonNullable<NoticeFact['tone']>, string> = {
+  accent: ANSI.cyan,
+  good: ANSI.green,
+  warn: ANSI.yellow
 };
+
+/**
+ * A text glyph rather than an emoji, so the level can color it; two spaces keep it in the emoji column.
+ */
+const noticeLine = (notice: Notice): string =>
+  [
+    `  ${paint(notice.icon, ANSI.bold, LEVEL_COLOR[notice.level])}  ${`${notice.label}:`.padEnd(11)}${paint(notice.title, ANSI.bold)}`,
+    ...notice.facts.map((fact) => paint(fact.text, ...(fact.tone ? [TONE_COLOR[fact.tone]] : []))),
+    paint(`run /${notice.command}`, ANSI.dim)
+  ].join(' · ');
 
 const welcomePart = (): string =>
   [
@@ -233,7 +244,7 @@ const welcomePart = (): string =>
     'If that first message is a concrete task, do the task, then run the welcome at the end of the same turn.'
   ].join('\n');
 
-function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
+function renderBanner(entries: ManifestEntry[], contextBytes: number, notices: readonly Notice[]): string {
   const labelWidth = Math.max(...entries.map((e) => e.label.length), 12);
   const sizeWidth = Math.max(...entries.map((e) => formatKB(e.bytes).length));
   const lines = entries.map((e) => {
@@ -248,21 +259,8 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number): string {
     `  📁 Projects:  ${FOLDERS.PROJECTS}`,
     `  📚 Context  · ${formatKB(contextBytes)}`
   ];
-  const cadence = readCadence();
-  const welcome = cadence.welcome === 'pending';
-  const syncAge = daysSince(cadence.sync);
-  if (!welcome && (syncAge === null || syncAge >= CONTEXT.SYNC_STALE_DAYS)) {
-    const since = syncAge === null ? 'none on record' : `last ${countOf(syncAge, 'day')} ago`;
-    head.splice(1, 0, `  🔄 Sync:      run /${PLUGIN_NAME}:sync (${since})`);
-  }
-  const upgrade = getUpgradeStatus();
-  if (upgrade.state === 'pending') {
-    const n = upgrade.releasesBehind;
-    head.splice(1, 0, `  ⬆️ Upgrade:   run /agent-kevin:upgrade (${n} release${n === 1 ? '' : 's'} behind)`);
-  } else if (upgrade.state === 'onboard') {
-    head.splice(1, 0, '  ⬆️ Upgrade:   run /agent-kevin:upgrade to enable update tracking');
-  }
-  if (welcome) {
+  head.splice(1, 0, ...notices.map(noticeLine));
+  if (welcomePending()) {
     head.splice(1, 0, "  👋 Welcome:   first session, say hi and I'll suggest where to start");
   }
   return [...head, ...lines].join('\n');
@@ -543,7 +541,11 @@ export async function assembleContext(): Promise<AssembledContext> {
   if (context.length > CONTEXT.MAX_CHARS) {
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
   }
-  const banner = renderBanner(entries, context.length);
+  const notices = await collectNotices().catch((err: unknown) => {
+    log.error('notices skipped', err);
+    return [];
+  });
+  const banner = renderBanner(entries, context.length, notices);
   const hasIssues = entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
   return { context, banner, hasIssues };
 }

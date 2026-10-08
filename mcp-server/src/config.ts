@@ -201,6 +201,10 @@ export const FILES = {
   get CADENCE() {
     return resolve(dataRoot(), 'cadence.json');
   },
+  /** What the operator did with each notice: act and snooze counts, snoozes (notices/ledger.ts). */
+  get NOTICES() {
+    return resolve(dataRoot(), 'notices.json');
+  },
   get REPORTS_INDEX() {
     return resolve(FOLDERS.REPORTS, 'index.md');
   },
@@ -304,9 +308,7 @@ export const CONTEXT = {
   /** Today's section of `reports/index.md`, injected so the agent sees what was already produced today. */
   REPORTS_BYTES: 1_000,
   /** Commits to surface in the recent-git-activity slice. */
-  MAX_GIT_LOG_COMMITS: 15,
-  /** Days since the last sync before the banner nudges for one. */
-  SYNC_STALE_DAYS: 3
+  MAX_GIT_LOG_COMMITS: 15
 } as const;
 
 /**

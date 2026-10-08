@@ -21,6 +21,9 @@
  *   kevin compile next          (prints the next work item JSON — doesn't synthesise)
  *   kevin compile write <itemId>
  *
+ *   kevin notices               (what to nudge the operator about, most important first)
+ *   kevin notices record <id> --outcome=acted|snoozed
+ *
  *   kevin prune
  *   kevin links
  *   kevin dashboard
@@ -143,6 +146,7 @@ Groups:
   task                              Read + mutate task files under projects/*/tasks/
   compile                           Knowledge-compile state (synthesis runs in Claude Code, not here)
   knowledge                         Wiki maintenance (lint)
+  notices                           What to nudge the operator about (upgrade, sync) as JSON; \`notices record <id> --outcome=acted|snoozed\` logs what they did
   prune                             Delete memory/YYYY-MM-DD*.md older than 14 days
   links                             Rewrite bare task IDs + shorthand into [[wikilinks]]
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
@@ -716,6 +720,23 @@ async function run(): Promise<void> {
       label: localFlag('label')
     });
     console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (group === 'notices') {
+    if (command === 'record') {
+      const { OUTCOMES, recordOutcome } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/ledger'));
+      const id = args[0];
+      const outcome = flag('outcome');
+      if (!id || !OUTCOMES.includes(outcome)) {
+        console.error(`Usage: notices record <id> --outcome=${OUTCOMES.join('|')}`);
+        process.exit(1);
+      }
+      console.log(JSON.stringify(recordOutcome(id, outcome)));
+      return;
+    }
+    const { collectNotices } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/notices'));
+    console.log(JSON.stringify(await collectNotices()));
     return;
   }
 
