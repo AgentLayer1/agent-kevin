@@ -1,5 +1,6 @@
 import { FILES } from '@/config';
 import { nowISO } from '@/shared/date';
+import { isRecord } from '@/shared/json-block';
 import { writeJsonAtomic } from '@/shared/utils';
 import { readFileSync } from 'node:fs';
 
@@ -14,9 +15,11 @@ export interface Cadence {
   sync?: string;
 }
 
+// Whole, not field by field: the goals keys this module doesn't name ride through `stampSync`.
 export const readCadence = (): Cadence => {
   try {
-    return JSON.parse(readFileSync(FILES.CADENCE, 'utf-8'));
+    const data: unknown = JSON.parse(readFileSync(FILES.CADENCE, 'utf-8'));
+    return isRecord(data) ? (data as Cadence) : {};
   } catch {
     return {};
   }

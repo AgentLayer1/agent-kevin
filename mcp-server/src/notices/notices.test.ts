@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FILES, PLUGIN_VERSION } from '@/config';
-import { nowISO } from '@/shared/date';
+import { nowISO, todayDate } from '@/shared/date';
 import { RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
 import { compareSemver, parseChangelog } from '@/version';
-import { readLedger, recordOutcome } from './ledger';
+import { readLedger, recordOutcome, stampRow } from './ledger';
 import type { Notice } from './notices';
-import { DOWNGRADE_AFTER, applyLedger, collectNotices, syncLevel } from './notices';
+import { DOWNGRADE_AFTER, applyLedger, collectNotices, rowDraws, syncLevel } from './notices';
 
 const withHome = async <T>(files: Record<string, string>, fn: () => Promise<T>): Promise<T> => {
   const home = mkdtempSync(resolve(tmpdir(), 'notices-test-'));
@@ -155,6 +156,57 @@ describe('the ledger', () => {
     expect(ledger.acted.streaks.sync).toBe(0);
     expect(ledger.acted.snoozedThrough).toEqual({});
     expect(ledger.path).toEndWith(`${RUNTIME_DIR}/notices.json`);
+  });
+
+  test('a hand-edited value of the wrong type is dropped, never obeyed', async () => {
+    const result = await withHome(
+      {
+        ...versionAt(PLUGIN_VERSION),
+        ...syncedDaysAgo(9),
+        'notices.json': JSON.stringify({ streaks: { sync: '4' }, snoozedThrough: { sync: {} }, row: { version: 1 } })
+      },
+      async () => {
+        const shown = await collectNotices();
+        recordOutcome('sync', 'snoozed');
+        return { shown, ledger: readLedger() };
+      }
+    );
+    expect(result.shown.map((notice) => notice.id)).toEqual(['sync']);
+    expect(result.ledger.streaks.sync).toBe(1);
+    expect(result.ledger.row).toBeUndefined();
+  });
+
+  test('a cadence file that is not an object reads as never synced', async () => {
+    const [notice] = await withHome({ ...versionAt(PLUGIN_VERSION), 'cadence.json': 'null' }, () => collectNotices());
+    expect([notice?.id, notice?.title]).toEqual(['sync', 'Brain never synced']);
+  });
+
+  test('the row proves itself on this version within a week, and a snooze keeps the proof', async () => {
+    const proof = await withHome({}, async () => {
+      stampRow();
+      recordOutcome('sync', 'snoozed');
+      return readLedger();
+    });
+    expect(proof.row?.version).toBe(PLUGIN_VERSION);
+    expect(rowDraws(proof)).toBe(true);
+    expect(rowDraws({ ...proof, row: { version: '0.0.1', date: todayDate() } })).toBe(false);
+    expect(rowDraws({ ...proof, row: { version: PLUGIN_VERSION, date: '2020-01-01' } })).toBe(false);
+    expect(rowDraws({ streaks: {}, snoozedThrough: {} })).toBe(false);
+  });
+
+  test('`notices record` reads the id wherever it sits among the flags, and refuses a flag as one', async () => {
+    const cli = resolve(import.meta.dir, '..', '..', '..', 'bin', pluginName().replace(/^agent-/, ''));
+    const result = await withHome({ ...versionAt(PLUGIN_VERSION) }, async () => {
+      const home = process.env.AGENT_HOME ?? '';
+      const run = (...args: string[]) =>
+        spawnSync('bun', [cli, 'notices', 'record', ...args, `--home=${home}`], { encoding: 'utf-8' });
+      const snoozed = run('--outcome=snoozed', 'sync');
+      const refused = run('--outcome=snoozed');
+      return { snoozed: snoozed.status, refused: refused.status, ledger: readLedger() };
+    });
+    expect(result.snoozed).toBe(0);
+    expect(result.refused).toBe(1);
+    expect(Object.keys(result.ledger.streaks)).toEqual(['sync']);
   });
 
   test('a source that throws costs only itself', async () => {

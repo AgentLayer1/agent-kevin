@@ -42,6 +42,15 @@ const band = ($: Engine, surface: (typeof SURFACES)[number]) =>
 const shown = async ($: Engine, surface: (typeof SURFACES)[number]) =>
   (await (await band($, surface)).findAll({ type: 'Text' })).map((element) => element.text).join(' ');
 
+const buttons = async ($: Engine) => (await (await band($, 'terminal')).findAll({ type: 'Button' })).length;
+
+const fetches = (host: FakeHost) => host.argv.filter((args) => args[2] === 'notices' && args[3] !== 'record').length;
+
+const endTurn = async ($: Engine, host: FakeHost, turnId: string, isAborted = false) => {
+  await $.turn.complete({ answer: '', durationMs: 1000, isAborted, turnId, reason: isAborted ? 'aborted' : 'answer' });
+  await host.clock.advance(0);
+};
+
 const recorded = (argv: string[][]) =>
   argv.filter((args) => args[2] === 'notices' && args[3] === 'record').map((args) => args.slice(4));
 
@@ -151,7 +160,7 @@ describe('acting by hand', () => {
     host.notices = [];
     await $.turn.complete({ answer: '', durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' });
     await host.clock.advance(0);
-    expect(host.argv.filter((args) => args.slice(2).join(' ') === 'notices')).toHaveLength(2);
+    expect(fetches(host)).toBe(2);
   });
 
   test('the periodic refresh keeps the row aside while the run is still going', async ($, on) => {
@@ -162,13 +171,58 @@ describe('acting by hand', () => {
     expect(await (await band($, 'terminal')).findAll({ type: 'Button' })).toEqual([]);
   });
 
-  test('a press whose command never starts a turn gives the row back when the next turn ends', async ($, on) => {
+  test("a press during another turn keeps the row aside through the command's own turn, then refreshes", async ($, on) => {
     const host = fakeHost(on, machine({ notices: [SYNC] }));
     await start($, host);
     await (await band($, 'terminal')).press({ key: 'notice:sync:act' });
-    await $.turn.complete({ answer: '', durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' });
-    await host.clock.advance(0);
-    expect((await (await band($, 'terminal')).findAll({ type: 'Button' })).length).toBe(2);
+    await endTurn($, host, 'other');
+    expect(await buttons($)).toBe(0);
+    await $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC PROTOCOL' });
+    host.notices = [];
+    await endTurn($, host, 'sync');
+    expect(fetches(host)).toBe(2);
+    expect(await buttons($)).toBe(0);
+  });
+
+  test('an aborted run gives the row back', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    await $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC PROTOCOL' });
+    await endTurn($, host, 'sync', true);
+    expect(await buttons($)).toBe(2);
+  });
+
+  test('a second press while the first is pending queues nothing', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    const row = await band($, 'terminal');
+    await Promise.all([row.press({ key: 'notice:sync:act' }), row.press({ key: 'notice:sync:act' })]);
+    expect(host.commands).toEqual([`${PLUGIN}:sync`]);
+  });
+
+  test('a press whose command never starts gives the row back at the next refresh after 30 minutes', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    await host.clock.advance(29 * 60_000);
+    await (await band($, 'terminal')).press({ key: 'notice:sync:act' });
+    await host.clock.advance(60_000);
+    expect(await buttons($)).toBe(0);
+    await host.clock.advance(30 * 60_000);
+    expect(await buttons($)).toBe(2);
+  });
+
+  test('output the CLI garbled leaves the last good list standing', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    host.notices = [{ id: 'sync' } as unknown as Notice];
+    await host.clock.advance(30 * 60_000);
+    expect(await buttons($)).toBe(2);
+  });
+
+  test('session start tells the CLI the row is drawing, so the terminal banner can leave its notices out', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    expect(host.argv.some((args) => args.slice(2).join(' ') === 'notices --row')).toBe(true);
   });
 
   test('other skills leave the notices alone', async ($, on) => {

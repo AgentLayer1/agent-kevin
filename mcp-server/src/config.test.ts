@@ -95,23 +95,25 @@ describe('process.env is consolidated into shared/env.ts', () => {
 });
 
 describe("the agent's names", () => {
-  const manifest = JSON.parse(readFileSync(resolve(FOLDERS.ROOT, '.claude-plugin', 'plugin.json'), 'utf-8')) as {
-    mcpServers: Record<string, unknown>;
-  };
+  // The checkout itself, not FOLDERS.ROOT, which AGENT_PLUGIN_ROOT can point at another install.
+  const checkout = resolve(import.meta.dir, '..', '..');
+  const json = (...parts: string[]): Record<string, unknown> =>
+    JSON.parse(readFileSync(resolve(checkout, ...parts), 'utf-8')) as Record<string, unknown>;
 
-  test('the plugin name is the manifest name', () => {
+  test('the plugin name is every manifest name', () => {
     expect(PLUGIN_NAME).toBe(pluginName());
+    expect(json('.claude-plugin', 'plugin.json').name).toBe(PLUGIN_NAME);
+    expect(json('.codex-plugin', 'plugin.json').name).toBe(PLUGIN_NAME);
+    expect(json('mods', '.claude-plugin', 'plugin.json').name).toBe(PLUGIN_NAME);
   });
 
   test("the slug names the CLI and the agent's own MCP server in the manifest", () => {
-    expect(existsSync(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG))).toBe(true);
-    expect(Object.keys(manifest.mcpServers)).toContain(AGENT_SLUG);
+    expect(existsSync(resolve(checkout, 'bin', AGENT_SLUG))).toBe(true);
+    expect(Object.keys(json('.claude-plugin', 'plugin.json').mcpServers as object)).toContain(AGENT_SLUG);
   });
 
   test("the mods' state contract is keyed by the plugin name", () => {
-    const contract = readFileSync(resolve(FOLDERS.ROOT, 'mods', 'types', 'index.d.ts'), 'utf-8');
-    const testHarness = readFileSync(resolve(FOLDERS.ROOT, 'mods', '.claude-plugin', 'plugin.json'), 'utf-8');
-    expect(contract).toContain(`'${PLUGIN_NAME}': {`);
-    expect((JSON.parse(testHarness) as { name: string }).name).toBe(PLUGIN_NAME);
+    const contract = readFileSync(resolve(checkout, 'mods', 'types', 'index.d.ts'), 'utf-8');
+    expect(contract).toMatch(new RegExp(`['"]${PLUGIN_NAME}['"]\\s*:\\s*\\{`));
   });
 });

@@ -1,4 +1,4 @@
-import { PLUGIN_NAME } from '@/config';
+import { PLUGIN_NAME, PLUGIN_VERSION } from '@/config';
 import { getStatus } from '@/knowledge/compile';
 import { readCadence } from '@/shared/cadence';
 import { daysBetween, todayDate } from '@/shared/date';
@@ -38,6 +38,9 @@ type NoticeSource = () => Promise<Notice | null>;
 
 /** Consecutive snoozes that drop an unpinned notice one level. */
 export const DOWNGRADE_AFTER = 5;
+
+/** How long a stamp from the prompt row stands as proof that it draws notices on this machine. */
+const ROW_PROOF_DAYS = 7;
 
 /** Calendar days since the last sync at which each level starts. */
 const SYNC_DAYS = { hint: 3, nudge: 5, alert: 8 } as const;
@@ -145,6 +148,13 @@ export const applyLedger = (notice: Notice, ledger: NoticeLedger, today: string)
  * Every notice that applies now, in priority order; every surface leads with the first. A source
  * that throws is left out rather than costing the others.
  */
+/**
+ * True when the prompt row fetched notices on this plugin version within the last week: the
+ * evidence the terminal banner needs before it leaves nudges and alerts to the row.
+ */
+export const rowDraws = (ledger: NoticeLedger = readLedger()): boolean =>
+  ledger.row?.version === PLUGIN_VERSION && daysBetween(ledger.row.date, todayDate()) <= ROW_PROOF_DAYS;
+
 export const collectNotices = async (sources: readonly NoticeSource[] = SOURCES): Promise<Notice[]> => {
   const ledger = readLedger();
   const today = todayDate();

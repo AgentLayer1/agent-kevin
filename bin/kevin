@@ -41,7 +41,7 @@
  *   kevin database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
  *   kevin database fork [--connection=NAME] [--source=DB] [--fork=NAME] [--cwd=PATH] [--repoint-env] [--env-var=DATABASE_URL] [--force] [--terminate-source] [--drop]
  */
-import { basename, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 // Resolve plugin root from this script's location so the CLI works whether
 // you invoke it via bin/kevin, /full/path/to/bin/kevin, or the plugin PATH.
@@ -130,11 +130,11 @@ function parseHookInput(raw: string): HookInput {
   }
 }
 
-// Named after the file, which the plugin names after itself (`agent-kevin` → `bin/kevin`).
-const CLI = basename(import.meta.path);
-const PLUGIN = `agent-${CLI}`;
+const { agentEnvPrefix, pluginName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
+const PLUGIN = pluginName();
+const CLI = PLUGIN.replace(/^agent-/, '');
 const PLUGIN_TITLE = `Agent-${CLI.replace(/^./, (first) => first.toUpperCase())}`;
-const ENV_PREFIX = `${CLI.toUpperCase()}_`;
+const ENV_PREFIX = agentEnvPrefix();
 
 const HELP = `\
 ${CLI} — ${PLUGIN_TITLE} CLI
@@ -596,9 +596,14 @@ async function run(): Promise<void> {
     const { sessionStart, sessionStartCodex } = await import(
       resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start')
     );
-    // Claude Code's interactive terminal draws the notices in the mods row above the prompt.
-    const withNotices = !(hookProtocol === 'claude' && process.env.CLAUDE_CODE_ENTRYPOINT === 'cli');
-    const result = hookProtocol === 'codex' ? await sessionStartCodex() : await sessionStart({ withNotices });
+    // Only Claude Code's terminal is known to render the banner's color and to draw the mods' prompt row;
+    // the banner leaves nudges and alerts to the row once the row has shown it fetches them.
+    const isTerminal = hookProtocol === 'claude' && process.env.CLAUDE_CODE_ENTRYPOINT === 'cli';
+    const { rowDraws } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/notices'));
+    const result =
+      hookProtocol === 'codex'
+        ? await sessionStartCodex()
+        : await sessionStart({ promptRow: isTerminal && rowDraws(), color: isTerminal });
 
     if (hookProtocol === 'claude' || hookProtocol === 'codex') {
       process.stdout.write(
@@ -732,15 +737,17 @@ async function run(): Promise<void> {
   }
 
   if (group === 'notices') {
+    const { OUTCOMES, recordOutcome, stampRow } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/ledger'));
     if (command === 'record') {
-      const { OUTCOMES, recordOutcome } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/ledger'));
-      const id = args[0];
+      const id = args.find((arg) => !arg.startsWith('--'));
       const outcome = flag('outcome');
-      if (!id || !OUTCOMES.includes(outcome)) {
-        console.error(`Usage: notices record <id> --outcome=${OUTCOMES.join('|')}`);
+      if (!id || !/^[a-z][a-z0-9-]*$/.test(id) || !OUTCOMES.includes(outcome)) {
+        console.error(`Usage: ${CLI} notices record <id> --outcome=${OUTCOMES.join('|')}`);
         process.exit(1);
       }
       recordOutcome(id, outcome);
+    } else if (command === '--row') {
+      stampRow();
     }
     // `record` prints the list too, so a snooze redraws from the one call.
     const { collectNotices } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/notices'));

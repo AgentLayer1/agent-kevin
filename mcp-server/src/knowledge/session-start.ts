@@ -138,11 +138,12 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
 }
 
 /**
- * `withNotices: false` when the host draws the notices itself (the mods row in Claude Code's terminal).
+ * `promptRow` when a prompt row draws nudges and alerts; `color` only where the host is known to render ANSI.
  */
 export async function sessionStart({
-  withNotices = true
-}: { withNotices?: boolean } = {}): Promise<SessionStartResult> {
+  promptRow = false,
+  color = false
+}: { promptRow?: boolean; color?: boolean } = {}): Promise<SessionStartResult> {
   try {
     if (!isInitialized()) {
       // A SOUL.md with no data dir isn't a fresh directory — it's a scaffolded
@@ -156,13 +157,13 @@ export async function sessionStart({
       log.info('hook fired (pre-init)');
       return PRE_INIT_RESULT;
     }
-    const { context, banner, hasIssues } = await assembleContext({ withNotices });
+    const { context, banner, hasIssues } = await assembleContext({ promptRow });
     // Mirror what the operator sees into the log file so context-assembly
     // issues (missing knowledge dir, git unavailable, oversized payload) are
     // diagnosable after the fact.
     const emit = hasIssues ? log.warn.bind(log) : log.info.bind(log);
     emit('hook fired (post-init)\n' + stripAnsi(banner));
-    return { systemMessage: '\n' + banner, additionalContext: context, hasIssues };
+    return { systemMessage: '\n' + (color ? banner : stripAnsi(banner)), additionalContext: context, hasIssues };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     log.error('hook failed', err);

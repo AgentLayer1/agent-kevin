@@ -98,6 +98,15 @@ export interface Notice {
   actionLabel: string;
 }
 
+/**
+ * A notice whose command was pressed (`isStarted` false until its skill starts) or is running.
+ */
+export interface NoticeActing {
+  id: string;
+  isStarted: boolean;
+  at: number;
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'agent-kevin': {
@@ -107,7 +116,7 @@ declare module 'claude-code' {
       todayViews: Record<string, TodayView>;
       syncTick: number;
       notices: Notice[];
-      noticeSuppressed: boolean;
+      noticeActing: NoticeActing | null;
     };
   }
 }

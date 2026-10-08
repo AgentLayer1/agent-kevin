@@ -47,9 +47,9 @@ export function writeFileAtomic(path: string, content: string | Uint8Array, mode
   }
 }
 
-/** Atomic JSON write — thin wrapper over `writeFileAtomic`. */
 export const countOf = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
 
+/** Atomic JSON write — thin wrapper over `writeFileAtomic`. */
 export function writeJsonAtomic(path: string, value: unknown, mode?: number): void {
   writeFileAtomic(path, JSON.stringify(value, null, 2), mode);
 }

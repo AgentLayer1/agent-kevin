@@ -3,11 +3,11 @@ import type { EngineInterface, On, Timer } from 'claude-code';
 
 import { cliArgv, cliError } from '../shared/cli';
 import { SYNC_HISTORY_KEY, formatDuration, parseHistory, typicalMs } from '../sync/stats';
-import type { Notice } from '../types';
+import type { Notice, NoticeActing } from '../types';
 
 const notices = atom({ plugin: 'agent-kevin', key: 'notices' } as const, []);
-// Set while a notice's command runs, so the row steps aside until that turn ends.
-const noticeSuppressed = atom({ plugin: 'agent-kevin', key: 'noticeSuppressed' } as const, false);
+// The notice whose command was pressed or started; the row steps aside until that command's turn ends.
+const acting = atom({ plugin: 'agent-kevin', key: 'noticeActing' } as const, null);
 
 const REFRESH_MS = 30 * 60_000;
 const TOAST_MS = 8000;
@@ -17,9 +17,34 @@ const TONE_COLORS = { accent: 'cyan', warn: 'yellow' } as const;
 
 // Module state: a reload drops the timer and the next session start makes a new one.
 let refresher: Timer | undefined;
+// Claimed before the press's first await, so a second press in the same tick finds it.
+let isPressing = false;
 
 const actsOn = (notice: Notice, skill: string): boolean =>
   notice.command === skill || notice.command.endsWith(`:${skill}`);
+
+const isString = (data: unknown): data is string => typeof data === 'string';
+
+const isNotice = (data: unknown): data is Notice => {
+  if (typeof data !== 'object' || data === null) {
+    return false;
+  }
+  const item = data as Record<string, unknown>;
+  return (
+    [item.id, item.icon, item.title, item.command, item.actionLabel].every(isString) &&
+    ['hint', 'nudge', 'alert'].includes(String(item.level)) &&
+    Array.isArray(item.facts) &&
+    item.facts.every(
+      (fact: unknown) => typeof fact === 'object' && fact !== null && isString((fact as { text?: unknown }).text)
+    )
+  );
+};
+
+// The CLI is this plugin's own, but a list that isn't one keeps the last good list rather than breaking the band.
+const parseNotices = (text: string): Notice[] | null => {
+  const data: unknown = JSON.parse(text);
+  return Array.isArray(data) && data.every(isNotice) ? data : null;
+};
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -37,7 +62,7 @@ async function runCli($: EngineInterface, args: readonly string[]): Promise<stri
  */
 async function load($: EngineInterface, args: readonly string[]): Promise<Notice[]> {
   const fresh = await runCli($, args)
-    .then((text) => JSON.parse(text) as Notice[])
+    .then(parseNotices)
     .catch(() => null);
   if (fresh === null) {
     return read($, notices);
@@ -56,7 +81,7 @@ async function load($: EngineInterface, args: readonly string[]): Promise<Notice
 }
 
 async function announce($: EngineInterface): Promise<void> {
-  const [lead] = await load($, ['notices']);
+  const [lead] = await load($, ['notices', '--row']);
   if (lead === undefined) {
     return;
   }
@@ -67,19 +92,42 @@ async function announce($: EngineInterface): Promise<void> {
 }
 
 async function act($: EngineInterface, notice: Notice): Promise<void> {
-  await update($, noticeSuppressed, () => true);
+  if (isPressing) {
+    return;
+  }
+  isPressing = true;
+  try {
+    if ((await read($, acting)) !== null) {
+      return;
+    }
+    const at = await $.clock.now();
+    await update($, acting, () => ({ id: notice.id, isStarted: false, at }));
+  } finally {
+    isPressing = false;
+  }
   // Queued, not awaited: the run outlives the press. Should a host refuse the name, the typed form does the same.
-  void $.command.run({ command: notice.command }).catch(() => $.prompt.submit({ text: `/${notice.command}` }));
+  void $.command
+    .run({ command: notice.command })
+    .catch(() => $.prompt.submit({ text: `/${notice.command}` }))
+    .catch(() => update($, acting, (current) => (current?.isStarted ? current : null)));
 }
 
 async function snooze($: EngineInterface, notice: Notice): Promise<void> {
   await load($, ['notices', 'record', notice.id, '--outcome=snoozed']);
 }
 
-// Only the end of the turn that acted puts the row back; the timer's refresh mid-run leaves it aside.
 async function settle($: EngineInterface): Promise<void> {
   await load($, ['notices']);
-  await update($, noticeSuppressed, () => false);
+  await update($, acting, () => null);
+}
+
+// A press whose command never started (the queue dropped it) stops hiding the row once it is a refresh old.
+async function refresh($: EngineInterface): Promise<void> {
+  await load($, ['notices']);
+  const now = await $.clock.now();
+  await update($, acting, (current: NoticeActing | null) =>
+    current && !current.isStarted && now - current.at >= REFRESH_MS ? null : current
+  );
 }
 
 export const registerNotices = (on: On): void => {
@@ -88,7 +136,7 @@ export const registerNotices = (on: On): void => {
     // After the session is up: the CLI call is a process spawn the prompt shouldn't wait on.
     $.clock.after(0, () => void announce($));
     refresher?.cancel();
-    refresher = $.clock.every(REFRESH_MS, () => void load($, ['notices']));
+    refresher = $.clock.every(REFRESH_MS, () => void refresh($));
     return result;
   });
 
@@ -96,15 +144,17 @@ export const registerNotices = (on: On): void => {
   on('skill.prompt', { skill: /./ }, async ($, e, next) => {
     const notice = (await read($, notices)).find((item) => actsOn(item, e.skill));
     if (notice) {
-      await update($, noticeSuppressed, () => true);
+      const at = await $.clock.now();
+      await update($, acting, () => ({ id: notice.id, isStarted: true, at }));
       void runCli($, ['notices', 'record', notice.id, '--outcome=acted']).catch(() => undefined);
     }
     return next(e);
   });
 
-  on('turn.complete', { isAborted: false }, async ($, e, next) => {
+  // The command's skill started inside the running turn, so the next main turn to end is the command's own, however it ended.
+  on('turn.complete', { reason: ['answer', 'aborted', 'refusal', 'error'] }, async ($, e, next) => {
     const result = await next(e);
-    if (e.agentId === undefined && (await read($, noticeSuppressed))) {
+    if (e.agentId === undefined && (await read($, acting))?.isStarted) {
       $.clock.after(0, () => void settle($));
     }
     return result;
@@ -113,7 +163,7 @@ export const registerNotices = (on: On): void => {
   // Stacks above whatever renders beneath, so other features' rows share the band.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e);
-    if (e.props.hasSurvey || (await read($, noticeSuppressed))) {
+    if (e.props.hasSurvey || (await read($, acting)) !== null) {
       return below;
     }
     const [top, ...waiting] = await read($, notices);

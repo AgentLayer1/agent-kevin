@@ -9,7 +9,7 @@ import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 import { recordOutcome } from '@/notices/ledger';
 import { ANSI, stripAnsi } from '@/shared/banner';
 import { stampSync } from '@/shared/cadence';
-import { nowISO } from '@/shared/date';
+import { nowISO, todayDate } from '@/shared/date';
 import { statusLineSetting } from '@/statusline/setting';
 
 /**
@@ -344,9 +344,13 @@ describe('sessionStart', () => {
     expect(result.additionalContext).not.toContain('Sync:');
   });
 
-  test('sync: the icon is colored by level in Claude and plain in Codex', async () => {
+  test('sync: the banner is colored only when asked, and Codex never is', async () => {
     const files = syncedDaysAgo(9);
-    const claude = await withHome(
+    const colored = await withHome(
+      (home) => markedHome(home, files),
+      () => sessionStart({ color: true })
+    );
+    const plain = await withHome(
       (home) => markedHome(home, files),
       () => sessionStart()
     );
@@ -354,36 +358,61 @@ describe('sessionStart', () => {
       (home) => markedHome(home, files),
       () => sessionStartCodex()
     );
-    expect(claude.systemMessage).toContain(`${ANSI.bold}${ANSI.red}⟳`);
+    expect(colored.systemMessage).toContain(`${ANSI.bold}${ANSI.red}⟳`);
+    expect(plain.systemMessage).toContain('⟳  Sync:      Brain 9 days behind');
+    expect(plain.systemMessage).not.toContain('\x1b[');
     expect(codex.systemMessage).toContain('⟳  Sync:      Brain 9 days behind');
     expect(codex.systemMessage).not.toContain('\x1b[');
   });
 
-  test("sync: Claude Code's interactive terminal leaves notices to the mod's row; other entrypoints keep them", async () => {
-    const banner = (entrypoint: string) =>
-      withHome(
-        (home) => markedHome(home, syncedDaysAgo(9)),
-        async () => {
-          const home = process.env.AGENT_HOME ?? '';
-          const out = execFileSync(
-            'bun',
-            [
-              resolve(FOLDERS.ROOT, 'bin', pluginName().replace(/^agent-/, '')),
-              'session-start',
-              '--hook-protocol=claude',
-              `--home=${home}`
-            ],
-            {
-              cwd: home,
-              env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: entrypoint },
-              stdio: ['ignore', 'pipe', 'ignore']
-            }
-          );
-          return stripAnsi(JSON.parse(out.toString()).systemMessage);
-        }
-      );
-    expect(await banner('cli')).not.toContain('Sync:');
-    expect(await banner('claude-vscode')).toContain('Sync:      Brain 9 days behind');
+  const rowStamp = (version: string, date = todayDate()) => ({
+    [`${RUNTIME_DIR}/notices.json`]: JSON.stringify({ streaks: {}, snoozedThrough: {}, row: { version, date } })
+  });
+
+  const hookBanner = (entrypoint: string, files: Record<string, string>) =>
+    withHome(
+      (home) => markedHome(home, files),
+      async () => {
+        const home = process.env.AGENT_HOME ?? '';
+        const out = execFileSync(
+          'bun',
+          [
+            resolve(FOLDERS.ROOT, 'bin', pluginName().replace(/^agent-/, '')),
+            'session-start',
+            '--hook-protocol=claude',
+            `--home=${home}`
+          ],
+          {
+            cwd: home,
+            env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: entrypoint },
+            stdio: ['ignore', 'pipe', 'ignore']
+          }
+        );
+        return String(JSON.parse(out.toString()).systemMessage);
+      }
+    );
+
+  test.each([
+    ['the terminal before the row has proven it draws', 'cli', {}, 9, 'Brain 9 days behind', true],
+    ['the terminal once the row draws on this version', 'cli', rowStamp(PLUGIN_VERSION), 9, null, true],
+    ['the terminal keeps a hint the row leaves out', 'cli', rowStamp(PLUGIN_VERSION), 4, 'Brain 4 days behind', true],
+    ['the terminal after an update the row has not drawn on', 'cli', rowStamp('0.0.1'), 9, 'Brain 9 days behind', true],
+    [
+      'the terminal when the row last drew over a week ago',
+      'cli',
+      rowStamp(PLUGIN_VERSION, '2020-01-01'),
+      9,
+      'Brain 9 days behind',
+      true
+    ],
+    ['another Claude surface, plain', 'claude-vscode', rowStamp(PLUGIN_VERSION), 9, 'Brain 9 days behind', false]
+  ])('sync: %s', async (_label, entrypoint, stamp, age, title, isColored) => {
+    const banner = await hookBanner(entrypoint, { ...syncedDaysAgo(age), ...stamp });
+    const line = stripAnsi(banner)
+      .split('\n')
+      .find((text) => text.includes('Sync:'));
+    expect(line ?? null).toEqual(title === null ? null : expect.stringContaining(title));
+    expect(banner.includes('\x1b[')).toBe(isColored && title !== null);
   });
 
   test('sync: a snooze from any surface hides the banner line for the day', async () => {
