@@ -59,6 +59,10 @@ and prompts per optional one. The new template files are the source of truth for
 - **Sync offers a north-star roadmap** at its close while the home has no `roadmap.html`. A
   HOME-root roadmap build asks for the north star and writes it into the Yearly Goals header, and
   the year playbook reads it from the roadmap instead of asking each quarter.
+- **The dashboard's Capabilities page has a Mods tab**: each mod feature with the commands and
+  tools it adds, the Claude Code version mods need, and whether the module has loaded on this
+  machine (the notices row's session-start stamp). The commands register from the same catalog
+  the tab reads, `mods/shared/catalog.ts`. The cheatsheet gains `/capture <text>`.
 
 ### Changed
 - The plugin's name, its MCP server key and the CLI path are derived from the manifest instead of
