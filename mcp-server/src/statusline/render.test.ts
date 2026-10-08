@@ -69,6 +69,20 @@ describe('renderStatusLine', () => {
     ).toEndWith('│ ⏳ 7d 5%');
   });
 
+  test('dark is the default palette; light swaps white and the bright hues for ones a light background shows', () => {
+    const dark = renderStatusLine(payload, { branch: 'main' });
+    expect(renderStatusLine(payload, { branch: 'main', theme: 'dark' })).toBe(dark);
+    expect(dark).toContain('\x1b[37mOpus');
+    expect(dark).toContain('\x1b[94m📁');
+    expect(dark).toContain('\x1b[96m🌿 main');
+    const light = renderStatusLine(payload, { branch: 'main', theme: 'light' });
+    expect(light).toContain('\x1b[39mOpus');
+    expect(light).toContain('\x1b[34m📁');
+    expect(light).toContain('\x1b[36m🌿 main');
+    expect(light).toContain('\x1b[39m25%');
+    expect(plain(light)).toBe(plain(dark));
+  });
+
   test('an empty payload still renders without throwing', () => {
     expect(plain(renderStatusLine({}))).toBe('🤖 Unknown │ 📁 unknown\n\n$0.00');
   });

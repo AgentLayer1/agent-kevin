@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -45,6 +45,17 @@ describe('kevin statusline', () => {
       home
     );
     expect(plain(proc.stdout)).toStartWith('🔭 Opus');
+  });
+
+  test("paints with the light palette when the project's Claude Code theme is light", () => {
+    const project = scratch();
+    mkdirSync(join(project, '.claude'));
+    writeFileSync(join(project, '.claude', 'settings.local.json'), JSON.stringify({ theme: 'light' }));
+    const proc = run(
+      JSON.stringify({ model: { display_name: 'Opus' }, workspace: { current_dir: project, project_dir: project } }),
+      project
+    );
+    expect(proc.stdout).toContain('\x1b[39mOpus');
   });
 
   test('a payload it cannot read renders nothing and still exits 0', () => {

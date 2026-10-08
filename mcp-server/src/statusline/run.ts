@@ -2,12 +2,14 @@
  * `kevin statusline`: Claude Code's status-line JSON in on stdin, the rendered rows out.
  * Runs on every render tick, so it stays clear of the home resolution and settings walk the
  * rest of the CLI does: the folder comes from the payload, the emoji from the launch
- * directory's IDENTITY.md, and the branch from one bounded git call. Never fails the host:
- * a payload it cannot read renders nothing and exits 0.
+ * directory's IDENTITY.md, the branch from one bounded git call, and the palette from Claude
+ * Code's theme setting (three small file reads, plus one `defaults` call when it is `auto`).
+ * Never fails the host: a payload it cannot read renders nothing and exits 0.
  */
 import { renderStatusLine, type StatusLinePayload } from '@/statusline/render';
 import { statusLineSetting } from '@/statusline/setting';
 import { renderSubagentRows, type SubagentPayload } from '@/statusline/subagent';
+import { terminalTheme } from '@/statusline/theme';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -62,17 +64,19 @@ export const runStatusLine = async (args: string[], binPath: string): Promise<vo
   }
   const raw = await Bun.stdin.text();
   if (args.includes('--subagent')) {
-    const rows = renderSubagentRows(parse<SubagentPayload>(raw) ?? {});
+    const rows = renderSubagentRows(parse<SubagentPayload>(raw) ?? {}, terminalTheme(process.cwd()));
     if (rows) await print(`${rows}\n`);
     return;
   }
   const payload = parse<StatusLinePayload>(raw);
   if (!payload) return;
   const dir = payload.workspace?.current_dir ?? payload.cwd;
+  const projectDir = payload.workspace?.project_dir ?? dir;
   await print(
     renderStatusLine(payload, {
       branch: dir ? currentBranch(dir) : '',
-      emoji: identityEmoji(payload.workspace?.project_dir ?? dir)
+      emoji: identityEmoji(projectDir),
+      theme: terminalTheme(projectDir)
     })
   );
 };

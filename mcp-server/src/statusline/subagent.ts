@@ -3,7 +3,7 @@
  * context window it has used, on the same colour scale as the main status line. Claude Code
  * sends every visible row at once and takes one JSON line back per row to override.
  */
-import { contextBar } from '@/statusline/render';
+import { contextBar, PALETTES, type Theme } from '@/statusline/render';
 
 export interface SubagentTask {
   id: string;
@@ -20,24 +20,24 @@ export interface SubagentPayload {
 
 const BAR_WIDTH = 8;
 const RESET = '\x1b[0m';
-const WHITE = '\x1b[37m';
 
 const formatTokens = (count: number): string => (count >= 1000 ? `${(count / 1000).toFixed(1)}k` : `${count}`);
 
-const usageSegment = (task: SubagentTask): string | undefined => {
+const usageSegment = (task: SubagentTask, theme: Theme): string | undefined => {
   if (typeof task.tokenCount !== 'number') return undefined;
+  const text = PALETTES[theme].text;
   if (typeof task.contextWindowSize === 'number' && task.contextWindowSize > 0) {
     const percent = Math.min(100, Math.floor((task.tokenCount * 100) / task.contextWindowSize));
-    return `${contextBar(percent, BAR_WIDTH)} ${WHITE}${percent}%${RESET}`;
+    return `${contextBar(percent, BAR_WIDTH)} ${text}${percent}%${RESET}`;
   }
-  return `${WHITE}${formatTokens(task.tokenCount)} tok${RESET}`;
+  return `${text}${formatTokens(task.tokenCount)} tok${RESET}`;
 };
 
 /** Visible width of a segment: ANSI colour codes take no columns. */
 const visibleLength = (text: string): number => text.replace(/\x1b\[[0-9;]*m/g, '').length;
 
-export const renderSubagentRow = (task: SubagentTask, columns?: number): string => {
-  const usage = usageSegment(task);
+export const renderSubagentRow = (task: SubagentTask, columns?: number, theme: Theme = 'dark'): string => {
+  const usage = usageSegment(task, theme);
   const tail = usage === undefined ? '' : ` · ${usage}`;
   const name = task.name ?? task.id;
   const room = columns === undefined ? Infinity : columns - visibleLength(`${name} · ${tail}`);
@@ -47,7 +47,7 @@ export const renderSubagentRow = (task: SubagentTask, columns?: number): string 
   return shown ? `${name} · ${shown}${tail}` : `${name}${tail}`;
 };
 
-export const renderSubagentRows = (payload: SubagentPayload): string =>
+export const renderSubagentRows = (payload: SubagentPayload, theme: Theme = 'dark'): string =>
   (payload.tasks ?? [])
-    .map((task) => JSON.stringify({ id: task.id, content: renderSubagentRow(task, payload.columns) }))
+    .map((task) => JSON.stringify({ id: task.id, content: renderSubagentRow(task, payload.columns, theme) }))
     .join('\n');

@@ -30,23 +30,41 @@ export interface StatusLinePayload {
   rate_limits?: { five_hour?: { used_percentage?: number }; seven_day?: { used_percentage?: number } };
 }
 
+export type Theme = 'dark' | 'light';
+
 export interface StatusLineOptions {
   /** The current git branch, empty or absent outside a repository. */
   branch?: string;
   /** Leads line one; the agent's own emoji when the home names one. */
   emoji?: string;
+  /** The terminal's appearance; dark when unknown. */
+  theme?: Theme;
 }
 
 const ESC = '\x1b[';
 const RESET = `${ESC}0m`;
 const DIM = `${ESC}2m`;
 const WHITE = `${ESC}37m`;
+const DEFAULT_FOREGROUND = `${ESC}39m`;
 const GREEN = `${ESC}32m`;
 const YELLOW = `${ESC}33m`;
 const RED = `${ESC}31m`;
+const BLUE = `${ESC}34m`;
 const CYAN = `${ESC}36m`;
 const BRIGHT_BLUE = `${ESC}94m`;
 const BRIGHT_CYAN = `${ESC}96m`;
+
+interface Palette {
+  text: string;
+  folder: string;
+  branch: string;
+}
+
+/** White and the bright hues wash out on a light background; the rest read on both. */
+export const PALETTES: Record<Theme, Palette> = {
+  dark: { text: WHITE, folder: BRIGHT_BLUE, branch: BRIGHT_CYAN },
+  light: { text: DEFAULT_FOREGROUND, folder: BLUE, branch: CYAN }
+};
 const SEP = `${DIM}│${RESET}`;
 const BAR_WIDTH = 12;
 
@@ -102,16 +120,17 @@ export const renderStatusLine = (payload: StatusLinePayload, options: StatusLine
   const context = contextPercent(payload.context_window);
   const fiveHour = percentOrNull(payload.rate_limits?.five_hour?.used_percentage);
   const sevenDay = percentOrNull(payload.rate_limits?.seven_day?.used_percentage);
+  const palette = PALETTES[options.theme ?? 'dark'];
 
   const effort = payload.effort?.level ? ` ${paint(DIM, payload.effort.level)}` : '';
 
   const first = [
-    `${options.emoji ?? '🤖'} ${paint(WHITE, model)}${effort}`,
-    paint(BRIGHT_BLUE, `📁 ${folderLink(dir)}`),
-    ...(options.branch ? [paint(BRIGHT_CYAN, `🌿 ${options.branch}`)] : [])
+    `${options.emoji ?? '🤖'} ${paint(palette.text, model)}${effort}`,
+    paint(palette.folder, `📁 ${folderLink(dir)}`),
+    ...(options.branch ? [paint(palette.branch, `🌿 ${options.branch}`)] : [])
   ];
 
-  const usage = context === null ? [] : [`${contextBar(context)} ${paint(WHITE, `${context}%`)}`];
+  const usage = context === null ? [] : [`${contextBar(context)} ${paint(palette.text, `${context}%`)}`];
   const hourly = durationMs > 0 ? ` ${paint(DIM, `($${((cost / (durationMs / 1000)) * 3600).toFixed(2)}/hr)`)}` : '';
   const limits = [
     ...(fiveHour === null ? [] : [paint(usageColor(fiveHour), `5h ${fiveHour}%`)]),
