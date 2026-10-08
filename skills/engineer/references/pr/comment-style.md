@@ -80,6 +80,12 @@ Write in the operator's voice, not an assistant's: first person, plain, the way 
 
 **Plain words.** "This drops the record", not "this results in an orphaned entity". Name the file or symbol that changed and stop; the reviewer can open it. No walking them through the diff.
 
+**Answer every part.** Before the reply is final, list each thing the reviewer named and give each one a sentence: used and how, or not used and why. A factor you chose to leave out gets its reason, with data when the reason is a judgment call. Answering the easy half of a question reads as dodging the hard half.
+
+**Show it with one example.** When the reply is about a rule, a limit, or a threshold, add one worked case with made-up people and real numbers: "Ann's order reserves the last 3 units, and ten seconds later Maria edits her order from 1 to 3." One example lands faster than a paragraph of mechanism. Placeholder names only, never a customer's.
+
+**"What does X do" gets X's answers.** List each case and the value X picks for it, not X's parameter shape.
+
 - **Accurate:** agree in the first four words, then say what changed and where. "You're right. Fixed in `permissions.ts:88`, and the spec now pins it." Not "will fix": fix first, then reply.
 - **Partially accurate:** the true half first, then the correction with a receipt. "Right that the claim is never released. It is not a leak though: the sweeper at `sweeper.ts:214` runs every tick. Added a test so that stays true."
 - **Inaccurate:** receipts, not opinions, and no defensiveness. "Checked this against prod: `region` is populated on 41,902 of 43,110 rows, `regionCode` on 3. Leaving it as `region`." If it was a bot, still answer as if a person will read it, because one will.
@@ -88,3 +94,44 @@ Write in the operator's voice, not an assistant's: first person, plain, the way 
 - **Your own earlier answer was wrong:** say so first. "Correcting my earlier answer: the importer accepts the old date format too, so the conversion step is gone."
 - A reviewer's suggestion that would break an invariant documented in `knowledge/concepts/` gets a clear no with the reason, in two sentences, and a one-line comment in the code so the next bot does not re-flag it.
 - Never say "fixed" for anything not yet in the working tree. Never say "pushed" for anything not pushed; the operator commits and pushes, so the reply says "fixed, in the next push" until then.
+
+### Before and after
+
+Read these before writing the first reply. The "after" is the target: short, plain, and complete.
+
+**A fix.** The reviewer: "Excluding failed requests cuts both ways: rejected calls stop counting toward the rate limit."
+
+> Before: Thanks for catching this! You're right that the `status: { not: 'FAILED' }` filter excludes rejected calls. I've updated the query so the rate limit now counts requests in every status, including failed ones.
+
+> After: Changed. The rate limit counts every call, rejected ones included: a hundred tries in a minute is the signal, whether or not they went through.
+
+**A question with three parts.** The reviewer: "The endpoint and the client matter too, and maybe the partner allowlist. A free account hitting search 300 times a minute is odd; a paid account's sync job doing it isn't."
+
+> Before: A paid account can make 600 calls a minute and a free one 100, so sync jobs aren't throttled.
+
+> After: The limit goes by the plan and the endpoint, not the client. A free account gets 100 calls a minute anywhere and a paid one 600 on reads, so a free script searching 300 times a minute is throttled and a paid sync job doing the same isn't.
+>
+> I left the client out on purpose: the caller sets the `User-Agent`, and it rarely says what's calling. In the last 30 days paid accounts sent their library's default agent on 3,917 of 4,260 requests and named a sync tool on 31. A higher limit only for sync agents would miss nearly every real sync job, and callers would learn to send it.
+>
+> The partner allowlist only decides who may call the admin API, not how often anyone calls. If you still want sync-tagged clients to get a higher limit, it's a small change.
+
+**"What does X do."** The reviewer: "Not sure what limitFor picks here."
+
+> Before: limitFor takes a `ByPlan` map and resolves the `LimitByKind` for the account's plan and, for paid plans, the endpoint's kind.
+
+> After: It picks the limit from the account's plan and, for a paid plan, whether the endpoint reads or writes:
+>
+> - A free account, on any endpoint: 100 calls a minute, 1,000 a day.
+> - A paid account reading: 600 a minute, 50,000 a day.
+> - A paid account writing: 120 a minute, 10,000 a day.
+> - Plan unknown: the free limits, 100 a minute and 1,000 a day.
+>
+> So a paid account can read a lot quickly while its writes stay paced, which is what a sync job looks like.
+
+**A mechanism question.** The reviewer: "Once orders can be edited, can an edit get ahead of the stock check?"
+
+> Before: Edits are created via `createOrder` and enter `PENDING_REVIEW`, where the stock rules evaluate the reservation window.
+
+> After: No. An edit is itself a new order, so it waits in review and the stock rules run on it, looking back over the item's recent reservations.
+>
+> Example: two buyers want the last 3 units. Ann's order reserves all 3, and ten seconds later Maria edits her order from 1 to 3. The edit waits in review, the stock rule finds Ann's reservation, and holds the edit, even if the regular stock check hasn't run yet.

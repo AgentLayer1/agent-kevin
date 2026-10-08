@@ -19,9 +19,9 @@ tags: [<area>, pr-<n>, replies]
 
 ## Inline threads
 
-### 1. <The reviewer's point in about five words> · [<comment id>](<comment url>)
+### 1. <The reviewer's point in about five words> · <status on a re-run> · [<comment id>](<comment url>)
 
-<Reviewer> wrote: "<their words, quoted, trimmed with … where long>"
+<Reviewer> wrote: "<their opening words, verbatim, trimmed at the end with … where long>"
 
 > <The reply, paste-ready, in the operator's voice. Answer in the first three words. Follows references/pr/comment-style.md → "Replies on your own PR".>
 
@@ -80,6 +80,8 @@ tags: [<area>, pr-<n>, replies]
 
 - **The link is the point.** Every heading ends with ` · [<id>](<url>)` using the comment's own `url` from `github_pr_comments`, and the link text is the fragment's comment id: `r4011695208` for an inline thread, `issuecomment-5686065667` for a conversation comment, `pullrequestreview-5214148394` for a review body. One click from the report to the box the reply goes in.
 - Scroll order is the whole point of the layout. Sort by the file order GitHub uses (as `github_pr_view` lists `files`), then by line. Non-inline comments go in their own sections after.
-- `<Reviewer> wrote:` is a plain line, not a blockquote, so the only `>` block on screen is the thing being pasted. Quote faithfully and trim with `…`; never paraphrase inside the quotes.
+- `<Reviewer> wrote:` is a plain line, not a blockquote, so the only `>` block on screen is the thing being pasted. Quote the comment's opening words exactly, so a Cmd-F on GitHub lands on the thread; trim only the end, with `…`, and never paraphrase inside the quotes.
+- **Re-runs carry a status in each heading.** `To post` is a reply still to paste. `Posted` threads keep their heading and quote, then one line: `Nothing new.` `Follow-up` is a thread the operator already answered whose answer the code has since made false: one line on what changed, then the update reply (comment style → "Your own earlier answer was wrong"). The operator pastes only `To post` and `Follow-up`.
+- **A stack reviewed together is one report:** a `## #<n> · <title>` section per PR, bottom of the stack first, each with the layout above.
 - The reply block never says "will fix". The fix is in the working tree before the reply is written, or the reply says what blocks it.
-- One report per PR per run. A re-run supersedes; say so in the intro line and name the superseded path there.
+- One report per PR, or per stack, per run. A re-run supersedes; say so in the intro line and name the superseded path there.
