@@ -65,11 +65,19 @@ describe('notices at session start', () => {
   });
 
   test('the toast, Tab and the row all lead with the first notice', async ($, on) => {
-    const host = fakeHost(on, machine({ notices: [{ ...SYNC, level: 'alert' }, UPGRADE] }));
+    const host = fakeHost(
+      on,
+      machine({
+        notices: [
+          { ...UPGRADE, level: 'alert' },
+          { ...SYNC, level: 'alert' }
+        ]
+      })
+    );
     await start($, host);
-    expect(host.toasts).toEqual(['⟳  Brain 5 days behind. Tab to sync now.']);
-    expect(host.suggestions).toEqual(['/agent-kevin:sync']);
-    expect((await (await band($, 'terminal')).findAll({ type: 'Button' }))[0]?.props.label).toBe('Sync now');
+    expect(host.toasts).toEqual(['↑  Upgrade ready. Tab to upgrade now.']);
+    expect(host.suggestions).toEqual(['/agent-kevin:upgrade']);
+    expect((await (await band($, 'terminal')).findAll({ type: 'Button' }))[0]?.props.label).toBe('Upgrade now');
   });
 
   test('nothing to say suggests nothing', async ($, on) => {

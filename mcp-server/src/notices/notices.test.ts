@@ -111,18 +111,11 @@ describe('upgrade escalation', () => {
     expect([notice?.id, notice?.level, notice?.title]).toEqual(['upgrade', 'nudge', 'Turn on update tracking']);
   });
 
-  test('outranks sync at the same level', async () => {
-    const notices = await withHome({ ...versionAt('0.0.1'), ...syncedDaysAgo(9) }, () => collectNotices());
-    expect(notices.map((notice) => notice.id)).toEqual(['upgrade', 'sync']);
-  });
-
-  test('a louder sync leads a quieter upgrade', async () => {
-    const notices = await withHome({ ...versionAt(previousRelease ?? ''), ...syncedDaysAgo(9) }, () =>
-      collectNotices()
-    );
-    expect(notices.map((notice) => [notice.id, notice.level])).toEqual([
-      ['sync', 'alert'],
-      ['upgrade', 'nudge']
+  test('leads sync whatever their levels, since the upgrade ends in a sync', async () => {
+    const quiet = await withHome({ ...versionAt(previousRelease ?? ''), ...syncedDaysAgo(9) }, () => collectNotices());
+    expect(quiet.map((notice) => [notice.id, notice.level])).toEqual([
+      ['upgrade', 'nudge'],
+      ['sync', 'alert']
     ]);
   });
 });

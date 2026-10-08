@@ -123,7 +123,7 @@ const syncNotice: NoticeSource = async () => {
   };
 };
 
-// Among notices at the same level, the earlier source shows first.
+// The order is the priority. Upgrade leads because it ends in a sync, or asks for one after a restart.
 const SOURCES: readonly NoticeSource[] = [upgradeNotice, syncNotice];
 
 /**
@@ -142,8 +142,8 @@ export const applyLedger = (notice: Notice, ledger: NoticeLedger, today: string)
 };
 
 /**
- * Every notice that applies now, loudest first; every surface leads with the first. A source that
- * throws is left out rather than costing the others.
+ * Every notice that applies now, in priority order; every surface leads with the first. A source
+ * that throws is left out rather than costing the others.
  */
 export const collectNotices = async (sources: readonly NoticeSource[] = SOURCES): Promise<Notice[]> => {
   const ledger = readLedger();
@@ -152,6 +152,5 @@ export const collectNotices = async (sources: readonly NoticeSource[] = SOURCES)
   return found
     .filter((notice): notice is Notice => notice !== null)
     .map((notice) => applyLedger(notice, ledger, today))
-    .filter((notice): notice is Notice => notice !== null)
-    .sort((left, right) => LEVELS.indexOf(right.level) - LEVELS.indexOf(left.level));
+    .filter((notice): notice is Notice => notice !== null);
 };
