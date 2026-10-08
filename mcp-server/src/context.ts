@@ -32,6 +32,7 @@ import { readCadence } from '@/shared/cadence';
 import { log as baseLog } from '@/shared/log';
 import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
+import { countOf } from '@/shared/utils';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
@@ -203,8 +204,6 @@ async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   };
 }
 
-const countOf = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
-
 const formatKB = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
 const STATUS_ICON: Record<ManifestEntry['status'], string> = {
@@ -220,11 +219,7 @@ const STATUS_ICON: Record<ManifestEntry['status'], string> = {
 const welcomePending = (): boolean => readCadence().welcome === 'pending';
 
 const LEVEL_COLOR: Record<NoticeLevel, string> = { hint: ANSI.cyan, nudge: ANSI.yellow, alert: ANSI.red };
-const TONE_COLOR: Record<NonNullable<NoticeFact['tone']>, string> = {
-  accent: ANSI.cyan,
-  good: ANSI.green,
-  warn: ANSI.yellow
-};
+const TONE_COLOR: Record<NonNullable<NoticeFact['tone']>, string> = { accent: ANSI.cyan, warn: ANSI.yellow };
 
 /**
  * A text glyph rather than an emoji, so the level can color it; two spaces keep it in the emoji column.
@@ -540,18 +535,20 @@ const manualLayoutIssues = (): string[] => {
 export async function assembleContext({
   withNotices = true
 }: { withNotices?: boolean } = {}): Promise<AssembledContext> {
+  // Started first so its file reads overlap the git calls gathering does.
+  const pendingNotices = withNotices
+    ? collectNotices().catch((err: unknown) => {
+        log.error('notices skipped', err);
+        return [];
+      })
+    : Promise.resolve([]);
   const { entries, parts } = await gatherContext(healHistoryLink());
 
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
   }
-  const notices = withNotices
-    ? await collectNotices().catch((err: unknown) => {
-        log.error('notices skipped', err);
-        return [];
-      })
-    : [];
+  const notices = await pendingNotices;
   const banner = renderBanner(entries, context.length, notices);
   const hasIssues = entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
   return { context, banner, hasIssues };

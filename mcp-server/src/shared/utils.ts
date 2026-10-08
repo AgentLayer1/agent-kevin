@@ -16,7 +16,6 @@ export function repoRelative(absolutePath: string): string {
   return rel.startsWith('..') || rel === '' ? absolutePath : rel;
 }
 
-
 // ── Filesystem helpers ────────────────────────────────────────────────
 
 const existingTarget = (path: string): string => {
@@ -49,6 +48,8 @@ export function writeFileAtomic(path: string, content: string | Uint8Array, mode
 }
 
 /** Atomic JSON write — thin wrapper over `writeFileAtomic`. */
+export const countOf = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
+
 export function writeJsonAtomic(path: string, value: unknown, mode?: number): void {
   writeFileAtomic(path, JSON.stringify(value, null, 2), mode);
 }

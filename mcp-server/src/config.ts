@@ -201,7 +201,7 @@ export const FILES = {
   get CADENCE() {
     return resolve(dataRoot(), 'cadence.json');
   },
-  /** What the operator did with each notice: act and snooze counts, snoozes (notices/ledger.ts). */
+  /** Snooze streaks and snoozed-through dates per notice (notices/ledger.ts). */
   get NOTICES() {
     return resolve(dataRoot(), 'notices.json');
   },

@@ -82,12 +82,6 @@ const strandedHomeResult = (): SessionStartResult => {
   };
 };
 
-/**
- * The interactive terminal draws the notices mod's row above the prompt; every other Claude
- * surface (VS Code, desktop, `-p`, the SDK) runs this hook without it, so the banner keeps them.
- */
-const modDrawsNotices = (): boolean => resolveEnv('CLAUDE_CODE_ENTRYPOINT') === 'cli';
-
 // Codex renders systemMessage through ratatui, which prints ANSI escapes as raw bytes.
 const PLAIN_BANNER = [...BANNER_LINES, BANNER_TAG].join('\n');
 
@@ -143,7 +137,12 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
   return { systemMessage: lane.banner, additionalContext, hasIssues: lane.hasIssues };
 }
 
-export async function sessionStart(): Promise<SessionStartResult> {
+/**
+ * `withNotices: false` when the host draws the notices itself (the mods row in Claude Code's terminal).
+ */
+export async function sessionStart({
+  withNotices = true
+}: { withNotices?: boolean } = {}): Promise<SessionStartResult> {
   try {
     if (!isInitialized()) {
       // A SOUL.md with no data dir isn't a fresh directory — it's a scaffolded
@@ -157,7 +156,7 @@ export async function sessionStart(): Promise<SessionStartResult> {
       log.info('hook fired (pre-init)');
       return PRE_INIT_RESULT;
     }
-    const { context, banner, hasIssues } = await assembleContext({ withNotices: !modDrawsNotices() });
+    const { context, banner, hasIssues } = await assembleContext({ withNotices });
     // Mirror what the operator sees into the log file so context-assembly
     // issues (missing knowledge dir, git unavailable, oversized payload) are
     // diagnosable after the fact.

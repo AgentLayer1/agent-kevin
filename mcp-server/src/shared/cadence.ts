@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 export interface Cadence {
   /** `pending` from init until the first session's welcome, then the date it ran. */
   welcome?: string;
-  /** ISO timestamp of the last sync, which ages in hours on the dashboard and days in the banner. */
+  /** ISO timestamp of the last sync, which ages in hours on the dashboard and days in the sync notice. */
   sync?: string;
 }
 

@@ -83,12 +83,11 @@ export interface SyncHistoryEntry {
  */
 export interface NoticeFact {
   text: string;
-  tone?: 'accent' | 'good' | 'warn';
+  tone?: 'accent' | 'warn';
 }
 
 export interface Notice {
   id: string;
-  rank: number;
   level: 'hint' | 'nudge' | 'alert';
   pinned: boolean;
   icon: string;

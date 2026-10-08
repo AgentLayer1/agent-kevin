@@ -590,7 +590,9 @@ async function run(): Promise<void> {
     const { sessionStart, sessionStartCodex } = await import(
       resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/session-start')
     );
-    const result = hookProtocol === 'codex' ? await sessionStartCodex() : await sessionStart();
+    // Claude Code's interactive terminal draws the notices in the mods row above the prompt.
+    const withNotices = !(hookProtocol === 'claude' && process.env.CLAUDE_CODE_ENTRYPOINT === 'cli');
+    const result = hookProtocol === 'codex' ? await sessionStartCodex() : await sessionStart({ withNotices });
 
     if (hookProtocol === 'claude' || hookProtocol === 'codex') {
       process.stdout.write(
@@ -732,9 +734,9 @@ async function run(): Promise<void> {
         console.error(`Usage: notices record <id> --outcome=${OUTCOMES.join('|')}`);
         process.exit(1);
       }
-      console.log(JSON.stringify(recordOutcome(id, outcome)));
-      return;
+      recordOutcome(id, outcome);
     }
+    // `record` prints the list too, so a snooze redraws from the one call.
     const { collectNotices } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/notices/notices'));
     console.log(JSON.stringify(await collectNotices()));
     return;

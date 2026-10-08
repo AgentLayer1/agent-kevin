@@ -28,8 +28,6 @@ process.env.AGENT_HOME = home;
 // A <AGENT>_HOME inherited from the operator's shell is this agent's override
 // prefix and would beat the pin above.
 delete process.env[agentKeyName('HOME')];
-// Inherited when the suite runs from a Claude Code shell, where it would hide the banner's notices.
-delete process.env.CLAUDE_CODE_ENTRYPOINT;
 
 // A preload-registered `afterAll` fires once for the whole run, not per file (verified), and
 // `bun test` never runs `process.on('exit')` handlers — so this is the only hook that works here.

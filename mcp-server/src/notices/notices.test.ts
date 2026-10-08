@@ -48,7 +48,6 @@ const previousRelease = parseChangelog()
 
 const fixture: Notice = {
   id: 'fixture',
-  rank: 5,
   level: 'alert',
   pinned: false,
   icon: '•',
@@ -112,15 +111,25 @@ describe('upgrade escalation', () => {
     expect([notice?.id, notice?.level, notice?.title]).toEqual(['upgrade', 'nudge', 'Turn on update tracking']);
   });
 
-  test('outranks sync', async () => {
+  test('outranks sync at the same level', async () => {
     const notices = await withHome({ ...versionAt('0.0.1'), ...syncedDaysAgo(9) }, () => collectNotices());
     expect(notices.map((notice) => notice.id)).toEqual(['upgrade', 'sync']);
+  });
+
+  test('a louder sync leads a quieter upgrade', async () => {
+    const notices = await withHome({ ...versionAt(previousRelease ?? ''), ...syncedDaysAgo(9) }, () =>
+      collectNotices()
+    );
+    expect(notices.map((notice) => [notice.id, notice.level])).toEqual([
+      ['sync', 'alert'],
+      ['upgrade', 'nudge']
+    ]);
   });
 });
 
 describe('the ledger', () => {
   const streakOf = (streak: number) => ({
-    outcomes: { [fixture.id]: { acted: 0, snoozed: streak, streak, lastAt: '' } },
+    streaks: { [fixture.id]: streak },
     snoozedThrough: {}
   });
 
@@ -135,7 +144,7 @@ describe('the ledger', () => {
   });
 
   test('a snooze hides the notice through the day it was pressed, not the next', () => {
-    const ledger = { outcomes: {}, snoozedThrough: { [fixture.id]: '2026-03-10' } };
+    const ledger = { streaks: {}, snoozedThrough: { [fixture.id]: '2026-03-10' } };
     expect(applyLedger(fixture, ledger, '2026-03-10')).toBeNull();
     expect(applyLedger(fixture, ledger, '2026-03-11')).toEqual(fixture);
   });
@@ -148,9 +157,9 @@ describe('the ledger', () => {
       recordOutcome('sync', 'acted');
       return { snoozed, acted: readLedger(), path: FILES.NOTICES };
     });
-    expect(ledger.snoozed.outcomes.sync?.streak).toBe(2);
+    expect(ledger.snoozed.streaks.sync).toBe(2);
     expect(ledger.snoozed.snoozedThrough.sync).toBeDefined();
-    expect(ledger.acted.outcomes.sync).toMatchObject({ acted: 1, snoozed: 2, streak: 0 });
+    expect(ledger.acted.streaks.sync).toBe(0);
     expect(ledger.acted.snoozedThrough).toEqual({});
     expect(ledger.path).toEndWith(`${RUNTIME_DIR}/notices.json`);
   });
@@ -158,10 +167,10 @@ describe('the ledger', () => {
   test('a source that throws costs only itself', async () => {
     const notices = await withHome({}, () =>
       collectNotices([
-        () => {
+        async () => {
           throw new Error('boom');
         },
-        () => fixture
+        async () => fixture
       ])
     );
     expect(notices).toEqual([fixture]);

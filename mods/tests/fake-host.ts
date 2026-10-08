@@ -97,7 +97,7 @@ const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult }
       })
     );
   }
-  if (args === 'notices') {
+  if (args.startsWith('notices')) {
     return ran(0, JSON.stringify(host.notices));
   }
   if (args.startsWith('capture')) {

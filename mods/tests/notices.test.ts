@@ -9,7 +9,6 @@ const SURFACES = ['terminal', 'desktop'] as const;
 
 const UPGRADE: Notice = {
   id: 'upgrade',
-  rank: 0,
   level: 'nudge',
   pinned: true,
   icon: '↑',
@@ -22,7 +21,6 @@ const UPGRADE: Notice = {
 
 const SYNC: Notice = {
   id: 'sync',
-  rank: 10,
   level: 'nudge',
   pinned: true,
   icon: '⟳',
@@ -63,7 +61,15 @@ describe('notices at session start', () => {
   test('an alert raises a toast naming the command', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [{ ...SYNC, level: 'alert' }] }));
     await start($, host);
-    expect(host.toasts).toEqual(['⟳ Brain 5 days behind · /agent-kevin:sync']);
+    expect(host.toasts).toEqual(['⟳  Brain 5 days behind. Tab to sync now.']);
+  });
+
+  test('the toast, Tab and the row all lead with the first notice', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [{ ...SYNC, level: 'alert' }, UPGRADE] }));
+    await start($, host);
+    expect(host.toasts).toEqual(['⟳  Brain 5 days behind. Tab to sync now.']);
+    expect(host.suggestions).toEqual(['/agent-kevin:sync']);
+    expect((await (await band($, 'terminal')).findAll({ type: 'Button' }))[0]?.props.label).toBe('Sync now');
   });
 
   test('nothing to say suggests nothing', async ($, on) => {
@@ -76,7 +82,7 @@ describe('notices at session start', () => {
 describe('the notice row', () => {
   for (const surface of SURFACES) {
     test(`draws the most important notice with its icon colored by level on ${surface}`, async ($, on) => {
-      const host = fakeHost(on, machine({ notices: [UPGRADE, { ...SYNC, level: 'alert' }] }));
+      const host = fakeHost(on, machine({ notices: [UPGRADE, SYNC] }));
       await start($, host);
       const row = await band($, surface);
       const icon = await row.find({ type: 'Text', text: '↑ ' });
@@ -138,6 +144,23 @@ describe('acting by hand', () => {
     await $.turn.complete({ answer: '', durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' });
     await host.clock.advance(0);
     expect(host.argv.filter((args) => args.slice(2).join(' ') === 'notices')).toHaveLength(2);
+  });
+
+  test('the periodic refresh keeps the row aside while the run is still going', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    await $.skill.prompt({ skill: 'agent-kevin:sync', text: 'SYNC PROTOCOL' });
+    await host.clock.advance(30 * 60_000);
+    expect(await (await band($, 'terminal')).findAll({ type: 'Button' })).toEqual([]);
+  });
+
+  test('a press whose command never starts a turn gives the row back when the next turn ends', async ($, on) => {
+    const host = fakeHost(on, machine({ notices: [SYNC] }));
+    await start($, host);
+    await (await band($, 'terminal')).press({ key: 'notice:sync:act' });
+    await $.turn.complete({ answer: '', durationMs: 1000, isAborted: false, turnId: 't1', reason: 'answer' });
+    await host.clock.advance(0);
+    expect((await (await band($, 'terminal')).findAll({ type: 'Button' })).length).toBe(2);
   });
 
   test('other skills leave the notices alone', async ($, on) => {

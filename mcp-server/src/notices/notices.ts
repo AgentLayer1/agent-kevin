@@ -2,16 +2,17 @@ import { PLUGIN_NAME } from '@/config';
 import { getStatus } from '@/knowledge/compile';
 import { readCadence } from '@/shared/cadence';
 import { daysBetween, todayDate } from '@/shared/date';
+import { countOf } from '@/shared/utils';
 import { getUpgradeStatus } from '@/version';
 import type { NoticeLedger } from './ledger';
 import { readLedger } from './ledger';
 
-export const LEVELS = ['hint', 'nudge', 'alert'] as const;
+const LEVELS = ['hint', 'nudge', 'alert'] as const;
 export type NoticeLevel = (typeof LEVELS)[number];
 
 export interface NoticeFact {
   text: string;
-  tone?: 'accent' | 'good' | 'warn';
+  tone?: 'accent' | 'warn';
 }
 
 /**
@@ -21,8 +22,6 @@ export interface NoticeFact {
  */
 export interface Notice {
   id: string;
-  /** Lower shows first. */
-  rank: number;
   level: NoticeLevel;
   /** A pinned notice keeps its level however often it is snoozed. */
   pinned: boolean;
@@ -35,22 +34,20 @@ export interface Notice {
   actionLabel: string;
 }
 
-export type NoticeSource = () => Notice | null | Promise<Notice | null>;
+type NoticeSource = () => Promise<Notice | null>;
 
 /** Consecutive snoozes that drop an unpinned notice one level. */
 export const DOWNGRADE_AFTER = 5;
 
 /** Calendar days since the last sync at which each level starts. */
-export const SYNC_DAYS = { hint: 3, nudge: 5, alert: 8 } as const;
-
-const countOf = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
+const SYNC_DAYS = { hint: 3, nudge: 5, alert: 8 } as const;
 
 /**
  * Calendar days since `stamp` in the operator's timezone, or `null` without a valid stamp.
  */
-export const daysSince = (stamp: string | undefined, now: Date = new Date()): number | null => {
+const daysSince = (stamp: string | undefined): number | null => {
   const at = Date.parse(stamp ?? '');
-  return Number.isNaN(at) ? null : daysBetween(todayDate(new Date(at)), todayDate(now));
+  return Number.isNaN(at) ? null : daysBetween(todayDate(new Date(at)), todayDate());
 };
 
 /**
@@ -66,14 +63,13 @@ export const syncLevel = (age: number | null): NoticeLevel | null => {
   return age >= SYNC_DAYS.hint ? 'hint' : null;
 };
 
-export const upgradeNotice: NoticeSource = () => {
+const upgradeNotice: NoticeSource = async () => {
   const status = getUpgradeStatus();
   if (status.state === 'current') {
     return null;
   }
   const base = {
     id: 'upgrade',
-    rank: 0,
     pinned: true,
     icon: '↑',
     label: 'Upgrade',
@@ -94,7 +90,7 @@ export const upgradeNotice: NoticeSource = () => {
   };
 };
 
-export const syncNotice: NoticeSource = async () => {
+const syncNotice: NoticeSource = async () => {
   const cadence = readCadence();
   if (cadence.welcome === 'pending') {
     return null;
@@ -116,7 +112,6 @@ export const syncNotice: NoticeSource = async () => {
     : [];
   return {
     id: 'sync',
-    rank: 10,
     level,
     pinned: true,
     icon: '⟳',
@@ -128,7 +123,8 @@ export const syncNotice: NoticeSource = async () => {
   };
 };
 
-export const SOURCES: readonly NoticeSource[] = [upgradeNotice, syncNotice];
+// Among notices at the same level, the earlier source shows first.
+const SOURCES: readonly NoticeSource[] = [upgradeNotice, syncNotice];
 
 /**
  * Hides a notice snoozed through today and drops an unpinned one a level once it has been
@@ -138,7 +134,7 @@ export const applyLedger = (notice: Notice, ledger: NoticeLedger, today: string)
   if ((ledger.snoozedThrough[notice.id] ?? '') >= today) {
     return null;
   }
-  const streak = ledger.outcomes[notice.id]?.streak ?? 0;
+  const streak = ledger.streaks[notice.id] ?? 0;
   if (notice.pinned || streak < DOWNGRADE_AFTER) {
     return notice;
   }
@@ -146,22 +142,16 @@ export const applyLedger = (notice: Notice, ledger: NoticeLedger, today: string)
 };
 
 /**
- * Every notice that applies now, most important first. A source that throws is left out rather
- * than costing the others.
+ * Every notice that applies now, loudest first; every surface leads with the first. A source that
+ * throws is left out rather than costing the others.
  */
 export const collectNotices = async (sources: readonly NoticeSource[] = SOURCES): Promise<Notice[]> => {
   const ledger = readLedger();
   const today = todayDate();
-  const found = await Promise.all(
-    sources.map((source) =>
-      Promise.resolve()
-        .then(source)
-        .catch(() => null)
-    )
-  );
+  const found = await Promise.all(sources.map((source) => source().catch(() => null)));
   return found
     .filter((notice): notice is Notice => notice !== null)
     .map((notice) => applyLedger(notice, ledger, today))
     .filter((notice): notice is Notice => notice !== null)
-    .sort((left, right) => left.rank - right.rank);
+    .sort((left, right) => LEVELS.indexOf(right.level) - LEVELS.indexOf(left.level));
 };

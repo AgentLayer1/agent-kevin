@@ -1,62 +1,45 @@
 import { FILES } from '@/config';
-import { nowISO, todayDate } from '@/shared/date';
+import { todayDate } from '@/shared/date';
+import { isRecord } from '@/shared/json-block';
 import { writeJsonAtomic } from '@/shared/utils';
 import { readFileSync } from 'node:fs';
 
 export const OUTCOMES = ['acted', 'snoozed'] as const;
-export type NoticeOutcomeKind = (typeof OUTCOMES)[number];
-
-export interface NoticeOutcome {
-  acted: number;
-  snoozed: number;
-  /** Snoozes since the last time the operator acted on it. */
-  streak: number;
-  lastAt: string;
-}
 
 /**
  * What the operator did with each notice, shared by every surface that shows one.
  */
 export interface NoticeLedger {
-  outcomes: Record<string, NoticeOutcome>;
+  /** Snoozes in a row since the operator last acted on each notice. */
+  streaks: Record<string, number>;
   /** A notice snoozed through this local date stays hidden until the next one. */
   snoozedThrough: Record<string, string>;
 }
 
-const isRecord = (data: unknown): data is Record<string, unknown> => typeof data === 'object' && data !== null;
-
 export const readLedger = (): NoticeLedger => {
   try {
     const data: unknown = JSON.parse(readFileSync(FILES.NOTICES, 'utf-8'));
-    if (!isRecord(data)) {
-      return { outcomes: {}, snoozedThrough: {} };
-    }
+    const root = isRecord(data) ? data : {};
     return {
-      outcomes: isRecord(data.outcomes) ? (data.outcomes as NoticeLedger['outcomes']) : {},
-      snoozedThrough: isRecord(data.snoozedThrough) ? (data.snoozedThrough as NoticeLedger['snoozedThrough']) : {}
+      streaks: isRecord(root.streaks) ? (root.streaks as NoticeLedger['streaks']) : {},
+      snoozedThrough: isRecord(root.snoozedThrough) ? (root.snoozedThrough as NoticeLedger['snoozedThrough']) : {}
     };
   } catch {
-    return { outcomes: {}, snoozedThrough: {} };
+    return { streaks: {}, snoozedThrough: {} };
   }
 };
 
 /**
- * Acting resets the snooze streak and lifts a snooze; snoozing hides the notice for the rest of today.
+ * Acting resets the streak and lifts a snooze; snoozing hides the notice for the rest of today.
  */
-export const recordOutcome = (id: string, outcome: NoticeOutcomeKind, now: Date = new Date()): NoticeOutcome => {
+export const recordOutcome = (id: string, outcome: (typeof OUTCOMES)[number]): NoticeLedger => {
   const ledger = readLedger();
-  const prior = ledger.outcomes[id] ?? { acted: 0, snoozed: 0, streak: 0, lastAt: '' };
   const isActed = outcome === 'acted';
-  const next: NoticeOutcome = {
-    acted: prior.acted + (isActed ? 1 : 0),
-    snoozed: prior.snoozed + (isActed ? 0 : 1),
-    streak: isActed ? 0 : prior.streak + 1,
-    lastAt: nowISO(now)
-  };
   const otherSnoozes = Object.fromEntries(Object.entries(ledger.snoozedThrough).filter(([key]) => key !== id));
-  writeJsonAtomic(FILES.NOTICES, {
-    outcomes: { ...ledger.outcomes, [id]: next },
-    snoozedThrough: isActed ? otherSnoozes : { ...otherSnoozes, [id]: todayDate(now) }
-  });
+  const next: NoticeLedger = {
+    streaks: { ...ledger.streaks, [id]: isActed ? 0 : (ledger.streaks[id] ?? 0) + 1 },
+    snoozedThrough: isActed ? otherSnoozes : { ...otherSnoozes, [id]: todayDate() }
+  };
+  writeJsonAtomic(FILES.NOTICES, next);
   return next;
 };

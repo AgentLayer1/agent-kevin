@@ -7,7 +7,6 @@ import { PHASES, bareToolName, classify } from './phases';
 import {
   actionNotes,
   appendHistory,
-  averageMs,
   finish,
   isOver,
   formatDuration,
@@ -22,14 +21,15 @@ import {
   startRun,
   statsInstruction,
   statsPayload,
-  toHistory
+  SYNC_HISTORY_KEY,
+  toHistory,
+  typicalMs
 } from './stats';
 
 const syncRun = atom({ plugin: 'agent-kevin', key: 'syncRun' } as const, null);
 // Bumped every second while a run is live; only the band reads it, so only the band redraws.
 const syncTick = atom({ plugin: 'agent-kevin', key: 'syncTick' } as const, 0);
 
-const HISTORY_KEY = 'sync-history';
 const STATS_TOOL = 'sync_stats';
 const SYNC_SKILL = /(^|:)sync$/;
 const TICK_MS = 1000;
@@ -72,7 +72,7 @@ async function refresh($: EngineInterface, fresh: Promise<Partial<SyncSnapshot>>
 }
 
 async function history($: EngineInterface) {
-  return parseHistory(await $.store.get(HISTORY_KEY));
+  return parseHistory(await $.store.get(SYNC_HISTORY_KEY));
 }
 
 export const registerSync = (on: On): void => {
@@ -157,7 +157,7 @@ export const registerSync = (on: On): void => {
     await update($, syncRun, () => ended);
     // A stopped run would drag the average down.
     if (!e.isAborted) {
-      await $.store.set(HISTORY_KEY, appendHistory(await history($), toHistory(ended)));
+      await $.store.set(SYNC_HISTORY_KEY, appendHistory(await history($), toHistory(ended)));
     }
     return result;
   });
@@ -184,7 +184,7 @@ export const registerSync = (on: On): void => {
     const isComplete = run.status === 'done';
     await read($, syncTick);
     const past = isComplete ? await history($) : [];
-    const average = past.length > 1 ? averageMs(past) : null;
+    const average = typicalMs(past);
     const elapsed = formatDuration((run.endedAt ?? now) - run.startedAt);
     const notes = actionNotes(run.actions);
 

@@ -176,6 +176,17 @@ export const parseHistory = (stored: unknown): SyncHistoryEntry[] =>
 export const averageMs = (history: readonly SyncHistoryEntry[]): number | null =>
   history.length ? Math.round(history.reduce((sum, entry) => sum + entry.totalMs, 0) / history.length) : null;
 
+/**
+ * The store key the finished runs are kept under, read by any feature that quotes a typical sync.
+ */
+export const SYNC_HISTORY_KEY = 'sync-history';
+
+/**
+ * One run is a sample, not a typical time.
+ */
+export const typicalMs = (history: readonly SyncHistoryEntry[]): number | null =>
+  history.length > 1 ? averageMs(history) : null;
+
 const backlogTotal = (backlog: CompileBacklog | null): number | null =>
   backlog === null ? null : backlog.sessions + backlog.feedback + backlog.inbox;
 
