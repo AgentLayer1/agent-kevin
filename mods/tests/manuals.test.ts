@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing';
 import type { Engine } from 'claude-code/testing';
 
-import { BAND_PROPS, CODE, HOME, USER_HOME, fakeHost, machine, run } from './fake-host';
+import { BAND_PROPS, CODE, HOME, PLUGIN, USER_HOME, fakeHost, machine, run } from './fake-host';
 
 const APP = `${CODE}/app`;
 const DOCS = `${CODE}/docs-only`;
@@ -167,9 +167,9 @@ describe('attach row', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
     test(`names what this turn attached, stacks with the sync band, and clears when the turn ends on ${surface}`, async ($, on) => {
       fakeHost(on, repo());
-      await $.skill.prompt({ skill: 'agent-kevin:sync', text: 'SYNC' });
+      await $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC' });
       await read($, `${LIB}/index.ts`);
-      const mount = () => $.ui.mount({ plugin: 'agent-kevin', surface, component: 'AbovePrompt', props: BAND_PROPS });
+      const mount = () => $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
       const texts = async () =>
         (await (await mount()).findAll({ type: 'Text' })).map((element) => element.text).join('');
       expect(await texts()).toContain('📎 granted/lib/AGENTS.md attached');

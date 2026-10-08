@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'claude-code/testing';
 import type { Engine } from 'claude-code/testing';
 
-import { BAND_PROPS, QUESTION_MS, fakeHost, machine } from './fake-host';
+import { BAND_PROPS, CLI, PLUGIN, QUESTION_MS, STATS_TOOL, fakeHost, machine } from './fake-host';
 
-const MCP = 'mcp__plugin_agent-kevin_kevin__';
+const MCP = `mcp__plugin_${PLUGIN}_${CLI}__` as const;
 const SURFACES = ['terminal', 'desktop'] as const;
 
-const startSync = ($: Engine) => $.skill.prompt({ skill: 'agent-kevin:sync', text: 'SYNC PROTOCOL' });
+const startSync = ($: Engine) => $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC PROTOCOL' });
 
 const stats = async ($: Engine) => {
-  const answer = await $.tool.call({ tool: 'mcp__agent-kevin__sync_stats' });
+  const answer = await $.tool.call({ tool: STATS_TOOL });
   expect(typeof answer.result).toBe('string');
   return JSON.parse(String(answer.result)) as {
     phase: string | null;
@@ -24,8 +24,8 @@ const stats = async ($: Engine) => {
 describe('sync tracking', () => {
   test("sync's prompt gains the counted-numbers instruction; other skills are untouched", async ($, on) => {
     fakeHost(on);
-    expect((await startSync($)).text).toContain('call `mcp__agent-kevin__sync_stats` once');
-    expect((await $.skill.prompt({ skill: 'agent-kevin:focus', text: 'FOCUS' })).text).toBe('FOCUS');
+    expect((await startSync($)).text).toContain(`call \`${STATS_TOOL}\` once`);
+    expect((await $.skill.prompt({ skill: `${PLUGIN}:focus`, text: 'FOCUS' })).text).toBe('FOCUS');
   });
 
   test('phases move forward with the calls, never back, and actions are tallied from results', async ($, on) => {
@@ -69,7 +69,7 @@ describe('sync tracking', () => {
   test('calls outside a sync are not tracked', async ($, on) => {
     fakeHost(on);
     await $.tool.call({ tool: `${MCP}compile_write`, itemId: 'x' });
-    const answer = await $.tool.call({ tool: 'mcp__agent-kevin__sync_stats' });
+    const answer = await $.tool.call({ tool: STATS_TOOL });
     expect(answer.result).toBe('No sync is running in this session.');
   });
 
@@ -85,7 +85,7 @@ describe('sync tracking', () => {
 });
 
 const bandText = async ($: Engine, surface: (typeof SURFACES)[number]) => {
-  const band = await $.ui.mount({ plugin: 'agent-kevin', surface, component: 'AbovePrompt', props: BAND_PROPS });
+  const band = await $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
   return (await band.findAll({ type: 'Text' })).map((element) => element.text).join('');
 };
 
@@ -150,7 +150,7 @@ describe('sync band', () => {
     test(`measures once more when the turn ends, after the stats call on ${surface}`, async ($, on) => {
       const host = fakeHost(on);
       await startSync($);
-      await $.tool.call({ tool: 'mcp__agent-kevin__sync_stats' });
+      await $.tool.call({ tool: STATS_TOOL });
       host.brainStale = 2;
       await $.turn.complete({ answer: '', durationMs: 0, isAborted: false, turnId: 't1', reason: 'answer' });
       expect(await bandText($, surface)).toContain('stale 10/12');

@@ -514,13 +514,13 @@ const manualLayoutIssues = (): string[] => {
   const issues: string[] = [];
   if (!existsSync(FILES.CLAUDE)) {
     issues.push(
-      '`.claude/CLAUDE.md` is missing, so Claude Code loads neither the manual nor the identity stack — run `/agent-kevin:upgrade` to write the bridge'
+      `\`.claude/CLAUDE.md\` is missing, so Claude Code loads neither the manual nor the identity stack — run \`/${PLUGIN_NAME}:upgrade\` to write the bridge`
     );
   }
   try {
     if (/^## Memory Routing\s*$/m.test(readFileSync(FILES.CLAUDE_ROOT, 'utf-8'))) {
       issues.push(
-        'the root `CLAUDE.md` is still the pre-0.4.0 operating manual, so the manual loads twice — run `/agent-kevin:upgrade` to move it aside'
+        `the root \`CLAUDE.md\` is still the pre-0.4.0 operating manual, so the manual loads twice — run \`/${PLUGIN_NAME}:upgrade\` to move it aside`
       );
     }
   } catch {

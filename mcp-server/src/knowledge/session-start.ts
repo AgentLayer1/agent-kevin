@@ -1,7 +1,7 @@
 /**
  * Harness-agnostic SessionStart core. Used by:
- *  - Claude Code's SessionStart hook via `bin/kevin session-start --hook-protocol=claude`.
- *  - Codex CLI's SessionStart hook via `bin/kevin session-start --hook-protocol=codex`:
+ *  - Claude Code's SessionStart hook via the plugin CLI's `session-start --hook-protocol=claude`.
+ *  - Codex CLI's SessionStart hook via the plugin CLI's `session-start --hook-protocol=codex`:
  *    Codex reads the same JSON envelope (`systemMessage` renders as a hook cell,
  *    `additionalContext` becomes developer context) but fires SessionStart on the
  *    first turn rather than at launch, and has no `@-import`, so the static stack
@@ -82,6 +82,8 @@ const strandedHomeResult = (): SessionStartResult => {
   };
 };
 
+const CLI_NAME = PLUGIN_NAME.replace(/^agent-/, '');
+
 // Codex renders systemMessage through ratatui, which prints ANSI escapes as raw bytes.
 const PLAIN_BANNER = [...BANNER_LINES, BANNER_TAG].join('\n');
 
@@ -105,7 +107,7 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
         return `<!-- file: ${name} -->\n${readFileSync(path, 'utf-8').trimEnd()}`;
       } catch (err) {
         log.error(`hook failed (codex): ${name} unreadable`, err);
-        return `<!-- kevin: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;
+        return `<!-- ${CLI_NAME}: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;
       }
     });
   // The static files never depend on git or reports, so a dynamic-lane failure costs
@@ -125,12 +127,12 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
       return {
         banner: `⚠ dynamic session context unavailable: ${message}`,
         hasIssues: true,
-        parts: [`<!-- kevin: dynamic session context unavailable: ${message} -->`]
+        parts: [`<!-- ${CLI_NAME}: dynamic session context unavailable: ${message} -->`]
       };
     });
   const additionalContext =
     [
-      `<!-- ${PLUGIN_NAME.replace(/^agent-/, '')} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · a write refused outside the home and its listed roots is policy, not a prompt: the operator lists the directory in .claude/settings.local.json permissions.additionalDirectories and runs $upgrade · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
+      `<!-- ${CLI_NAME} static context · harness: codex · plugin root: ${resolveEnv('AGENT_PLUGIN_ROOT') ?? 'unknown'} (a skill that writes ${'$'}{CLAUDE_PLUGIN_ROOT} means this path) · a write refused outside the home and its listed roots is policy, not a prompt: the operator lists the directory in .claude/settings.local.json permissions.additionalDirectories and runs $upgrade · delivered by the plugin's SessionStart hook because Codex has no @-import -->`,
       ...files,
       ...lane.parts
     ].join('\n\n') + '\n';

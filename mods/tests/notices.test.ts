@@ -3,7 +3,7 @@ import type { Engine } from 'claude-code/testing';
 
 import type { Notice } from '../types';
 import type { FakeHost } from './fake-host';
-import { BAND_PROPS, HOME, fakeHost, machine } from './fake-host';
+import { BAND_PROPS, HOME, PLUGIN, fakeHost, machine } from './fake-host';
 
 const SURFACES = ['terminal', 'desktop'] as const;
 
@@ -15,7 +15,7 @@ const UPGRADE: Notice = {
   label: 'Upgrade',
   title: 'Upgrade ready',
   facts: [{ text: '0.6.5 → 0.7.0', tone: 'accent' }, { text: '1 release behind' }],
-  command: 'agent-kevin:upgrade',
+  command: `${PLUGIN}:upgrade`,
   actionLabel: 'Upgrade now'
 };
 
@@ -27,7 +27,7 @@ const SYNC: Notice = {
   label: 'Sync',
   title: 'Brain 5 days behind',
   facts: [{ text: '9 session logs', tone: 'warn' }],
-  command: 'agent-kevin:sync',
+  command: `${PLUGIN}:sync`,
   actionLabel: 'Sync now'
 };
 
@@ -37,7 +37,7 @@ const start = async ($: Engine, host: FakeHost) => {
 };
 
 const band = ($: Engine, surface: (typeof SURFACES)[number]) =>
-  $.ui.mount({ plugin: 'agent-kevin', surface, component: 'AbovePrompt', props: BAND_PROPS });
+  $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
 
 const shown = async ($: Engine, surface: (typeof SURFACES)[number]) =>
   (await (await band($, surface)).findAll({ type: 'Text' })).map((element) => element.text).join(' ');
@@ -49,7 +49,7 @@ describe('notices at session start', () => {
   test('the top notice is suggested in the prompt box', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [UPGRADE, SYNC] }));
     await start($, host);
-    expect(host.suggestions).toEqual(['/agent-kevin:upgrade']);
+    expect(host.suggestions).toEqual([`/${PLUGIN}:upgrade`]);
   });
 
   test('only an alert raises a toast', async ($, on) => {
@@ -76,7 +76,7 @@ describe('notices at session start', () => {
     );
     await start($, host);
     expect(host.toasts).toEqual(['↑  Upgrade ready. Tab to upgrade now.']);
-    expect(host.suggestions).toEqual(['/agent-kevin:upgrade']);
+    expect(host.suggestions).toEqual([`/${PLUGIN}:upgrade`]);
     expect((await (await band($, 'terminal')).findAll({ type: 'Button' }))[0]?.props.label).toBe('Upgrade now');
   });
 
@@ -114,7 +114,7 @@ describe('the notice row', () => {
       await start($, host);
       const row = await band($, surface);
       await row.press({ key: 'notice:sync:act' });
-      expect(host.commands).toEqual(['agent-kevin:sync']);
+      expect(host.commands).toEqual([`${PLUGIN}:sync`]);
       expect(await (await band($, surface)).findAll({ type: 'Button' })).toEqual([]);
     });
 
@@ -145,7 +145,7 @@ describe('acting by hand', () => {
   test('a typed command counts as acting, and the row refreshes when the turn ends', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [SYNC] }));
     await start($, host);
-    await $.skill.prompt({ skill: 'agent-kevin:sync', text: 'SYNC PROTOCOL' });
+    await $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC PROTOCOL' });
     expect(recorded(host.argv)).toEqual([['sync', '--outcome=acted']]);
     expect(await (await band($, 'terminal')).findAll({ type: 'Button' })).toEqual([]);
     host.notices = [];
@@ -157,7 +157,7 @@ describe('acting by hand', () => {
   test('the periodic refresh keeps the row aside while the run is still going', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [SYNC] }));
     await start($, host);
-    await $.skill.prompt({ skill: 'agent-kevin:sync', text: 'SYNC PROTOCOL' });
+    await $.skill.prompt({ skill: `${PLUGIN}:sync`, text: 'SYNC PROTOCOL' });
     await host.clock.advance(30 * 60_000);
     expect(await (await band($, 'terminal')).findAll({ type: 'Button' })).toEqual([]);
   });
@@ -174,7 +174,7 @@ describe('acting by hand', () => {
   test('other skills leave the notices alone', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [SYNC] }));
     await start($, host);
-    await $.skill.prompt({ skill: 'agent-kevin:focus', text: 'FOCUS' });
+    await $.skill.prompt({ skill: `${PLUGIN}:focus`, text: 'FOCUS' });
     expect(recorded(host.argv)).toEqual([]);
   });
 });

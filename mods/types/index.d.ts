@@ -79,7 +79,7 @@ export interface SyncHistoryEntry {
 }
 
 /**
- * One entry of `kevin notices`, mirrored from mcp-server/src/notices/notices.ts (a mod can't import Node code).
+ * One entry the CLI's `notices` prints, mirrored from mcp-server/src/notices/notices.ts (a mod can't import Node code).
  */
 export interface NoticeFact {
   text: string;

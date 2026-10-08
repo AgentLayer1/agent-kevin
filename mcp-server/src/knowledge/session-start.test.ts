@@ -14,7 +14,7 @@ import { statusLineSetting } from '@/statusline/setting';
 
 /**
  * Run `fn` against a throwaway home built by `setup`. This agent's own
- * `KEVIN_HOME` is cleared for the duration — it outranks `AGENT_HOME`, so an
+ * `<AGENT>_HOME` is cleared for the duration — it outranks `AGENT_HOME`, so an
  * operator's shell export would otherwise point these at a real brain.
  */
 const withHome = async <T>(setup: (home: string) => void, fn: () => Promise<T>): Promise<T> => {
@@ -139,7 +139,8 @@ describe('sessionStart', () => {
     expect(result.additionalContext).not.toContain('Two data folders');
   });
 
-  const staleStatusLine = JSON.stringify({ statusLine: statusLineSetting('/cache/agent-kevin/0.0.1/bin/kevin') });
+  const staleBin = `/cache/${pluginName()}/0.0.1/bin/${pluginName().replace(/^agent-/, '')}`;
+  const staleStatusLine = JSON.stringify({ statusLine: statusLineSetting(staleBin) });
 
   test('a stale status line on a current home is flagged, since upgrade is the only pointer to the fix', async () => {
     const result = await withHome(
@@ -152,7 +153,7 @@ describe('sessionStart', () => {
     );
     expect(result.systemMessage).toContain('status line');
     expect(result.systemMessage).not.toContain('Upgrade:');
-    expect(result.additionalContext).toContain('/cache/agent-kevin/0.0.1/bin/kevin');
+    expect(result.additionalContext).toContain(staleBin);
   });
 
   test('a stale status line stays quiet while an upgrade is due, which re-points it', async () => {
@@ -166,7 +167,7 @@ describe('sessionStart', () => {
     );
     expect(result.systemMessage).toContain('Upgrade:');
     expect(result.systemMessage).not.toContain('status line');
-    expect(result.additionalContext).not.toContain('/cache/agent-kevin/0.0.1/bin/kevin');
+    expect(result.additionalContext).not.toContain(staleBin);
   });
 
   test('codex protocol: the payload carries the identity files with file markers and the dynamic lane', async () => {
@@ -181,7 +182,7 @@ describe('sessionStart', () => {
         }),
       () => sessionStartCodex()
     );
-    expect(first.additionalContext).toContain('kevin static context · harness: codex');
+    expect(first.additionalContext).toContain(`${pluginName().replace(/^agent-/, '')} static context · harness: codex`);
     expect(first.additionalContext).toContain('<!-- file: SOUL.md -->');
     expect(first.additionalContext).toContain('Sharp, a little spicy.');
     expect(first.additionalContext).toContain('<!-- file: IDENTITY.md -->');
@@ -339,7 +340,7 @@ describe('sessionStart', () => {
       (home) => markedHome(home, files),
       () => sessionStart()
     );
-    expect(stripAnsi(result.systemMessage)).toContain(`⟳  Sync:      ${title} · run /agent-kevin:sync`);
+    expect(stripAnsi(result.systemMessage)).toContain(`⟳  Sync:      ${title} · run /${pluginName()}:sync`);
     expect(result.additionalContext).not.toContain('Sync:');
   });
 
@@ -366,7 +367,12 @@ describe('sessionStart', () => {
           const home = process.env.AGENT_HOME ?? '';
           const out = execFileSync(
             'bun',
-            [resolve(FOLDERS.ROOT, 'bin', 'kevin'), 'session-start', '--hook-protocol=claude', `--home=${home}`],
+            [
+              resolve(FOLDERS.ROOT, 'bin', pluginName().replace(/^agent-/, '')),
+              'session-start',
+              '--hook-protocol=claude',
+              `--home=${home}`
+            ],
             {
               cwd: home,
               env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: entrypoint },

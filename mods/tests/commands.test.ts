@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing';
 import type { Engine } from 'claude-code/testing';
 
-import { HOME, fakeHost, run } from './fake-host';
+import { CLI, HOME, PLUGIN, fakeHost, run } from './fake-host';
 
 describe('commands', () => {
   test('/capture runs the plugin CLI from the session root', async ($, on) => {
@@ -15,7 +15,7 @@ describe('commands', () => {
   test('the CLI is named after the plugin, not the agent', async ($, on) => {
     const host = fakeHost(on);
     await run($, 'capture', 'x');
-    expect(host.argv.at(-1)?.[1]).toMatch(/\/bin\/kevin$/);
+    expect(host.argv.at(-1)?.[1]?.endsWith(`/bin/${CLI}`)).toBe(true);
   });
 
   test('/lesson routes to the feedback log', async ($, on) => {
@@ -48,7 +48,7 @@ describe('commands', () => {
 describe('/today agenda', () => {
   const agenda = async ($: Engine, surface: 'terminal' | 'desktop', text: string) => {
     const row = await $.ui.mount({
-      plugin: 'agent-kevin',
+      plugin: PLUGIN,
       surface,
       component: 'CommandOutput',
       props: { command: 'today', args: '', text, isErrored: false }
@@ -72,7 +72,7 @@ describe('/today agenda', () => {
     test(`leaves a row it has no stored view for to the plain text on ${surface}`, async ($, on) => {
       fakeHost(on);
       const row = await $.ui.mount({
-        plugin: 'agent-kevin',
+        plugin: PLUGIN,
         surface,
         component: 'CommandOutput',
         props: { command: 'today', args: '', text: 'an older summary', isErrored: false }

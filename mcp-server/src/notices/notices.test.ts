@@ -54,7 +54,7 @@ const fixture: Notice = {
   label: 'Fixture',
   title: 'Fixture notice',
   facts: [],
-  command: 'agent-kevin:fixture',
+  command: `${pluginName()}:fixture`,
   actionLabel: 'Do it'
 };
 
@@ -76,7 +76,7 @@ describe('sync escalation', () => {
   test('a stale home reads its age in the title and calls sync', async () => {
     const notices = await withHome({ ...versionAt(PLUGIN_VERSION), ...syncedDaysAgo(5) }, () => collectNotices());
     expect(notices.map((notice) => [notice.id, notice.level, notice.title, notice.command])).toEqual([
-      ['sync', 'nudge', 'Brain 5 days behind', 'agent-kevin:sync']
+      ['sync', 'nudge', 'Brain 5 days behind', `${pluginName()}:sync`]
     ]);
   });
 

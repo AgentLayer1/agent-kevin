@@ -4,6 +4,14 @@ import type { FsStat, On, ProcessRunResult } from 'claude-code';
 
 import type { Notice } from '../types';
 
+/**
+ * The plugin's name as its manifest gives it, which a test has no filesystem to read; every name a
+ * test spells (commands, tools, the CLI) derives from it.
+ */
+export const PLUGIN = 'agent-kevin' as const;
+export const CLI = PLUGIN.replace(/^agent-/, '');
+export const STATS_TOOL = `mcp__${PLUGIN}__sync_stats` as const;
+
 export const HOME = '/fixture/home';
 export const USER_HOME = '/fixture/user';
 export const CODE = '/fixture/code';
@@ -149,7 +157,7 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     host.store.set(e.key, e.value);
     return { value: undefined };
   });
-  on('tool.list', () => ({ value: [{ name: 'mcp__agent-kevin__sync_stats', description: 'stats', mcp: true }] }));
+  on('tool.list', () => ({ value: [{ name: STATS_TOOL, description: 'stats', mcp: true }] }));
   on('tool.call', async (_$, e) => {
     if (e.tool === 'AskUserQuestion') {
       await clock.sleep(QUESTION_MS);
