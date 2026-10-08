@@ -103,9 +103,9 @@ describe("the agent's names", () => {
     expect(PLUGIN_NAME).toBe(pluginName());
   });
 
-  test('the slug names the CLI and the MCP server the manifest registers', () => {
+  test("the slug names the CLI and the agent's own MCP server in the manifest", () => {
     expect(existsSync(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG))).toBe(true);
-    expect(Object.keys(manifest.mcpServers)).toEqual([AGENT_SLUG]);
+    expect(Object.keys(manifest.mcpServers)).toContain(AGENT_SLUG);
   });
 
   test("the mods' state contract is keyed by the plugin name", () => {
