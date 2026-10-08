@@ -172,6 +172,20 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     }
   ],
   hooks: { count: 1, entries: [{ event: 'SessionStart', command: 'kevin session-start' }] },
+  mods: {
+    features: [
+      {
+        id: 'stamps',
+        title: 'Stamp commands',
+        summary: 'Stamps a note without a model turn.',
+        where: 'slash commands',
+        commands: [{ name: 'stamp', description: 'Stamp a note', argumentHint: '<note>' }],
+        tools: ['stamp_stats']
+      }
+    ],
+    floor: '9.9.9',
+    lastSeen: { version: '0.1.4', date: '2026-06-10' }
+  },
   knowledge: {
     concepts: 1,
     conceptDetails: [
@@ -561,6 +575,25 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('0 databases');
     expect(html).toContain('class="chip db-empty"');
     expect(html).not.toContain('class="chip db-chip"');
+  });
+
+  test('mods tab shows each feature with its commands and tools, and whether the module was seen here', () => {
+    const html = renderDashboardHtml(makeSnapshot());
+    expect(html).toContain('Mods · 1');
+    expect(html).toContain('Stamp commands');
+    expect(html).toContain('/stamp &lt;note&gt;');
+    expect(html).toContain('stamp_stats');
+    expect(html).toContain('Claude Code 9.9.9 or newer');
+    expect(html).toContain('Loaded on this machine, last on 2026-06-10 (v0.1.4).');
+  });
+
+  test('mods evidence says when the module last loaded on an older version, or never', () => {
+    const older = makeSnapshot();
+    older.mods = { ...older.mods, lastSeen: { version: '0.1.3', date: '2026-06-01' } };
+    expect(renderDashboardHtml(older)).toContain('Last loaded on 2026-06-01 on v0.1.3, not yet on v0.1.4.');
+    const never = makeSnapshot();
+    never.mods = { ...never.mods, lastSeen: null };
+    expect(renderDashboardHtml(never)).toContain('Not seen loading on this machine yet.');
   });
 
   test('reflexes carry an info tooltip explaining what each hook does', () => {

@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code';
 import type { EngineInterface, On, ToolCallResult, TurnCompleteReason } from 'claude-code';
 
+import { MANUALS_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
 import {
   CLAUDE_FILES,
@@ -254,10 +255,7 @@ export const registerManuals = (on: On): void => {
   });
 
   on('session.start', { isInteractive: true }, async ($, e, next) => {
-    await $.command.register({
-      name: 'manuals',
-      description: 'Repo instructions attached to this conversation (no Claude turn)'
-    });
+    await Promise.all(MANUALS_FEATURE.commands.map((command) => $.command.register(command)));
     return next(e);
   });
 

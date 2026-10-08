@@ -3,6 +3,7 @@ import type { EngineInterface, On } from 'claude-code';
 
 import type { AgendaItem, TodayView } from '../types';
 
+import { COMMANDS_FEATURE } from '../shared/catalog';
 import { cliArgv, cliError } from '../shared/cli';
 import type { TaskFrontmatter } from './today';
 import { STALE_SYNC_HOURS, buildToday, formatAge, parseEmoji, summarize } from './today';
@@ -11,23 +12,6 @@ const todayViews = atom({ plugin: 'agent-kevin', key: 'todayViews' } as const, {
 
 const VIEWS_KEPT = 10;
 const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
-
-const COMMANDS = [
-  {
-    name: 'capture',
-    description: 'Drop a thought into the knowledge inbox (no Claude turn)',
-    argumentHint: '<text>',
-    immediate: true
-  },
-  {
-    name: 'lesson',
-    description: 'Log a correction to the feedback log (no Claude turn)',
-    argumentHint: '<text>',
-    immediate: true
-  },
-  { name: 'done', description: 'Close a task by id (no Claude turn)', argumentHint: '<task-id>', immediate: true },
-  { name: 'today', description: "Overdue work, what's due today and the last sync (no Claude turn)" }
-] as const;
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -71,7 +55,7 @@ async function todayView($: EngineInterface): Promise<TodayView> {
 
 export const registerCommands = (on: On): void => {
   on('session.start', async ($, e, next) => {
-    await Promise.all(COMMANDS.map((command) => $.command.register(command)));
+    await Promise.all(COMMANDS_FEATURE.commands.map((command) => $.command.register(command)));
     return next(e);
   });
 

@@ -1228,6 +1228,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Drops it into the inbox; the next compile absorbs it into the wiki.'
   },
   {
+    when: 'Jot something down',
+    say: '/capture <text>',
+    what: 'Saved to the inbox at once, with no reply to wait for (Claude Code; `/lesson <text>` does the same for a correction).'
+  },
+  {
     when: 'File work',
     say: '“create a task in <project>: …”',
     what: 'New task file with id, priority, and due date; shows up here and in TASKS.md.'
@@ -1288,8 +1293,43 @@ const playbookChips = (skill: SkillInfo): string =>
         .join('')}</div>`
     : '';
 
+/** Whether the mods module is known to load here, from the stamp the notices row leaves at session start. */
+const modsEvidence = (mods: StatusSnapshot['mods'], version: string): string => {
+  if (mods.lastSeen === null) {
+    return 'Not seen loading on this machine yet.';
+  }
+  return mods.lastSeen.version === version
+    ? `Loaded on this machine, last on ${mods.lastSeen.date} (v${version}).`
+    : `Last loaded on ${mods.lastSeen.date} on v${mods.lastSeen.version}, not yet on v${version}.`;
+};
+
+const modTiles = (snap: StatusSnapshot): string => {
+  const { mods } = snap;
+  const tiles = mods.features
+    .map((feature) => {
+      const chips = [
+        ...feature.commands.map((command) =>
+          `<span class="chip" title="${esc(command.description)}">/${esc(command.name)}${
+            command.argumentHint ? ` ${esc(command.argumentHint)}` : ''
+          }</span>`
+        ),
+        ...feature.tools.map((tool) => `<span class="chip" title="a tool the mod gives the session">${esc(tool)}</span>`)
+      ];
+      return `<div class="tile" data-row><div class="tname"><span class="good">${esc(feature.title)}</span></div><div class="tdesc">${esc(
+        feature.summary
+      )}</div><div class="tdesc dim">${esc(feature.where)}</div>${chips.length ? `<div class="tplays">${chips.join('')}</div>` : ''}</div>`;
+    })
+    .join('');
+  return `${hint(
+    `In-process hooks for interactive Claude Code ${mods.floor} or newer. Codex and claude -p run without them: the CLI covers the commands and the session banner carries the notices. ${modsEvidence(
+      mods,
+      snap.runtime.version
+    )}`
+  )}<div class="tiles">${tiles}</div>`;
+};
+
 const pageCapabilities = (snap: StatusSnapshot): string => {
-  const { skills, mcp, hooks } = snap;
+  const { skills, mcp, hooks, mods } = snap;
 
   const cheatRows = `<div data-filterbox>${filterInput('filter recipes…')}${table(
     ['when', 'say', 'what happens'],
@@ -1387,6 +1427,7 @@ const pageCapabilities = (snap: StatusSnapshot): string => {
       },
       { id: 'tools', label: `Tools · ${mcp.toolCount}`, body: toolTiles },
       { id: 'commands', label: 'Commands', body: cliBody },
+      { id: 'mods', label: `Mods · ${mods.features.length}`, body: modTiles(snap) },
       { id: 'hooks', label: `Reflexes · ${hooks.count}`, body: hookRows }
     ])
   );

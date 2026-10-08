@@ -23,7 +23,9 @@ import {
 } from '@/config';
 import { contextManifest, type ManifestEntry } from '@/context';
 import { type HistoryState, historyStatus, type LastCommit } from '@/home/history';
+import { HOST_FLOORS } from '@/hosts';
 import { listInboxFiles } from '@/knowledge/utils';
+import { readLedger } from '@/notices/ledger';
 import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeState } from '@/version';
 import { readCadence } from '@/shared/cadence';
 import { nowISO, nowTime, todayDate } from '@/shared/date';
@@ -46,6 +48,7 @@ import { TOOL_MODULES } from '@/tools/modules';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
 import { collectFocusView } from './focus';
 import type { FocusView } from './focus-data';
 
@@ -331,6 +334,14 @@ export interface HookEntry {
   command: string;
 }
 
+export interface ModsInfo {
+  features: readonly ModFeature[];
+  /** The Claude Code version mods need. */
+  floor: string;
+  /** The plugin version and local date the notices row last fetched notices: proof the module loads here. */
+  lastSeen: { version: string; date: string } | null;
+}
+
 export interface SurfaceLink {
   title: string;
   /** Relative to <HOME> (where dashboard.html renders) for same-frame
@@ -399,6 +410,7 @@ export interface StatusSnapshot {
   /** The bin CLI's HELP text, parsed into sections. */
   cli: CliSection[];
   hooks: { count: number; entries: HookEntry[] };
+  mods: ModsInfo;
   knowledge: {
     concepts: number;
     /** Concepts joined with their one-line descriptions from knowledge/index.md. */
@@ -629,6 +641,12 @@ const collectHooks = (): StatusSnapshot['hooks'] => {
   });
   return { count: entries.length, entries };
 };
+
+const collectMods = (): ModsInfo => ({
+  features: MOD_FEATURES,
+  floor: HOST_FLOORS.find((floor) => floor.name === 'claude')?.version ?? '',
+  lastSeen: readLedger().row ?? null
+});
 
 const listMarkdown = (dir: string, exclude: (name: string) => boolean = () => false): string[] => {
   try {
@@ -1870,6 +1888,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     lint: collectLint(),
     cli: collectCli(),
     hooks: collectHooks(),
+    mods: collectMods(),
     knowledge,
     compile: collectCompile(),
     tasks: collectTasks(),

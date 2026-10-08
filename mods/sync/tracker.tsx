@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code';
 import type { EngineInterface, On, Timer } from 'claude-code';
 
+import { SYNC_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
 import type { SyncSnapshot } from '../types';
 import { PHASES, bareToolName, classify } from './phases';
@@ -30,7 +31,7 @@ const syncRun = atom({ plugin: 'agent-kevin', key: 'syncRun' } as const, null);
 // Bumped every second while a run is live; only the band reads it, so only the band redraws.
 const syncTick = atom({ plugin: 'agent-kevin', key: 'syncTick' } as const, 0);
 
-const STATS_TOOL = 'sync_stats';
+const [STATS_TOOL] = SYNC_FEATURE.tools;
 const SYNC_SKILL = /(^|:)sync$/;
 const TICK_MS = 1000;
 
