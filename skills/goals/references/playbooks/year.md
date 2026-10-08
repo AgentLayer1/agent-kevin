@@ -23,7 +23,7 @@ State the chosen window explicitly at the top of the interview so the operator c
 
 Yearly planning is the operator's strategic intent, not an extrapolation — run 2-3 rounds of `AskUserQuestion`, like [month](month.md) but at quarter altitude:
 
-**Round 1 — orient.** Propose a one-line *theme for the year* (or confirm the existing one), surface the 3-6 candidate outcomes the board + projects suggest, and ask which quarters they belong to. Surface known immovable dates and ask what else is pinned (travel, school, filings).
+**Round 1 — orient.** State the *north star*, the one-line destination every year ladders up to (the `north` band of `<HOME>/roadmap.html` when it exists, else the block header's); ask for one only when there's none. Propose a one-line *theme for the year* (or confirm the existing one), surface the 3-6 candidate outcomes the board + projects suggest, and ask which quarters they belong to. Surface known immovable dates and ask what else is pinned (travel, school, filings).
 
 **Round 2 — grill.** Per quarter: cap it (1-3 outcomes), force a falsifiable end-of-quarter check per outcome, and ask the capacity question — "Q3 currently claims X, Y, and Z alongside the day job; which one moves to Q4 or dies?" Ask the stop-doing question at year scale: what does this year consciously *not* attempt?
 
@@ -38,7 +38,7 @@ Format:
 ```markdown
 ## Yearly Goals
 
-_<Year> theme: <one line> · planned <YYYY-MM-DD>_
+_<Year> theme: <one line> · north star: <one line> · planned <YYYY-MM-DD>_
 
 - **Q3** — <outcome> _(check: <falsifiable end-of-quarter test>)_
 - **Q3** — <outcome> _(check: ...)_

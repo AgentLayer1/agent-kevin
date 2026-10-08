@@ -51,7 +51,7 @@ export const PHASES: readonly Phase[] = [
   phase('next', {
     tools: ['AskUserQuestion'],
     scripts: ['review-defer.ts'],
-    skills: ['goals', 'self-review']
+    skills: ['goals', 'roadmap', 'self-review']
   })
 ];
 

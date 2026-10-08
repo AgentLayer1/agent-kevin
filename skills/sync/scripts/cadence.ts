@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { FOLDERS } from "../../../mcp-server/src/config";
+import { FILES, FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
 import { agentKeyName, dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
@@ -79,6 +79,10 @@ due.push(
     .filter((goal) => bucketChanged(parseDate(cadence[goal.key]), goal.bucket))
     .map((goal) => ({ invoke: goal.invoke, label: goal.label, lastRun: cadence[goal.key] ?? null })),
 );
+
+if (!existsSync(FILES.ROADMAP)) {
+  due.push({ invoke: "roadmap", label: "North-star roadmap", lastRun: null });
+}
 
 const feedbackChangedOn = ((): string | null => {
   try {

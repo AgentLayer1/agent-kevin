@@ -7,7 +7,7 @@ description: >
   wants an existing roadmap.html updated, even if they never say "roadmap". Wizard-style: interviews
   for the frame, mines the task board / project READMEs / git history for milestones, then renders
   from the house template.
-allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__run_upgrade
+allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash, Skill(agent-kevin:goals), mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__browser_screenshot, mcp__plugin_agent-kevin_kevin__run_upgrade
 ---
 
 # Roadmap
@@ -23,6 +23,7 @@ Figure out what already exists so the wizard asks only what's genuinely open:
 1. **Update or create?** Glob for existing roadmaps: `<HOME>/roadmap.html` (the north star), `projects/*/roadmap.html` (a project's own), and anything the user pointed at. If the request targets an existing file, this is an **update** — skip to Iterating below; never regenerate a roadmap that already exists.
 2. Identify the subject: the whole life/company (multi-lane), one project, or a code repo. Read the matching sources: the cross-project task dashboard and yearly goals (`projects/TASKS.md`), the project README + tasks, or the repo's docs. For the north star, also read `knowledge/concepts/roadmap-draft.md` when it exists: init writes the goals the operator gave during setup there as a `| When | Milestone |` table, and so does a seed bundle.
 3. Note today's date and any hard external deadlines already on record (filings, events, seasons) — these become finish-line tags.
+4. **North star only: yearly goals come first.** When the `## Yearly Goals` block in `projects/TASKS.md` is missing, still the placeholder, or planned in an earlier year, run the goals skill's year playbook before this wizard, through the Skill tool (`agent-kevin:goals` with `year`); its quarters become this build's goals source.
 
 ## Phase 1 · Wizard interview
 
@@ -31,6 +32,7 @@ Two rounds of `AskUserQuestion`, max 4 questions each. Derive options from conte
 **The wizard is skippable.** If the user already described the roadmap (a brain-dump, an existing planning doc, a goals block), extract everything from that first and ask only about gaps. Round 1 carries an explicit escape hatch ("I'll just tell you" / "use my notes as the base"); when taken, parse the dump and go straight to the final screen. A roadmap draft counts as that description: derive the horizons and lanes from its rows and offer them as the recommended options, so Round 1 confirms the frame instead of asking for it.
 
 **Round 1: the frame**
+- **North star** (HOME-root build only): the one line every lane ladders up to, the destination rather than this year's theme. Take it from the `## Yearly Goals` header when it carries one; otherwise ask, proposing one from the yearly theme, the roadmap draft and the project READMEs. It labels the `north` band (always on here) and the lede, and replaces the **Where it lives** question.
 - **Shape**: multi-lane north star (parallel bets, each with its own finish line) vs phased project roadmap (shipped history → planned quarters → long-term horizon). Recommend the one the context implies. See "Two shapes, one system" in `references/DESIGN.md`.
 - **Horizons**: offer concrete finish lines from their goals/deadlines (end of year, a launch, a season, an event) plus "you propose the cut". Multi-lane roadmaps can carry two horizons.
 - **Lanes/phases**: propose the set you inferred (from goal buckets or project epics) and let them prune or add. 3–5 lanes or 2–4 phases is the sweet spot.
@@ -69,11 +71,13 @@ Rules: a `done` status needs evidence from this session (task frontmatter, git, 
 
    For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit its `roadmap-data` block, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card); no config, no manual registration.
 
+   A north star asked in Round 1 also goes into the `## Yearly Goals` header line in `projects/TASKS.md` (`· north star: <one line>`); edit only that line.
+
    When the build started from `roadmap-draft.md`, add one line under the draft's title: "Rendered into `roadmap.html` on <date>; edit that file from now on." Keep the draft, since it records what the operator first said.
 
 ## Iterating
 
-An existing roadmap is a living document — updates are **surgical edits to the `roadmap-data` block**, never a regeneration. "Mark M3 shipped", "add a lane", "push the launch a month" are targeted `Edit` calls on data entries; the markup and renderers don't change. Regeneration loses hand-tuned copy and the user's mental map of the page.
+An existing roadmap is a living document — updates are **surgical edits to the `roadmap-data` block**, never a regeneration. "Mark M3 shipped", "add a lane", "push the launch a month" are targeted `Edit` calls on data entries; the markup and renderers don't change. Regeneration loses hand-tuned copy and the user's mental map of the page. A changed north star (the `north` band's label) goes into the `## Yearly Goals` header line too.
 
 When statuses are being refreshed wholesale (a planning-cadence pass), re-harvest from ground truth first — task frontmatter and git, not memory — then edit the deltas. Run the data check after every edit, and the render check after any edit that touched the data's structure.
 
