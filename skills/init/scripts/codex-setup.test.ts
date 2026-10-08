@@ -280,7 +280,7 @@ describe('codex-setup mcp registration', () => {
             'Bash(git push)',
             'Bash(git push *)',
             'Bash(gh pr create:*)',
-            `mcp__plugin_${PLUGIN_NAME}_kevin__curl_run`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__curl_run`,
             'Bash(rm -rf *)'
           ],
           additionalDirectories: [extra, join(home, 'projects')]

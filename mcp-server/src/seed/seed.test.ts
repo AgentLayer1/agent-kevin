@@ -15,7 +15,7 @@ import { validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
 import { importSeed } from '@/seed/import';
-import { PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, PLUGIN_NAME } from '@/config';
 
 const TEMPLATES = resolve(import.meta.dir, '..', '..', '..', 'templates');
 
@@ -79,13 +79,13 @@ beforeAll(() => {
           allow: [
             'Bash(ls *)',
             'Bash(curl https://acme.example/*)',
-            `mcp__plugin_${PLUGIN_NAME}_kevin__ping`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_pdf`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_markdown`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_record`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_flows`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__ping`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__web_search`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_screenshot`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_pdf`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_markdown`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_record`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_flows`,
             `Skill(${PLUGIN_NAME}:sync)`
           ],
           ask: ['Bash(git push *)']
@@ -182,7 +182,7 @@ describe('scanSeed', () => {
     expect(scan.settingsEnvKeys).toEqual(['GSC_SITE_URL']);
     const classes = new Map(scan.permissions.allow.map((grant) => [grant.entry, grant.class]));
     expect(classes.get('Bash(ls *)')).toBe('core');
-    expect(classes.get(`mcp__plugin_${PLUGIN_NAME}_kevin__web_search`)).toEqual({ pack: 'browser' });
+    expect(classes.get(`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__web_search`)).toEqual({ pack: 'browser' });
     expect(classes.get('Bash(curl https://acme.example/*)')).toBe('custom');
     expect(classes.get(`Skill(${PLUGIN_NAME}:sync)`)).toBe('skill');
   });
@@ -224,8 +224,8 @@ describe('exportSeed', () => {
         extras: [{ path: 'AGENTS.md', content: '## Team conventions\n\nShip > start.\n' }],
         permissions: {
           allow: [
-            `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`,
-            `mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__web_search`,
+            `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_screenshot`,
             'Bash(curl https://acme.example/*)',
             `Skill(${PLUGIN_NAME}:seed-export)`
           ]
@@ -275,7 +275,7 @@ describe('importSeed', () => {
       recipient,
       '.claude/settings.json',
       JSON.stringify(
-        { permissions: { allow: ['Bash(ls *)', `mcp__plugin_${PLUGIN_NAME}_kevin__web_search`] } },
+        { permissions: { allow: ['Bash(ls *)', `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__web_search`] } },
         null,
         2
       )
@@ -290,9 +290,9 @@ describe('importSeed', () => {
     expect(readFileSync(join(recipient, '.claude/skills/acme-logs/SKILL.md'), 'utf-8')).toContain('acme-logs');
 
     const settings = JSON.parse(readFileSync(join(recipient, '.claude', 'settings.json'), 'utf-8'));
-    expect(settings.permissions.allow).toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__browser_screenshot`);
+    expect(settings.permissions.allow).toContain(`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_screenshot`);
     expect(settings.permissions.allow).toContain('Bash(curl https://acme.example/*)');
-    expect(result.permissionsAdded.allow).not.toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__web_search`);
+    expect(result.permissionsAdded.allow).not.toContain(`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__web_search`);
     // A grant for a skill retired since the bundle was made lands as its successor's.
     expect(settings.permissions.allow).toContain(`Skill(${PLUGIN_NAME}:seed)`);
     expect(settings.permissions.allow).not.toContain(`Skill(${PLUGIN_NAME}:seed-export)`);

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { agentKeyName, LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const PLUGIN_NAME = pluginName();
+const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
 
 const SCRIPT = resolve(import.meta.dir, 'home-baseline.ts');
 const TEMPLATE = readFileSync(resolve(import.meta.dir, '..', '..', '..', 'templates', '.gitignore'), 'utf-8');
@@ -15,7 +16,7 @@ const MISSING_GRANTS = [
   `Skill(${PLUGIN_NAME}:humanizer)`,
   `Skill(${PLUGIN_NAME}:setup-worktree)`,
   `Skill(${PLUGIN_NAME}:plan-spec)`,
-  `mcp__plugin_${PLUGIN_NAME}_kevin__setup_worktree`
+  `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__setup_worktree`
 ];
 
 const dirs: string[] = [];
@@ -151,7 +152,7 @@ describe('home-baseline settings', () => {
 
   test('reports the baseline grants a home is missing, and keeps remove_worktree out', () => {
     expect(fresh.allowMissing).toEqual(expect.arrayContaining(MISSING_GRANTS));
-    expect(fresh.allowMissing).not.toContain(`mcp__plugin_${PLUGIN_NAME}_kevin__remove_worktree`);
+    expect(fresh.allowMissing).not.toContain(`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__remove_worktree`);
     const home = scratchHome({
       settings: {
         permissions: { allow: [...baselineAllowMinus(MISSING_GRANTS), 'Bash(make *)'], ask: fresh.askMissing }
