@@ -18,8 +18,10 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_pr_diff
   - mcp__plugin_agent-kevin_kevin__github_pr_comments
   - mcp__plugin_agent-kevin_kevin__github_pr_list
+  - mcp__plugin_agent-kevin_kevin__github_pr_checks
   - mcp__plugin_agent-kevin_kevin__github_run_list
   - mcp__plugin_agent-kevin_kevin__github_run_view
+  - mcp__plugin_agent-kevin_kevin__github_run_log
   - mcp__plugin_agent-kevin_kevin__github_issue_view
   - mcp__plugin_agent-kevin_kevin__github_fast_forward
   - mcp__plugin_agent-kevin_kevin__setup_worktree

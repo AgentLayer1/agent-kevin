@@ -402,6 +402,8 @@ const PR_VIEW_FIELDS = [
   'author',
   'body',
   'headRefName',
+  'headRefOid',
+  'isCrossRepository',
   'baseRefName',
   'isDraft',
   'createdAt',
