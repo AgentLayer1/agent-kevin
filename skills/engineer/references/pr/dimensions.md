@@ -1,13 +1,13 @@
 # Review lanes
 
-Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fan-out (step 2), or one of the three lanes a grouped agent carries on a compact run. The checklist is the agent's prompt body; hand it over verbatim with the PR context, plus the absolute paths of the files its **Reads** line names. A grouped agent works each lane's checklist in turn and sets `lane:` on every finding to the lane that found it. Every lane returns findings in the shape defined in that step and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
+Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fan-out (step 2), or one of the three lanes a grouped agent carries on a compact run. The checklist is the agent's prompt body; hand it over verbatim with the PR context, plus the absolute paths of the files its **Reads** line names. Each heading ends with the lane's slug, which the `lane:` field uses. A grouped agent works each lane's checklist in turn and sets `lane:` on every finding to the lane that found it. Every lane returns findings in the shape defined in that step and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
 
 Common rules for every lane:
 
 - Judge the **head commit** in the worktree, not the diff in isolation. Open the callers and callees of anything changed.
-- `git blame` before calling unchanged code a bug. Mark `introduced: pre-existing` honestly; the verifier drops it unless the PR makes it worse or newly reachable.
+- `git blame` before calling unchanged code a bug. Mark `introduced: pre-existing` honestly; a real pre-existing defect the PR does not make worse is reported under "Noticed", never as a comment.
 - One finding per defect. A pattern repeated in six places is one finding listing six anchors.
-- Do not report what the linter, formatter, or type checker reports; those ran in local verification ([foundation](foundation.md) → Step 3). Do not report style outside the repo's written conventions.
+- Do not report what the linter, formatter, or type checker reports when it ran clean in the local gates ([foundation](foundation.md) → Step 3); when a gate did not run, its class of defect is in scope. Do not report style outside the repo's written conventions.
 - The failure sentence is mandatory: inputs or state, then the wrong outcome. No failure sentence, no finding; turn it into a `question`.
 - Every file on the coverage checklist gets its own pass and its own `coverage:` line. Reading an implementation does not cover its interface, schema, migration, or config counterpart, and a small file is not a reason to skip it.
 - `code:` carries the anchored lines verbatim from the head commit. The verifier re-finds a finding by that snippet when the line number drifts; a paraphrased snippet cannot be found.
@@ -16,7 +16,7 @@ Common rules for every lane:
 
 ---
 
-## Lane 1 — Correctness
+## Lane 1 — Correctness · `correctness`
 
 The code does what the PR says it does, for every input it will actually see.
 
@@ -31,7 +31,7 @@ The code does what the PR says it does, for every input it will actually see.
 - Control flow: a guard that can never fire under the condition it names, a `switch` missing a case the enum now has, a feature flag defaulting to the enforced side.
 - Data shape: a JSON blob where a column was needed, a field written but never read, a field read but never written on any path.
 
-## Lane 2 — Domain invariants, state machines, and authorization
+## Lane 2 — Domain invariants, state machines, and authorization · `invariants`
 
 Anything that moves value, changes what a user can do, or decides an outcome the business depends on. The invariants come from `knowledge/concepts/` and the repo's own docs; cite the article you apply.
 
@@ -46,7 +46,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 - Authorization: a route without a permission or role guard, a public-route marker on something that self-authenticates, a permission resolver that widens (a membership check that also matches inherited or default keys), a tenant or team scope check that moved or disappeared. For auth and value paths the diff must let a reviewer see **by inspection** that the safety checks did not move; if the change needed them to move, the change is wrong-shaped.
 - Thresholds and reporting: limits, deadline math, and report triggers changed without a test pinning the boundary.
 
-## Lane 3 — Security and privacy
+## Lane 3 — Security and privacy · `security`
 
 **Reads:** [boundary discipline](../principles/boundary-discipline.md)
 
@@ -59,7 +59,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 - Dependencies: a new package added for one call, a lockfile change unrelated to the PR, an install-script or build-permission change.
 - Data exposure: a new field on a public response that carries internal state, an admin endpoint reachable through the customer API, a storage key or URL that is guessable.
 
-## Lane 4 — Regressions and blast radius
+## Lane 4 — Regressions and blast radius · `regressions`
 
 What this PR breaks in code it did not touch.
 
@@ -73,10 +73,10 @@ What this PR breaks in code it did not touch.
 - Shared packages: a change in a shared types or utils package that another app imports; a layer that must stay browser-safe pulling in a server-only dependency.
 - Process placement: logic moved between processes (api, worker, frontend), and the config keys, env vars, and DI providers it needs exist in the new process.
 - Config and environment: a new env var read with a throwing getter and no entry in `.env.example` or the deploy config, a default that differs between environments, a flag that flips behavior on merge instead of by env.
-- Jobs and loops: a poll whose interval changed, a claim predicate that now matches rows it should not. Their cost (unbounded queries, uncapped batches) is lane 9.
+- Jobs and loops: a poll whose interval changed, a claim predicate that now matches rows it should not. Their cost (unbounded queries, uncapped batches) is the `performance` lane.
 - Deploy-time behavior: a boot-time audit that throws, a migration that locks a hot table, a startup dependency on a service that may be down.
 
-## Lane 5 — Conventions and quality
+## Lane 5 — Conventions and quality · `conventions`
 
 Only the conventions the foundation's Step 1 found (the repo's written docs at the root and any directory level, then, where they are silent, the pattern its code already follows) and the engineering principles. Cite the rule, the two neighboring examples, or the principle you apply.
 
@@ -98,7 +98,7 @@ Only the conventions the foundation's Step 1 found (the repo's written docs at t
   - An instruction where structure belongs: a comment or convention saying "don't do X" where a type, test, or lint could make X impossible.
   - File growth: a file pushed from under 1,000 lines to over it without a structural reason.
 
-## Lane 6 — Tests
+## Lane 6 — Tests · `tests`
 
 **Reads:** [test behavior, not implementation](../principles/test-behavior-not-implementation.md) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
 
@@ -112,7 +112,7 @@ Only the conventions the foundation's Step 1 found (the repo's written docs at t
 - Test placement: specs where the repo keeps them; end-to-end scenarios in the repo's harness, not ad hoc scripts.
 - Round-trip-for-coverage tests are a finding too: they cost attention and protect nothing.
 
-## Lane 7 — PR hygiene
+## Lane 7 — PR hygiene · `hygiene`
 
 The PR as an artifact a reviewer can trust.
 
@@ -128,7 +128,7 @@ The PR as an artifact a reviewer can trust.
 - Claims: "tested on staging", "no behavior change", "verified in prod" without a record ID, a log line, or a spec. Ask for the receipt.
 - Linked work: the task or issue the PR closes actually closes; acceptance criteria met or explicitly deferred.
 
-## Lane 8 — Generated-code tells
+## Lane 8 — Generated-code tells · `generated-code`
 
 The ways code written fast, often by a model, goes wrong while still compiling and passing its own tests. Check every item against the code installed in the worktree, never against memory of an API.
 
@@ -145,7 +145,7 @@ The ways code written fast, often by a model, goes wrong while still compiling a
 - Unexplained constants: a timeout, limit, threshold, retry count, or pattern with no source, no test pinning it, and no reason in the body.
 - Leftovers: commented-out code, debug logging, a TODO or FIXME with no owner or issue, an unused export, parameter, or import the change created.
 
-## Lane 9 — Performance and resources
+## Lane 9 — Performance and resources · `performance`
 
 What the change costs at the sizes it will actually see. Every finding states a realistic size ("teams with 2,000 members", "the 40k-row orders table") or names the hot path it runs on; without one it is a question, not a finding.
 
