@@ -72,4 +72,27 @@ export const NOTICES_FEATURE = {
   tools: []
 } as const satisfies ModFeature;
 
-export const MOD_FEATURES: readonly ModFeature[] = [COMMANDS_FEATURE, MANUALS_FEATURE, SYNC_FEATURE, NOTICES_FEATURE];
+export const QUEUE_FEATURE = {
+  id: 'queue',
+  title: 'Queue a prompt',
+  summary:
+    'Line up prompts while a task runs; each goes out as its own turn once the one before it ends, never mid-task.',
+  where: 'slash command · a ⏳ count above the prompt',
+  commands: [
+    {
+      name: 'queue',
+      description: 'Send a prompt after the current task ends, one per turn',
+      argumentHint: '<prompt> | clear',
+      immediate: true
+    }
+  ],
+  tools: []
+} as const satisfies ModFeature;
+
+export const MOD_FEATURES: readonly ModFeature[] = [
+  COMMANDS_FEATURE,
+  MANUALS_FEATURE,
+  SYNC_FEATURE,
+  NOTICES_FEATURE,
+  QUEUE_FEATURE
+];

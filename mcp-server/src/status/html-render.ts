@@ -1233,6 +1233,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Saved to the inbox at once, with no reply to wait for (Claude Code; `/lesson <text>` does the same for a correction).'
   },
   {
+    when: 'Line up the next ask',
+    say: '/queue <prompt>',
+    what: 'Sent once the current task ends, one per turn, never mid-task (Claude Code; `/queue clear` drops the rest).'
+  },
+  {
     when: 'File work',
     say: '“create a task in <project>: …”',
     what: 'New task file with id, priority, and due date; shows up here and in TASKS.md.'

@@ -3,6 +3,7 @@ import type { Register } from 'claude-code';
 import { registerCommands } from '../commands/commands';
 import { registerManuals } from '../manuals/manuals';
 import { registerNotices } from '../notices/notices';
+import { registerQueue } from '../queue/queue';
 import { registerSync } from '../sync/tracker';
 
 export const register: Register = (on) => {
@@ -10,4 +11,5 @@ export const register: Register = (on) => {
   registerSync(on);
   registerCommands(on);
   registerNotices(on);
+  registerQueue(on);
 };

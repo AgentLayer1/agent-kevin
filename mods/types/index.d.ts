@@ -107,6 +107,11 @@ export interface NoticeActing {
   at: number;
 }
 
+export interface Queue {
+  pending: string[];
+  isBusy: boolean;
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'agent-kevin': {
@@ -117,6 +122,7 @@ declare module 'claude-code' {
       syncTick: number;
       notices: Notice[];
       noticeActing: NoticeActing | null;
+      queue: Queue;
     };
   }
 }
