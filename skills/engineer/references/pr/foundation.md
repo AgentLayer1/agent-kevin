@@ -21,12 +21,11 @@ Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (
 
 | Flag | Effect |
 |---|---|
-| `--quick` | Diff-only pass: no worktree, no local checks, no fan-out or session grep. For triage, and the report says so and is saved as `draft` |
-| `--no-local` | Full analysis but skip the worktree build/lint/test |
+| `--quick` | Diff-only triage: no worktree, no local gates, no fan-out. Lanes and verification read `github_pr_diff` alone, replies only draft and never fix, and the report says so and is saved as `draft` |
+| `--no-local` | Full analysis on the worktree, skipping only the local gates (Step 3); the report is saved as `draft`, since nothing ran |
 | `--repo owner/name` | Override the repo derived from the code path |
-| `--explainer` / `--no-explainer` | Force or skip the review's HTML explainer, whatever the PR's size ([explainer](explainer.md)) |
 
-Call `github_pr_view`. Record: `author.login`, `headRefName`, `baseRefName`, `isDraft`, `state`, `additions`/`deletions`/`changedFiles`, `files`, `body`, `latestReviews`, `reviewDecision`, `mergeStateStatus`.
+Call `github_pr_view`. Record: `author.login`, `headRefName`, `headRefOid`, `isCrossRepository`, `baseRefName`, `isDraft`, `state`, `additions`/`deletions`/`changedFiles`, `files`, `body`, `latestReviews`, `reviewDecision`, `mergeStateStatus`.
 
 **Whose PR it is picks the playbook.** The PR is the operator's when its author is their login: the `GitHub login:` line in `<HOME>/USER.md` under "Where Things Live". When the line is missing or still the template placeholder, ask once with `AskUserQuestion` and offer to fill it in so it never asks again.
 
@@ -40,11 +39,11 @@ An explicit `review`, `replies`, or `walkthrough` argument wins over the inferen
 
 **Stacked PR.** If `baseRefName` is not the repo's default branch, this is one layer of a stack. `github_pr_diff` is already layer-only. Note the base PR in the report, work on only this layer's hunks, and check the base branch is the intended parent (a layer accidentally based on the default branch shows the whole stack as its diff).
 
-**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix. The head branch is usually deleted after merge, and `origin/<base>` already contains the PR, so the audit reads the merge or squash commit instead: find it on the base (`git log --oneline --grep="(#<n>)" origin/<base>`, then confirm its per-file stats match the PR's), cut the Step 3 worktree there, and use its first parent wherever a step or the verifier compares against the base. Name both commits in the report.
+**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix. The head branch is usually deleted after merge, and `origin/<base>` already contains the PR, so the audit reads the merge or squash commit instead: find it on the base (`git log --oneline --grep="(#<n>)" origin/<base>`, then confirm its per-file stats match the PR's), cut the Step 2 worktree there, and use its first parent wherever a step or the verifier compares against the base. Name both commits in the report.
 
 ## Step 1: Prior context (mandatory, before reading the diff)
 
-1. `Grep` `<HOME>/reports/reviews/` for `pr-<n>`, `#<n>`, the branch name, and each changed file's basename. A prior report of the same kind on the same PR means this run **supersedes** it: say so in the summary, carry forward its still-open items, and list what changed since. A `pr-<n>-walkthrough` report is not superseded by a review; it is the author's own stated intent and test plan, and a review checks the diff against it. An `adversarial-*` dossier (from the adversarial-review skill) on the same change is carried the same way: its Ledger lists what a second model already raised and how each finding was dispositioned.
+1. `Grep` `<HOME>/reports/reviews/` for `pr-<n>`, `#<n>`, the branch name, and each changed file's basename. A prior report of the same kind on the same PR means this run **supersedes** it: say so in the summary, carry forward its still-open items, and list what changed since. A review or replies report is a card listing those items by anchor, with the page beside it (same name, `.html`) holding the detail in its `pr-report-data` block. A `pr-<n>-walkthrough` report is not superseded by a review; it is the author's own stated intent and test plan, and a review checks the diff against it. An `adversarial-*` dossier (from the adversarial-review skill) on the same change is carried the same way: its Ledger lists what a second model already raised and how each finding was dispositioned.
 2. `Grep` `<HOME>/projects/*/tasks/` for the PR number and branch; read any matching task for the intent the PR is supposed to serve.
 3. `Grep` `<HOME>/knowledge/concepts/` and `knowledge/memory/index.md` for the domains the changed paths touch (module names, the feature, the external services involved). Load the matching concept articles; they hold the invariants the review checks against.
 4. Read the repo's own conventions: `AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and in any changed directory, plus its lint and format config. These, not personal taste, are what a conventions finding cites. Where they are silent, or the repo has none, the convention is what its code already does: the pattern the changed file's neighbors and most sibling modules follow, cited by two example paths. The home manual's Engineering Standards count only in a repo the operator owns or whose docs adopt them, and are cited in the report, never in a paste block; there, the neighboring code is the citation.
@@ -52,9 +51,18 @@ An explicit `review`, `replies`, or `walkthrough` argument wins over the inferen
 
 Surface the result as a short **Prior context** block in the first response, with the bot comment count by bot (or `No prior reviews or tasks reference this PR.`), then continue.
 
-## Step 2: Understand the change
+## Step 2: Check out the head, then understand the change
 
-Pull the diff with `github_pr_diff`. The diff is the file list of record: `github_pr_view.files` can lag a fresh push by minutes. If it truncates, call again with `nameOnly: true` and read the files from the worktree (Step 3) instead of raising `maxChars` past ~200k.
+Every later step reads the PR on its own head commit, so the checkout comes first. Under `--quick` there is none: the pass reads `github_pr_diff` alone.
+
+1. `github_fast_forward` on the repo so `origin/<headRefName>` is current.
+2. `list_worktrees` on the repo. If the head branch is already checked out somewhere, reuse that path and do not create another. A reused worktree is never torn down.
+3. Otherwise `setup_worktree`, and keep the `worktreePath` and `branchExists` it returns for teardown:
+   - **A teammate's PR:** `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch.
+   - **The operator's own PR:** `{ repoPath, branch: "<headRefName>" }`, which checks the existing branch out.
+4. Confirm the checkout is the PR: for a teammate's PR, `git -C "<worktree>" rev-parse HEAD` must equal `headRefOid` (a merged PR's audit uses its merge commit instead). On the operator's own branch a difference is normal (local commits not yet pushed, or a push not yet pulled): say which in the report, and judge the local head. A PR from a fork (`isCrossRepository`) has its branch in another repo, so `origin/<headRefName>` is missing or, worse, a different branch of the same name: fetch its head with `git -C "<repoPath>" fetch origin pull/<n>/head:refs/remotes/origin/pr-<n>-head` (the operator runs it when the sandbox blocks the fetch) and cut the worktree from `origin/pr-<n>-head`. Never review a teammate's checkout that does not match.
+
+Pull the diff with `github_pr_diff`. The diff is the file list of record: `github_pr_view.files` can lag a fresh push by minutes. If it truncates, call again with `nameOnly: true` and read the files from the worktree instead of raising `maxChars` past ~200k. Every grep and read below runs in the worktree, never the main checkout, which usually sits on another branch.
 
 Build the model before judging it, with the [how](../playbooks/how.md) playbook's method: find the entry point, trace the flow and the data between functions, map the key types, find the boundaries.
 
@@ -63,7 +71,7 @@ Build the model before judging it, with the [how](../playbooks/how.md) playbook'
 - **How**: entry points, the data flow, state transitions, which process runs it, what is now reachable that was not.
 - **Blast radius**, with the [blast radius](../playbooks/blast-radius.md) playbook: `Grep` the head for every changed exported symbol, every changed schema field, every changed DTO/response shape, every deleted write (a deleted write needs a sweep of the reads that still expect the column). Then name the one fact the change is safe because of, and look where grep stops.
 
-Write the **How it works** section now, in the playbook's template shape: one diagram as a ```mermaid block (the report is read in surfaces that render it, so never ASCII in the file), then the walkthrough table, then a **before → after** table of behavior as a caller or user sees it (one row per case that changed; none for a pure refactor, which says so). Keep it to what the operator needs to hold the conversation: two screens at most.
+Draft **How it works** now: for a review, the report data's `explanation`, `flows` (one Mermaid diagram per flow, never ASCII), `areas`, and `behavior` (a **before → after** row per case a caller or user sees change; a pure refactor says so), per [PR report](report.md) → Review. Keep it to what the operator needs to hold the conversation: two screens at most.
 
 The diff's file list is also the **coverage checklist**. Split it: files to read line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends as `reviewed` or `skipped (<reason>)`, per review lane and in the report's checks table. Reading an implementation file does not cover its interface, schema, migration, or config counterpart: each file gets its own pass.
 
@@ -75,18 +83,13 @@ The diff's file list is also the **coverage checklist**. Split it: files to read
 | `logic` | Changes behavior anywhere else |
 | `mechanical` | No behavior change: renames, moves, imports, formatting, generated output, fixtures, copy |
 
-The class comes from what the file's hunks do, checked by reading and grep, never from its size or name alone. A file that is mechanical except for one line is `logic`. When unsure between two classes, take the higher one. The triage drives the report's Risk row and **Where to look**, and the explainer's file map.
+The class comes from what the file's hunks do, checked by reading and grep, never from its size or name alone. A file that is mechanical except for one line is `logic`. When unsure between two classes, take the higher one. The triage drives the report's risk, **Where to look**, and its file map.
 
 **Asked versus delivered.** When the linked issue or task states acceptance criteria, list each one as met (with the anchor that meets it), not met, or untested. A PR with no stated criteria skips this; it is not a finding.
 
-## Step 3: Local verification (skip only with `--quick` or `--no-local`)
+## Step 3: Local gates (skipped with `--quick` or `--no-local`)
 
-1. `github_fast_forward` on the repo so `origin/<headRefName>` is current.
-2. `list_worktrees` on the repo. If the head branch is already checked out somewhere, reuse that path and do not create another. A reused worktree is never torn down.
-3. Otherwise `setup_worktree`, and keep the `worktreePath` and `branchExists` it returns for teardown:
-   - **A teammate's PR:** `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch.
-   - **The operator's own PR:** `{ repoPath, branch: "<headRefName>" }`, which checks the existing branch out.
-4. Find the repo's own gates before running anything: its agent docs or `CONTRIBUTING.md` first, then its manifests (`package.json` scripts and the package manager it pins, a `Makefile` or `justfile`, `Cargo.toml`, `go.mod`, `Package.swift`, `pyproject.toml`). Run each gate the repo defines (build, typecheck, lint, format check, the tests for the changed packages, and any extra gate its docs require, such as a server boot or a smoke script) with the repo's own tool. When `setup_worktree` installed nothing (`packageManager: null`), install the dependencies with that tool first. A gate the repo does not define is `– not run (none configured)`, never a failure. Run from the worktree with an absolute `cd` on every call (cwd drifts between worktrees); `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
+1. Find the repo's own gates before running anything: its agent docs or `CONTRIBUTING.md` first, then its manifests (`package.json` scripts and the package manager it pins, a `Makefile` or `justfile`, `Cargo.toml`, `go.mod`, `Package.swift`, `pyproject.toml`). Run each gate the repo defines (build, typecheck, lint, format check, the tests for the changed packages, and any extra gate its docs require, such as a server boot or a smoke script) with the repo's own tool. When `setup_worktree` installed nothing (`packageManager: null`), install the dependencies with that tool first. A gate the repo does not define is `– not run (none configured)`, never a failure. Run from the worktree with an absolute `cd` on every call (cwd drifts between worktrees); `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
 
    ```bash
    set -o pipefail; cd "<worktree>" && <the repo's build command> 2>&1 | tail -40; echo "exit=$?"
@@ -94,17 +97,17 @@ The class comes from what the file's hunks do, checked by reading and grep, neve
    ```
 
    A sandbox `listen EPERM` in tests is an environment artifact: separate it from genuine failures and say how many of each. Compare failures against the base branch when a failing spec looks pre-existing (`git -C "<worktree>" log -1 --format=%h origin/<base> -- <spec>`).
-5. If the repo's CI ran, `github_run_list({ branch: headRefName })` → `github_run_view` for the step list. Report it as "what CI recorded", never as a verdict.
+2. If the repo's CI ran, `github_run_list({ branch: headRefName })` → `github_run_view` for the step list. Report it as "what CI recorded", never as a verdict.
 
-Every check lands in the report with pass / fail / not run and the reason. This is what turns "tests pass" from a hope into a fact.
+Every gate lands in the report with its result and the reason. This is what turns "tests pass" from a hope into a fact.
 
 ## Saving the report
 
-Every PR playbook saves with `report_write` into `category: 'reviews'` with `skill: 'engineer'`, a `pr-<n>-…` slug, and `pr-<n>` among the tags; the playbook names the slug, status, and `extra` fields. A re-run on the same PR supersedes the prior report of its kind and says what changed. Then run the mermaid skill's Tier 1 check on the returned path and fix any block in place until it parses.
+Every PR playbook saves with `report_write` into `category: 'reviews'` with `skill: 'engineer'`, a `pr-<n>-…` slug, and `pr-<n>` among the tags; the playbook names the slug; for review and replies, `pr-report.ts card` supplies the status and `extra`. A re-run on the same PR supersedes the prior report of its kind and says what changed: the old file stays, and the new report's `supersedes` names it. A review and replies save the card [PR report](report.md) renders, then write the page beside it, which parses every diagram. The walkthrough saves its markdown report as is.
 
 ## Teardown
 
-Only a worktree `setup_worktree` created in this session for a **teammate's** PR is ever removed, once its report is saved: `remove_worktree({ worktreePath, deleteBranch: !branchExists })`, with the values Step 3 kept. The operator's own branch is never torn down and never weighed for it: they keep working there. A worktree `list_worktrees` found, or one that existed before this session, stays: someone may be working in it. A `pr-<n>-review` branch that existed before this session stays even when the worktree goes. Never pass `force`, so every safety gate holds: `remove_worktree` refuses on uncommitted changes and on commits no remote has, and `git branch -d` refuses a branch its upstream does not contain. A `blocked-*` or `failed` status, or a `branchDeleteError`, is final: whatever it held back stays, and the hand-back names the path and the reason. A follow-up question or a re-run recreates the worktree in one call.
+Only a worktree `setup_worktree` created in this session for a **teammate's** PR is ever removed, once its report is saved: `remove_worktree({ worktreePath, deleteBranch: !branchExists })`, with the values Step 2 kept. The operator's own branch is never torn down and never weighed for it: they keep working there. A worktree `list_worktrees` found, or one that existed before this session, stays: someone may be working in it. A `pr-<n>-review` branch that existed before this session stays even when the worktree goes. Never pass `force`, so every safety gate holds: `remove_worktree` refuses on uncommitted changes and on commits no remote has, and `git branch -d` refuses a branch its upstream does not contain. A `blocked-*` or `failed` status, or a `branchDeleteError`, is final: whatever it held back stays, and the hand-back names the path and the reason. A follow-up question or a re-run recreates the worktree in one call.
 
 ## Boundaries
 

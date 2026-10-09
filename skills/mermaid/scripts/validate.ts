@@ -47,7 +47,9 @@ interface BlockResult {
 
 const firstErrorLine = (err: unknown): string => {
   const lines = String(err instanceof Error ? err.message : err).split('\n');
-  return lines.find((line) => /parse error|error/i.test(line))?.trim() ?? lines[0].trim();
+  const first = lines.find((line) => /parse error|error/i.test(line))?.trim() ?? lines[0].trim();
+  const expecting = lines.find((line) => /^\s*Expecting/.test(line))?.trim();
+  return expecting ? `${first} ${expecting}` : first;
 };
 
 /**

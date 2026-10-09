@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PR #418 — Reserve stock when an order is placed, release it on cancel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  try {
+    var t = localStorage.getItem("pr-report-theme");
+    if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #08070d;
+    --panel-a: #1e1b2c;
+    --panel-b: #151322;
+    --ink: #ece9f5;
+    --ink-2: #b8b4c6;
+    --ink-dim: #78748a;
+    --line: #322e45;
+    --line-soft: #232032;
+    --brand: #8b7cf0;
+    --brand-bright: #ab9dff;
+    --brand-glow: rgba(139,124,240,.18);
+    --risk: #f0776b;
+    --logic: #e9b44c;
+    --mech: #6b6a80;
+    --ok: #64c78d;
+    --cool: #5aa9f0;
+    --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 44px -16px rgba(0,0,0,.85);
+    --grid-dot: rgba(255,255,255,.035);
+    --r: 14px;
+  }
+  html[data-theme="light"] {
+    --bg: #f5f3fb;
+    --panel-a: #ffffff;
+    --panel-b: #efecf8;
+    --ink: #201d2b;
+    --ink-2: #565064;
+    --ink-dim: #8b8698;
+    --line: #e5e1f0;
+    --line-soft: #eeebf7;
+    --brand: #5b45d6;
+    --brand-bright: #4a35b8;
+    --brand-glow: rgba(96,74,211,.16);
+    --risk: #c8463a;
+    --logic: #a8740f;
+    --mech: #918ca0;
+    --ok: #2f9a5e;
+    --cool: #2f6bc4;
+    --shadow: 0 1px 2px rgba(30,20,50,.06), 0 14px 40px -20px rgba(30,20,50,.22);
+    --grid-dot: rgba(45,30,80,.05);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 15px; line-height: 1.55;
+    background: radial-gradient(900px 520px at 78% -8%, var(--brand-glow), transparent 60%), var(--bg);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px); background-size: 26px 26px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 70%);
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 52px 28px 100px; }
+  code, .mono { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  a { color: var(--brand-bright); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .theme-toggle {
+    position: fixed; top: 18px; right: 18px; z-index: 10; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer; background: var(--panel-a);
+    border: 1px solid var(--line); color: var(--ink-2); font-size: 16px; box-shadow: var(--shadow);
+  }
+  .theme-toggle .sun { display: none; }
+  html[data-theme="light"] .theme-toggle .sun { display: block; }
+  html[data-theme="light"] .theme-toggle .moon { display: none; }
+
+  header.page { padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--brand); display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--brand); opacity: .7; }
+  h1 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: clamp(26px, 3.6vw, 40px); line-height: 1.08; margin: 0; letter-spacing: -0.02em; }
+  .lede { color: var(--ink-2); max-width: 75ch; margin: 12px 0 0; white-space: pre-line; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-b); color: var(--ink-2);
+  }
+  .chip.good { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .chip.talk { color: var(--cool); border-color: color-mix(in srgb, var(--cool) 40%, transparent); }
+  .chip.warn { color: var(--logic); border-color: color-mix(in srgb, var(--logic) 40%, transparent); }
+  .chip.bad { color: var(--risk); border-color: color-mix(in srgb, var(--risk) 40%, transparent); }
+  .riskwhy { color: var(--ink-dim); font-size: 13.5px; margin: 10px 0 0; }
+  .stack { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
+  .stack .layer { font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--line); color: var(--ink-dim); }
+  .stack .layer.current { border-style: solid; border-color: var(--brand); color: var(--ink); background: color-mix(in srgb, var(--brand) 10%, transparent); }
+  .stack .arrow { color: var(--ink-dim); }
+
+  nav.jump {
+    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 56px 10px 0;
+    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line-soft);
+  }
+  nav.jump a { font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 3px 9px; border-radius: 6px; color: var(--ink-2); border: 1px solid var(--line-soft); }
+  nav.jump a:hover { color: var(--ink); border-color: var(--brand); text-decoration: none; }
+
+  section { margin-top: 38px; scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
+  details.item[id] { scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
+  h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 21px; margin: 0 0 6px; }
+  h3 { font-size: 16px; margin: 18px 0 10px; }
+  .sub { color: var(--ink-dim); font-size: 13.5px; margin: 0 0 16px; }
+  .card { background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px 20px; }
+  section > :is(.card, .grid, .paste) + :is(.card, .grid, .paste) { margin-top: 14px; }
+  .prose { color: var(--ink-2); white-space: pre-line; margin: 0 0 14px; }
+  .grid { display: grid; gap: 14px; }
+  .grid.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+  ol.look { margin: 0; padding: 0; list-style: none; counter-reset: look; display: grid; gap: 10px; }
+  ol.look li { counter-increment: look; display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; }
+  ol.look li::before {
+    content: counter(look); font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 18px;
+    color: var(--brand-bright); text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 2px 0;
+  }
+  .skim { color: var(--ink-2); margin-top: 14px; font-size: 14px; }
+  ul.plain { margin: 0; padding-left: 20px; color: var(--ink-2); }
+  ul.plain li { margin: 4px 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
+
+  .diagram { background: var(--panel-b); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px; overflow-x: auto; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram pre { margin: 0; white-space: pre-wrap; color: var(--ink-2); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  ol.steps { margin: 14px 0 0; padding-left: 22px; color: var(--ink-2); }
+  ol.steps li { margin: 4px 0; }
+
+  .against .label { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--risk); margin-bottom: 6px; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filters button {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-b); color: var(--ink-2); cursor: pointer;
+  }
+  .filters button.on { border-color: var(--brand); color: var(--ink); background: color-mix(in srgb, var(--brand) 14%, transparent); }
+
+  details.item { border: 1px solid var(--line-soft); border-left-width: 4px; border-radius: 10px; background: var(--panel-b); margin-bottom: 8px; }
+  details.item > summary { cursor: pointer; padding: 10px 14px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; list-style: none; }
+  details.item > summary::-webkit-details-marker { display: none; }
+  details.item > summary::before { content: "▸"; color: var(--ink-dim); font-size: 12px; }
+  details.item[open] > summary::before { content: "▾"; }
+  details.item > summary .title { color: var(--ink); flex: 1 1 280px; }
+  details.item > summary .meta { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+  details.item .body { padding: 0 14px 14px 30px; color: var(--ink-2); font-size: 14px; }
+  details.item .body p { margin: 6px 0; }
+  details.item .body .k { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
+  details.item.risk, details.item.blocker, details.item.false-positive { border-left-color: var(--risk); }
+  details.item.logic, details.item.fix-before-merge, details.item.to-post { border-left-color: var(--logic); }
+  details.item.mechanical, details.item.nit, details.item.posted, details.item.out-of-scope, details.item.already-fixed { border-left-color: var(--mech); }
+  details.item.question, details.item.follow-up { border-left-color: var(--cool); }
+  details.item.confirmed { border-left-color: var(--ok); }
+  details.item .nested { margin-top: 10px; }
+  .concern { margin-top: 16px; }
+  .concern > .name { font-weight: 600; margin-bottom: 8px; }
+
+  .pill { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .pill.risk, .pill.blocker, .pill.false-positive { color: var(--risk); }
+  .pill.logic, .pill.fix-before-merge, .pill.to-post { color: var(--logic); }
+  .pill.mechanical, .pill.nit, .pill.posted, .pill.out-of-scope, .pill.already-fixed, .pill.bot { color: var(--mech); }
+  .pill.question, .pill.follow-up { color: var(--cool); }
+  .pill.confirmed, .pill.pass { color: var(--ok); }
+  .pill.fail { color: var(--risk); }
+  .pill.not-run, .pill.partial { color: var(--logic); }
+  .pill.info { color: var(--ink-dim); }
+  .pill.met { color: var(--ok); }
+  .pill.not-met { color: var(--risk); }
+  .pill.untested { color: var(--cool); }
+
+  .paste { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .paste .bar { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: color-mix(in srgb, var(--brand) 8%, var(--panel-a)); border-bottom: 1px solid var(--line); }
+  .paste .bar .label { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .08em; }
+  .paste .bar button {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--brand); background: color-mix(in srgb, var(--brand) 16%, transparent); color: var(--ink);
+  }
+  .paste .bar button.done { border-color: var(--ok); color: var(--ok); background: transparent; }
+  .paste pre { margin: 0; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink); background: var(--panel-a); }
+  .quote { color: var(--ink-2); font-style: italic; margin: 6px 0; }
+  .empty { color: var(--ink-dim); font-style: italic; }
+  footer { margin-top: 48px; color: var(--ink-dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+  @media (max-width: 700px) { .wrap { padding: 40px 16px 80px; } }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle theme"><span class="moon">☾</span><span class="sun">☀</span></button>
+<div class="wrap" id="render"></div>
+
+<script type="application/json" id="pr-report-data">
+{
+  "kind": "review",
+  "pr": { "number": 418, "title": "Reserve stock when an order is placed, release it on cancel", "author": "ada", "repo": "acme/shop", "head": "3f9c2e1", "base": "main", "adds": 642, "dels": 188 },
+  "stack": [
+    { "number": 417, "title": "Add the reservations table" },
+    { "number": 418, "title": "Reserve on place, release on cancel", "current": true },
+    { "number": 419, "title": "Expire stale reservations" }
+  ],
+  "verdict": "changes-requested",
+  "risk": "L",
+  "riskWhy": "Touches the checkout path and a migration on a large table; tests cover reserve but not edit.",
+  "summary": "Placing an order now holds its units in a reservations table instead of decrementing stock at payment, so two buyers can no longer both pay for the last unit. Cancelling releases the hold. One race remains: an edit that raises the quantity reads stock before taking the row lock, so it must be fixed before merge.",
+  "executed": "never",
+  "prior": ["No prior reviews or tasks reference this PR."],
+  "lookAt": [
+    { "anchor": "src/orders/reserve.ts:41-77", "why": "The lock order decides whether two buyers can both hold the last unit." },
+    { "anchor": "src/orders/edit.ts:22", "why": "An edit reads available stock before the lock: the open finding." },
+    { "anchor": "migrations/0042_reservations.sql:1", "why": "Backfill runs inside the deploy; check it on the large table." }
+  ],
+  "skim": "1 mechanical file: the regenerated API client.",
+  "decisions": [
+    { "decision": "How long an unpaid reservation holds stock", "picks": "15 minutes", "anchor": "src/orders/config.ts:9" },
+    { "decision": "What a buyer sees when stock runs out mid-checkout", "picks": "\"This item just sold out\" and the cart keeps the line", "anchor": "src/web/checkout/errors.ts:31" }
+  ],
+  "asked": [
+    { "criterion": "Two buyers can't both pay for the last unit", "status": "met", "anchor": "src/orders/reserve.ts:41" },
+    { "criterion": "Editing an order respects stock", "status": "not-met", "anchor": "src/orders/edit.ts:22" }
+  ],
+  "explanation": "Stock is no longer decremented at payment. Placing an order locks each item's stock row in item-id order and writes a hold per line; available stock is on hand minus active holds. Cancelling an unpaid order deletes its holds in the same transaction.",
+  "flows": [
+    {
+      "title": "Placing an order",
+      "diagram": "sequenceDiagram\n  participant Web\n  participant API\n  participant DB\n  Web->>API: POST /orders\n  API->>DB: lock stock row\n  API->>DB: insert reservation\n  API-->>Web: 201 order + hold expiry",
+      "steps": [
+        { "anchor": "src/orders/routes.ts:58", "text": "The route validates the cart and calls reserve()." },
+        { "anchor": "src/orders/reserve.ts:41", "text": "reserve() locks each stock row in item-id order, so two orders cannot deadlock." },
+        { "anchor": "src/orders/reserve.ts:70", "text": "A hold is written per line with an expiry." }
+      ]
+    },
+    {
+      "title": "Cancelling an order",
+      "diagram": "flowchart LR\n  A[Cancel request] --> B{Paid?}\n  B -- no --> C[Delete holds]\n  B -- yes --> D[Refund, then delete holds]",
+      "steps": [{ "anchor": "src/orders/cancel.ts:19", "text": "Unpaid orders drop their holds in the same transaction." }]
+    }
+  ],
+  "areas": [
+    { "area": "src/orders/reserve.ts", "what": "New reservation path", "why": "Every checkout runs through it" },
+    { "area": "migrations/0042", "what": "Reservations table + backfill", "why": "Runs at deploy on a large table" }
+  ],
+  "behavior": [
+    { "case": "Two buyers pay for the last unit at once", "before": "Both succeed; one is refunded by hand", "after": "The second sees \"just sold out\" at checkout" },
+    { "case": "A buyer abandons checkout", "before": "Stock never moved", "after": "Held for 15 minutes, then released" }
+  ],
+  "holdQuestions": ["What expires holds before #419 lands?", "Why lock in item-id order rather than one table lock?"],
+  "caseAgainst": {
+    "strongest": "Holds now gate every checkout, so a bug in expiry blocks sales rather than overselling.",
+    "threeMonths": "Nothing expires holds until #419 merges; if this ships alone, abandoned carts pile up and items read as sold out.",
+    "cut": "The checkout copy and the admin hold view can ship later; reserve.ts, cancel.ts and the migration are the change."
+  },
+  "findings": [
+    {
+      "id": 1, "severity": "blocker", "title": "An edit that raises quantity can oversell: stock is read before the row lock",
+      "anchor": "src/orders/edit.ts:22", "lanes": ["correctness", "case-against", "bot:coderabbitai[bot]"], "principle": "separate before serializing shared state", "introduced": "yes",
+      "failure": "Two edits on the last unit both read 1 available, both lock in turn, and both write a hold of 1: the item is held twice.",
+      "evidence": "edit.ts:22 reads availableStock() outside the transaction that locks at edit.ts:31; reserve.ts:41 does both inside one.",
+      "comment": "Two edits that raise quantity on the last unit both read 1 available before either takes the row lock, so both hold it and the item oversells.\n\n`availableStock()` at line 22 runs before the transaction that locks at line 31; `reserve()` reads inside its lock. Reading after the lock closes the race:\n\n```diff\n-    const available = await availableStock(item.id);\n     await db.transaction(async (tx) => {\n       await lockStock(tx, item.id);\n+      const available = await availableStock(tx, item.id);\n```"
+    },
+    {
+      "id": 2, "severity": "nit", "title": "2 nits in errors.ts", "anchor": "src/web/checkout/errors.ts", "lanes": ["conventions"],
+      "comment": "- line 31: the sold-out copy is duplicated in `messages.ts:12`; import it from there.\n- line 40: `err` is unused."
+    },
+    {
+      "id": 3, "severity": "question", "title": "Should this layer ship before #419 expires holds?", "anchor": "src/orders/reserve.ts:70", "lanes": ["case-against"],
+      "comment": "Does anything expire holds before #419 lands? If this layer ships alone, an abandoned checkout keeps its units held and the item reads as sold out until someone clears it."
+    }
+  ],
+  "files": [
+    { "path": "src/orders/reserve.ts", "class": "risk", "concern": "Reservations", "summary": "Locks stock rows and writes holds.", "adds": 96, "dels": 0,
+      "hunks": [{ "lines": "41-77", "text": "Lock rows in item-id order, then insert holds." }] },
+    { "path": "src/orders/edit.ts", "class": "risk", "concern": "Reservations", "summary": "Edits adjust the hold by the quantity delta.", "adds": 38, "dels": 12,
+      "hunks": [{ "lines": "22-40", "text": "Reads available stock, then locks: the race." }] },
+    { "path": "migrations/0042_reservations.sql", "class": "risk", "concern": "Schema", "summary": "Creates reservations and backfills open orders.", "adds": 44, "dels": 0 },
+    { "path": "src/orders/cancel.ts", "class": "risk", "concern": "Reservations", "summary": "Cancelling an unpaid order deletes its holds in the same transaction.", "adds": 21, "dels": 4 },
+    { "path": "src/orders/routes.ts", "class": "logic", "concern": "Reservations", "summary": "The order route calls reserve() before creating the order.", "adds": 6, "dels": 2 },
+    { "path": "src/orders/config.ts", "class": "logic", "concern": "Reservations", "summary": "Adds the 15-minute hold window.", "adds": 3, "dels": 0 },
+    { "path": "src/web/checkout/errors.ts", "class": "logic", "concern": "Checkout", "summary": "New sold-out message.", "adds": 12, "dels": 2 },
+    { "path": "src/api/client.gen.ts", "class": "mechanical", "concern": "Generated", "summary": "Regenerated client.", "adds": 210, "dels": 140 }
+  ],
+  "bots": [
+    { "bot": "coderabbitai[bot]", "anchor": "src/orders/edit.ts:22", "claim": "Race between read and lock", "disposition": "confirmed", "finding": 1 },
+    { "bot": "coderabbitai[bot]", "anchor": "src/orders/cancel.ts:19", "claim": "Holds not deleted on refund failure", "disposition": "false-positive",
+      "reason": "The refund and the hold delete share one transaction (cancel.ts:14), so a failed refund rolls the delete back too.",
+      "reply": "Both run in the same transaction (`cancel.ts:14`), so a failed refund rolls the hold delete back with it." }
+  ],
+  "verifiedClean": [
+    "The lock order is the same in reserve() and cancel(): item id ascending.",
+    "No handler outside src/orders reads the stock column directly."
+  ],
+  "checks": [
+    { "check": "Build", "result": "pass", "notes": "12 tasks" },
+    { "check": "Lint", "result": "pass" },
+    { "check": "Format", "result": "pass" },
+    { "check": "Tests", "result": "partial", "notes": "212 passed, 1 failing on the base too" },
+    { "check": "CI recorded", "result": "pass", "notes": "run 4417: build, lint and tests gate the PR" },
+    { "check": "Fan-out", "result": "info", "notes": "full: 9 lanes, the PR touches the order path" },
+    { "check": "Verification pass", "result": "info", "notes": "6 candidates (2 from bots, 1 from the case against) → 1 finding, 1 question, 1 nit group, 1 dropped, 1 bot false positive" },
+    { "check": "Coverage", "result": "info", "notes": "8 files on the checklist: 7 reviewed line by line, 1 generated client skimmed" }
+  ],
+  "summaryComment": "Changes requested: one race to fix before merge.\n\n1. `src/orders/edit.ts:22`: an edit reads stock before the row lock, so two edits can both hold the last unit.\n\nVerified clean: the lock order in reserve and cancel, and no stock reads outside src/orders. Build, lint, format and tests ran locally.",
+  "noticed": [{ "anchor": "src/orders/routes.ts:12", "text": "The rate limit on /orders predates this PR and counts rejected calls." }],
+  "dropped": [{ "anchor": "src/orders/config.ts:9", "lanes": ["generated-code"], "claim": "15 minutes is an unexplained constant", "reason": "The linked issue sets 15 minutes." }],
+  "notChecked": ["The migration's runtime on a production-sized table."]
+}
+</script>
+
+<script>
+  const DATA = JSON.parse(document.getElementById("pr-report-data").textContent);
+  const VERDICTS = {
+    "approve": ["✅ Approve", "good"], "approve-with-fixes": ["✅ Approve with fixes", "good"], "needs-discussion": ["💬 Needs discussion", "talk"],
+    "changes-requested": ["🟠 Changes requested", "warn"], "do-not-merge": ["🔴 Do not merge", "bad"]
+  };
+  const SEVERITY_ORDER = ["blocker", "fix-before-merge", "nit"];
+  const SEVERITY_LABEL = { "blocker": "blocker", "fix-before-merge": "fix before merge", "nit": "nit", "question": "question" };
+  const STATUS_LABEL = { "to-post": "to post", "follow-up": "follow-up", "posted": "posted" };
+  const CLASSES = ["risk", "logic", "mechanical"];
+  const list = (value) => (Array.isArray(value) ? value : []);
+
+  // Every string from the PR is untrusted: nodes are built from text, and the only innerHTML is Mermaid's SVG under securityLevel strict.
+  const h = (tag, attrs, ...children) => {
+    const node = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([key, val]) => {
+      if (val === undefined || val === null || val === false) { return; }
+      if (key === "class") { node.className = val; } else { node.setAttribute(key, String(val)); }
+    });
+    children.flat().filter((child) => child !== undefined && child !== null && child !== false)
+      .forEach((child) => node.append(child instanceof Node ? child : document.createTextNode(String(child))));
+    return node;
+  };
+
+  // Only https URLs become links; anything else in the data (a javascript: URL) stays text.
+  const link = (url, ...children) =>
+    /^https:\/\//.test(url || "") ? h("a", { href: url, target: "_blank", rel: "noopener" }, ...children) : h("span", {}, ...children);
+
+  const anchorLink = (anchor) => {
+    const match = /^([^:]+)(?::(\d+)(?:-(\d+))?)?$/.exec(anchor || "");
+    const { repo, head } = DATA.pr;
+    if (!match || !repo || !head) { return h("code", {}, anchor); }
+    const [, path, start, end] = match;
+    const lines = start ? (end ? `#L${start}-L${end}` : `#L${start}`) : "";
+    const encoded = path.split("/").map(encodeURIComponent).join("/");
+    return link(`https://github.com/${repo}/blob/${head}/${encoded}${lines}`, h("code", {}, anchor));
+  };
+
+  const pathOf = (anchor) => (anchor || "").split(":")[0];
+
+  const copyText = async (value) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (err) {
+      const area = h("textarea", { style: "position:fixed;opacity:0" });
+      area.value = value;
+      document.body.append(area);
+      area.select();
+      const ok = document.execCommand("copy");
+      area.remove();
+      return ok;
+    }
+  };
+
+  const paste = (label, value) => {
+    const button = h("button", { type: "button" }, "Copy");
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const ok = await copyText(value);
+      button.textContent = ok ? "Copied" : "Copy failed";
+      button.classList.toggle("done", ok);
+      setTimeout(() => { button.textContent = "Copy"; button.classList.remove("done"); }, 1600);
+    });
+    return h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), button), h("pre", {}, value));
+  };
+
+  const field = (key, value) => (value ? h("p", {}, h("span", { class: "k" }, key), value) : null);
+
+  const item = (cls, open, id, summaryParts, bodyParts) =>
+    h("details", { class: `item ${cls}`, open: open ? "" : null, id }, h("summary", {}, summaryParts), h("div", { class: "body" }, bodyParts));
+
+  const section = (id, title, sub, ...body) => ({ id, title, node: h("section", { id }, h("h2", {}, title), sub ? h("p", { class: "sub" }, sub) : null, ...body) });
+
+  const table = (heads, rows) => h("table", {}, h("thead", {}, h("tr", {}, heads.map((head) => h("th", {}, head)))), h("tbody", {}, rows.map((row) => h("tr", {}, row.map((cell) => h("td", {}, cell))))));
+
+  const filterBar = (options, onPick) => {
+    const buttons = options.map(([value, label], i) => h("button", { type: "button", class: i === 0 ? "on" : "" }, label));
+    buttons.forEach((button, i) => button.addEventListener("click", () => {
+      buttons.forEach((other) => other.classList.toggle("on", other === button));
+      onPick(options[i][0]);
+    }));
+    return h("div", { class: "filters" }, buttons);
+  };
+
+  const renderHeader = (subtitle) => {
+    const { pr, stack } = DATA;
+    const verdict = VERDICTS[DATA.verdict];
+    return h("header", { class: "page" },
+      h("div", { class: "eyebrow" }, `PR #${pr.number}${pr.repo ? ` · ${pr.repo}` : ""}${subtitle ? ` · ${subtitle}` : ""}`),
+      h("h1", {}, pr.title),
+      h("p", { class: "lede" }, DATA.summary),
+      h("div", { class: "chips" },
+        verdict ? h("span", { class: `chip ${verdict[1]}` }, verdict[0]) : null,
+        DATA.draft ? h("span", { class: "chip warn" }, "draft: quick or partial, gates not run") : null,
+        DATA.risk ? h("span", { class: "chip" }, `risk ${DATA.risk}`) : null,
+        h("span", { class: "chip" }, `@${pr.author}`),
+        h("span", { class: "chip" }, `${pr.head} → ${pr.base}`),
+        pr.adds !== undefined ? h("span", { class: "chip" }, `+${pr.adds} / −${pr.dels ?? 0}`) : null,
+        DATA.executed ? h("span", { class: "chip" }, `executed: ${DATA.executed}`) : null),
+      DATA.riskWhy ? h("p", { class: "riskwhy" }, `Risk ${DATA.risk}: ${DATA.riskWhy}`) : null,
+      list(stack).length ? h("div", { class: "stack" },
+        stack.flatMap((layer, i) => [
+          i ? h("span", { class: "arrow" }, "→") : null,
+          h("span", { class: `layer${layer.current ? " current" : ""}`, title: layer.title }, `#${layer.number} ${layer.title}`)
+        ])) : null);
+  };
+
+  const checksTable = () => list(DATA.checks).length
+    ? section("checks", "Checks run", null, h("div", { class: "card" }, table(["Check", "Result", "Notes"],
+        DATA.checks.map((row) => [row.check, h("span", { class: `pill ${row.result}` }, row.result), row.notes || ""]))))
+    : null;
+
+  const textList = (id, title, sub, items) => list(items).length
+    ? section(id, title, sub, h("div", { class: "card" }, h("ul", { class: "plain" }, items.map((entry) => h("li", {}, entry)))))
+    : null;
+
+  const priorSection = () => (list(DATA.sinceLast).length || list(DATA.prior).length)
+    ? section("prior", "Prior context", null, h("div", { class: "card" },
+        list(DATA.sinceLast).length ? [h("h3", { style: "margin-top:0" }, "Since the last run"), h("ul", { class: "plain" }, DATA.sinceLast.map((entry) => h("li", {}, entry)))] : null,
+        list(DATA.prior).length ? h("ul", { class: "plain" }, DATA.prior.map((entry) => h("li", {}, entry))) : null))
+    : null;
+
+  // ---------- review ----------
+
+  const findingCard = (finding, open, anchorId) => item(finding.severity, open, anchorId,
+    [h("span", { class: `pill ${finding.severity}` }, SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`),
+     h("span", { class: "title" }, finding.title), anchorLink(finding.anchor)],
+    [field("Failure", finding.failure), field("Evidence", finding.evidence),
+     field("Lane", [list(finding.lanes).join(", "), finding.principle, finding.introduced ? `introduced: ${finding.introduced}` : null].filter(Boolean).join(" · ")),
+     paste(finding.severity === "question" ? "Question to paste" : "Comment to paste", finding.comment)]);
+
+  const reviewSections = () => {
+    const findings = list(DATA.findings);
+    const issues = findings.filter((finding) => finding.severity !== "question")
+      .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
+    const questions = findings.filter((finding) => finding.severity === "question");
+
+    const look = section("look", "Where to look", "The hunks a human should read. The review lanes read everything else.",
+      h("div", { class: "card" },
+        h("ol", { class: "look" }, DATA.lookAt.map((entry) => h("li", {}, h("div", {}, anchorLink(entry.anchor), h("div", {}, entry.why))))),
+        DATA.skim ? h("div", { class: "skim" }, "Skim · ", DATA.skim) : null),
+      list(DATA.decisions).length ? h("div", { class: "card" }, h("h3", {}, "Decisions this PR makes for you"),
+        table(["Decision", "Picks", "Where"], DATA.decisions.map((row) => [row.decision, row.picks, anchorLink(row.anchor)]))) : null,
+      list(DATA.asked).length ? h("div", { class: "card" }, h("h3", {}, "Asked vs delivered"),
+        table(["Criterion", "Status", "Where"], DATA.asked.map((row) => [row.criterion, h("span", { class: `pill ${row.status}` }, row.status.replace(/-/g, " ")), row.anchor ? anchorLink(row.anchor) : ""]))) : null);
+
+    const how = section("how", "How it works", null,
+      DATA.explanation ? h("p", { class: "prose" }, DATA.explanation) : null,
+      list(DATA.flows).length ? h("div", { class: "grid" }, DATA.flows.map((flow) => h("div", { class: "card" },
+        h("h3", { style: "margin-top:0" }, flow.title),
+        h("div", { class: "diagram" }, h("pre", {}, flow.diagram)),
+        list(flow.steps).length ? h("ol", { class: "steps" }, flow.steps.map((step) => h("li", {}, step.anchor ? [anchorLink(step.anchor), " "] : null, step.text))) : null))) : null,
+      list(DATA.areas).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Walkthrough"),
+        table(["Area", "What changed", "Why it matters"], DATA.areas.map((row) => [h("code", {}, row.area), row.what, row.why]))) : null,
+      list(DATA.behavior).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Before → after"),
+        table(["Case", "Before", "After"], DATA.behavior.map((row) => [row.case, row.before, row.after]))) : null,
+      list(DATA.holdQuestions).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Questions to hold in your head"),
+        h("ul", { class: "plain" }, DATA.holdQuestions.map((entry) => h("li", {}, entry)))) : null);
+
+    const against = DATA.caseAgainst ? section("against", "Case against", null, h("div", { class: "grid three" },
+      [["Strongest argument against merging", DATA.caseAgainst.strongest], ["Most likely to bite in three months", DATA.caseAgainst.threeMonths], ["If 40% had to go", DATA.caseAgainst.cut]]
+        .map(([label, value]) => h("div", { class: "card against" }, h("div", { class: "label" }, label), h("div", {}, value))))) : null;
+
+    const findingsSection = section("findings", "Findings", issues.length ? "Open a card for the evidence and the comment to paste on that line." : null,
+      issues.length ? issues.map((finding) => findingCard(finding, finding.severity !== "nit", `finding-${finding.id}`)) : h("p", { class: "empty" }, "No findings."));
+
+    const questionsSection = questions.length ? section("questions", "Questions for the author", "Real but unproven: asked, not asserted.",
+      questions.map((finding) => findingCard(finding, false, `finding-${finding.id}`))) : null;
+
+    const fileList = h("div", {});
+    const drawFiles = (filter) => {
+      fileList.replaceChildren();
+      const files = DATA.files.filter((file) => filter === "all" || file.class === filter);
+      [...new Set(files.map((file) => file.concern))].forEach((concern) => fileList.append(h("div", { class: "concern" },
+        h("div", { class: "name" }, concern),
+        files.filter((file) => file.concern === concern).map((file) => {
+          const cards = findings.filter((finding) => pathOf(finding.anchor) === file.path);
+          return item(file.class, file.class === "risk" || cards.length > 0, null,
+            [h("span", { class: `pill ${file.class}` }, file.class), h("code", {}, file.path), h("span", { class: "title" }, file.summary),
+             cards.length ? h("span", { class: "meta" }, `${cards.length} comment${cards.length > 1 ? "s" : ""}`) : null,
+             file.adds !== undefined ? h("span", { class: "meta" }, `+${file.adds} −${file.dels ?? 0}`) : null],
+            [list(file.hunks).length ? h("ul", { class: "plain" }, file.hunks.map((hunk) => h("li", {}, anchorLink(`${file.path}:${hunk.lines}`), " ", hunk.text))) : null,
+             cards.length ? h("div", { class: "nested" }, cards.map((finding) => findingCard(finding, false, null))) : null]);
+        }))));
+    };
+    const drawFilesOrEmpty = (filter) => {
+      drawFiles(filter);
+      if (!fileList.children.length) { fileList.append(h("p", { class: "empty" }, "No files in this view.")); }
+    };
+    drawFilesOrEmpty("all");
+    const counts = Object.fromEntries(CLASSES.map((cls) => [cls, DATA.files.filter((file) => file.class === cls).length]));
+    const files = section("files", "File map", "Every file, grouped by concern, with the comments anchored in it.",
+      filterBar([["all", `all ${DATA.files.length}`], ...CLASSES.map((cls) => [cls, `${cls} ${counts[cls]}`])], drawFilesOrEmpty), fileList);
+
+    const bots = list(DATA.bots).length ? section("bots", "Bot comments", "Every bot claim, verified like a lane finding.",
+      DATA.bots.map((bot) => item(bot.disposition, bot.disposition === "false-positive", null,
+        [h("span", { class: `pill ${bot.disposition}` }, bot.disposition.replace(/-/g, " ")), h("span", { class: "meta" }, bot.bot),
+         h("span", { class: "title" }, bot.claim), bot.anchor ? anchorLink(bot.anchor) : null, bot.finding ? h("a", { href: `#finding-${bot.finding}`, class: "meta" }, `→ #${bot.finding}`) : null],
+        [field("Why", bot.reason), bot.reply ? paste("Reply to the bot's thread", bot.reply) : null]))) : null;
+
+    const clean = textList("clean", "Verified clean", "What was checked and found right.", DATA.verifiedClean);
+    const summary = DATA.summaryComment ? section("summary", "Summary comment", "Optional top-level comment for the PR conversation.", paste("Summary to paste", DATA.summaryComment)) : null;
+    const noticed = list(DATA.noticed).length ? section("noticed", "Noticed, not this PR's problem", null,
+      h("div", { class: "card" }, h("ul", { class: "plain" }, DATA.noticed.map((entry) => h("li", {}, anchorLink(entry.anchor), " ", entry.text))))) : null;
+    const dropped = list(DATA.dropped).length ? section("dropped", "Dropped after verification", "Rescue one if the reason is wrong.",
+      item("mechanical", false, null, [h("span", { class: "title" }, `${DATA.dropped.length} candidates dropped`)],
+        [h("ul", { class: "plain" }, DATA.dropped.map((entry) => h("li", {}, anchorLink(entry.anchor), ` · ${[list(entry.lanes).join(", "), entry.claim].filter(Boolean).join(": ")} · dropped because ${entry.reason}`)))])) : null;
+    const notChecked = textList("not-checked", "Not checked", null, DATA.notChecked);
+
+    return [look, how, against, findingsSection, questionsSection, files, bots, clean, checksTable(), summary, noticed, dropped, notChecked, priorSection()];
+  };
+
+  // ---------- replies ----------
+
+  const WHERE_TITLE = { inline: "Inline threads", conversation: "Conversation", review: "Review bodies" };
+
+  const threadCard = (thread) => item(thread.status, thread.status !== "posted", null,
+    [h("span", { class: `pill ${thread.status}` }, STATUS_LABEL[thread.status]), h("span", { class: "title" }, thread.point),
+     h("span", { class: "meta" }, thread.reviewer), thread.bot ? h("span", { class: "pill bot" }, "bot") : null,
+     thread.anchor ? anchorLink(thread.anchor) : null, thread.outdated ? h("span", { class: "meta" }, "outdated") : null],
+    [h("p", { class: "quote" }, `${thread.reviewer} wrote: “${thread.quote}”`),
+     thread.reply ? paste(thread.status === "follow-up" ? "Follow-up to paste" : "Reply to paste", thread.reply) : h("p", { class: "empty" }, "Nothing new."),
+     h("p", {}, link(thread.url, `Open thread ${thread.id} ↗`))]);
+
+  const repliesSections = () => {
+    const threads = list(DATA.threads);
+    const prOfThread = (thread) => thread.pr ?? DATA.pr.number;
+    const prs = [...new Set(threads.map(prOfThread))];
+    const threadList = h("div", {});
+    const drawThreads = (filter) => {
+      threadList.replaceChildren();
+      const shown = threads.filter((thread) => filter === "all" || thread.status === filter);
+      const groups = prs.length > 1 ? prs.map((pr) => [`#${pr}`, shown.filter((thread) => prOfThread(thread) === pr)]) : [[null, shown]];
+      groups.forEach(([prLabel, group]) => {
+        if (prLabel && group.length) { threadList.append(h("h3", {}, prLabel)); }
+        ["inline", "conversation", "review"].forEach((where) => {
+          const inWhere = group.filter((thread) => thread.where === where);
+          if (inWhere.length) { threadList.append(h("div", { class: "concern" }, h("div", { class: "name" }, WHERE_TITLE[where]), inWhere.map(threadCard))); }
+        });
+      });
+      if (!shown.length) { threadList.append(h("p", { class: "empty" }, "No threads in this view.")); }
+    };
+    drawThreads("all");
+    const count = (status) => threads.filter((thread) => thread.status === status).length;
+    const threadsSection = section("threads", "Threads", "In PR scroll order. Paste each reply on the thread it links to.",
+      filterBar([["all", `all ${threads.length}`], ["to-post", `to post ${count("to-post")}`], ["follow-up", `follow-up ${count("follow-up")}`], ["posted", `posted ${count("posted")}`]], drawThreads),
+      threadList);
+
+    const own = list(DATA.ownFindings).length ? section("own", "Found on my own", "From the self-pass over the diff.",
+      DATA.ownFindings.map((finding) => item("fix-before-merge", true, null,
+        [h("span", { class: "title" }, finding.title), anchorLink(finding.anchor)],
+        [h("p", {}, finding.detail), finding.comment ? paste("Comment to leave on the line", finding.comment) : null]))) : null;
+    const commits = list(DATA.commits).length ? section("commits", "Suggested commits", "One per group of related fixes; you commit.",
+      DATA.commits.map((commit) => paste("Commit message", commit.body ? `${commit.subject}\n\n${commit.body}` : commit.subject))) : null;
+    const resolve = list(DATA.resolveOnly).length ? section("resolve", "Just needs Resolve", null,
+      h("div", { class: "card" }, h("ul", { class: "plain" }, DATA.resolveOnly.map((entry) => h("li", {}, entry.anchor ? [anchorLink(entry.anchor), " "] : null, `${entry.topic} — ${entry.why}`))))) : null;
+    const open = textList("open", "Still open", null, DATA.stillOpen);
+    return [threadsSection, own, commits, resolve, open, checksTable(), priorSection()];
+  };
+
+  // ---------- page ----------
+
+  const sections = (DATA.kind === "replies" ? repliesSections() : reviewSections()).filter(Boolean);
+  const root = document.getElementById("render");
+  root.append(
+    renderHeader(DATA.kind === "replies" ? "replies" : "review"),
+    h("nav", { class: "jump" }, sections.map((entry) => h("a", { href: `#${entry.id}` }, entry.title))),
+    ...sections.map((entry) => entry.node),
+    h("footer", {}, "Rendered from the pr-report-data block in this file. Diagram sources show as text when the diagram library can't load."));
+  document.title = `PR #${DATA.pr.number}${DATA.kind === "replies" ? " replies" : ""} — ${DATA.pr.title}`;
+
+  // Section jumps land below the sticky nav, which wraps to more rows on narrow screens.
+  const nav = document.querySelector("nav.jump");
+  const fitNav = () => document.documentElement.style.setProperty("--nav-h", `${nav.offsetHeight}px`);
+  fitNav();
+  window.addEventListener("resize", fitNav);
+
+  let mermaidLib = null;
+  const drawDiagrams = async () => {
+    if (!mermaidLib) { return; }
+    const dark = document.documentElement.getAttribute("data-theme") !== "light";
+    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
+    const boxes = [...document.querySelectorAll(".diagram")];
+    await Promise.all(boxes.map(async (box, i) => {
+      const source = box.dataset.source || box.textContent;
+      box.dataset.source = source;
+      try {
+        const { svg } = await mermaidLib.render(`diagram-${i}-${Date.now()}`, source);
+        box.innerHTML = svg;
+      } catch (err) {
+        box.replaceChildren(h("pre", {}, source));
+      }
+    }));
+  };
+  if (document.querySelector(".diagram")) {
+    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; return drawDiagrams(); })
+      .catch(() => {});
+  }
+
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const light = document.documentElement.getAttribute("data-theme") === "light";
+    if (light) { document.documentElement.removeAttribute("data-theme"); } else { document.documentElement.setAttribute("data-theme", "light"); }
+    try { localStorage.setItem("pr-report-theme", light ? "dark" : "light"); } catch (e) {}
+    drawDiagrams();
+  });
+</script>
+</body>
+</html>

@@ -61,7 +61,7 @@ Do not soften a gap into a 🟡 because the author would prefer it. The gap list
 
 **Blast radius, for the room's benefit.** Note every caller of a changed exported symbol and every reader of a changed field, in one line each, so "who else does this touch?" has an answer with a count. Lead with the one safety fact from foundation Step 2 and the ladder level it reached: "safe because X, proven by Y" is the answer the room remembers.
 
-## Step 3: Local verification (skip only with `--quick` or `--no-local`)
+## Step 3: Local gates (skipped with `--quick` or `--no-local`)
 
 Run foundation Step 3 on the operator's own branch. Record every result for the Evidence section. This is what turns "tests pass" from a hope into a fact the author can state in the room.
 
@@ -113,7 +113,7 @@ report_write({
 });
 ```
 
-`findings` when any 🔴 gap exists; `clean` when none; `draft` under `--quick`. A re-run on the same PR supersedes the prior walkthrough and says what changed (new hunks, closed gaps).
+`findings` when any 🔴 gap exists; `clean` when none; `draft` under `--quick` or `--no-local`. A re-run on the same PR supersedes the prior walkthrough and says what changed (new hunks, closed gaps).
 
 ## Step 6: Rehearse (optional interview)
 

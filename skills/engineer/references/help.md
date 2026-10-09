@@ -44,12 +44,12 @@ A second model on your own work, code or not, is the `adversarial-review` skill.
 
 ### 🔀 Pull requests
 
-Read-only against GitHub: every output is a report in `reports/reviews/` you paste from.
+Read-only against GitHub: every output is a report in `reports/reviews/` you paste from (review and replies as a page with Copy buttons).
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "review PR 142" | **pr review** | The change explained with where to read and what it decides for you, nine lanes held to the principles, every finding and bot comment verified, paste-ready comments at `file:line`, and a visual explainer for a big or stacked PR |
-| "reply to the comments on my PR" | **pr replies** | Each thread judged against the code, accurate ones fixed uncommitted, a reply for every thread in scroll order |
+| "review PR 142" | **pr review** | The change explained with where to read and what it decides for you, nine lanes held to the principles, every finding and bot comment verified, on one page with diagrams and a Copy button on every comment |
+| "reply to the comments on my PR" | **pr replies** | Each thread judged against the code, accurate ones fixed uncommitted, a reply for every thread in scroll order, each with a Copy button |
 | "prep my PR for standup" | **pr walkthrough** | A standup script, the diff tour, the questions with receipts, a recording runbook; `--rehearse` quizzes you |
 
 ### 🏃 Long and multi-session work

@@ -2,7 +2,7 @@
 
 **You own a verified verdict on a teammate's PR** and the words to deliver it: the change explained well enough to discuss with its author, every defect proven against the code, and paste-ready comments anchored to `file:line`. Start with the [PR foundation](../pr/foundation.md); this playbook adds the hunt.
 
-Every response begins with `🔍 PR review (read-only against GitHub · local worktree build)`.
+Every response begins with `🔍 PR review (read-only against GitHub · local worktree build)`, with `· --quick`, `· --no-local` or `· --full` appended when given.
 
 ## Stance
 
@@ -14,18 +14,18 @@ The foundation's stance holds, plus:
 
 ## Steps
 
-1. **Foundation Steps 0–3.** Resolve the target (a teammate's PR, or the operator's own under an explicit `/engineer review`), prior context, understand the change and write the **How it works** section, then local verification on a throwaway `pr-<n>-review` worktree.
+1. **Foundation Steps 0–3.** Resolve the target (a teammate's PR, or the operator's own under an explicit `/engineer review`), prior context, check out the head (a throwaway `pr-<n>-review` worktree, or the operator's own branch for a self-review) and understand the change (the **How it works** draft), then the local gates.
 2. **Adversarial fan-out.** Size it from the foundation's coverage checklist and triage first:
-   - **Compact** when the PR changes fewer than 300 lines outside the files skipped up front and no file is triaged `risk`: three agents, each carrying three lanes (correctness, regressions, tests · invariants/authorization, security, performance · conventions, generated-code tells, PR hygiene).
+   - **Compact** when the PR changes fewer than 300 lines outside the files skipped up front and no file is triaged `risk`: three agents, each carrying three lanes (`correctness`, `regressions`, `tests` · `invariants`, `security`, `performance` · `conventions`, `generated-code`, `hygiene`).
    - **Full** otherwise, or with `--full`: one agent per lane. A small PR that touches a risk surface stays full, since that is where the depth pays.
 
-   Launch the lanes in [dimensions](../pr/dimensions.md) as parallel `Agent` calls (subagent type `general-purpose`), all in a single message. Each prompt carries: the PR number and repo, the worktree path, the head SHA, the diff (or the file list when the diff is large), the relevant concept articles' paths, the repo conventions path, the coverage checklist, the checklist of each lane it carries verbatim, the absolute paths of the principle and playbook files the lane names (the agent reads them before judging), and any addendum under `../pr/langs/` whose language appears in the changed files ([swift](../pr/langs/swift.md) for `.swift`, [typescript](../pr/langs/typescript.md) for `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`). Each agent returns findings in this exact shape, one per finding, then one coverage line per checklist file, nothing else:
+   Launch the lanes in [dimensions](../pr/dimensions.md) as parallel `Agent` calls (subagent type `general-purpose`), all in a single message. Each prompt carries: the PR number and repo, the worktree path, the head SHA, the diff (or the file list when the diff is large), the relevant concept articles' paths, the repo conventions path, the coverage checklist, the checklist of each lane it carries verbatim, the absolute paths of the principle and playbook files the lane names (the agent reads them before judging), and every addendum under `../pr/langs/` whose language appears in the changed files ([swift](../pr/langs/swift.md) for `.swift`, [typescript](../pr/langs/typescript.md) for `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`). Each agent returns findings in this exact shape, one per finding, then one coverage line per checklist file, nothing else:
 
    ```
    file: <repo-relative path>
    line: <line on the head commit>
    code: <the anchored line or lines, verbatim from the head commit>
-   lane: <lane name>
+   lane: <the lane's slug from dimensions>
    severity: blocker | fix-before-merge | nit | question
    claim: <one sentence, the defect>
    failure: <concrete inputs/state → wrong outcome>
@@ -39,42 +39,37 @@ The foundation's stance holds, plus:
    coverage: <path> reviewed | skipped (<reason>)
    ```
 
-   The `code:` lines are the anchor of record; `line:` is where they sat when the lane looked. A finding whose snippet is not in the file is unverifiable, so copy it exactly. `--quick` replaces the fan-out with a single inline pass over the correctness, invariants/authorization, generated-code tells, and PR-hygiene lanes.
+   The `code:` lines are the anchor of record; `line:` is where they sat when the lane looked. A finding whose snippet is not in the file is unverifiable, so copy it exactly. `--quick` replaces the fan-out with a single inline pass over the `correctness`, `invariants`, `generated-code`, and `hygiene` lanes against the diff alone.
 
-   In the same message, launch one more agent, **the case against**. It gets the same PR context and the How it works section, and answers three questions in one or two sentences each: the strongest argument against merging this as it stands; the most likely way it causes a problem three months from now; and, if 40% of the diff had to go, what goes and why (the load-bearing remainder is what the human should read hardest). Any concrete defect it names comes back in the finding shape with `lane: case-against` and is verified like the rest; the three answers go to the report as written.
-3. **Verify every candidate.** Each goes to a fresh verifier `Agent` with [verify-rubric](../pr/verify-rubric.md) verbatim plus the finding and the worktree path. Batch related findings per verifier, at most two verifiers on a compact run; keep verifiers independent of the agent that produced the finding. The verifier scores 0–100 and returns the corrected failure scenario.
+   In the same message (not under `--quick`), launch one more agent, **the case against**. It gets the same PR context and the How it works draft, and answers three questions in one or two sentences each: the strongest argument against merging this as it stands; the most likely way it causes a problem three months from now; and, if 40% of the diff had to go, what goes and why (the load-bearing remainder is what the human should read hardest). Any concrete defect it names comes back in the finding shape with `lane: case-against` and is verified like the rest; the three answers go to the report as written.
+3. **Verify every candidate.** Each goes to a fresh verifier `Agent` with [verify-rubric](../pr/verify-rubric.md) verbatim plus the finding and the worktree path. Batch related findings per verifier, at most two verifiers on a compact run; keep verifiers independent of the agent that produced the finding. The verifier scores 0–100 and returns the corrected failure scenario. Under `--quick` the inline pass verifies against the diff and says so.
 
-   The bot comments from foundation Step 1 go through the same verifiers. Turn each into the finding shape first, with `lane: bot:<login>`, the bot's claim, and `code:` copied from the head commit at the bot's anchor. Before verifying, mark any whose anchored lines changed since the bot looked and no longer hold the defect as `already fixed`, and any that only restate a lint or formatter rule as `out of scope`. A bot claim that matches a lane finding merges into it, and both are credited.
+   The bot comments from foundation Step 1 go through the same verifiers. Turn each into the finding shape first, with `lane: bot:<login>`, the bot's claim, and `code:` copied from the head commit at the bot's anchor. Before verifying, mark any whose anchored lines changed since the bot looked and no longer hold the defect as `already-fixed`, and any that only restate a lint or formatter rule as `out-of-scope`. A bot claim that matches a lane finding merges into it, and both are credited.
 4. **Sort, dedupe, rank.**
    - **≥ 75** → a finding. Severity stays as the lane set it unless the verifier's evidence moves it.
    - **40–74** → a **question for the author**, rephrased as a question with what would settle it.
-   - **< 40** → dropped, and listed one line each (claim, why it failed) under the report's "Dropped after verification" so the operator can rescue one. Never a bare count.
-   - **Protected subjects never drop silently.** A candidate about authorization, data loss or corruption, concurrency, or a behavior or compatibility change that scores below 40 becomes a question for the author unless the verifier's `checked:` line names the exact code or command that disproves it. A hunch is not a disproof; a wrongly dropped finding is lost for good, a wrongly kept one costs the operator a minute.
-   - `introduced: pre-existing` with no made-worse argument → one line under "Noticed, not this PR's problem" at most, never a comment.
-   - Merge duplicates across lanes into one finding that cites both lanes' evidence. Findings raised independently by two lanes are the strongest signal.
+   - **< 40** → dropped, and listed one line each (claim, why it failed) under the report's "Dropped after verification" so the operator can rescue one. Never a bare count. The rubric already holds a protected subject at 40 unless something disproves it, so nothing protected drops on a hunch.
+   - A real defect with `introduced: pre-existing` and no made-worse argument → one line under "Noticed, not this PR's problem", never a comment.
+   - Merge duplicates across lanes into one finding that cites both lanes' evidence and lists both in its `lanes`. Findings raised independently by two lanes are the strongest signal.
    - Rank: security/authz › data loss or corruption › a documented domain invariant › correctness › regression › performance › tests › conventions. A generated-code tell ranks by the failure it causes (an invented API call is correctness, a bent test is tests). Within a rank, blast radius decides.
-   - Every bot comment ends with one disposition: `confirmed → finding #k` (≥ 75, merged and credited), `question` (40–74), `false positive` with the verifier's reason in one line, `already fixed`, or `out of scope`. The human should never have to triage a bot thread the review already read.
-   - **Verdict.** `do-not-merge` when a blocker is unfixable in this PR's shape; `changes-requested` when a blocker or fix-before-merge finding stands; `needs-discussion` when nothing is broken but merging should wait on a product or design call a human must make first (an asked-versus-delivered gap, a case-against trade-off, or a Decisions row the operator would plausibly reverse; most Decisions rows are context, not blockers, so name the one that decides it); `approve-with-fixes` when only nits and questions remain; `approve` when nothing above a nit remains.
-   - Nits that a linter or formatter would catch are not findings when it ran clean. When one failed on lines this PR introduced, its output is **one** finding ("lint fails on the branch: N errors in M files, first three: …"), never one comment per line; failures already on the base go under "Noticed".
-5. **Write the report** from [the review template](../../templates/review.md): fixed section order, fixed emoji legend, summary blockquote first, `---` between sections. Every paste block follows [comment style](../pr/comment-style.md); read it before writing the first comment. The report is what the operator reads beside the PR, not a transcript of the analysis. Save it (foundation → Saving the report):
+   - Every bot comment ends with one disposition: `confirmed` (≥ 75, merged into finding #k and credited), `question` (40–74), `false-positive` with the verifier's reason in one line, `already-fixed`, or `out-of-scope`. The human should never have to triage a bot thread the review already read.
+   - **Verdict**, the first that applies in this order. `do-not-merge` when a blocker is unfixable in this PR's shape; `changes-requested` when a blocker or fix-before-merge finding stands; `needs-discussion` when nothing is broken but merging should wait on a product or design call a human must make first (an asked-versus-delivered gap, a case-against trade-off, or a Decisions row the operator would plausibly reverse; most Decisions rows are context, not blockers, so name the one that decides it); `approve-with-fixes` when questions remain, or nits the author should act on; `approve` when there are no findings and no questions, at most a few optional nits.
+   - Nits that a linter or formatter would catch are not findings when it ran clean. When one failed on lines this PR introduced, its output is **one** finding with `lanes: [gate]` ("lint fails on the branch: N errors in M files, first three: …"), never one comment per line; failures already on the base go under "Noticed".
+5. **Write the report** as [PR report](../pr/report.md) describes: the review's data, then the card and the page rendered from it. Read [comment style](../pr/comment-style.md) before writing the first comment. The page is what the operator reads beside the PR and pastes from, not a transcript of the analysis. Save the card with the arguments `pr-report.ts card` printed (`body`, `summary`, `status`, `extra`), plus:
 
    ```
    report_write({
+     ...<the arguments card printed>,
      category: 'reviews',
      slug: 'pr-<n>-<short-topic>',
      title: '<PR #n (<author>): <verdict in one clause>>',
      skill: 'engineer',
-     status: 'critical' | 'findings' | 'clean' | 'draft',
-     body: <the report, no frontmatter>,
      tags: ['pr-<n>', '<author>', '<domain>', 'review', ...],
-     extra: { pr: <n>, author: '<login>', head: '<sha>', base: '<branch>', mode: 'review',
-              verdict: 'approve' | 'approve-with-fixes' | 'needs-discussion' | 'changes-requested' | 'do-not-merge',
-              blockers: <count>, supersedes: '<relPath of the prior report or null>' }
+     extra: { ...<extra card printed>, supersedes: '<relPath of the prior report or null>' }
    });
    ```
 
-   `critical` when a blocker touches security, authorization, or data integrity; `findings` when anything must change or a decision is open; `clean` when the verdict is approve with nothing above nit; `draft` when `--quick` was used or local checks did not run.
-6. **Write the explainer** when [explainer](../pr/explainer.md) says the PR earns one (big or stacked, or `--explainer`; never under `--quick` or `--no-explainer`). Fill its data block from the report you just saved, write it beside the report with the same basename and `.html`, run its check until it passes, then edit the saved report to add the explainer's path to its Overview table (the path exists only once `report_write` returns) and re-run the mermaid check on the report.
-7. **Tear down** the throwaway worktree (foundation → Teardown). A self-review on the operator's own branch never tears down.
+   Then write the page beside it (PR report → step 5).
+6. **Tear down** the throwaway worktree (foundation → Teardown). A self-review on the operator's own branch never tears down.
 
-**Reply:** in chat, after the report is saved: the banner, the verdict line, the top three items with anchors, the checks that did not run, the worktree line (`removed <path>` or `kept <path> (<reason>)`), the report path, and the explainer path when one was written. Nothing else. Do not repeat the report.
+**Reply:** in chat, after the report is saved: the banner, the verdict line, the top three items with anchors, the checks that did not run, the worktree line (`removed <path>` or `kept <path> (<reason>)`), and the page path. Nothing else. Do not repeat the report.

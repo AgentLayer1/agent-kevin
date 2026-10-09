@@ -38,13 +38,13 @@ const isUserRole = (value: string): value is UserRole => Object.hasOwn(ROLE_PERM
 
 Indentation inside the block must match the file. For a fix that spans functions or files, describe it or give a unified diff in a ```diff block; do not use ```suggestion for anything that is not a literal replacement of the anchored range.
 
-A paste block that contains a ```suggestion block gets a four-backtick outer fence, as above, so the inner fence survives the copy.
+In the [PR report](report.md) data, paste text is the comment itself, its ```suggestion fence included, with no outer fence: the Copy button copies it exactly.
 
 ## Words
 
 - Plain language. Say "the order stays stuck" not "the state machine fails to converge".
 - No filler openers ("Great work", "Just a thought", "I might be wrong but"). No closers ("Thoughts?", "Let me know").
-- No emojis inside a paste block. The report uses them for the legend; GitHub comments do not.
+- No emojis inside a paste block. The report page uses them; GitHub comments do not.
 - No hedges when you verified it. "This throws" not "this might throw". When you did not verify, it is a question, and it is phrased as one.
 - Name prior art by number: "same class as #412", "#318 removed this write". Never link to anything in the operator's HOME.
 - Never put an internal partner or vendor name inside a *suggested user-visible string*. Naming one in the comment prose is fine when the repo is internal.
