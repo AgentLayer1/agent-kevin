@@ -17,10 +17,10 @@ Write it when any of these holds, counted from the foundation's coverage checkli
 1. Copy [the template](../../templates/explainer.html). It is the design contract: compose its sections, don't redesign the page. Everything renders from the `pr-explainer-data` JSON block; change data, never markup, except the `<title>`.
 2. Fill the block from the saved report, not from memory: the same verdict, risk, anchors, findings, and wording. The explainer adds no claim the report doesn't make.
 3. Save it beside the report: the report's path with `.md` swapped for `.html`. `report_write` returns the path.
-4. Run the check until it passes, with the plugin's dependencies on the path:
+4. Run the check until it passes. `<skill dir>` is this skill's base directory, which every host shows when it loads the skill (Claude Code's "Base directory for this skill" line, Codex's `<skill>` block path); the plugin's dependencies sit two levels up:
 
    ```bash
-   NODE_PATH="<plugin root>/mcp-server/node_modules" bun "<plugin root>/skills/engineer/scripts/explainer-check.ts" "<explainer path>"
+   NODE_PATH="<skill dir>/../../mcp-server/node_modules" bun "<skill dir>/scripts/explainer-check.ts" "<explainer path>"
    ```
 
 5. Put the path in the report's Overview table (the **Explainer** row) and in the chat reply.

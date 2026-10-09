@@ -47,7 +47,7 @@ An explicit `review`, `replies`, or `walkthrough` argument wins over the inferen
 1. `Grep` `<HOME>/reports/reviews/` for `pr-<n>`, `#<n>`, the branch name, and each changed file's basename. A prior report of the same kind on the same PR means this run **supersedes** it: say so in the summary, carry forward its still-open items, and list what changed since. A `pr-<n>-walkthrough` report is not superseded by a review; it is the author's own stated intent and test plan, and a review checks the diff against it. An `adversarial-*` dossier (from the adversarial-review skill) on the same change is carried the same way: its Ledger lists what a second model already raised and how each finding was dispositioned.
 2. `Grep` `<HOME>/projects/*/tasks/` for the PR number and branch; read any matching task for the intent the PR is supposed to serve.
 3. `Grep` `<HOME>/knowledge/concepts/` and `knowledge/memory/index.md` for the domains the changed paths touch (module names, the feature, the external services involved). Load the matching concept articles; they hold the invariants the review checks against.
-4. Read the repo's own conventions: `AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and in any changed directory. These, not personal taste, are what a conventions finding cites.
+4. Read the repo's own conventions: `AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and in any changed directory, plus its lint and format config. These, not personal taste, are what a conventions finding cites. Where they are silent, or the repo has none, the convention is what its code already does: the pattern the changed file's neighbors and most sibling modules follow, cited by two example paths. The home manual's Engineering Standards count only in a repo the operator owns or whose docs adopt them, and are cited in the report, never in a paste block; there, the neighboring code is the citation.
 5. Collect the review bots' comments from `github_pr_comments`: inline and top-level comments whose author login ends in `[bot]` or is a known review bot (CodeRabbit, Copilot, Cursor Bugbot, Codex, Greptile, a Claude reviewer). Keep each one's author, anchor, and claim, and skip pure summaries and walkthroughs that make no claim. A bot comment is a candidate, never a fact: the playbook decides what happens to it.
 
 Surface the result as a short **Prior context** block in the first response, with the bot comment count by bot (or `No prior reviews or tasks reference this PR.`), then continue.
@@ -86,13 +86,11 @@ The class comes from what the file's hunks do, checked by reading and grep, neve
 3. Otherwise `setup_worktree`, and keep the `worktreePath` and `branchExists` it returns for teardown:
    - **A teammate's PR:** `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch.
    - **The operator's own PR:** `{ repoPath, branch: "<headRefName>" }`, which checks the existing branch out.
-4. Run the repo's own scripts (read the root `package.json` or equivalent for their names) from the worktree, with an absolute `cd` on every call (cwd drifts between worktrees). `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
+4. Find the repo's own gates before running anything: its agent docs or `CONTRIBUTING.md` first, then its manifests (`package.json` scripts and the package manager it pins, a `Makefile` or `justfile`, `Cargo.toml`, `go.mod`, `Package.swift`, `pyproject.toml`). Run each gate the repo defines (build, typecheck, lint, format check, the tests for the changed packages, and any extra gate its docs require, such as a server boot or a smoke script) with the repo's own tool. When `setup_worktree` installed nothing (`packageManager: null`), install the dependencies with that tool first. A gate the repo does not define is `– not run (none configured)`, never a failure. Run from the worktree with an absolute `cd` on every call (cwd drifts between worktrees); `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
 
    ```bash
-   set -o pipefail; cd "<worktree>" && pnpm build 2>&1 | tail -40; echo "exit=$?"
-   set -o pipefail; cd "<worktree>" && pnpm lint 2>&1 | tail -60; echo "exit=$?"
-   set -o pipefail; cd "<worktree>" && pnpm format:check 2>&1 | tail -20; echo "exit=$?"
-   set -o pipefail; cd "<worktree>" && pnpm test --filter=<changed packages/apps>... 2>&1 | tail -80; echo "exit=$?"
+   set -o pipefail; cd "<worktree>" && <the repo's build command> 2>&1 | tail -40; echo "exit=$?"
+   set -o pipefail; cd "<worktree>" && <the repo's test command, scoped to the changed packages> 2>&1 | tail -80; echo "exit=$?"
    ```
 
    A sandbox `listen EPERM` in tests is an environment artifact: separate it from genuine failures and say how many of each. Compare failures against the base branch when a failing spec looks pre-existing (`git -C "<worktree>" log -1 --format=%h origin/<base> -- <spec>`).

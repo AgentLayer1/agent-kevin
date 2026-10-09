@@ -181,6 +181,7 @@ Legend used everywhere: 🔴 blocker · 🟠 fix before merge · 🟡 nit or dis
 | Format | | |
 | Tests | | <n passed / k failed · environment artifacts separated · pre-existing failures named> |
 | CI recorded | | <run id · what the workflow actually gates> |
+| Fan-out | <compact · full> | <3 grouped agents (small, no risk files) · 9 lanes · `--full`> |
 | Verification pass | | <n candidates (k from bots, j from the case against) → n findings, n questions, n dropped> |
 | Coverage | <✅ n/n · ⚠️ k of n> | <n files on the checklist · n reviewed · n skipped, with reasons · n excluded as generated> |
 

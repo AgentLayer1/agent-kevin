@@ -1,6 +1,6 @@
 # Review lanes
 
-Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fan-out (step 2). The checklist is the agent's prompt body; hand it over verbatim with the PR context, plus the absolute paths of the files its **Reads** line names. Every lane returns findings in the shape defined in that step and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
+Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fan-out (step 2), or one of the three lanes a grouped agent carries on a compact run. The checklist is the agent's prompt body; hand it over verbatim with the PR context, plus the absolute paths of the files its **Reads** line names. A grouped agent works each lane's checklist in turn and sets `lane:` on every finding to the lane that found it. Every lane returns findings in the shape defined in that step and nothing else. A lane that finds nothing returns `no findings` and one line on what it checked.
 
 Common rules for every lane:
 
@@ -78,7 +78,7 @@ What this PR breaks in code it did not touch.
 
 ## Lane 5 — Conventions and quality
 
-Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and any directory-level file) and the engineering principles. Cite the rule or principle you apply.
+Only the conventions the foundation's Step 1 found (the repo's written docs at the root and any directory level, then, where they are silent, the pattern its code already follows) and the engineering principles. Cite the rule, the two neighboring examples, or the principle you apply.
 
 **Reads:** [laziness protocol](../principles/laziness-protocol.md) · [subtract before you add](../principles/subtract-before-you-add.md) · [minimize reader load](../principles/minimize-reader-load.md) · [model the domain](../principles/model-the-domain.md) · [type system discipline](../principles/type-system-discipline.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md) · [encode lessons in structure](../principles/encode-lessons-in-structure.md) · [architect](../architect.md) (the design red flags) · [comment pass](../comment-pass.md) (what a comment may say)
 
@@ -102,7 +102,7 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 
 **Reads:** [test behavior, not implementation](../principles/test-behavior-not-implementation.md) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
 
-- Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted, where the repo's test policy calls for one (read it in `AGENTS.md`; a repo that tests only shared utilities makes a missing app-code spec a non-finding). Name the missing test by the behavior it pins.
+- Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted, where the repo's test policy calls for one (read it in the repo's agent docs or `CONTRIBUTING.md`; with neither, infer it from where tests already live and say so; a repo that tests only shared utilities makes a missing app-code spec a non-finding). Name the missing test by the behavior it pins.
 - Hollow tests, the ones that would still pass if every imported function returned nothing: no assertion or one that only checks existence, truthiness, or no-throw; only mock-call or empty-result checks; an expected value computed by the code under test; a restated constant or prompt string; a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test (a spy that wraps the real function is fine), snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
 - What breaks this test? For each new or changed test, name one plausible production change that would make it fail. If the only answer is a rename, it is hollow.
 - Tests of the platform, not the project: a test that proves the language, the framework, or a plain data holder works, with no project logic in the path.
