@@ -24,6 +24,7 @@ Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (
 | `--quick` | Diff-only pass: no worktree, no local checks, no fan-out or session grep. For triage, and the report says so and is saved as `draft` |
 | `--no-local` | Full analysis but skip the worktree build/lint/test |
 | `--repo owner/name` | Override the repo derived from the code path |
+| `--explainer` / `--no-explainer` | Force or skip the review's HTML explainer, whatever the PR's size ([explainer](explainer.md)) |
 
 Call `github_pr_view`. Record: `author.login`, `headRefName`, `baseRefName`, `isDraft`, `state`, `additions`/`deletions`/`changedFiles`, `files`, `body`, `latestReviews`, `reviewDecision`, `mergeStateStatus`.
 
@@ -47,8 +48,9 @@ An explicit `review`, `replies`, or `walkthrough` argument wins over the inferen
 2. `Grep` `<HOME>/projects/*/tasks/` for the PR number and branch; read any matching task for the intent the PR is supposed to serve.
 3. `Grep` `<HOME>/knowledge/concepts/` and `knowledge/memory/index.md` for the domains the changed paths touch (module names, the feature, the external services involved). Load the matching concept articles; they hold the invariants the review checks against.
 4. Read the repo's own conventions: `AGENTS.md`, `CLAUDE.md`, or `CONTRIBUTING.md` at the root and in any changed directory. These, not personal taste, are what a conventions finding cites.
+5. Collect the review bots' comments from `github_pr_comments`: inline and top-level comments whose author login ends in `[bot]` or is a known review bot (CodeRabbit, Copilot, Cursor Bugbot, Codex, Greptile, a Claude reviewer). Keep each one's author, anchor, and claim, and skip pure summaries and walkthroughs that make no claim. A bot comment is a candidate, never a fact: the playbook decides what happens to it.
 
-Surface the result as a short **Prior context** block in the first response (or `No prior reviews or tasks reference this PR.`), then continue.
+Surface the result as a short **Prior context** block in the first response, with the bot comment count by bot (or `No prior reviews or tasks reference this PR.`), then continue.
 
 ## Step 2: Understand the change
 
@@ -61,9 +63,21 @@ Build the model before judging it, with the [how](../playbooks/how.md) playbook'
 - **How**: entry points, the data flow, state transitions, which process runs it, what is now reachable that was not.
 - **Blast radius**, with the [blast radius](../playbooks/blast-radius.md) playbook: `Grep` the head for every changed exported symbol, every changed schema field, every changed DTO/response shape, every deleted write (a deleted write needs a sweep of the reads that still expect the column). Then name the one fact the change is safe because of, and look where grep stops.
 
-Write the **How it works** section now, in the playbook's template shape: one diagram as a ```mermaid block (the report is read in surfaces that render it, so never ASCII in the file), then the walkthrough table. Keep it to what the operator needs to hold the conversation: two screens at most.
+Write the **How it works** section now, in the playbook's template shape: one diagram as a ```mermaid block (the report is read in surfaces that render it, so never ASCII in the file), then the walkthrough table, then a **before → after** table of behavior as a caller or user sees it (one row per case that changed; none for a pure refactor, which says so). Keep it to what the operator needs to hold the conversation: two screens at most.
 
 The diff's file list is also the **coverage checklist**. Split it: files to read line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends as `reviewed` or `skipped (<reason>)`, per review lane and in the report's checks table. Reading an implementation file does not cover its interface, schema, migration, or config counterpart: each file gets its own pass.
+
+**Triage** every file on the checklist into one class, so the human knows where their attention goes:
+
+| Class | Meaning |
+|---|---|
+| `risk` | Touches a risk surface: authorization or tenancy, value movement or a ledger, schema or migration, a public API or webhook contract, concurrency, jobs or retries, security config (CORS, cookies, secrets, crypto), dependencies or CI or build config, or a deleted write |
+| `logic` | Changes behavior anywhere else |
+| `mechanical` | No behavior change: renames, moves, imports, formatting, generated output, fixtures, copy |
+
+The class comes from what the file's hunks do, checked by reading and grep, never from its size or name alone. A file that is mechanical except for one line is `logic`. When unsure between two classes, take the higher one. The triage drives the report's Risk row and **Where to look**, and the explainer's file map.
+
+**Asked versus delivered.** When the linked issue or task states acceptance criteria, list each one as met (with the anchor that meets it), not met, or untested. A PR with no stated criteria skips this; it is not a finding.
 
 ## Step 3: Local verification (skip only with `--quick` or `--no-local`)
 
