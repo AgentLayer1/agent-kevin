@@ -50,43 +50,48 @@ const firstErrorLine = (err: unknown): string => {
   return lines.find((line) => /parse error|error/i.test(line))?.trim() ?? lines[0].trim();
 };
 
+/**
+ * Parse one diagram's source, for callers holding diagrams outside a markdown fence.
+ */
+export const parseMermaid = async (source: string): Promise<Pick<BlockResult, 'ok' | 'diagramType' | 'error'>> => {
+  try {
+    const parsed = await mermaid.parse(source);
+    return { ok: true, diagramType: parsed?.diagramType };
+  } catch (err) {
+    return { ok: false, error: firstErrorLine(err) };
+  }
+};
+
 const validateFile = async (file: string): Promise<BlockResult[]> => {
   const src = await Bun.file(file).text();
   const blocks = [...src.matchAll(MERMAID_BLOCK_RE)].map((match) => match[1]);
-  return Promise.all(
-    blocks.map(async (block, index): Promise<BlockResult> => {
-      try {
-        const parsed = await mermaid.parse(block);
-        return { file, index, ok: true, diagramType: parsed?.diagramType };
-      } catch (err) {
-        return { file, index, ok: false, error: firstErrorLine(err) };
-      }
-    })
-  );
+  return Promise.all(blocks.map(async (block, index): Promise<BlockResult> => ({ file, index, ...(await parseMermaid(block)) })));
 };
 
-const files = process.argv.slice(2);
-if (files.length === 0) {
-  console.error('usage: validate.ts <file...>');
-  process.exit(2);
-}
-
-const results = (await Promise.all(files.map(validateFile))).flat();
-const failures = results.filter((result) => !result.ok);
-
-for (const result of results) {
-  const label = `${result.file} block ${result.index + 1}`;
-  if (result.ok) {
-    console.log(`OK   ${label} (${result.diagramType})`);
-  } else {
-    console.log(`FAIL ${label} -> ${result.error}`);
+if (import.meta.main) {
+  const files = process.argv.slice(2);
+  if (files.length === 0) {
+    console.error('usage: validate.ts <file...>');
+    process.exit(2);
   }
-}
 
-if (results.length === 0) {
-  console.log('no mermaid blocks found');
-} else {
-  console.log(failures.length ? `${failures.length}/${results.length} FAILED` : `ALL ${results.length} CLEAN`);
-}
+  const results = (await Promise.all(files.map(validateFile))).flat();
+  const failures = results.filter((result) => !result.ok);
 
-process.exit(failures.length ? 1 : 0);
+  for (const result of results) {
+    const label = `${result.file} block ${result.index + 1}`;
+    if (result.ok) {
+      console.log(`OK   ${label} (${result.diagramType})`);
+    } else {
+      console.log(`FAIL ${label} -> ${result.error}`);
+    }
+  }
+
+  if (results.length === 0) {
+    console.log('no mermaid blocks found');
+  } else {
+    console.log(failures.length ? `${failures.length}/${results.length} FAILED` : `ALL ${results.length} CLEAN`);
+  }
+
+  process.exit(failures.length ? 1 : 0);
+}

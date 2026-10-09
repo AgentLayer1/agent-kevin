@@ -34,6 +34,8 @@ allowed-tools:
 
 The working method for code: a playbook per kind of task, principles the playbooks lean on, and three checks that run every time. Prove it on the real artifact, label every claim, and run the comment pass before anyone sees the diff.
 
+> **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
+
 ## Help
 
 `/engineer help` (or "what can engineer do?") asks for the menu, not a task: reply with [help](references/help.md) exactly as written and stop. Read no repo and start no playbook.
