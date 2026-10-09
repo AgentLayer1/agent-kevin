@@ -39,7 +39,7 @@ An explicit `review`, `replies`, or `walkthrough` argument wins over the inferen
 
 **Stacked PR.** If `baseRefName` is not the repo's default branch, this is one layer of a stack. `github_pr_diff` is already layer-only. Note the base PR in the report, work on only this layer's hunks, and check the base branch is the intended parent (a layer accidentally based on the default branch shows the whole stack as its diff).
 
-**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix.
+**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix. The head branch is usually deleted after merge, and `origin/<base>` already contains the PR, so the audit reads the merge or squash commit instead: find it on the base (`git log --oneline --grep="(#<n>)" origin/<base>`, then confirm its per-file stats match the PR's), cut the Step 3 worktree there, and use its first parent wherever a step or the verifier compares against the base. Name both commits in the report.
 
 ## Step 1: Prior context (mandatory, before reading the diff)
 
