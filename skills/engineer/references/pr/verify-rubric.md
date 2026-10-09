@@ -1,6 +1,6 @@
 # Verification rubric
 
-You are verifying a code-review finding another agent produced. Your job is to break it. You have the worktree at the PR's head commit, the finding, and read access to everything. You did not produce this finding and you owe it nothing.
+You are verifying a code-review finding another agent or a review bot produced. Your job is to break it. You have the worktree at the PR's head commit, the finding, and read access to everything. You did not produce this finding and you owe it nothing.
 
 Work through these in order and write down what you did for each:
 
@@ -9,6 +9,8 @@ Work through these in order and write down what you did for each:
 3. **Is the failure scenario reachable?** Trace the inputs or state the finding names from an entry point (route, loop tick, webhook) to the line. Name the entry point. If no path exists, fail the finding.
 4. **Does something else already prevent it?** A validator upstream, a DB constraint, a guard one level lower, a test that pins it. Check before you confirm.
 5. **Would a linter, type checker, or formatter have caught it?** Those ran separately. If yes, fail the finding as out of scope.
+   - **A claim about an outside API** (it does not exist, it ignores an option, it throws, it returns a shape) is checked in the dependency's source or type definitions in the worktree, at the version the lockfile pins. Never confirm or reject one from memory; say which file you opened.
+   - **A cost claim** (lane 9) needs a realistic size or a named hot path. Without one, score it 59 at most so it stays a question.
 6. **Is the fix right?** If the proposed fix is wrong or worse, correct it in your answer.
 7. **Rewrite the failure sentence** so a reader who never saw the analysis understands it: inputs or state, then the wrong outcome, in one sentence.
 
@@ -26,6 +28,7 @@ Return exactly:
 ```
 score: <0-100>
 verdict: confirmed | plausible | rejected
+source: <lane name> | case-against | bot:<login>
 anchor: <path>:<line> · as filed | re-anchored
 introduced: yes | made-worse | pre-existing
 failure: <rewritten one-sentence failure scenario>

@@ -22,10 +22,10 @@ The code does what the PR says it does, for every input it will actually see.
 
 **Reads:** [make operations idempotent](../principles/make-operations-idempotent.md) · [separate before serializing shared state](../principles/separate-before-serializing-shared-state.md) · [boundary discipline](../principles/boundary-discipline.md) · [fix root causes](../principles/fix-root-causes.md)
 
-- Null and undefined paths: optional chaining that silently skips a write, a `?? default` that masks a missing required field, a narrowed `select` that no longer loads a field a downstream read needs.
+- Missing values: an optional access that silently skips a write, a default that masks a missing required field, a narrowed query projection that no longer loads a field a downstream read needs.
 - Boundaries: off-by-one in pagination and batch windows, inclusive/exclusive date ranges, timezone assumptions in deadline math, floating point where the domain needs a decimal type.
 - Error handling: a `catch` that swallows and continues, a `finally` that marks success after a swallowed failure, an error thrown at an API boundary in a shape the global handler turns into a generic 500.
-- Async: an un-awaited promise, `Promise.all` over a list where one rejection should not cancel the rest, a retry that reuses the failed connection or client.
+- Async: an async call nobody awaits, a fan-out where one failure cancels work that should continue, a retry that reuses the failed connection or client.
 - Concurrency and idempotency: a read-then-write with no claim or lease, a claim that is never released, an idempotency key generated per attempt instead of per intent, two processes that can both act on the same row.
 - Partial runs: an operation that leaves different state when rerun after a crash halfway, a done-marker (version, cursor, status) written before the work it marks, two actors writing one shared file or key where each could own its own.
 - Control flow: a guard that can never fire under the condition it names, a `switch` missing a case the enum now has, a feature flag defaulting to the enforced side.
@@ -43,7 +43,7 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 - Gates: a path that reaches an external service before a required check clears, a new evaluator skipped or defaulted to pass, an exemption list widened, provenance dropped.
 - Fallbacks: a fallback path that can retry or reroute an instruction the first path may already have carried out.
 - Derived status: a status derivation changed, a write removed from one service while another still reads it, environment gating that keys on anything other than the canonical production flag.
-- Authorization: a route without a permission or role guard, a public-route decorator on something that self-authenticates, a permission resolver that widens (`in` on an object walks the prototype), a tenant or team scope check that moved or disappeared. For auth and value paths the diff must let a reviewer see **by inspection** that the safety checks did not move; if the change needed them to move, the change is wrong-shaped.
+- Authorization: a route without a permission or role guard, a public-route marker on something that self-authenticates, a permission resolver that widens (a membership check that also matches inherited or default keys), a tenant or team scope check that moved or disappeared. For auth and value paths the diff must let a reviewer see **by inspection** that the safety checks did not move; if the change needed them to move, the change is wrong-shaped.
 - Thresholds and reporting: limits, deadline math, and report triggers changed without a test pinning the boundary.
 
 ## Lane 3 — Security and privacy
@@ -52,11 +52,11 @@ Anything that moves value, changes what a user can do, or decides an outcome the
 
 - Secrets and PII in logs: interpolated API keys, tokens, signatures, emails, names, document contents into a log string or an exception message. Static message plus structured context is the convention; use the repo's redaction helper if it has one.
 - Internal names in user-visible strings: `message`, `details`, response bodies, webhook payloads, public docs. Partner and vendor names belong in logs and error causes only; scrub pre-existing leaks in the code the PR touches. Absolute machine paths leak the host's layout; user-facing output shows repo-relative paths.
-- Input validation: DTO fields without validation decorators, `any`-typed request bodies, string IDs passed straight into a query, enum fields typed as `string`.
+- Input validation: request fields with no validation, an untyped request body, string IDs passed straight into a query, a closed set of values typed as a free string.
 - Injection: raw SQL with interpolation, shell commands built from input, HTML rendered from a third-party payload without sanitizing.
 - Webhook trust: an inbound webhook handled without signature verification, a signature check that runs after the side effect, replay without an event-id dedupe.
 - Authn edges: cache staleness for revoked keys or removed allowlist IPs, a session read that trusts a client-supplied tenant id, CORS or cookie domain changes.
-- Dependencies: a new package added for one call, a lockfile change unrelated to the PR, a postinstall or allow-build change.
+- Dependencies: a new package added for one call, a lockfile change unrelated to the PR, an install-script or build-permission change.
 - Data exposure: a new field on a public response that carries internal state, an admin endpoint reachable through the customer API, a storage key or URL that is guessable.
 
 ## Lane 4 — Regressions and blast radius
@@ -67,13 +67,13 @@ What this PR breaks in code it did not touch.
 
 - The safety fact first: most risky-looking changes are safe because of one fact ("this only drops entries that are already dead"). Name it, then check it as far as is cheap: point at the line, walk the failure, or run a script against the real code. Report which level it reached; an unproven safety fact is a question, not a pass.
 - Callers: `Grep` the worktree for every changed exported symbol and every changed signature. A default parameter added, an argument reordered, a return shape narrowed: check each call site.
-- Deleted or moved writes: for every removed assignment or `data:` field, find the `select`/`include`/reader that still expects it. A UI element that silently renders nothing is the classic symptom.
+- Deleted or moved writes: for every removed assignment or written field, find the query projection or reader that still expects it. A UI element that silently renders nothing is the classic symptom.
 - Schema: new required column with no default, enum value added without every `switch` and validation schema learning it, an index removed, mapped column names, migration order versus code order (schema must deploy before the code that reads it).
 - API contract: response fields removed or renamed, status codes changed, error codes changed, the OpenAPI default now wrong, webhook payload shape changed with no version.
 - Shared packages: a change in a shared types or utils package that another app imports; a layer that must stay browser-safe pulling in a server-only dependency.
 - Process placement: logic moved between processes (api, worker, frontend), and the config keys, env vars, and DI providers it needs exist in the new process.
 - Config and environment: a new env var read with a throwing getter and no entry in `.env.example` or the deploy config, a default that differs between environments, a flag that flips behavior on merge instead of by env.
-- Jobs and loops: a new unbounded query in an interval loop, a batch with no cap, a poll whose interval changed, a claim predicate that now matches rows it should not.
+- Jobs and loops: a poll whose interval changed, a claim predicate that now matches rows it should not. Their cost (unbounded queries, uncapped batches) is lane 9.
 - Deploy-time behavior: a boot-time audit that throws, a migration that locks a hot table, a startup dependency on a service that may be down.
 
 ## Lane 5 — Conventions and quality
@@ -82,11 +82,10 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 
 **Reads:** [laziness protocol](../principles/laziness-protocol.md) · [subtract before you add](../principles/subtract-before-you-add.md) · [minimize reader load](../principles/minimize-reader-load.md) · [model the domain](../principles/model-the-domain.md) · [type system discipline](../principles/type-system-discipline.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md) · [encode lessons in structure](../principles/encode-lessons-in-structure.md) · [architect](../architect.md) (the design red flags) · [comment pass](../comment-pass.md) (what a comment may say)
 
-- Errors: the repo's error type only at API boundaries, a real error code, thrown close to the check, not in controllers or pipes.
+- Errors: the repo's error type only at API boundaries, a real error code, thrown close to the check, not in the transport layer.
 - Logging: the repo's logger idiom; static message plus structured fields; no interpolated identifiers.
-- Comments: default none; a comment every few lines is a code-quality finding, not documentation; JSDoc only on consumer-facing exports, multi-line form; no tombstones, no ownerless TODO.
-- Types: no `any`, no `!`, no unjustified `as`; `interface` for object contracts; const objects over enums; discriminated unions for state; single-use types inline.
-- Helpers: before accepting a new small helper, `Grep` the repo's shared helpers for an existing one. Duplicates are a finding with the existing path.
+- Comments: default none; a comment every few lines is a code-quality finding, not documentation; doc comments only on consumer-facing exports; no tombstones, no ownerless TODO.
+- Types: the repo's type rules; no escape hatch that silences the checker without a stated reason; a tagged union for state instead of flags that must agree; single-use types inline.
 - Cross-cutting concerns: a fix living at one call site of something a decorator, interceptor, or middleware already handles one level lower.
 - Functional style: `map`/`filter`/`reduce` over loops with `continue`; no single-letter params except a numeric `i`; immutability.
 - Structure: the repo's folder convention, its file-size cap, no barrel re-exports.
@@ -104,8 +103,12 @@ Only what the repo's written conventions say (`AGENTS.md`, `CLAUDE.md`, or `CONT
 **Reads:** [test behavior, not implementation](../principles/test-behavior-not-implementation.md) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
 
 - Every finding-class path in lanes 1–2 has a spec that would fail if the fix were reverted, where the repo's test policy calls for one (read it in `AGENTS.md`; a repo that tests only shared utilities makes a missing app-code spec a non-finding). Name the missing test by the behavior it pins.
-- Hollow tests, the ones that would still pass if every imported function returned `undefined`: no assertion or a weak one (`toBeDefined`, `toBeTruthy`, `not.toThrow`), only mock-call or absence checks (`toHaveBeenCalled`, `toEqual([])`), an expected value computed by the code under test, a restated constant or prompt string, or a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test, snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
-- Deleted or weakened tests: a removed assertion, a `.skip`, a loosened matcher, an invariant that used to be pinned and now is not.
+- Hollow tests, the ones that would still pass if every imported function returned nothing: no assertion or one that only checks existence, truthiness, or no-throw; only mock-call or empty-result checks; an expected value computed by the code under test; a restated constant or prompt string; a fixture asserting itself while the subject never runs. Also: tests that mock the unit under test (a spy that wraps the real function is fine), snapshot tests over numeric outputs, tests that pass on the base branch and on the PR branch identically.
+- What breaks this test? For each new or changed test, name one plausible production change that would make it fail. If the only answer is a rename, it is hollow.
+- Tests of the platform, not the project: a test that proves the language, the framework, or a plain data holder works, with no project logic in the path.
+- Test doubles not shaped from the real interface: a hand-written fake or stub that would keep passing after the real API changes shape.
+- Production logic changed with no test changed or added, where the repo's test policy asks for one.
+- Deleted or weakened tests: a removed assertion, a skipped test, a loosened matcher, an invariant that used to be pinned and now is not.
 - Test placement: specs where the repo keeps them; end-to-end scenarios in the repo's harness, not ad hoc scripts.
 - Round-trip-for-coverage tests are a finding too: they cost attention and protect nothing.
 
@@ -117,9 +120,42 @@ The PR as an artifact a reviewer can trust.
 
 - **Body versus diff.** Does the description describe this diff? Deleted files, removed guards, or behavior changes the body calls "none" are blockers: a reviewer approving the body approves a different change.
 - Scope: hunks that do not trace to the stated purpose. A root-cause fix carries only itself; unrelated improvements are a defect even when builds pass. Exception: a reviewer-requested fix inside files the PR already touches.
+- Reach beyond intent: a CI workflow, build config, shared config, or dependency change whose effect is wider than the PR's stated purpose (a lint rule turned off repo-wide to land one file, a version bump riding along with a bug fix).
 - Size and shape: a PR that should be a stack, a stack layer that is not "a discrete, reviewable change", a layer based on the wrong parent.
 - Commit shape: one commit per phase, no fixup noise that should have been squashed before publishing, no merge of the base branch that hides a rebase gone wrong (phantom diffs).
 - Deploy safety: the merge itself changes prod posture (a default flips on merge), a schema change ships in the same deploy as the code that needs it already applied, a manual step the body does not mention.
 - Rollback: can this be reverted with one `git revert`? Data written in a new shape that the old code cannot read is a one-way door; say so.
 - Claims: "tested on staging", "no behavior change", "verified in prod" without a record ID, a log line, or a spec. Ask for the receipt.
 - Linked work: the task or issue the PR closes actually closes; acceptance criteria met or explicitly deferred.
+
+## Lane 8 — Generated-code tells
+
+The ways code written fast, often by a model, goes wrong while still compiling and passing its own tests. Check every item against the code installed in the worktree, never against memory of an API.
+
+**Reads:** [laziness protocol](../principles/laziness-protocol.md) · [fix root causes](../principles/fix-root-causes.md) · [test behavior, not implementation](../principles/test-behavior-not-implementation.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md)
+
+- Invented surface: a call to a function, method, option, config key, environment variable, or CLI flag that does not exist at the installed version. Open the dependency's source or type definitions in the worktree, at the version the lockfile pins. An option the library silently ignores counts too: the setting looks applied and changes nothing.
+- Reinvention: a new helper, type, constant, or wrapper that duplicates one the repo already has. `Grep` the shared packages and neighboring modules; the finding names the existing path.
+- Partial migration: a pattern changed at some call sites and not others. Count both: "changed 4 of 6 callers; `<path>` and `<path>` still use the old shape".
+- Tests bent to pass: an expected value, snapshot, or assertion edited in the same change as the code it checks, with no behavior change stated in the body. Either the behavior changed and the body must say so, or the test was edited to match a bug.
+- Suppressions to get green: a new type-checker ignore, lint disable, skipped test, `continue-on-error`, widened type, lowered coverage or quality threshold, or catch-all handler. Each one needs a reason in the code or the body.
+- Scaffolding in production: test fixtures, mock data, debug flags, a branch on the test environment, a hard-coded ID, or a placeholder body (`return []`, "not implemented") on a path production reaches.
+- Speculative generality: an option, parameter, flag, interface, or layer with one caller and no second one in sight; configuration for a value that never varies.
+- Defensive noise: a guard, fallback, retry, or `try` around code that cannot fail the way it guards against, or that turns a broken contract into a silent default. Trace whether the failure can happen before accepting the guard.
+- Unexplained constants: a timeout, limit, threshold, retry count, or pattern with no source, no test pinning it, and no reason in the body.
+- Leftovers: commented-out code, debug logging, a TODO or FIXME with no owner or issue, an unused export, parameter, or import the change created.
+
+## Lane 9 — Performance and resources
+
+What the change costs at the sizes it will actually see. Every finding states a realistic size ("teams with 2,000 members", "the 40k-row orders table") or names the hot path it runs on; without one it is a question, not a finding.
+
+**Reads:** [prove it works](../principles/prove-it-works.md) · [boundary discipline](../principles/boundary-discipline.md)
+
+- Round trips: a query or remote call inside a loop over a collection (N+1), a per-item fetch where one batched read exists.
+- Unbounded work: a query or listing with no limit or pagination on a user-controlled size, a batch with no cap, a new unbounded query inside a job or interval loop, a fan-out with no concurrency limit.
+- Complexity: nested passes over input-sized collections, a linear search inside a loop where a map lookup fits, sorting or copying a large collection per item.
+- Indexes: a new filter, join, or sort on a column the schema does not index, on a table that grows.
+- Blocking: synchronous file, network, or CPU-heavy work on a request path, the UI thread, or an event loop.
+- Timeouts: an external call with no timeout, deadline, or cancellation, so one slow dependency holds a worker or a request forever.
+- Growth: a cache, map, or queue with no bound or eviction; a listener, subscription, or timer with no cleanup; a whole file or response read into memory where a stream was needed.
+- Repeated work: an expensive computation redone on every render, request, or loop tick when its inputs did not change.
