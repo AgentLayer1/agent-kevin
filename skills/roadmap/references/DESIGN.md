@@ -8,7 +8,7 @@
 - **The timeline track.** The workhorse section: period pills on a gradient directional rail with an arrowhead, milestone cards interwoven above and below, dotted connector stubs and gutter dividers. Each period holds a top card and an optional bottom card; either row can stack several cards (see Stacked rows below).
 - **Milestone cards.** Mono chip (`M1`, `W3`…) + short title + status-emoji items. Statuses are exactly `done` / `progress` / `planned` (✅ / ⏳ / 📋), matched by the header legend.
 - **Outcome bands.** Brand-tinted "what this earns" tiles (icon + label + one-line desc, optional `when`) close each timeline section; a `north` section can open the page with the same tiles as the document's finish lines.
-- **Dark default + light toggle.** Both themes ship; the toggle persists via localStorage. The storage key is per-roadmap (`<slug>-roadmap-theme`) so two roadmaps don't fight over one preference. The light theme is always the **cool-paper treatment**: near-white cool background, pure-white cards, brand accents darkened for contrast (bright goes *darker* than brand in light mode), `--brand-deep` flipped to a pale wash.
+- **Both themes, Auto by default.** Dark tokens sit on `:root`, light on `html[data-theme="light"]`. The Auto / Light / Dark control is the shared block between `<!-- theme:start -->` and `<!-- theme:end -->` in `<head>`: copy it verbatim, never edit it, since every generated page shares it and its one saved choice. The light theme is always the **cool-paper treatment**: near-white cool background, pure-white cards, brand accents darkened for contrast (bright goes *darker* than brand in light mode), `--brand-deep` flipped to a pale wash.
 - **Typography.** Bricolage Grotesque for display, IBM Plex Sans for body, IBM Plex Mono for chips, pills, and labels. Google Fonts is the only external dependency.
 - **Texture.** Dotted-grid backdrop, radial brand glow, soft-rise entry animation (disabled under `prefers-reduced-motion`), hover lift on cards, 980px mobile collapse to a single column.
 
@@ -24,7 +24,6 @@
 
   Purple's dark neutrals ship in the template. For the other presets, re-tint the dark block: green = bg `#070d0b`/`#0b1512`, panels `#152420`/`#101a17`, lines `#2b3d35`/`#1e2b26`, ink `#e9f2ee`/`#b3c4bc`/`#75897f`, planned `#6f8078`; gold = bg `#0c0a07`/`#120f0a`, panels `#241d12`/`#1a1510`, lines `#3d3423`/`#2a2418`, ink `#f2ede2`/`#c4bcab`/`#877e6c`, planned `#80776b` (gold also earns warm light paper: `#faf6ee` bg, `#f5efe2` panel-b, `#2b2418` ink). For a typed hue, derive the same shape: mid-saturation brand, brighter tint, deep shade, an 18%-alpha glow, then re-tint the dark backgrounds. In light mode the neutrals (cool paper `#f5f3fb`, white panels, `#201d2b` ink) stay as the template ships them — only the brand triplet swaps.
 - **Title, eyebrow, lede, footer** — the framing copy. The lede states the horizons (or the north-star thesis) in one sentence and always mentions that the page renders from the `roadmap-data` block. When a narrative doc exists behind the roadmap (a north-star memo, a business plan), the lede links it as the cover doc — the page is the map, the doc is the territory.
-- **localStorage key** — both in the head snippet and the toggle handler.
 - **Which sections appear and in what order** (below).
 
 ## Section catalog

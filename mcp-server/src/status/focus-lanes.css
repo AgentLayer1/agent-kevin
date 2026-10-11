@@ -7,6 +7,7 @@
   --bright: #e6edf3; --faint: #5c6570; --hairline: rgba(139, 148, 158, 0.18);
   font: 16px/1.5 var(--serif); color: var(--text); -webkit-font-smoothing: antialiased;
 }
+html[data-theme="light"] .focusview { --bright: #14130f; --faint: #8f8b80; --hairline: rgba(60, 56, 48, 0.16); --proj-l: 34%; }
 .focusview a { color: inherit; }
 .focusview a:hover { color: var(--accent); text-decoration: none; }
 .focusview .lanes { margin: 28px 0 0 6px; border-left: 1px solid var(--hairline); padding-left: 26px; }
@@ -15,7 +16,7 @@
   content: ''; position: absolute; left: -31px; top: 4px; width: 9px; height: 9px; border-radius: 50%;
   background: var(--bg); border: 1px solid var(--faint);
 }
-.focusview section.now::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(255, 216, 102, .12); }
+.focusview section.now::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
 .focusview section.warn::before { border-color: var(--amber); }
 @keyframes focus-rise { from { transform: translateY(8px); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .focusview section { animation: none; } }
@@ -33,23 +34,23 @@
 .focusview .today .title { font-size: 20px; }
 .focusview .meta { grid-column: 2; margin-top: 3px; font: 11.5px/1.5 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
 .focusview .meta a { color: var(--cyan); }
-.focusview .proj { color: hsl(var(--h) 55% 68%); }
+.focusview .proj { color: hsl(var(--h) 55% var(--proj-l, 68%)); }
 .focusview .pri { padding: 0 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--dim); }
-.focusview .pri.p0 { color: var(--red); border-color: rgba(248, 81, 73, .45); }
-.focusview .pri.p1 { color: var(--amber); border-color: rgba(210, 153, 34, .45); }
+.focusview .pri.p0 { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.focusview .pri.p1 { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
 .focusview .blocked { color: var(--red); }
 .focusview .late { color: var(--amber); }
-.focusview .row.done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: rgba(139, 148, 158, .5); }
+.focusview .row.done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--dim) 50%, transparent); }
 .focusview .row.done .mark { color: var(--green); font-style: normal; font-size: 18px; }
-.focusview .carried { margin-top: 14px; padding: 10px 14px 4px; border-left: 2px solid var(--amber); background: rgba(210, 153, 34, .05); border-radius: 0 6px 6px 0; }
+.focusview .carried { margin-top: 14px; padding: 10px 14px 4px; border-left: 2px solid var(--amber); background: color-mix(in srgb, var(--amber) 5%, transparent); border-radius: 0 6px 6px 0; }
 .focusview .carried h3 { margin: 0 0 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--amber); }
 .focusview .carried .mark { font-size: 16px; color: var(--amber); }
 .focusview .from { color: var(--amber); }
-.focusview .carried.due { border-left-color: var(--red); background: rgba(248, 81, 73, .05); }
+.focusview .carried.due { border-left-color: var(--red); background: color-mix(in srgb, var(--red) 5%, transparent); }
 .focusview .carried.due h3, .focusview .carried.due .mark, .focusview .carried.due .late { color: var(--red); }
 .focusview .roadmap .mark { font: 400 13px/1.9 var(--mono); color: var(--accent); font-style: normal; }
 .focusview .roadmap .slipped .mark, .focusview .roadmap .slipped .title { color: var(--amber); }
-.focusview .chip { background: none; white-space: normal; font: 600 11px/1 var(--mono); color: var(--accent); border: 1px solid rgba(255, 216, 102, .35); border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 3px; }
+.focusview .chip { background: none; white-space: normal; font: 600 11px/1 var(--mono); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 3px; }
 .focusview .doings { grid-column: 2; margin-top: 4px; }
 .focusview .doing { font: 12px/1.6 var(--mono); color: var(--text); }
 .focusview .goals { margin: 0 0 12px; }
@@ -57,7 +58,7 @@
 .focusview .goals li::before { content: '◆'; position: absolute; left: 2px; top: 5px; font: normal 9px/1.8 var(--mono); color: var(--accent); }
 .focusview .progress { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; font: 11px/1 var(--mono); color: var(--dim); }
 .focusview .bar { flex: 1; max-width: 260px; height: 4px; border-radius: 2px; background: var(--hairline); overflow: hidden; }
-.focusview .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ffe9a3); border-radius: 2px; }
+.focusview .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), #fff 45%)); border-radius: 2px; }
 .focusview .dot { width: 8px; height: 8px; border-radius: 50%; margin: 8px 0 0 auto; background: var(--faint); }
 .focusview .dot.good { background: var(--green); }
 .focusview .dot.warn { background: var(--amber); }

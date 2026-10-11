@@ -1,10 +1,10 @@
 # Itinerary Design System
 
-`references/template.html` is a complete worked example (a 2-day Selangor coast weekend). It is the **aesthetic contract**: a light-mode, timeline-and-card layout, print-ready. Copy it, replace the content, compose the modules your trip needs. Don't redesign it from scratch, and don't drift back toward a big-serif "magazine" look — the star here is the **timeline of cards**, not editorial whitespace.
+`references/template.html` is a complete worked example (a 2-day Selangor coast weekend). It is the **aesthetic contract**: a timeline-and-card layout, light and dark, print-ready. Copy it, replace the content, compose the modules your trip needs. Don't redesign it from scratch, and don't drift back toward a big-serif "magazine" look — the star here is the **timeline of cards**, not editorial whitespace.
 
 ## What stays fixed
 
-- **Light mode only.** Warm off-white background, white cards, soft shadows, rounded corners. No dark mode, no theme toggle.
+- **Light first, dark derived, Auto by default.** Light is the warm off-white page with white cards, soft shadows and rounded corners; the dark block under `@media screen` derives from the trip's accent, so it never needs per-trip values. The Auto / Light / Dark control is the shared block between `<!-- theme:start -->` and `<!-- theme:end -->` in `<head>`, placed in the nav by `#theme-slot`: copy both verbatim, never edit the block. Paper always prints light.
 - **The day timeline.** Every day is a vertical rail of **period markers** — Morning, Afternoon, Evening — each a coloured circle (amber sun / teal cloud / indigo moon) on the rail, with one or more **activity cards** beside it. This is the structural heart of the design.
 - **Periods, not clock times.** Label by part of day (Morning / Afternoon / Evening), never "09:00". When a block spans days, prefix the period ("Day 5 · Morning"). A logistics or drive row can sit above a period when needed.
 - **The Options block.** Every day ends with a **"More options"** period (dashed, tinted cards, ✦ marker): things that didn't fit, backups if a plan falls through, or extras for spare time / good weather. Nothing researched gets thrown away — overflow becomes options.
@@ -15,7 +15,7 @@
 
 ## What varies per trip
 
-- **Accent hue** (`--accent` / `--accent-deep` / `--accent-wash`): one hue matching the destination's mood, the three tokens derived from it. Coastal/island teal `#19646e`, highland moss `#4a6741`, tropical jungle green `#13796a`, heritage burgundy `#7a2e3a`, desert terracotta `#a8512e`. One hue only; period and gold colours don't change.
+- **Accent hue** (`--accent` / `--accent-deep` / `--accent-wash` in `:root` only; text and borders on the page use `--ink-accent` / `--ink-accent-deep`, which brighten in dark, and `--accent` is only a fill under white text): one hue matching the destination's mood, the three tokens derived from it. Coastal/island teal `#19646e`, highland moss `#4a6741`, tropical jungle green `#13796a`, heritage burgundy `#7a2e3a`, desert terracotta `#a8512e`. One hue only; period and gold colours don't change.
 - **Masthead** copy and the meta chips (dates, travellers + age range, distance/flights, budget).
 - **Month label** on the day numerals: set `.day-num::before { content: "Jun" }` to the trip's month so each big day number carries a small month tag above it.
 - **Route-ribbon order numbers**: number the ribbon dots in visiting order (`1`, `2`, …) with `⌂` for home/start/end, so the sequence is unambiguous. Flight legs use the gold `.r-stop.fly` dot.

@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   A project's focus page shell. focus-render.ts fills the {{TOKEN}} slots with pre-escaped HTML.
-  Hard rule: zero external requests (system fonts, inline SVG only, no JS).
+  Hard rule: zero external requests (system fonts, inline SVG only, no JS beyond the shared theme block).
 -->
 <html lang="en">
 <head>
@@ -27,6 +27,17 @@
   --serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', monospace;
 }
+html[data-theme="light"] {
+  --bg: #faf8f3;
+  --border: #ddd8cc;
+  --text: #2b2a26;
+  --dim: #6b675d;
+  --accent: #9a6700;
+  --green: #1a7f37;
+  --amber: #b45309;
+  --red: #c62828;
+  --cyan: #0b7285;
+}
 * { box-sizing: border-box; }
 html { background: var(--bg); }
 body {
@@ -34,20 +45,21 @@ body {
   font: 16px/1.5 var(--serif);
   -webkit-font-smoothing: antialiased;
   background:
-    radial-gradient(1200px 420px at 50% -120px, rgba(255, 216, 102, 0.09), transparent 70%),
+    radial-gradient(1200px 420px at 50% -120px, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
     var(--bg);
 }
 a { color: inherit; text-decoration: none; }
 a:hover { color: var(--accent); }
-main { max-width: 720px; margin: 0 auto; padding: 56px 28px 80px; }
+main { position: relative; max-width: 720px; margin: 0 auto; padding: 56px 28px 80px; }
 
 /* ── masthead ─────────────────────────────────────────────────────── */
 .kicker {
   font: 600 11px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--accent);
   display: flex; gap: 14px; align-items: center;
 }
-.kicker::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255, 216, 102, .5), transparent); }
+.kicker::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 50%, transparent), transparent); }
+#theme-slot { position: absolute; top: 18px; right: 28px; color: var(--dim); }
 h1 {
   margin: 18px 0 6px; font: 400 clamp(38px, 7vw, 56px)/1.02 var(--serif); color: var(--bright); letter-spacing: -.015em;
 }
@@ -61,9 +73,11 @@ h1 em { font-style: italic; color: var(--accent); }
 
 footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--hairline); font: 11.5px/1.8 var(--mono); color: var(--faint); }
 </style>
+{{THEME}}
 </head>
 <body>
 <main class="focusview">
+  <span id="theme-slot"></span>
   <div class="kicker">Focus · {{SCOPE}}</div>
   <h1>{{DATE_LONG}}</h1>
   <div class="subline">{{SUBLINE}}</div>

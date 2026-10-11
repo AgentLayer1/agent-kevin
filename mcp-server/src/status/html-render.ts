@@ -31,6 +31,7 @@ import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
 import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
 import { RUNTIME_DIR, agentEnvPrefix, agentKeyName } from '@/shared/naming';
+import { THEME_BLOCK } from '@/shared/theme';
 import type {
   ContextGroup,
   ProfileSection,
@@ -2156,6 +2157,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     TITLE: esc(`${snap.persona.name} · Agent OS`),
     EMOJI: esc(snap.persona.emoji || '🤖'),
     FOCUS_CSS,
+    THEME: THEME_BLOCK,
     GENERATED_AT: esc(snap.runtime.generatedAt),
     LAST_SYNC: esc(snap.runtime.lastSync),
     SYNC_CMD: esc(syncCmd),

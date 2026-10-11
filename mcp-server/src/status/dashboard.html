@@ -29,6 +29,23 @@
   --magenta: #d2a8ff;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', monospace;
 }
+html[data-theme="light"] {
+  --bg: #f6f8fa;
+  --side: #eef1f5;
+  --panel: #ffffff;
+  --panel-2: #eef2f6;
+  --border: #d0d7de;
+  --hairline: rgba(208, 215, 222, 0.7);
+  --text: #1f2328;
+  --dim: #59636e;
+  --accent: #9a6700;
+  --green: #1a7f37;
+  --amber: #bc4c00;
+  --red: #cf222e;
+  --cyan: #0b7285;
+  --blue: #0969da;
+  --magenta: #8250df;
+}
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -61,7 +78,7 @@ aside nav { flex: 1; overflow-y: auto; padding: 10px; }
   padding: 8px 10px; margin: 1px 0; border-radius: 7px;
   color: var(--dim); font-size: 13px; cursor: pointer; user-select: none;
 }
-.nav-item:hover { color: var(--text); background: rgba(29, 36, 46, 0.6); text-decoration: none; }
+.nav-item:hover { color: var(--text); background: color-mix(in srgb, var(--panel-2) 60%, transparent); text-decoration: none; }
 .nav-item.active { background: var(--panel-2); color: var(--accent); }
 .nav-item .ico { width: 20px; text-align: center; flex: none; }
 /* Surface links: data-href rows navigated via location.assign — a trailing ↗
@@ -86,10 +103,10 @@ aside nav { flex: 1; overflow-y: auto; padding: 10px; }
   padding: 6px 12px; font-size: 11px; letter-spacing: 0.04em; line-height: 1.5;
   background: var(--panel); cursor: pointer; text-align: center; min-width: 0;
 }
-.badge.ok { color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
-.badge.warn { color: var(--amber); border-color: rgba(210, 153, 34, 0.5); }
-.badge.stale { color: var(--red); border-color: rgba(248, 81, 73, 0.5); background: rgba(248, 81, 73, 0.08); }
-.badge.upgrade { color: var(--amber); border-color: rgba(210, 153, 34, 0.5); background: rgba(210, 153, 34, 0.08); }
+.badge.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.badge.warn { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
+.badge.stale { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, transparent); background: color-mix(in srgb, var(--red) 8%, transparent); }
+.badge.upgrade { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 50%, transparent); background: color-mix(in srgb, var(--amber) 8%, transparent); }
 .badge .pulse { width: 7px; height: 7px; flex: none; border-radius: 50%; background: currentColor; animation: pulse 2.4s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
@@ -116,7 +133,7 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat.warn::before { background: var(--amber); }
 .stat.good::before { background: var(--green); }
 .stat.link { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-.stat.link:hover, .stat.link:focus-visible { border-color: #3a424d; background: var(--panel-2); outline: none; }
+.stat.link:hover, .stat.link:focus-visible { border-color: color-mix(in srgb, var(--border), var(--text) 15%); background: var(--panel-2); outline: none; }
 .stat .top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
 .stat .num { flex: none; font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .stat.bad .num { color: var(--red); }
@@ -220,7 +237,7 @@ details.task { border-bottom: 1px solid var(--hairline); }
 details.task:last-child { border-bottom: none; }
 details.task summary { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; cursor: pointer; list-style: none; }
 details.task summary::-webkit-details-marker { display: none; }
-details.task summary:hover { background: rgba(29, 36, 46, 0.5); }
+details.task summary:hover { background: color-mix(in srgb, var(--panel-2) 50%, transparent); }
 details.task .tid { flex: none; min-width: 62px; }
 details.task .tid a { color: var(--accent); }
 details.task .ttl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -253,7 +270,7 @@ details.task.radarrow .ttl { color: var(--accent); }
 .tb-v a { color: var(--accent); }
 /* Blocker reason — its own line (it's prose), flagged with a muted amber edge. */
 .tb-note { margin-top: 8px; padding: 5px 10px; line-height: 1.5; color: var(--dim);
-  border-left: 2px solid rgba(210, 153, 34, 0.5); border-radius: 0 5px 5px 0; }
+  border-left: 2px solid color-mix(in srgb, var(--amber) 50%, transparent); border-radius: 0 5px 5px 0; }
 .tb-note-k { text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.04em; color: var(--amber); margin-right: 7px; }
 /* Comment counter chip in the task summary — discussion at a glance. */
 .chip.cmt { font-size: 10.5px; padding: 1px 7px; }
@@ -278,8 +295,8 @@ h3.group.date { color: var(--accent); }
 
 /* ── goal cards ────────────────────────────────────────────────────── */
 .goalcard {
-  background: rgba(255, 216, 102, 0.03);
-  border: 2px dotted rgba(255, 216, 102, 0.35);
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+  border: 2px dotted color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 12px;
   padding: 14px 18px 15px; margin: 12px 0;
 }
@@ -398,7 +415,7 @@ ul.plain li { padding: 3px 0; }
 .stale-wrap > summary::-webkit-details-marker { display: none; }
 .stale-wrap .sb-badge-msg { min-width: 0; }
 .stale-mini { margin-top: 9px; padding: 11px 12px; font-size: 11px;
-  background: rgba(248, 81, 73, 0.06); border: 1px solid rgba(248, 81, 73, 0.32);
+  background: color-mix(in srgb, var(--red) 6%, transparent); border: 1px solid color-mix(in srgb, var(--red) 32%, transparent);
   border-radius: 9px; }
 .stale-mini .mini-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
 .stale-mini .mini-lab { color: var(--dim); }
@@ -408,12 +425,12 @@ ul.plain li { padding: 3px 0; }
 .stale-mini .mini-cmd { display: block; background: var(--side); border: 1px solid var(--border);
   border-radius: 7px; padding: 7px 9px; color: var(--accent); font-size: 11px; word-break: break-all; }
 /* upgrade badge reuses the stale-mini layout with an amber tint */
-.stale-mini.upg-mini { background: rgba(210, 153, 34, 0.06); border-color: rgba(210, 153, 34, 0.32); }
+.stale-mini.upg-mini { background: color-mix(in srgb, var(--amber) 6%, transparent); border-color: color-mix(in srgb, var(--amber) 32%, transparent); }
 
 /* ── changelog tab (System → Changelog) ──────────────────────────────── */
 .cl-banner { padding: 9px 12px; border-radius: 8px; font-size: 12px; margin: 14px 0; }
-.cl-banner.pending { color: var(--amber); background: rgba(210, 153, 34, 0.08); border: 1px solid rgba(210, 153, 34, 0.32); }
-.cl-banner.ok { color: var(--green); background: rgba(63, 185, 80, 0.06); border: 1px solid rgba(63, 185, 80, 0.3); }
+.cl-banner.pending { color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent); }
+.cl-banner.ok { color: var(--green); background: color-mix(in srgb, var(--green) 6%, transparent); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); }
 .cl-banner code { color: var(--accent); }
 .cl-grp { margin: 4px 0 10px; }
 .cl-grp h4 { margin: 0 0 5px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
@@ -428,8 +445,9 @@ footer .ftage { color: var(--dim); }
 footer .ftage.stale { color: var(--red); opacity: 0.9; }
 
 /* ── help / keyboard shortcuts ─────────────────────────────────────── */
+.corner { position: fixed; top: 18px; right: 22px; z-index: 50; display: flex; gap: 10px; align-items: center; color: var(--dim); }
+.corner .theme-switch { background: var(--panel); }
 .help-fab {
-  position: fixed; top: 18px; right: 22px; z-index: 50;
   width: 34px; height: 34px; border-radius: 50%;
   background: var(--panel); border: 1px solid var(--border); color: var(--dim);
   font: 600 16px var(--mono); cursor: pointer;
@@ -516,13 +534,15 @@ kbd {
   aside nav { display: flex; overflow-x: auto; padding: 6px 10px; }
   .nav-item { flex: none; }
   .side-foot { display: none; }
+  .corner { position: static; align-self: flex-end; margin: 10px 14px 0; }
   main { padding: 20px 16px 50px; }
   details.task .taskbody { padding-left: 4px; }
 }
 </style>
+{{THEME}}
 </head>
 <body data-generated="{{GENERATED_AT}}" data-last-sync="{{LAST_SYNC}}" data-stale-hours="8" data-sync-cmd="{{SYNC_CMD}}">
-<button class="help-fab" id="help-open" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+<div class="corner"><span id="theme-slot"></span><button class="help-fab" id="help-open" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button></div>
 <div class="help-overlay" id="help-overlay" hidden>
   <div class="help-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
     <div class="help-head">
@@ -623,10 +643,10 @@ kbd {
     // A faded glow, set inline: a CSS animation would lose to a section's own entrance animation
     // and replay whenever its tab is shown again; a transition does neither.
     target.style.transition = 'none';
-    target.style.boxShadow = 'inset 0 0 0 999px rgba(255, 216, 102, 0.07)';
+    target.style.boxShadow = 'inset 0 0 0 999px color-mix(in srgb, var(--accent) 7%, transparent)';
     void target.offsetWidth;
     target.style.transition = 'box-shadow 1.4s ease-out';
-    target.style.boxShadow = 'inset 0 0 0 999px rgba(255, 216, 102, 0)';
+    target.style.boxShadow = 'inset 0 0 0 999px transparent';
   };
   // Click-driven (not <a href="#…">): Obsidian's HTML viewer swallows anchor
   // navigation, so nav items are plain elements routed by hand. The hash is

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { JSDOM, VirtualConsole } from 'jsdom';
+import { type DOMWindow, JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { isRecord, readJsonBlock } from '@/shared/json-block';
 import { BLOCK_ID, TEMPLATE_PATH, renderPage } from '../../skills/engineer/scripts/pr-report';
@@ -8,6 +8,11 @@ import { BLOCK_ID, TEMPLATE_PATH, renderPage } from '../../skills/engineer/scrip
 const TEMPLATE = readFileSync(TEMPLATE_PATH, 'utf-8');
 
 type Data = Record<string, unknown>;
+
+// jsdom has no matchMedia, which the shared theme block reads; every browser does.
+const withMatchMedia = (window: DOMWindow): void => {
+  window.matchMedia = (query: string) => ({ matches: false, media: query, addEventListener: () => {} }) as unknown as MediaQueryList;
+};
 
 const sample = (): Data => {
   const read = readJsonBlock(TEMPLATE, BLOCK_ID);
@@ -21,7 +26,7 @@ const open = (html: string) => {
   const errors: string[] = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (err) => errors.push(err.message));
-  const { document } = new JSDOM(html, { runScripts: 'dangerously', virtualConsole, url: 'file:///report.html' }).window;
+  const { document } = new JSDOM(html, { runScripts: 'dangerously', virtualConsole, url: 'file:///report.html', beforeParse: withMatchMedia }).window;
   const count = (selector: string) => document.querySelectorAll(selector).length;
   return { errors, document, count };
 };

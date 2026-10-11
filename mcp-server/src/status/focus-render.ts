@@ -3,6 +3,7 @@
  * dashboard's Today tab. Rows carry `data-row`/`data-cat` so the dashboard's project chips narrow them.
  */
 import { jsonBlock } from '@/shared/json-block';
+import { THEME_BLOCK } from '@/shared/theme';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -256,6 +257,7 @@ export const renderFocusHtml = (view: FocusView): string => {
       `${view.project ? `${view.scopeLabel} focus` : 'Focus'} · ${weekday} ${formatDate(view.today, { day: 'numeric', month: 'short' })}`
     ),
     FOCUS_CSS,
+    THEME: THEME_BLOCK,
     SCOPE: esc(view.scopeLabel),
     DATE_LONG: `<em>${esc(weekday)}</em>, ${esc(formatDate(view.today, { day: 'numeric', month: 'long' }))}`,
     SUBLINE: subline.join(''),

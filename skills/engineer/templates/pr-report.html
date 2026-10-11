@@ -7,12 +7,71 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<!-- theme:start -->
+<style>
+  .theme-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, currentColor 5%, transparent); }
+  .theme-switch.floating { position: fixed; top: 14px; right: 14px; z-index: 50;
+    background: color-mix(in srgb, Canvas 82%, transparent); backdrop-filter: blur(8px); }
+  .theme-switch button { all: unset; box-sizing: border-box; cursor: pointer; width: 28px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center; opacity: .55; transition: opacity .15s, background .15s; }
+  .theme-switch button:hover { opacity: .9; }
+  .theme-switch button[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
+  .theme-switch button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .theme-switch svg { width: 14px; height: 14px; display: block; }
+  @media print { .theme-switch { display: none !important; } }
+</style>
 <script>
-  try {
-    var t = localStorage.getItem("pr-report-theme");
-    if (t === "light") document.documentElement.setAttribute("data-theme", "light");
-  } catch (e) {}
+(() => {
+  const KEY = "agent-theme";
+  const CHOICES = {
+    auto: ["Auto, follows the system", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/><path d='M8 2a6 6 0 0 1 0 12z' fill='currentColor'/></svg>"],
+    light: ["Light", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='3' fill='currentColor'/><path d='M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"],
+    dark: ["Dark", "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z' fill='currentColor'/></svg>"],
+  };
+  const root = document.documentElement;
+  const media = matchMedia("(prefers-color-scheme: dark)");
+  const read = () => { try { const saved = localStorage.getItem(KEY); return Object.hasOwn(CHOICES, saved) ? saved : "auto"; } catch (e) { return "auto"; } };
+  let choice = read();
+  const apply = () => {
+    const mode = choice === "auto" ? (media.matches ? "dark" : "light") : choice;
+    const changed = root.getAttribute("data-theme") !== mode;
+    root.setAttribute("data-theme", mode);
+    root.style.colorScheme = mode;
+    document.querySelectorAll(".theme-switch button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.choice === choice)));
+    if (changed) { document.dispatchEvent(new CustomEvent("themechange", { detail: { mode } })); }
+  };
+  const choose = (next) => {
+    choice = next;
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply();
+  };
+  const mount = () => {
+    const slot = document.getElementById("theme-slot");
+    const group = document.createElement("div");
+    group.className = slot ? "theme-switch" : "theme-switch floating";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Theme");
+    Object.entries(CHOICES).forEach(([name, [label, icon]]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.choice = name;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.innerHTML = icon;
+      button.addEventListener("click", () => choose(name));
+      group.append(button);
+    });
+    (slot || document.body).append(group);
+    apply();
+  };
+  media.addEventListener("change", () => { if (choice === "auto") { apply(); } });
+  window.addEventListener("storage", (event) => { if (event.key === KEY) { choice = read(); apply(); } });
+  apply();
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", mount); } else { mount(); }
+})();
 </script>
+<!-- theme:end -->
 <style>
   :root {
     --bg: #08070d;
@@ -73,15 +132,6 @@
   a { color: var(--brand-bright); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  .theme-toggle {
-    position: fixed; top: 18px; right: 18px; z-index: 10; width: 40px; height: 40px; border-radius: 50%;
-    display: grid; place-items: center; cursor: pointer; background: var(--panel-a);
-    border: 1px solid var(--line); color: var(--ink-2); font-size: 16px; box-shadow: var(--shadow);
-  }
-  .theme-toggle .sun { display: none; }
-  html[data-theme="light"] .theme-toggle .sun { display: block; }
-  html[data-theme="light"] .theme-toggle .moon { display: none; }
-
   header.page { padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
   .eyebrow {
     font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase;
@@ -106,11 +156,12 @@
   .stack .arrow { color: var(--ink-dim); }
 
   nav.jump {
-    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 56px 10px 0;
+    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 0;
     background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line-soft);
   }
   nav.jump a { font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 3px 9px; border-radius: 6px; color: var(--ink-2); border: 1px solid var(--line-soft); }
   nav.jump a:hover { color: var(--ink); border-color: var(--brand); text-decoration: none; }
+  nav.jump #theme-slot { margin-left: auto; color: var(--ink-2); }
 
   section { margin-top: 38px; scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
   details.item[id] { scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
@@ -201,7 +252,6 @@
 </style>
 </head>
 <body>
-<button class="theme-toggle" id="themeToggle" title="Toggle theme"><span class="moon">☾</span><span class="sun">☀</span></button>
 <div class="wrap" id="render"></div>
 
 <script type="application/json" id="pr-report-data">
@@ -587,7 +637,7 @@
   const root = document.getElementById("render");
   root.append(
     renderHeader(DATA.kind === "replies" ? "replies" : "review"),
-    h("nav", { class: "jump" }, sections.map((entry) => h("a", { href: `#${entry.id}` }, entry.title))),
+    h("nav", { class: "jump" }, sections.map((entry) => h("a", { href: `#${entry.id}` }, entry.title)), h("span", { id: "theme-slot" })),
     ...sections.map((entry) => entry.node),
     h("footer", {}, "Rendered from the pr-report-data block in this file. Diagram sources show as text when the diagram library can't load."));
   document.title = `PR #${DATA.pr.number}${DATA.kind === "replies" ? " replies" : ""} — ${DATA.pr.title}`;
@@ -621,12 +671,7 @@
       .catch(() => {});
   }
 
-  document.getElementById("themeToggle").addEventListener("click", () => {
-    const light = document.documentElement.getAttribute("data-theme") === "light";
-    if (light) { document.documentElement.removeAttribute("data-theme"); } else { document.documentElement.setAttribute("data-theme", "light"); }
-    try { localStorage.setItem("pr-report-theme", light ? "dark" : "light"); } catch (e) {}
-    drawDiagrams();
-  });
+  document.addEventListener("themechange", drawDiagrams);
 </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { THEME_BLOCK } from '@/shared/theme';
 import type { StatusSnapshot, TaskRef } from './collect';
 import { buildFocusView } from './focus';
 import { readFocusData } from './focus-data';
@@ -738,6 +739,7 @@ describe('renderDashboardHtml', () => {
 
   test('loads zero external resources; outbound links open new tabs', () => {
     const html = renderDashboardHtml(makeSnapshot());
+    expect(html).toContain(THEME_BLOCK);
     // No auto-loaded remote resources — scripts, stylesheets, images, fonts.
     expect(html).not.toMatch(/<script[^>]+src=/);
     expect(html).not.toMatch(/<link [^>]*href="https?:/);

@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   TIMELINE ITINERARY — design tokens (LIGHT MODE ONLY).
+   TIMELINE ITINERARY — design tokens (light on :root, dark derived below).
    Card-and-rail layout: a vertical timeline of Morning /
    Afternoon / Evening / Options periods, each holding cards.
    Accent hue is the ONLY thing that changes per destination
@@ -30,6 +30,26 @@
   --sh:0 1px 2px rgba(27,38,32,.04),0 6px 22px rgba(27,38,32,.06);
   --sh-soft:0 1px 3px rgba(27,38,32,.05);
   --r:16px;--r-sm:10px;
+  --ink-accent:var(--accent);--ink-accent-deep:var(--accent-deep);
+}
+/* Dark is derived from the trip's accent, so a new destination only swaps the light accent trio.
+   Screen-only, so paper always prints the light tokens. */
+@media screen{
+  html[data-theme="dark"]{
+    --bg:#121614;--card:#1a201d;--card-2:#1e2521;--sunk:#161c19;
+    --ink:#e7ece9;--ink-soft:#aab5af;--ink-faint:#7b877f;
+    --line:#28302c;--line-2:#36403b;
+    --accent-wash:color-mix(in oklab,var(--accent) 26%,var(--bg));
+    --ink-accent:color-mix(in oklab,var(--accent) 50%,#fff);--ink-accent-deep:color-mix(in oklab,var(--accent) 38%,#fff);
+    --gold:#d3a35c;--gold-wash:#2a2318;
+    --morning:#e8ae45;--morning-bg:#2b2416;
+    --afternoon:#45aecb;--afternoon-bg:#152a30;
+    --evening:#8d8df0;--evening-bg:#1f1f38;
+    --opt:#c2a06a;--opt-bg:#272219;
+    --warn-bg:#2c2416;--warn-ink:#e6b56a;
+    --sh:0 1px 2px rgba(0,0,0,.3),0 6px 22px rgba(0,0,0,.35);
+    --sh-soft:0 1px 3px rgba(0,0,0,.3);
+  }
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:78px;-webkit-font-smoothing:antialiased}
@@ -53,11 +73,12 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .nav{position:sticky;top:0;z-index:60;background:color-mix(in oklab,var(--bg) 90%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .nav-in{max-width:980px;margin:0 auto;padding:.5rem 1.25rem;display:flex;align-items:center;gap:.35rem;overflow-x:auto}
 .nav a{flex-shrink:0;font-size:.78rem;font-weight:500;color:var(--ink-soft);text-decoration:none;padding:.32rem .8rem;border-radius:999px;white-space:nowrap;transition:all .15s ease}
-.nav a:hover{color:var(--accent);background:var(--accent-wash)}
+.nav a:hover{color:var(--ink-accent);background:var(--accent-wash)}
 .nav a.on{background:var(--accent);color:#fff}
 .nav .sp{flex:1}
-.print-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:600;color:var(--accent);border:1px solid var(--line-2);padding:.32rem .85rem;border-radius:999px;background:var(--card)}
-.print-btn:hover{border-color:var(--accent);box-shadow:var(--sh-soft)}
+#theme-slot{flex-shrink:0;color:var(--ink-soft)}
+.print-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:600;color:var(--ink-accent);border:1px solid var(--line-2);padding:.32rem .85rem;border-radius:999px;background:var(--card)}
+.print-btn:hover{border-color:var(--ink-accent);box-shadow:var(--sh-soft)}
 .print-btn svg{width:13px;height:13px}
 
 .wrap{max-width:920px;margin:0 auto;padding:0 1.5rem}
@@ -66,15 +87,15 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .ribbon{display:flex;align-items:flex-start;overflow-x:auto;padding:1.2rem 1.1rem;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-soft)}
 .r-stop{display:flex;flex-direction:column;align-items:center;gap:.3rem;min-width:66px;text-align:center}
 .r-dot{width:23px;height:23px;border-radius:50%;background:var(--accent);outline:3px solid var(--accent-wash);display:flex;align-items:center;justify-content:center;font-size:.66rem;font-weight:700;color:#fff}
-.r-stop.minor .r-dot{background:var(--card);border:2px solid var(--accent);color:var(--accent);outline:none}
+.r-stop.minor .r-dot{background:var(--card);border:2px solid var(--accent);color:var(--ink-accent);outline:none}
 .r-name{font-size:.71rem;font-weight:600;line-height:1.2;max-width:78px}
 .r-sub{font-size:.62rem;color:var(--ink-faint)}
 .r-leg{flex:1;display:flex;flex-direction:column;align-items:center;gap:.12rem;min-width:44px;padding-top:3px}
 .r-leg-line{width:100%;height:0;border-top:2px dotted var(--line-2)}
 .r-leg-lbl{font-size:.6rem;color:var(--ink-faint);white-space:nowrap;font-variant-numeric:tabular-nums}
 
-.season{display:flex;gap:.7rem;margin-top:1.1rem;padding:.85rem 1.05rem;border-radius:var(--r);background:var(--accent-wash);border:1px solid color-mix(in oklab,var(--accent) 22%,transparent);font-size:.85rem;color:var(--accent-deep)}
-.season svg{flex-shrink:0;width:18px;height:18px;color:var(--accent);margin-top:2px}
+.season{display:flex;gap:.7rem;margin-top:1.1rem;padding:.85rem 1.05rem;border-radius:var(--r);background:var(--accent-wash);border:1px solid color-mix(in oklab,var(--accent) 22%,transparent);font-size:.85rem;color:var(--ink-accent-deep)}
+.season svg{flex-shrink:0;width:18px;height:18px;color:var(--ink-accent);margin-top:2px}
 .season b{font-weight:600}
 
 /* flight cards (fly-in flavor; omit for drive-only trips) */
@@ -97,20 +118,20 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .phase-bar{display:flex;align-items:center;gap:.8rem;padding:.9rem 1.1rem;border-radius:var(--r);background:linear-gradient(100deg,var(--accent-wash),transparent);border:1px solid var(--line)}
 .phase-ico{flex-shrink:0;width:38px;height:38px;border-radius:11px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff}
 .phase-ico svg{width:19px;height:19px}
-.phase-bar h2{font-family:var(--fd);font-weight:500;font-size:clamp(1.2rem,1.05rem + .6vw,1.5rem);color:var(--accent-deep);line-height:1.1}
+.phase-bar h2{font-family:var(--fd);font-weight:500;font-size:clamp(1.2rem,1.05rem + .6vw,1.5rem);color:var(--ink-accent-deep);line-height:1.1}
 .phase-bar .ph-sub{font-size:.78rem;color:var(--ink-soft);margin-top:.15rem}
 
 .day{padding-top:2rem}
 .day-head{display:flex;align-items:flex-start;gap:1rem;margin-bottom:.4rem}
-.day-num{flex-shrink:0;font-family:var(--fd);font-weight:500;font-size:clamp(2rem,1.6rem + 1.4vw,2.7rem);line-height:.85;color:var(--accent);font-variant-numeric:tabular-nums;text-align:center}
+.day-num{flex-shrink:0;font-family:var(--fd);font-weight:500;font-size:clamp(2rem,1.6rem + 1.4vw,2.7rem);line-height:.85;color:var(--ink-accent);font-variant-numeric:tabular-nums;text-align:center}
 /* small month label above the day number — change content per trip month */
-.day-num::before{content:"Jun";display:block;font-family:var(--fb);font-size:.6rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);line-height:1;margin-bottom:.2rem}
+.day-num::before{content:"Jun";display:block;font-family:var(--fb);font-size:.6rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-accent);line-height:1;margin-bottom:.2rem}
 .day-hmain{flex:1;min-width:0}
 .day-kicker{font-size:.68rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint)}
 .day-title{font-family:var(--fd);font-weight:500;font-size:clamp(1.25rem,1.1rem + .9vw,1.7rem);line-height:1.12;margin-top:.1rem}
 .day-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
 .dbadge{font-size:.66rem;font-weight:600;padding:.18rem .6rem;border-radius:999px;background:var(--sunk);color:var(--ink-soft)}
-.dbadge.drive{background:var(--accent-wash);color:var(--accent-deep)}
+.dbadge.drive{background:var(--accent-wash);color:var(--ink-accent-deep)}
 /* day summary — EVERY day gets a one-line "what this is" */
 .day-sum{font-size:.9rem;color:var(--ink-soft);margin-top:.7rem;line-height:1.55;max-width:48em}
 
@@ -139,11 +160,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .acard-name .chev{margin-left:auto;flex-shrink:0;color:var(--ink-faint);transition:transform .18s ease}
 .acard.open .acard-name .chev{transform:rotate(180deg)}
 .acard-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line-2)}
-.acard-name a:hover{border-color:var(--accent);color:var(--accent)}
+.acard-name a:hover{border-color:var(--ink-accent);color:var(--ink-accent)}
 .acard-desc{font-size:.85rem;color:var(--ink-soft);margin-top:.3rem;line-height:1.5}
 .chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
 .chip{font-size:.65rem;font-weight:600;padding:.15rem .55rem;border-radius:999px;background:var(--sunk);color:var(--ink-soft)}
-.chip.halal{background:var(--accent-wash);color:var(--accent-deep)}
+.chip.halal{background:var(--accent-wash);color:var(--ink-accent-deep)}
 .chip.price{background:var(--gold-wash);color:var(--gold)}
 .chip.book{background:var(--warn-bg);color:var(--warn-ink)}
 .chip.sea{background:var(--afternoon-bg);color:var(--afternoon)}
@@ -156,13 +177,13 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .di-v{font-size:.82rem;font-weight:500;margin-top:.1rem}
 .tip{padding:.55rem .8rem;border-left:3px solid var(--accent);background:var(--accent-wash);border-radius:0 8px 8px 0;font-size:.8rem;color:var(--ink-soft);line-height:1.5}
 .tip+.tip{margin-top:.5rem}
-.tip b{color:var(--accent-deep)}
+.tip b{color:var(--ink-accent-deep)}
 .tip.warn{border-left-color:var(--gold);background:var(--warn-bg);color:var(--warn-ink)}
 .tip.warn b{color:var(--warn-ink)}
 
 /* the OPTIONS period: dashed + tinted, so it reads as "extra / backup" */
 .period.options .p-cards .acard{background:var(--opt-bg);border-style:dashed;border-color:color-mix(in oklab,var(--opt) 35%,var(--line))}
-.period.options .acard-emoji{background:#fff}
+.period.options .acard-emoji{background:var(--card)}
 
 /* drive connector between cards (road-trip flavor) */
 .drive-leg{display:flex;align-items:center;gap:.6rem;padding:.3rem 0 .3rem .2rem;font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums}
@@ -171,7 +192,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .section{padding-top:3rem}
 .sec-head{display:flex;align-items:baseline;gap:.7rem;border-bottom:2px solid var(--ink);padding-bottom:.5rem;margin-bottom:.5rem}
 .sec-head h2{font-family:var(--fd);font-weight:500;font-size:clamp(1.3rem,1.15rem + .8vw,1.7rem)}
-.sec-head h2 em{font-style:italic;color:var(--accent)}
+.sec-head h2 em{font-style:italic;color:var(--ink-accent)}
 /* section summary — EVERY section opens with one explanatory line */
 .sec-sum{font-size:.86rem;color:var(--ink-soft);margin-bottom:1.1rem;max-width:50em;line-height:1.55}
 
@@ -208,11 +229,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
 .checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:.5rem}
 .check{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer;user-select:none;transition:all .15s ease}
-.check:hover{border-color:var(--accent)}
+.check:hover{border-color:var(--ink-accent)}
 .check .box{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line-2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s ease}
 .check .box svg{width:10px;height:10px;color:#fff;display:none}
-.check.ck{background:var(--accent-wash);border-color:var(--accent)}
-.check.ck .box{background:var(--accent);border-color:var(--accent)}
+.check.ck{background:var(--accent-wash);border-color:var(--ink-accent)}
+.check.ck .box{background:var(--accent);border-color:var(--ink-accent)}
 .check.ck .box svg{display:block}
 .check.ck span{text-decoration:line-through;color:var(--ink-faint)}
 .check span{font-size:.8rem;font-weight:500}
@@ -239,7 +260,7 @@ footer p+p{margin-top:.3rem}
   .masthead{background:#fff;color:var(--ink);border-bottom:2px solid var(--ink)}
   .masthead::after{display:none}
   .mh-in{color:var(--ink);padding:0 0 1rem}
-  .mh-kicker{color:var(--accent)}.mh-deck{color:var(--ink-soft)}
+  .mh-kicker{color:var(--ink-accent)}.mh-deck{color:var(--ink-soft)}
   .mh-chip{background:#fff;border-color:#ccc}.mh-chip b{color:var(--ink-faint)}
   .phase{padding-top:1.4rem}.phase-bar{background:#fff;border-color:#bbb}
   .day{padding-top:1.2rem;break-inside:avoid-page}
@@ -254,6 +275,71 @@ footer p+p{margin-top:.3rem}
 }
 @page{margin:13mm 12mm}
 </style>
+<!-- theme:start -->
+<style>
+  .theme-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, currentColor 5%, transparent); }
+  .theme-switch.floating { position: fixed; top: 14px; right: 14px; z-index: 50;
+    background: color-mix(in srgb, Canvas 82%, transparent); backdrop-filter: blur(8px); }
+  .theme-switch button { all: unset; box-sizing: border-box; cursor: pointer; width: 28px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center; opacity: .55; transition: opacity .15s, background .15s; }
+  .theme-switch button:hover { opacity: .9; }
+  .theme-switch button[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
+  .theme-switch button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .theme-switch svg { width: 14px; height: 14px; display: block; }
+  @media print { .theme-switch { display: none !important; } }
+</style>
+<script>
+(() => {
+  const KEY = "agent-theme";
+  const CHOICES = {
+    auto: ["Auto, follows the system", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/><path d='M8 2a6 6 0 0 1 0 12z' fill='currentColor'/></svg>"],
+    light: ["Light", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='3' fill='currentColor'/><path d='M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"],
+    dark: ["Dark", "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z' fill='currentColor'/></svg>"],
+  };
+  const root = document.documentElement;
+  const media = matchMedia("(prefers-color-scheme: dark)");
+  const read = () => { try { const saved = localStorage.getItem(KEY); return Object.hasOwn(CHOICES, saved) ? saved : "auto"; } catch (e) { return "auto"; } };
+  let choice = read();
+  const apply = () => {
+    const mode = choice === "auto" ? (media.matches ? "dark" : "light") : choice;
+    const changed = root.getAttribute("data-theme") !== mode;
+    root.setAttribute("data-theme", mode);
+    root.style.colorScheme = mode;
+    document.querySelectorAll(".theme-switch button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.choice === choice)));
+    if (changed) { document.dispatchEvent(new CustomEvent("themechange", { detail: { mode } })); }
+  };
+  const choose = (next) => {
+    choice = next;
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply();
+  };
+  const mount = () => {
+    const slot = document.getElementById("theme-slot");
+    const group = document.createElement("div");
+    group.className = slot ? "theme-switch" : "theme-switch floating";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Theme");
+    Object.entries(CHOICES).forEach(([name, [label, icon]]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.choice = name;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.innerHTML = icon;
+      button.addEventListener("click", () => choose(name));
+      group.append(button);
+    });
+    (slot || document.body).append(group);
+    apply();
+  };
+  media.addEventListener("change", () => { if (choice === "auto") { apply(); } });
+  window.addEventListener("storage", (event) => { if (event.key === KEY) { choice = read(); apply(); } });
+  apply();
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", mount); } else { mount(); }
+})();
+</script>
+<!-- theme:end -->
 </head>
 <body>
 
@@ -282,6 +368,7 @@ footer p+p{margin-top:.3rem}
     <a href="#budget">Budget</a>
     <a href="#know">Tips</a>
     <span class="sp"></span>
+    <span id="theme-slot"></span>
     <button class="print-btn" onclick="window.print()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
       Print
@@ -441,7 +528,7 @@ footer p+p{margin-top:.3rem}
   <div class="map-card">
     <svg viewBox="0 0 480 220" role="img" aria-label="Route map">
       <rect width="480" height="220" rx="10" fill="var(--sunk)"/>
-      <path d="M70,30 C120,20 180,40 200,90 C220,140 200,180 150,195 C110,205 80,180 78,140 C76,100 60,60 70,30 Z" fill="#d6ebe2" stroke="var(--accent)" stroke-width="1.4" opacity=".5"/>
+      <path d="M70,30 C120,20 180,40 200,90 C220,140 200,180 150,195 C110,205 80,180 78,140 C76,100 60,60 70,30 Z" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.4" opacity=".5"/>
       <text x="300" y="120" font-family="DM Sans" font-size="11" font-style="italic" fill="var(--ink-faint)">Strait of Malacca</text>
       <path d="M150,170 C120,150 110,120 120,95" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="6,3"/>
       <path d="M120,95 C124,75 132,62 148,55" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="6,3"/>
