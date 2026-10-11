@@ -424,7 +424,6 @@ Two entries, not a tool-by-tool list:
 "mcp__xcode__*"
 
 // permissions.ask
-"mcp__xcode__RunCodeSnippet"
 "mcp__xcode__InvokeDebuggerCommand"
 ```
 
@@ -434,14 +433,11 @@ Two entries, not a tool-by-tool list:
 - **Gating the project-surgery tools would buy nothing and cost something real.** `XcodeWrite`, `XcodeRM`, `XcodeNewTarget`, `UpdateTargetBuildSetting`, `AddEntitlement` and the rest only reach files the agent can already read and write with `Edit`/`Write`, because the code root is in `additionalDirectories` and the sandbox write grant. Prompting on them removes no capability. It does something worse: it makes the *safe* path (a structured tool call that keeps the pbxproj consistent) prompt while the *dangerous* path (hand-editing a several-hundred-KB pbxproj with `Edit`) stays silent, which is the exact inversion `xcode-project.md` tells the agent to avoid. A permission rule that pushes an agent toward the worse tool is worse than no rule.
 - **It does not drift.** Apple ships tools with each Xcode release. An enumerated list silently goes stale: new routine tools start prompting, and the operator has no signal why.
 
-**The two exceptions are the ones that add capability the agent does not otherwise have.** Both execute code the model composed, outside the Bash seatbelt:
+**The one exception is the tool that adds capability the agent does not otherwise have.** `InvokeDebuggerCommand` drives LLDB, which can attach to a running process, read and write its memory, and run shell commands and Python directly (`platform shell`, `script`), outside the Bash seatbelt with nothing written to the repo. It is rare in the build-test-run loop, so the prompt costs little. An `ask` rule prompts even when a broader allow rule also matches (precedence is deny → ask → allow, and specificity does not reorder it), so it holds against the glob.
 
-- `RunCodeSnippet` runs arbitrary Swift through the toolchain.
-- `InvokeDebuggerCommand` drives LLDB, which can attach to a running process, read and write its memory, and shell out.
+`RunCodeSnippet` stays under the glob by the same argument as the project-surgery tools. It runs model-written Swift outside the seatbelt, but so do `RunSomeTests` and `RunProject` on Swift the agent can already write into the code root. Gating it removes no capability, and it is the tool for checking a value while debugging logic, so a prompt there fires often and pushes the agent toward throwaway test files in the repo.
 
-Neither appears in the normal build-test-run loop, so the friction is close to zero. An `ask` rule prompts even when a broader allow rule also matches (precedence is deny → ask → allow, and specificity does not reorder it), so the pair holds against the glob.
-
-The bare server form `mcp__xcode` grants exactly the same set and behaves identically against the two `ask` rules. Prefer the glob purely for legibility: it shares a namespace shape with the `ask` entries beside it, so a reader scanning `permissions.allow` sees at a glance that the pack's rules are all about one server.
+The bare server form `mcp__xcode` grants exactly the same set and behaves identically against the `ask` rule. Prefer the glob purely for legibility: it shares a namespace shape with the `ask` entries beside it, so a reader scanning `permissions.allow` sees at a glance that the pack's rules are all about one server.
 
 **(4) Grant the Bash patterns** via §E. Add to `permissions.allow`:
 
@@ -534,7 +530,7 @@ On yes, ask for the repo path. If it sits outside the code root init granted, sa
 
 MCP server registered:     xcode → xcrun mcpbridge  (in <HOME>/.mcp.json)
 Tool permissions granted:  mcp__xcode__*  (the whole server)
-Gated (ask):               RunCodeSnippet, InvokeDebuggerCommand  ← arbitrary code, outside the sandbox
+Gated (ask):               InvokeDebuggerCommand  ← LLDB can shell out, outside the sandbox
 Bash allowed:              xcodebuild *, xcrun simctl *, xcrun mcp-server status
 Bash gated (ask):          simctl delete/erase, -exportArchive, altool, notarytool  ← uploads need your tap
 Rules seeded:              .claude/rules/xcode.md (always on), xcode-project.md (path-scoped)
