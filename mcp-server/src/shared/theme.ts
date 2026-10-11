@@ -79,6 +79,7 @@ ${END}`;
 
 /** Templates opened or copied whole, so they carry the block verbatim; rendered pages fill a slot instead. */
 export const THEMED_TEMPLATES = [
+  'skills/engineer/templates/explainer.html',
   'skills/engineer/templates/pr-report.html',
   'skills/itinerary/references/template.html',
   'skills/roadmap/references/template.html',

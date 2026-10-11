@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How stock reservations work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+<!-- theme:start -->
+<style>
+  .theme-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, currentColor 5%, transparent); }
+  .theme-switch.floating { position: fixed; top: 14px; right: 14px; z-index: 50;
+    background: color-mix(in srgb, Canvas 82%, transparent); backdrop-filter: blur(8px); }
+  .theme-switch button { all: unset; box-sizing: border-box; cursor: pointer; width: 28px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center; opacity: .55; transition: opacity .15s, background .15s; }
+  .theme-switch button:hover { opacity: .9; }
+  .theme-switch button[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
+  .theme-switch button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .theme-switch svg { width: 14px; height: 14px; display: block; }
+  @media print { .theme-switch { display: none !important; } }
+</style>
+<script>
+(() => {
+  const KEY = "agent-theme";
+  const CHOICES = {
+    auto: ["Auto, follows the system", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/><path d='M8 2a6 6 0 0 1 0 12z' fill='currentColor'/></svg>"],
+    light: ["Light", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='3' fill='currentColor'/><path d='M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"],
+    dark: ["Dark", "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z' fill='currentColor'/></svg>"],
+  };
+  const root = document.documentElement;
+  const media = matchMedia("(prefers-color-scheme: dark)");
+  const read = () => { try { const saved = localStorage.getItem(KEY); return Object.hasOwn(CHOICES, saved) ? saved : "auto"; } catch (e) { return "auto"; } };
+  let choice = read();
+  const apply = () => {
+    const mode = choice === "auto" ? (media.matches ? "dark" : "light") : choice;
+    const changed = root.getAttribute("data-theme") !== mode;
+    root.setAttribute("data-theme", mode);
+    root.style.colorScheme = mode;
+    document.querySelectorAll(".theme-switch button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.choice === choice)));
+    if (changed) { document.dispatchEvent(new CustomEvent("themechange", { detail: { mode } })); }
+  };
+  const choose = (next) => {
+    choice = next;
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply();
+  };
+  const mount = () => {
+    const slot = document.getElementById("theme-slot");
+    const group = document.createElement("div");
+    group.className = slot ? "theme-switch" : "theme-switch floating";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Theme");
+    Object.entries(CHOICES).forEach(([name, [label, icon]]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.choice = name;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.innerHTML = icon;
+      button.addEventListener("click", () => choose(name));
+      group.append(button);
+    });
+    (slot || document.body).append(group);
+    apply();
+  };
+  media.addEventListener("change", () => { if (choice === "auto") { apply(); } });
+  window.addEventListener("storage", (event) => { if (event.key === KEY) { choice = read(); apply(); } });
+  apply();
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", mount); } else { mount(); }
+})();
+</script>
+<!-- theme:end -->
+<style>
+  :root {
+    --bg: #08070d;
+    --panel-a: #1e1b2c;
+    --panel-b: #151322;
+    --ink: #ece9f5;
+    --ink-2: #b8b4c6;
+    --ink-dim: #78748a;
+    --line: #322e45;
+    --line-soft: #232032;
+    --brand: #8b7cf0;
+    --brand-bright: #ab9dff;
+    --brand-glow: rgba(139,124,240,.18);
+    --risk: #f0776b;
+    --logic: #e9b44c;
+    --ok: #64c78d;
+    --cool: #5aa9f0;
+    --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 44px -16px rgba(0,0,0,.85);
+    --grid-dot: rgba(255,255,255,.035);
+    --r: 14px;
+    --bar-h: 56px;
+    --read: 74ch;
+  }
+  html[data-theme="light"] {
+    --bg: #f5f3fb;
+    --panel-a: #ffffff;
+    --panel-b: #efecf8;
+    --ink: #201d2b;
+    --ink-2: #565064;
+    --ink-dim: #8b8698;
+    --line: #e5e1f0;
+    --line-soft: #eeebf7;
+    --brand: #5b45d6;
+    --brand-bright: #4a35b8;
+    --brand-glow: rgba(96,74,211,.16);
+    --risk: #c8463a;
+    --logic: #a8740f;
+    --ok: #2f9a5e;
+    --cool: #2f6bc4;
+    --shadow: 0 1px 2px rgba(30,20,50,.06), 0 14px 40px -20px rgba(30,20,50,.22);
+    --grid-dot: rgba(45,30,80,.05);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; scroll-padding-top: calc(var(--bar-h) + 18px); }
+  body {
+    margin: 0; color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 16px; line-height: 1.65;
+    background: radial-gradient(1000px 560px at 82% -10%, var(--brand-glow), transparent 60%), var(--bg);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px); background-size: 26px 26px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 70%);
+  }
+  a { color: var(--brand-bright); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: .84em; }
+  code { background: color-mix(in srgb, var(--brand) 10%, transparent); border: 1px solid var(--line-soft); padding: 1px 5px; border-radius: 5px; }
+  ::selection { background: color-mix(in srgb, var(--brand) 30%, transparent); }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20; height: var(--bar-h);
+    display: flex; align-items: center; gap: 14px; padding: 0 20px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px) saturate(1.4);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .topbar .progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: linear-gradient(90deg, var(--brand), var(--brand-bright)); transition: width .1s linear; }
+  .mark { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 15px; }
+  .mark:hover { text-decoration: none; }
+  .mark .gem { width: 22px; height: 22px; flex: none; border-radius: 7px; background: linear-gradient(135deg, var(--brand-bright), var(--brand)); box-shadow: 0 0 0 4px var(--brand-glow); }
+  .mark .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+  .toc { position: relative; min-width: 0; }
+  .toc-btn {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 9px; max-width: 46vw;
+    padding: 6px 10px 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-a);
+    color: var(--ink-2); font-size: 13.5px; transition: border-color .15s, color .15s;
+  }
+  .toc-btn:hover, .toc-btn[aria-expanded="true"] { border-color: var(--brand); color: var(--ink); }
+  .toc-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .toc-btn .n { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--brand-bright); }
+  .toc-btn .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toc-btn svg { width: 12px; height: 12px; flex: none; transition: transform .2s; }
+  .toc-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .toc-menu {
+    position: absolute; top: calc(100% + 10px); left: 0; width: min(380px, 86vw); max-height: min(70vh, 560px); overflow-y: auto;
+    margin: 0; padding: 8px; list-style: none; border-radius: var(--r); border: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow);
+    opacity: 0; transform: translateY(-6px) scale(.98); transform-origin: top left; pointer-events: none; transition: opacity .16s, transform .16s;
+  }
+  .toc-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+  .toc-menu a {
+    display: grid; grid-template-columns: 30px 1fr; gap: 6px; align-items: baseline; padding: 8px 10px; border-radius: 9px;
+    color: var(--ink-2); font-size: 14px; line-height: 1.35; border-left: 2px solid transparent;
+  }
+  .toc-menu a:hover, .toc-menu a:focus-visible { background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--ink); text-decoration: none; outline: none; }
+  .toc-menu a .n { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-dim); }
+  .toc-menu a.current { color: var(--ink); border-left-color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, transparent); }
+  .toc-menu a.current .n { color: var(--brand-bright); }
+  .topbar #theme-slot { margin-left: auto; color: var(--ink-2); }
+
+  /* ---------- page ---------- */
+  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 56px 32px 120px; }
+  .wrap > :is(p, ul, ol, h3, .eyebrow, .lede), section > :is(p, ul, ol, h3, blockquote) { max-width: var(--read); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--brand); display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--brand); opacity: .7; }
+  h1 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: clamp(30px, 4.4vw, 50px); line-height: 1.04; letter-spacing: -.025em; margin: 0; max-width: 22ch; }
+  .lede { color: var(--ink-2); font-size: 18px; line-height: 1.6; margin: 18px 0 0; }
+
+  main { counter-reset: section; }
+  section { counter-increment: section; margin-top: 72px; }
+  section > h2 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.15; letter-spacing: -.01em;
+    margin: 0 0 14px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; align-items: baseline; gap: 14px;
+  }
+  section > h2::before { content: counter(section, decimal-leading-zero); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; color: var(--brand-bright); letter-spacing: .04em; }
+  h3 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 18px; margin: 30px 0 8px; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  li::marker { color: var(--ink-dim); }
+  strong { color: var(--ink); font-weight: 600; }
+  blockquote { margin: 16px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--brand); color: var(--ink-2); font-style: italic; }
+
+  .card { background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px 22px; margin: 18px 0; }
+  .card > :first-child { margin-top: 0; }
+  .card > :last-child { margin-bottom: 0; }
+  .verdict { border-left: 4px solid var(--brand); }
+  .finding { border-left: 4px solid var(--line); }
+  .finding h4 { margin: 0 0 6px; font-size: 16px; }
+  :is(.verdict, .finding).ok { border-left-color: var(--ok); }
+  :is(.verdict, .finding).warn { border-left-color: var(--logic); }
+  :is(.verdict, .finding).crit { border-left-color: var(--risk); }
+  :is(.verdict, .finding).info { border-left-color: var(--cool); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 18px 0; }
+  .grid2 > .card { margin: 0; }
+  .label { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 8px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 18px 0; }
+  .stat { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-b); }
+  .stat b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 28px; line-height: 1.1; color: var(--ink); letter-spacing: -.02em; }
+  .stat span { color: var(--ink-dim); font-size: 13px; }
+
+  .table { overflow-x: auto; margin: 18px 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel-a); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tr:last-child > td { border-bottom: 0; }
+  th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; background: var(--panel-b); }
+
+  .tag { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; margin-right: 6px; white-space: nowrap; vertical-align: 1px; }
+  .tag.crit { color: var(--risk); }
+  .tag.warn { color: var(--logic); }
+  .tag.ok { color: var(--ok); }
+  .tag.info { color: var(--cool); }
+
+  pre { font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.55; background: var(--panel-b); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .diagram { margin: 22px 0 8px; padding: 22px; border-radius: var(--r); border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow); overflow-x: auto; white-space: pre; color: var(--ink-2); font-size: 12px; }
+  .diagram.drawn { white-space: normal; text-align: center; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .cap { color: var(--ink-dim); font-size: 14px; margin: 0 0 22px; max-width: var(--read); }
+  details { margin: 14px 0; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--panel-b); }
+  details > summary { cursor: pointer; padding: 10px 14px; color: var(--ink-2); font-size: 14px; }
+  details > :not(summary) { margin: 0 14px 14px; }
+
+  footer { margin-top: 80px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 36px 18px 90px; }
+    .topbar { gap: 10px; padding: 0 12px; }
+    .mark .name { display: none; }
+    .toc { flex: 1; }
+    .toc-btn { max-width: none; width: 100%; }
+    .toc-menu { position: fixed; top: calc(var(--bar-h) + 6px); left: 10px; right: 10px; width: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="mark" href="#top"><span class="gem"></span><span class="name"></span></a>
+  <nav class="toc" aria-label="Sections">
+    <button class="toc-btn" type="button" aria-expanded="false" aria-controls="toc-menu">
+      <span class="n"></span><span class="t">Contents</span>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <ol class="toc-menu" id="toc-menu"></ol>
+  </nav>
+  <span id="theme-slot"></span>
+  <span class="progress"></span>
+</header>
+<main class="wrap" id="top">
+<!-- body:start -->
+<p class="eyebrow">acme/shop · architecture</p>
+<h1>How stock reservations work</h1>
+<p class="lede">Placing an order holds its units in a reservations table instead of decrementing stock at payment, so two buyers can't both pay for the last unit. This page walks the flow, the decisions behind it, and what is still open.</p>
+
+<section>
+<h2>The short version</h2>
+<div class="card verdict ok">
+<p><strong>One table owns availability.</strong> <code>available = stock − active reservations</code>, read under a row lock. Payment confirms a reservation; cancel or expiry releases it.</p>
+</div>
+<div class="stats">
+<div class="stat"><b>1</b><span>source of truth for availability</span></div>
+<div class="stat"><b>15 min</b><span>an unpaid hold lasts</span></div>
+<div class="stat"><b>0</b><span>oversells in the load test</span></div>
+</div>
+</section>
+
+<section>
+<h2>How an order flows</h2>
+<p>An order reserves on place, confirms on payment and releases on cancel. Every step takes the product row lock first, so two orders for the last unit serialize.</p>
+<pre class="diagram">sequenceDiagram
+  autonumber
+  participant B as Buyer
+  participant O as OrderService
+  participant R as reservations
+  B->>O: place order (2 units)
+  O->>R: lock product, insert hold
+  R-->>O: held until now + 15 min
+  B->>O: pay
+  O->>R: confirm hold
+  Note over O,R: cancel or expiry deletes the hold
+</pre>
+<p class="cap">The lock is the product row's, taken before stock is read.</p>
+</section>
+
+<section>
+<h2>Before and after</h2>
+<div class="grid2">
+<div class="card"><p class="label">Before</p><p>Stock decremented at payment. Two buyers could both pass the check and pay for one unit.</p></div>
+<div class="card"><p class="label">After</p><p>Stock is held at placement under a lock. The second buyer sees it gone before paying.</p></div>
+</div>
+<div class="table"><table>
+<tr><th>Decision</th><th>Picks</th><th>Where</th></tr>
+<tr><td>How long an unpaid hold lasts</td><td>15 minutes</td><td><code>src/orders/config.ts:9</code></td></tr>
+<tr><td>Who releases expired holds</td><td>A sweep every minute</td><td><code>src/jobs/expire.ts:14</code></td></tr>
+</table></div>
+</section>
+
+<section>
+<h2>What is still open</h2>
+<div class="card finding warn">
+<h4><span class="tag warn">fix before merge</span>An edit reads stock before taking the lock</h4>
+<p>Raising an order's quantity reads availability outside the lock, so two edits can both pass. Move the read under the lock in <code>src/orders/edit.ts:22</code>.</p>
+</div>
+</section>
+<!-- body:end -->
+<footer>Diagrams render with Mermaid; when it can't load, their source shows as text.</footer>
+</main>
+
+<script>
+(() => {
+  const main = document.getElementById("top");
+  const menu = document.getElementById("toc-menu");
+  const button = document.querySelector(".toc-btn");
+  const bar = document.querySelector(".topbar");
+  const progress = bar.querySelector(".progress");
+  const [shownNumber, shownTitle] = button.querySelectorAll(".n, .t");
+  document.querySelector(".mark .name").textContent = main.querySelector("h1").textContent;
+
+  const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-").replace(/-+/g, "-") || "section";
+  const used = new Set();
+  const sections = [...main.querySelectorAll("section")].map((section, index) => {
+    const title = section.querySelector("h2").textContent.trim();
+    if (!section.id) {
+      const base = slug(title);
+      section.id = used.has(base) ? `${base}-${index + 1}` : base;
+    }
+    used.add(section.id);
+    const number = String(index + 1).padStart(2, "0");
+    const link = Object.assign(document.createElement("a"), { href: `#${section.id}` });
+    link.append(Object.assign(document.createElement("span"), { className: "n", textContent: number }), Object.assign(document.createElement("span"), { textContent: title }));
+    const item = document.createElement("li");
+    item.append(link);
+    menu.append(item);
+    return { section, title, number, link };
+  });
+
+  const isOpen = () => menu.classList.contains("open");
+  const setOpen = (open) => {
+    menu.classList.toggle("open", open);
+    button.setAttribute("aria-expanded", String(open));
+    if (open) { (menu.querySelector("a.current") || menu.querySelector("a"))?.focus({ preventScroll: true }); }
+  };
+  button.addEventListener("click", () => setOpen(!isOpen()));
+  menu.addEventListener("click", (event) => { if (event.target.closest("a")) { setOpen(false); } });
+  document.addEventListener("click", (event) => { if (isOpen() && !event.target.closest(".toc")) { setOpen(false); } });
+  document.addEventListener("keydown", (event) => {
+    if (!isOpen()) { return; }
+    const links = [...menu.querySelectorAll("a")];
+    const at = links.indexOf(document.activeElement);
+    if (event.key === "Escape") { setOpen(false); button.focus(); }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      links[(at + step + links.length) % links.length].focus();
+    }
+  });
+
+  let current = null;
+  const track = () => {
+    const line = bar.offsetHeight + 40;
+    const passed = sections.filter((entry) => entry.section.getBoundingClientRect().top <= line);
+    const next = passed.at(-1) || null;
+    if (next !== current) {
+      current = next;
+      sections.forEach((entry) => entry.link.classList.toggle("current", entry === next));
+      shownNumber.textContent = next ? `§ ${next.number}` : "";
+      shownTitle.textContent = next ? next.title : "Contents";
+    }
+    const room = document.documentElement.scrollHeight - innerHeight;
+    progress.style.width = `${room > 0 ? (scrollY / room) * 100 : 0}%`;
+  };
+  let queued = false;
+  const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; track(); }); } };
+  addEventListener("scroll", schedule, { passive: true });
+  addEventListener("resize", schedule);
+  track();
+
+  const boxes = [...document.querySelectorAll(".diagram")];
+  boxes.forEach((box) => { box.dataset.source = box.textContent; });
+  let mermaidLib = null;
+  let generation = 0;
+  const draw = async () => {
+    if (!mermaidLib) { return; }
+    const run = ++generation;
+    const dark = document.documentElement.getAttribute("data-theme") !== "light";
+    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default", themeVariables: { fontFamily: "IBM Plex Sans, system-ui, sans-serif" } });
+    await Promise.all(boxes.map(async (box, index) => {
+      try {
+        const { svg } = await mermaidLib.render(`diagram-${index}-${Date.now()}`, box.dataset.source);
+        if (run !== generation) { return; }
+        box.innerHTML = svg;
+        box.classList.add("drawn");
+      } catch (err) {
+        if (run !== generation) { return; }
+        box.textContent = box.dataset.source;
+        box.classList.remove("drawn");
+      }
+    }));
+  };
+  if (boxes.length) {
+    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; return draw(); })
+      .catch(() => {});
+  }
+  document.addEventListener("themechange", draw);
+})();
+</script>
+</body>
+</html>

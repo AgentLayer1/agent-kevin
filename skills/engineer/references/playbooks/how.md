@@ -12,6 +12,8 @@
    - **Where things live:** a short file map for someone starting work here.
    - **Gotchas:** surprising behavior, historical context, pitfalls.
 
+A subsystem-sized answer saved to a file becomes an [explainer page](../explainer.md), its sections these ones.
+
 Concrete language: "`UserService` calls `AuthClient.refresh()`", not "the service delegates to the client". When something is complex, say why. When it's simple, don't pad it. Name the gaps the explorers couldn't trace.
 
 ---

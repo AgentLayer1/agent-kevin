@@ -86,6 +86,7 @@ Cross-cutting references:
 - N competing attempts, then pick and graft: [arena](references/arena.md). N workers over slices or a race: [swarm](references/swarm.md).
 - Several reviewers attacking your own change before it's a PR: [interrogate](references/interrogate.md). A second model on your work, code or not: the adversarial-review skill. Someone else's PR: [pr review](references/playbooks/pr-review.md).
 - Before any diff is presented: [comment pass](references/comment-pass.md).
+- An explanation that earns a page (architecture, research, a subsystem's how): [explainer](references/explainer.md), never a hand-written HTML file.
 - Commit messages and PR descriptions: [handoff](references/handoff.md) and [technical writing](references/technical-writing.md).
 - A reviewable trail for long or unattended work: [decision log](references/decision-log.md).
 

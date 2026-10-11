@@ -10,6 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { isRecord, isScriptSafe, jsonBlock, readJsonBlock } from '../../../mcp-server/src/shared/json-block';
+import { diagramErrors } from './diagrams';
 
 export const BLOCK_ID = 'pr-report-data';
 export const PAGE_TOKEN = '{{pr-report-page}}';
@@ -472,26 +473,8 @@ export const relinkCard = (saved: string, data: Row, pageName: string): string =
   return `${frontmatter}${renderCard(data).split(PAGE_TOKEN).join(pageName)}`;
 };
 
-interface MermaidValidator {
-  parseMermaid: (source: string) => Promise<{ ok: boolean; error?: string }>;
-}
-
-// mermaid resolves only at run time, through NODE_PATH; a non-literal path keeps tsc from following it.
-const VALIDATOR = join(import.meta.dir, '..', '..', 'mermaid', 'scripts', 'validate.ts');
-
-const parseDiagrams = async (diagrams: ReportCheck['diagrams']): Promise<string[]> => {
-  if (!diagrams.length) {
-    return [];
-  }
-  const { parseMermaid }: MermaidValidator = await import(VALIDATOR);
-  const results = await Promise.all(
-    diagrams.map(async ({ flow, source }) => {
-      const result = await parseMermaid(source);
-      return result.ok ? null : `flow "${flow}": diagram doesn't parse: ${result.error}`;
-    })
-  );
-  return results.filter((result): result is string => result !== null);
-};
+const parseDiagrams = (diagrams: ReportCheck['diagrams']): Promise<string[]> =>
+  diagramErrors(diagrams.map(({ flow, source }) => ({ label: `flow "${flow}"`, source })));
 
 const fail = (message: string): never => {
   console.error(`error: ${message}`);
