@@ -17,19 +17,21 @@ tells every consumer exactly what their home needs after they `/plugin update`.
 
 Runs against the plugin repo at `${CLAUDE_PLUGIN_ROOT}`. **Never commits, tags, or
 pushes without explicit approval** — it stages everything and stops (per the
-standing "one approval ≠ blanket commit license" rule).
+standing "one approval ≠ blanket commit license" rule). Run each shell block below in a
+subshell on the repo, `( cd "${CLAUDE_PLUGIN_ROOT}" && … )`, so the session stays in the
+home; the `guard` hook refuses a `cd` that would move it.
 
 ## Step 0 — Locate the plugin repo + last release
 
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+( PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 cd "$PLUGIN_ROOT" || exit 1
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "not a git repo"; exit 1; }
 CURRENT=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' .claude-plugin/plugin.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 LAST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
 echo "current plugin.json version: $CURRENT"
 echo "last tag: ${LAST_TAG:-<none>}"
-git status --short
+git status --short )
 ```
 
 Determine the **last release point**, in order of preference:

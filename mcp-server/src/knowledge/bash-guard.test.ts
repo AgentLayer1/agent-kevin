@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { homeRelativeLeak } from './bash-guard';
+import { homeRelativeLeak, shellGuard } from './bash-guard';
 
 const root = mkdtempSync(join(tmpdir(), 'bash-guard-'));
 const home = join(root, 'Agents', 'Scout');
@@ -77,5 +77,77 @@ describe('homeRelativeLeak', () => {
   test('ignores words that merely contain a tree name', () => {
     expect(homeRelativeLeak('mkdir reports-archive', repo, home)).toBeUndefined();
     expect(homeRelativeLeak('echo x > myprojects/a.md', repo, home)).toBeUndefined();
+  });
+});
+
+const claude = (command: string, cwd = home): string | undefined => shellGuard(command, cwd, home, 'claude');
+
+describe('shellGuard: directory drift', () => {
+  test('refuses a top-level cd that leaves the session outside the home', () => {
+    expect(claude(`cd ${repo} && git status`)).toContain(`working directory at ${repo}`);
+    expect(claude(`cd ${repo}; ls`)).toContain('carries over');
+    expect(claude(`pushd ${repo}`)).toContain('Blocked');
+    expect(claude(`{ cd ${repo}; }`)).toContain('Blocked');
+    expect(claude('cd')).toContain('Blocked');
+  });
+
+  test('lets a computed target through, and catches it on the next command if it left the home', () => {
+    expect(claude('cd "$HOME_DIR" && ls')).toBeUndefined();
+    expect(claude('cd - && ls')).toBeUndefined();
+    expect(claude('popd')).toBeUndefined();
+    expect(claude('make', repo)).toContain('because an earlier cd moved it');
+  });
+
+  test('refuses any command while the session has already drifted, until it returns', () => {
+    expect(claude('git status', repo)).toContain(`working directory is ${repo}`);
+    expect(claude(`cd ${home}`, repo)).toBeUndefined();
+    expect(claude(`cd ${home} && git status`, repo)).toBeUndefined();
+  });
+
+  test('allows a cd that does not outlive the command', () => {
+    expect(claude(`git -C ${repo} status`)).toBeUndefined();
+    expect(claude(`(cd ${repo} && make)`)).toBeUndefined();
+    expect(claude(`ROOT=$(cd ${repo} && pwd) && echo "$ROOT"`)).toBeUndefined();
+    expect(claude(`cd ${repo} && make && cd ${home}`)).toBeUndefined();
+    expect(claude('cd projects && ls')).toBeUndefined();
+    expect(claude(`echo "cd ${repo}"`)).toBeUndefined();
+    expect(claude(`cat > notes.md <<'EOF'\ncd ${repo}\nEOF`)).toBeUndefined();
+  });
+
+  test('is skipped under Codex, which starts every command in the workspace', () => {
+    expect(shellGuard(`cd ${repo} && git status`, home, home, 'codex')).toBeUndefined();
+  });
+});
+
+describe('shellGuard: shared temp dir', () => {
+  test('refuses finding scratch by pattern', () => {
+    expect(claude('ls -d /tmp/claude-501/mmd-* | head -1')).toContain('by pattern');
+    expect(claude('bun run /tmp/claude-501/jsdom-*/check.ts')).toContain('by pattern');
+    expect(claude('W=$(ls -td "$TMPDIR"/radar-* | head -1)')).toContain('by pattern');
+    expect(claude('rm -rf /private/tmp/claude-501/demo-?')).toContain('by pattern');
+  });
+
+  test('refuses listing or searching the temp dir itself', () => {
+    expect(claude('ls -t "$TMPDIR" | head -1')).toContain('listing or searching');
+    expect(claude("find /tmp/claude-501 -name 'mmd-*'")).toContain('listing or searching');
+  });
+
+  test('refuses a hand-picked $TMPDIR name, whatever the command does with it', () => {
+    expect(claude('echo x > "$TMPDIR/orig-$$"')).toContain('hand-picked name');
+    expect(claude('cat $TMPDIR/prompt.md')).toContain('hand-picked name');
+    expect(claude('mkdir -p "${TMPDIR}/pull-7d/out"')).toContain('hand-picked name');
+    expect(claude('bun x.ts --out="${TMPDIR:-/tmp}/report.json"')).toContain('hand-picked name');
+  });
+
+  test('allows mktemp and the path it printed', () => {
+    expect(claude('T=$(mktemp "$TMPDIR/note-XXXXXX") && echo x > "$T" && git commit -F "$T"')).toBeUndefined();
+    expect(claude('W=$(mktemp -d "${TMPDIR}/run-XXXXXX") && mkdir -p "$W/pages"')).toBeUndefined();
+    expect(claude('cat /tmp/claude-501/run-tKyadL/pages/good.html')).toBeUndefined();
+    expect(claude(`find "$W" -name '*.png'`)).toBeUndefined();
+    expect(claude("grep -rn 'tmp/*' src")).toBeUndefined();
+  });
+
+  test('applies under Codex too', () => {
+    expect(shellGuard('ls -d /tmp/x-* | head -1', home, home, 'codex')).toContain('by pattern');
   });
 });

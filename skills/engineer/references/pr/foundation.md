@@ -89,11 +89,11 @@ The class comes from what the file's hunks do, checked by reading and grep, neve
 
 ## Step 3: Local gates (skipped with `--quick` or `--no-local`)
 
-1. Find the repo's own gates before running anything: its agent docs or `CONTRIBUTING.md` first, then its manifests (`package.json` scripts and the package manager it pins, a `Makefile` or `justfile`, `Cargo.toml`, `go.mod`, `Package.swift`, `pyproject.toml`). Run each gate the repo defines (build, typecheck, lint, format check, the tests for the changed packages, and any extra gate its docs require, such as a server boot or a smoke script) with the repo's own tool. When `setup_worktree` installed nothing (`packageManager: null`), install the dependencies with that tool first. A gate the repo does not define is `– not run (none configured)`, never a failure. Run from the worktree with an absolute `cd` on every call (cwd drifts between worktrees); `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
+1. Find the repo's own gates before running anything: its agent docs or `CONTRIBUTING.md` first, then its manifests (`package.json` scripts and the package manager it pins, a `Makefile` or `justfile`, `Cargo.toml`, `go.mod`, `Package.swift`, `pyproject.toml`). Run each gate the repo defines (build, typecheck, lint, format check, the tests for the changed packages, and any extra gate its docs require, such as a server boot or a smoke script) with the repo's own tool. When `setup_worktree` installed nothing (`packageManager: null`), install the dependencies with that tool first. A gate the repo does not define is `– not run (none configured)`, never a failure. Run each gate in a subshell on the worktree, `( cd "<worktree>" && … )`, so the session's directory never moves; `pipefail` makes `$?` the tool's own exit code rather than `tail`'s, in bash and zsh alike:
 
    ```bash
-   set -o pipefail; cd "<worktree>" && <the repo's build command> 2>&1 | tail -40; echo "exit=$?"
-   set -o pipefail; cd "<worktree>" && <the repo's test command, scoped to the changed packages> 2>&1 | tail -80; echo "exit=$?"
+   set -o pipefail; ( cd "<worktree>" && <the repo's build command> 2>&1 | tail -40 ); echo "exit=$?"
+   set -o pipefail; ( cd "<worktree>" && <the repo's test command, scoped to the changed packages> 2>&1 | tail -80 ); echo "exit=$?"
    ```
 
    A sandbox `listen EPERM` in tests is an environment artifact: separate it from genuine failures and say how many of each. Compare failures against the base branch when a failing spec looks pre-existing (`git -C "<worktree>" log -1 --format=%h origin/<base> -- <spec>`).
