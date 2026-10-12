@@ -81,6 +81,10 @@ and prompts per optional one. The new template files are the source of truth for
 - **A new folder points at setup.** In a folder that isn't an agent home yet, a row above the
   prompt has a Set up button that runs init, and init is the Tab suggestion. A folder holding a
   home, or a `SOUL.md` from one, never shows it.
+- **Pin reports to the dashboard sidebar.** List them in `reports/pinned.md`, one markdown link
+  per line with an optional emoji before it (`- 🗺️ [Roadmap](plans/roadmap.html)`), relative to
+  `reports/`. The dashboard draws them as a Pinned group under Surfaces, each opening in a new
+  tab; a listed file that is gone drops out.
 
 ### Changed
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so
