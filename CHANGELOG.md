@@ -93,6 +93,15 @@ and prompts per optional one. The new template files are the source of truth for
   sandbox, but so do the test and run tools on code the agent can already write, so the prompt
   removed no capability. It fired whenever a snippet checked a value during debugging.
   `InvokeDebuggerCommand` stays gated, since LLDB can run shell commands directly.
+- **The `guard` hook enforces the two shell rules a written rule couldn't hold.** Under Claude
+  Code a `cd` in one command carries over to every later one, so the hook refuses a top-level
+  `cd` that would leave the session outside the agent home. It also refuses every command from a
+  session that has already left, until one returns. Codex starts each command in the workspace,
+  so this check runs on Claude Code only. On both hosts it refuses finding scratch in the shared
+  temp dir by pattern, listing or searching the temp dir itself, and a hand-picked
+  `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute paths and a subshell
+  `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
+  in a subshell now.
 
 ### Removed
 - The markdown review and replies templates. The page and its card replace them, and
@@ -107,6 +116,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.7.2.ts. It drops `mcp__xcode__RunCodeSnippet` from `permissions.ask` in `.claude/settings.json` (the settings merge only adds, so the removal lives here); `mcp__xcode__InvokeDebuggerCommand` and every other entry keep their place. A home without the Xcode pack is untouched.
+- `template/AGENTS.md: mandatory` — Platform's shell-commands paragraph replaces "every git or build call starts with its own absolute `cd`" with `git -C`, absolute paths or a subshell `cd`, and keeps the absolute `cd` for commands handed to the operator. The scratch-files paragraph gains the exact-printed-name rule and names the `guard` hook.
 
 ## [0.7.1] - 2026-10-08
 
