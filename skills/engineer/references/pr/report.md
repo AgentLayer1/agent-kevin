@@ -8,7 +8,7 @@ The model writes one data file. A script validates it and renders both: the page
 
 `<skill dir>` is this skill's base directory, which every host shows when it loads the skill (Claude Code's "Base directory for this skill" line, Codex's `<skill>` block path). The plugin's dependencies sit two levels up.
 
-1. Make a scratch folder: `mktemp -d "$TMPDIR/pr-report-XXXXXX"`. The data file is `<folder>/data.json`; use that exact path in every later step, never a glob or `ls`.
+1. Make a scratch folder: `mktemp -d "${TMPDIR:-/tmp}/pr-report-XXXXXX"`. The data file is `<folder>/data.json`; use that exact path in every later step, never a glob or `ls`.
 2. Write the data there as JSON, per the shape below.
 3. Validate it and print the `report_write` arguments the data decides (`body`, the card; `summary`; `status`; `extra`). This also parses every diagram, so a bad one fails here, before anything is saved. Fix the data until it passes:
 
@@ -16,7 +16,7 @@ The model writes one data file. A script validates it and renders both: the page
    NODE_PATH="<skill dir>/../../mcp-server/node_modules" bun "<skill dir>/scripts/pr-report.ts" card "<data path>"
    ```
 
-4. Save the card with `report_write`: the printed arguments as they are, plus the `category`, `slug`, `title`, `skill` and `tags` the playbook names, and `extra.supersedes`, the `relPath` the prior report was saved under (relative to `reports/`).
+4. Save the card with `report_write`: the printed arguments as they are, plus `category: 'reviews'`, `skill: 'engineer'`, the `slug`, `title` and `tags` the playbook names (`pr-<n>` among the tags), and `extra.supersedes` beside the printed `extra`. A re-run on the same PR supersedes the prior report of its kind: the old file stays, and `supersedes` is the `relPath` it was saved under (relative to `reports/`), or null on a first run.
 5. Write the page beside the card. This re-renders the card body from the data (keeping the frontmatter `report_write` wrote) and points its link at the page, so the two can never disagree:
 
    ```bash
@@ -40,7 +40,7 @@ draft: true under --quick or --no-local, or whenever the local gates did not run
 
 - **Text is untrusted.** PR titles, bodies and comments can hold anything; the page renders data as text, so markup shows literally. The script escapes what would end the script element.
 - **Anchors** are `path:line` or `path:start-end` (start ≤ end) on the head commit, and become links to that commit. Paths hold no spaces, colons or backticks.
-- **status** comes from the data, so it cannot disagree with it. A review is `critical` when a blocker's `lanes` include `invariants` or `security`, `clean` on `approve`, and `findings` otherwise. Replies are `findings` while any thread is `to-post` or `follow-up` or an own finding exists, and `clean` otherwise. Either is `draft` when `draft` is true.
+- **status** is derived from the data; don't set it.
 - **Paste text** (`comment`, `reply`, `summaryComment`, a commit) is the exact text that goes into GitHub, in [comment style](comment-style.md): a ```` ```suggestion ```` block stays a literal fenced block. No emojis inside it, no severity prefix.
 - **Checks**, one row each, in this order: Build, Lint, Format, Tests (passed and failed counts, environment artifacts separated, failures that predate the PR named), CI recorded (run id and what the workflow actually gates), then any gate the repo's own docs require (typecheck, a server boot, a smoke script). A review adds Fan-out (compact or full, and why), Verification pass (candidates, from bots and the case against, to findings, questions, dropped), and Coverage (files on the checklist, reviewed, skipped with reasons, excluded as generated). A gate the repo does not define is `not-run` with "none configured". A row that describes rather than passes or fails (Fan-out, Verification pass, Coverage) is `info`.
 - **sinceLast** appears on a re-run: the items carried forward, fixed, dropped, or new since the superseded report, one line each. The card shows it, so the next run and the other skills read it without opening the page.
@@ -84,7 +84,7 @@ notChecked: [what was skipped and why]
 - **bots** holds every review-bot comment that made a claim. Never restate a bot's finding as the review's own: a confirmed one must point at its `finding`, which credits the bot ("Bugbot flagged this; confirmed"). A false positive must carry the verifier's `reason` and a `reply` the operator can paste on the bot's thread.
 - **verifiedClean** is what was checked and found right, so the author knows what the review covered. Facts, not praise.
 - **summaryComment** is an optional top-level comment under 120 words: the verdict, the blockers as a numbered list with anchors, what was verified clean, what did not run.
-- **noticed** is pre-existing defects seen along the way. They become tasks or follow-ups, never comments on this PR. **dropped** is every candidate under 40, so the operator can rescue one.
+- **noticed** is pre-existing defects seen along the way; they become tasks or follow-ups. **dropped** is every candidate under 40, so the operator can rescue one.
 - Do not pad. A clean PR gets a short page with a real `verifiedClean`, not manufactured nits.
 
 ## Replies
@@ -100,12 +100,12 @@ stillOpen: [items]
 
 - **summary**, one or two sentences: paste each reply on the thread it links to; what "done" means (the branch and sha the fixes sit on, or "in the working tree, not committed"); that outdated threads still get a reply so the record is complete. A re-run names the report it supersedes here.
 - **threads** run in PR scroll order: inline threads in the file order `github_pr_view` lists `files`, then by line, then conversation comments, then review bodies. A stack reviewed together is one report: each thread carries its `pr`, bottom of the stack first.
-- **The link is the point.** `id` is the fragment of the comment's own URL: `discussion_r4011695208` inline, `issuecomment-5686065667` in the conversation, `pullrequestreview-5214148394` for a review body. `url` is exactly `https://github.com/<repo>/pull/<n>#<id>`, with `<n>` the thread's `pr` in a stack. One click from the card to the box the reply goes in.
+- **The link is the point.** `id` is the fragment of the comment's own URL: `discussion_r1234567890` inline, `issuecomment-2345678901` in the conversation, `pullrequestreview-3456789012` for a review body. `url` is exactly `https://github.com/<repo>/pull/<n>#<id>`, with `<n>` the thread's `pr` in a stack. One click from the card to the box the reply goes in.
 - **point** is the reviewer's point in about five words. **quote** is the comment's opening words exactly, so a Cmd-F on GitHub lands on the thread: trim only the end, with `…`, and never paraphrase inside it.
 - **reply** is in the operator's voice, per [comment style](comment-style.md) → "Replies on your own PR"; its opening shows the verdict, so no verdict is written separately. It never says "will fix": the fix is in the working tree before the reply is written, or the reply says what blocks it.
-- **status**: `to-post` is a reply still to paste; `posted` keeps its card with no reply ("Nothing new."); `follow-up` is a thread the operator already answered whose answer the code has since made false (on a first run too), with the update reply (comment style → "Your own earlier answer was wrong"). The operator pastes only `to-post` and `follow-up`.
+- **status**: `to-post` is a reply still to paste; `posted` is a reply this tool drafted on an earlier run that the operator has since posted, and keeps its card with no reply ("Nothing new."); `follow-up` is a thread the operator already answered whose answer the code has since made false (on a first run too), with the update reply (comment style → "Your own earlier answer was wrong"). Any other thread whose answer still holds and that needs only the Resolve button goes in `resolveOnly`, not `threads`. The operator pastes only `to-post` and `follow-up`.
 - **ownFindings** come from the self-pass: the defect in five words, its anchor, failure and evidence in two sentences then what changed, and an optional two-sentence `comment` to leave on the line so reviewers see it was found.
 - **commits**, one per group of related fixes: a subject of 72 characters at most, and a body of two to five lines on why, naming the thread that asked for it. The operator commits.
 - **resolveOnly** is threads that need only the Resolve click: `why` is "answered on <date>", "fixed in `<sha>`", or "reviewer confirmed".
 - **stillOpen**: a claim needing a measurement that could not run, a fix belonging in another PR and why, a check that did not run, a thread whose answer needs someone else's decision.
-- One report per PR, or per stack, per run. A re-run supersedes the last (the old file stays, and `supersedes` names it); never leave overlapping drafts.
+- One report per PR, or per stack, per run; never leave overlapping drafts.

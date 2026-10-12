@@ -8,7 +8,7 @@ Every response begins with `🔍 PR review (read-only against GitHub · local wo
 
 The foundation's stance holds, plus:
 
-- **Unchanged code is not a regression.** Before calling something broken, `git blame` it. A months-old block is almost always intentional design you do not yet understand. Findings are scoped to what this PR introduced; pre-existing defects that the PR makes worse or newly reachable count, anything else is a one-line aside at most.
+- **Unchanged code is not a regression.** Before calling something broken, `git blame` it. A months-old block is almost always intentional design you do not yet understand. Findings are scoped to what this PR introduced, made worse, or newly made reachable.
 - **A finding is a failure scenario, not an opinion.** Every finding names concrete inputs or state and the wrong outcome. If you cannot write that sentence, it is a question for the author, not a finding.
 - **The principles are the bar, not taste.** A structural finding cites the principle or repo rule it applies, by name, so the author can read the rule rather than argue with the reviewer.
 
@@ -52,24 +52,10 @@ The foundation's stance holds, plus:
    - A real defect with `introduced: pre-existing` and no made-worse argument → one line under "Noticed, not this PR's problem", never a comment.
    - Merge duplicates across lanes into one finding that cites both lanes' evidence and lists both in its `lanes`. Findings raised independently by two lanes are the strongest signal.
    - Rank: security/authz › data loss or corruption › a documented domain invariant › correctness › regression › performance › tests › conventions. A generated-code tell ranks by the failure it causes (an invented API call is correctness, a bent test is tests). Within a rank, blast radius decides.
-   - Every bot comment ends with one disposition: `confirmed` (≥ 75, merged into finding #k and credited), `question` (40–74), `false-positive` with the verifier's reason in one line, `already-fixed`, or `out-of-scope`. The human should never have to triage a bot thread the review already read.
+   - Every bot comment ends with one disposition, per [PR report](../pr/report.md) → Review → **bots**. The human should never have to triage a bot thread the review already read.
    - **Verdict**, the first that applies in this order. `do-not-merge` when a blocker is unfixable in this PR's shape; `changes-requested` when a blocker or fix-before-merge finding stands; `needs-discussion` when nothing is broken but merging should wait on a product or design call a human must make first (an asked-versus-delivered gap, a case-against trade-off, or a Decisions row the operator would plausibly reverse; most Decisions rows are context, not blockers, so name the one that decides it); `approve-with-fixes` when questions remain, or nits the author should act on; `approve` when there are no findings and no questions, at most a few optional nits.
-   - Nits that a linter or formatter would catch are not findings when it ran clean. When one failed on lines this PR introduced, its output is **one** finding with `lanes: [gate]` ("lint fails on the branch: N errors in M files, first three: …"), never one comment per line; failures already on the base go under "Noticed".
-5. **Write the report** as [PR report](../pr/report.md) describes: the review's data, then the card and the page rendered from it. Read [comment style](../pr/comment-style.md) before writing the first comment. The page is what the operator reads beside the PR and pastes from, not a transcript of the analysis. Save the card with the arguments `pr-report.ts card` printed (`body`, `summary`, `status`, `extra`), plus:
-
-   ```
-   report_write({
-     ...<the arguments card printed>,
-     category: 'reviews',
-     slug: 'pr-<n>-<short-topic>',
-     title: '<PR #n (<author>): <verdict in one clause>>',
-     skill: 'engineer',
-     tags: ['pr-<n>', '<author>', '<domain>', 'review', ...],
-     extra: { ...<extra card printed>, supersedes: '<relPath of the prior report or null>' }
-   });
-   ```
-
-   Then write the page beside it (PR report → step 5).
+   - When a linter or formatter failed on lines this PR introduced, its output is **one** finding with `lanes: [gate]` ("lint fails on the branch: N errors in M files, first three: …"), never one comment per line; failures already on the base go under "Noticed".
+5. **Write the report** as [PR report](../pr/report.md) describes: the review's data, then the card and the page rendered from it. Read [comment style](../pr/comment-style.md) before writing the first comment. The page is what the operator reads beside the PR and pastes from, not a transcript of the analysis. The slug is `pr-<n>-<short-topic>`, the title `PR #<n> (<author>): <verdict in one clause>`, and the tags `['pr-<n>', '<author>', '<domain>', 'review', ...]`.
 6. **Tear down** the throwaway worktree (foundation → Teardown). A self-review on the operator's own branch never tears down.
 
 **Reply:** in chat, after the report is saved: the banner, the verdict line, the top three items with anchors, the checks that did not run, the worktree line (`removed <path>` or `kept <path> (<reason>)`), and the page path. Nothing else. Do not repeat the report.

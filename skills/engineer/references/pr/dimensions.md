@@ -5,7 +5,7 @@ Each lane is one parallel agent in the [pr review](../playbooks/pr-review.md) fa
 Common rules for every lane:
 
 - Judge the **head commit** in the worktree, not the diff in isolation. Open the callers and callees of anything changed.
-- `git blame` before calling unchanged code a bug. Mark `introduced: pre-existing` honestly; a real pre-existing defect the PR does not make worse is reported under "Noticed", never as a comment.
+- `git blame` before calling unchanged code a bug. Mark `introduced: pre-existing` honestly.
 - One finding per defect. A pattern repeated in six places is one finding listing six anchors.
 - Do not report what the linter, formatter, or type checker reports when it ran clean in the local gates ([foundation](foundation.md) → Step 3); when a gate did not run, its class of defect is in scope. Do not report style outside the repo's written conventions.
 - The failure sentence is mandatory: inputs or state, then the wrong outcome. No failure sentence, no finding; turn it into a `question`.
@@ -87,8 +87,7 @@ Only the conventions the foundation's Step 1 found (the repo's written docs at t
 - Comments: default none; a comment every few lines is a code-quality finding, not documentation; doc comments only on consumer-facing exports; no tombstones, no ownerless TODO.
 - Types: the repo's type rules; no escape hatch that silences the checker without a stated reason; a tagged union for state instead of flags that must agree; single-use types inline.
 - Cross-cutting concerns: a fix living at one call site of something a decorator, interceptor, or middleware already handles one level lower.
-- Functional style: `map`/`filter`/`reduce` over loops with `continue`; no single-letter params except a numeric `i`; immutability.
-- Structure: the repo's folder convention, its file-size cap, no barrel re-exports.
+- Structure: the repo's folder convention and its file-size cap.
 - Diff hygiene within files: unrelated reformatting (semicolon churn, import reordering) that belongs in its own commit or an earlier layer of the stack.
 - Structure the style guide doesn't name. Prefer a few high-conviction structural findings over a list of cosmetic ones:
   - A missed simplification: the change keeps incidental complexity that a reframing would delete (whole branches, modes, or helpers), not just rearrange.

@@ -2,8 +2,6 @@
 
 For `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs` files. It names the language-level forms of defects the lanes describe in general terms. The repo's own conventions still decide style: a type rule below is a finding only when the repo's `AGENTS.md`, lint config, or neighboring code adopts it.
 
-Do not duplicate what `tsc`, the linter, or the formatter reports unless the diff creates a concrete correctness impact.
-
 ## Missing values and control flow
 
 - Optional chaining (`a?.b.save()`) that silently skips a write or a side effect a caller relies on.

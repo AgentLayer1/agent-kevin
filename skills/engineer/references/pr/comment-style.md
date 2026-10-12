@@ -86,7 +86,7 @@ Write in the operator's voice, not an assistant's: first person, plain, the way 
 
 **"What does X do" gets X's answers.** List each case and the value X picks for it, not X's parameter shape.
 
-- **Accurate:** agree in the first four words, then say what changed and where. "You're right. Fixed in `permissions.ts:88`, and the spec now pins it." Not "will fix": fix first, then reply.
+- **Accurate:** agree in the first three words, then say what changed and where. "You're right. Fixed in `permissions.ts:88`, and the spec now pins it." Not "will fix": fix first, then reply.
 - **Partially accurate:** the true half first, then the correction with a receipt. "Right that the claim is never released. It is not a leak though: the sweeper at `sweeper.ts:214` runs every tick. Added a test so that stays true."
 - **Inaccurate:** receipts, not opinions, and no defensiveness. "Checked this against prod: `region` is populated on 41,902 of 43,110 rows, `regionCode` on 3. Leaving it as `region`." If it was a bot, still answer as if a person will read it, because one will.
 - **Question:** answer it plainly, then if the answer should live in code, say where you put it (a one-line why comment, a test name, the commit body). Do not restate the question.
