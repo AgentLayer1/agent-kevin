@@ -1,7 +1,7 @@
 ---
 name: dashboard
 description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (the focus skill's where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on. Also "pin this report".
-allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:focus), Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:focus), Bash, Read, Edit, Write
 ---
 
 # Dashboard
