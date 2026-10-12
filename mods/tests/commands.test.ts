@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing';
 import type { Engine, EngineCall } from 'claude-code/testing';
 
-import { CLI, HOME, PLUGIN, fakeHost, run } from './fake-host';
+import { CLI, HOME, PLUGIN, fakeHost, machine, run } from './fake-host';
 
 describe('commands', () => {
   test('/capture runs the plugin CLI from the session root', async ($, on) => {
@@ -77,6 +77,13 @@ describe('commands', () => {
     await host.clock.advance(61_000);
     await typed($, '/done ac');
     expect(taskReads(host.argv)).toBe(3);
+  });
+
+  test('/done suggests nothing, and throws nothing, when the task list cannot be read', async ($, on) => {
+    const host = fakeHost(on, machine({ failing: ['task query'] }));
+    expect((await typed($, '/done a')).suggestions).toEqual([]);
+    await typed($, '/done ac');
+    expect(taskReads(host.argv)).toBe(1);
   });
 
   test("/today reads the sync stamp from the CLI's data folder", async ($, on) => {

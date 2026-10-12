@@ -15,7 +15,8 @@ const VIEWS_KEPT = 10;
 const TASKS_FRESH_MS = 60_000;
 const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
 
-let doneTasks: { readAt: number; tasks: TaskFrontmatter[] } | undefined;
+// The read itself is cached, so keystrokes that land before it finishes share it.
+let doneTasks: { readAt: number; tasks: Promise<TaskFrontmatter[]> } | undefined;
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -87,9 +88,9 @@ export const registerCommands = (on: On): void => {
     }
     const [result, now] = await Promise.all([next(e), $.clock.now()]);
     if (doneTasks === undefined || now - doneTasks.readAt > TASKS_FRESH_MS) {
-      doneTasks = { readAt: now, tasks: await readTasks($) };
+      doneTasks = { readAt: now, tasks: readTasks($).catch((): TaskFrontmatter[] => []) };
     }
-    return { suggestions: [...result.suggestions, ...doneSuggestions(doneTasks.tasks, e.token)] };
+    return { suggestions: [...result.suggestions, ...doneSuggestions(await doneTasks.tasks, e.token)] };
   });
 
   on('command.run', { command: 'today' }, async ($) => {

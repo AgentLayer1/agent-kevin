@@ -48,6 +48,8 @@ export interface FakeMachine {
   toasts: string[];
   suggestions: string[];
   commands: string[];
+  /** CLI calls (`task query`) that exit 1. */
+  failing: string[];
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -69,6 +71,7 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   toasts: [],
   suggestions: [],
   commands: [],
+  failing: [],
   ...overrides
 });
 
@@ -89,6 +92,9 @@ const resolved = (path: string): string =>
 const items = (length: number): string[] => Array.from({ length }, (_unused, index) => `item-${index}`);
 
 const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult } => {
+  if (host.failing.includes(args)) {
+    return ran(1, '', `${args} failed`);
+  }
   if (args === 'ping') {
     return ran(0, JSON.stringify({ ok: true, home: HOME, data: `${HOME}/.data`, timezone: 'Asia/Kuala_Lumpur' }));
   }
