@@ -26,7 +26,8 @@ The identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memor
 
 1. Today's date in your timezone
 2. Last session tail (most recent block of the latest session log)
-3. Recent git activity across the knowledge directory and any configured code repos (`KEVIN_GIT_REPOS`)
+3. Today's reports and the reports pinned in `reports/pinned.md`
+4. Recent git activity across the knowledge directory and any configured code repos (`KEVIN_GIT_REPOS`)
 
 ## Memory Routing
 

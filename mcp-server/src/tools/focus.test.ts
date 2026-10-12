@@ -48,7 +48,7 @@ describe('focus_write', () => {
     const second = FocusDataSchema.parse(await call({ project: 'ops' }));
     expect(second.snapshot?.fetchedAt).toBe(first.snapshot?.fetchedAt);
     const dashboard = readFileSync(FILES.DASHBOARD, 'utf-8');
-    expect(dashboard).toMatch(new RegExp(`${encodeURIComponent(page)}[^"]*">Project focus</a>`));
+    expect(dashboard).toMatch(new RegExp(`${encodeURIComponent(page)}[^"]*">Focus</a>`));
     expect(dashboard).not.toContain('data-href="projects/ops/focus.html"');
 
     const home = await call({});

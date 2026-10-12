@@ -49,7 +49,7 @@ import type {
 import { focusData, horizonLabel } from './focus-data';
 import { FOCUS_CSS, renderFocusLanes } from './focus-render';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
-import { escapeHtml, nameHue } from './html-primitives';
+import { escapeHtml, projectHue } from './html-primitives';
 
 const TEMPLATE = readFileSync(new URL('dashboard.html', import.meta.url), 'utf-8');
 
@@ -92,10 +92,11 @@ const pathLink = (path: string, cls = 'plink'): string => {
   return `<a class="${cls}" href="file://${esc(encodeURI(abs))}">${esc(tildifyHome(abs))}</a>`;
 };
 
-const projectColor = (name: string): string => `hsl(${nameHue(name)}, 55%, 62%)`;
+const projectColor = (name: string, hues: Readonly<Record<string, number>> = {}): string =>
+  `hsl(${projectHue(name, hues)}, 55%, 62%)`;
 
-const projChip = (name: string): string =>
-  `<span class="chip proj"><i style="background:${projectColor(name)}"></i>${esc(name)}</span>`;
+const projChip = (name: string, hues: Readonly<Record<string, number>> = {}): string =>
+  `<span class="chip proj"><i style="background:${projectColor(name, hues)}"></i>${esc(name)}</span>`;
 
 /** Layer badge for instruction/rule sources — user (~/.claude), project (HOME),
  *  or local. Colored so the two scopes read apart at a glance. */
@@ -256,7 +257,7 @@ const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {
     : '';
   return `<details class="task" data-row data-cat="${esc(ref.project)}"><summary><span class="tid nowrap">${
     ref.path ? mdLink(snap, ref.path, ref.id) : esc(ref.id)
-  }</span><span class="ttl">${esc(ref.title)}</span>${options.noProject ? '' : projChip(ref.project)}${cmtHtml}${dueHtml}<span class="pri ${esc(
+  }</span><span class="ttl">${esc(ref.title)}</span>${options.noProject ? '' : projChip(ref.project, snap.projectHues)}${cmtHtml}${dueHtml}<span class="pri ${esc(
     ref.priority.toLowerCase()
   )}">${esc(ref.priority)}</span><span class="caret" aria-hidden="true">▸</span></summary><div class="taskbody"><div class="tb-meta">${items.join('')}</div>${note}</div></details>`;
 };
@@ -279,7 +280,7 @@ const taskGroup = (
  *  and wires the same client filter (`data-catchips` → `data-catfilter`),
  *  matched against each row's `data-cat` (the project). Busiest projects first;
  *  hidden when there's only one project to filter between. */
-const projectFilterChips = (refs: readonly { project: string }[]): string => {
+const projectFilterChips = (refs: readonly { project: string }[], hues: Readonly<Record<string, number>>): string => {
   const counts = refs.reduce<Record<string, number>>((acc, ref) => {
     acc[ref.project] = (acc[ref.project] ?? 0) + 1;
     return acc;
@@ -291,7 +292,7 @@ const projectFilterChips = (refs: readonly { project: string }[]): string => {
       dot ? `<i style="background:${dot}"></i>` : ''
     }${esc(label)} <span class="dim">${count}</span></button>`;
   return `<div class="chips" data-catchips>${chip('all', 'All', refs.length, '', true)}${present
-    .map((project) => chip(project, project, counts[project], projectColor(project), false))
+    .map((project) => chip(project, project, counts[project], projectColor(project, hues), false))
     .join('')}</div>`;
 };
 
@@ -328,18 +329,20 @@ const reportRow = (report: ReportRef, snap: StatusSnapshot): string => {
  *  actually has reports. Each carries the same colored dot the matching row
  *  chips use (briefings borrows the briefing skill's hue), so the filter reads
  *  as the same vocabulary as the list. `data-catchips` wires the client filter. */
-const reportChips = (reports: ReportRef[]): string => {
+const reportChips = (reports: ReportRef[], pinned: number): string => {
   const counts = reports.reduce<Record<string, number>>((acc, report) => {
     if (report.category) acc[report.category] = (acc[report.category] ?? 0) + 1;
     return acc;
   }, {});
   const present = REPORT_CATEGORY_ORDER.filter((category) => counts[category]);
-  if (present.length < 2) return ''; // nothing to filter between
+  if (present.length < 2 && pinned === 0) return ''; // nothing to filter between
   const chip = (filter: string, label: string, count: number, dotKey: string, active: boolean): string => {
     const dot = dotKey ? `<i style="background:${projectColor(dotKey)}"></i>` : '';
     return `<button class="chip proj catchip${active ? ' active' : ''}" data-catfilter="${esc(filter)}">${dot}${esc(label)} <span class="dim">${count}</span></button>`;
   };
-  return `<div class="chips" data-catchips>${chip('all', 'All', reports.length, '', true)}${present
+  return `<div class="chips" data-catchips>${chip('all', 'All', reports.length, '', true)}${
+    pinned ? chip('pinned', '📌 Pinned', pinned, '', false) : ''
+  }${present
     .map((category) =>
       chip(
         category,
@@ -378,7 +381,7 @@ const focusTab = (snap: StatusSnapshot): string => {
     ...focus.lanes.later,
     ...focus.unplanned
   ];
-  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks)}<div class="focusview"><div class="lanes">${renderFocusLanes(focus)}</div></div></div>`;
+  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks, snap.projectHues)}<div class="focusview"><div class="lanes">${renderFocusLanes(focus)}</div></div></div>`;
 };
 
 /** Today's header: the day as focus sees it, each tile opening the Focus tab. */
@@ -547,7 +550,7 @@ const pageToday = (snap: StatusSnapshot): string => {
 
 /** Hermes-style project card: header row + progress, expands to its tasks. */
 const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
-  const color = projectColor(load.project);
+  const color = projectColor(load.project, snap.projectHues);
   const finished = load.done;
   const denominator = load.total + finished || 1;
   const pct = Math.round((finished / denominator) * 100);
@@ -568,18 +571,16 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
   ]
     .filter(Boolean)
     .join('<span class="dim"> · </span>');
-  // Through the opener app like every other link on the card: a relative
-  // in-frame href is swallowed by Obsidian's HTML viewer.
-  const pageRow = (path: string, icon: string, label: string): string =>
-    path
-      ? `<div class="row" data-row><span style="flex:none">${icon}</span><span class="grow">${mdLink(snap, path, label)}</span></div>`
-      : '';
-  const pageRows = pageRow(load.roadmap, '🧭', 'Project roadmap') + pageRow(load.focus, '🎯', 'Project focus');
+  // On the card's first line so they show without expanding, and through the opener app like every
+  // other link: a relative in-frame href is swallowed by Obsidian's HTML viewer.
+  const pageLink = (path: string, icon: string, label: string): string =>
+    path ? `<span class="proj-link">${icon} ${mdLink(snap, path, label)}</span>` : '';
+  const pageLinks = pageLink(load.roadmap, '🗺️', 'Roadmap') + pageLink(load.focus, '🎯', 'Focus');
   return `<details class="projcard" data-row><summary>
-<div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span><span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
+<div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span>${pageLinks}<span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
 ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 160))}</div>` : ''}
 <div class="proj-progress"><span class="dim nowrap">☑ ${finished} / ${denominator}</span><div class="track"><span style="width:${pct}%;background:${color}"></span></div><span class="dim nowrap">${pct}%</span></div>
-</summary><div class="proj-tasks">${pageRows}${taskRows}</div></details>`;
+</summary><div class="proj-tasks">${taskRows}</div></details>`;
 };
 
 const pageTasks = (snap: StatusSnapshot): string => {
@@ -601,7 +602,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
     const key = dueBucket(ref);
     groups.set(key, [...(groups.get(key) ?? []), ref]);
   }
-  const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue)}${[
+  const agenda = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks.queue, snap.projectHues)}${[
     taskGroup(
       '▶ In flight',
       [...tasks.activeList].sort((left, right) => (left.due || '9999').localeCompare(right.due || '9999')),
@@ -627,7 +628,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
       ref.id
     )}</span><span class="grow dim">${esc(
       ref.blockedBy || `depends on ${ref.dependsOn.join(', ') || '?'}`
-    )}</span>${projChip(ref.project)}</div>`;
+    )}</span>${projChip(ref.project, snap.projectHues)}</div>`;
   const attentionBody =
     (blocked.length
       ? `<h3 class="group" id="attention-blocked">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}`
@@ -635,10 +636,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
     (tasks.staleList.length
       ? `<h3 class="group" id="attention-stale">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
       : '');
-  const attention = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([
-    ...blocked,
-    ...tasks.staleList
-  ])}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
+  const attention = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([...blocked, ...tasks.staleList], snap.projectHues)}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
 
   // Counted from the agenda's own buckets, so a tile's number is what its group lists
   // plus the in-flight tasks that share its deadline.
@@ -1059,6 +1057,15 @@ const pageReports = (snap: StatusSnapshot): string => {
         `<h3 class="group date">${esc(date || 'undated')}</h3>${reports.map((report) => reportRow(report, snap)).join('')}`
     )
     .join('');
+  // Pins lead the page as their own group, so the Pinned chip shows every pin, not only those in the latest reports.
+  const pinned = snap.pinned.length
+    ? `<h3 class="group">📌 Pinned</h3>${snap.pinned
+        .map(
+          (pin) =>
+            `<div class="row" data-row data-cat="pinned"><span style="flex:none">${esc(pin.icon)}</span><span class="grow">${mdLinkAbs(snap, pin.href, pin.title)}</span></div>`
+        )
+        .join('')}`
+    : '';
   const note =
     snap.reportsTotal > snap.reports.length
       ? `<div class="dim" style="margin-top:10px">Showing latest ${snap.reports.length} of ${snap.reportsTotal} — full log in ${mdLink(snap, 'reports/index.md', 'reports/index.md')}</div>`
@@ -1067,8 +1074,8 @@ const pageReports = (snap: StatusSnapshot): string => {
     'reports',
     'Reports',
     `Briefings, plans, and audits ${snap.persona.name} has produced. Click any title to open it.`,
-    snap.reports.length
-      ? `<div data-filterbox>${filterInput('filter reports…')}${reportChips(snap.reports)}${groups}</div>${note}`
+    snap.reports.length || snap.pinned.length
+      ? `<div data-filterbox>${filterInput('filter reports…')}${reportChips(snap.reports, snap.pinned.length)}${pinned}${groups}</div>${note}`
       : hint('No reports yet — briefings, plans, and radars will land here.')
   );
 };
@@ -1285,7 +1292,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
 // Per-event explanations for the Reflexes tab — these hooks are how the agent
 // persists across sessions, so each one is worth spelling out.
 const reflexTips = (agent: string): Record<string, string> => ({
-  SessionStart: `Fires when a session starts. Injects today’s date, the tail of your last session, today’s reports, and recent git activity — so ${agent} wakes up with continuity instead of a blank slate.`,
+  SessionStart: `Fires when a session starts. Injects today’s date, the tail of your last session, today’s reports, the reports you pinned, recent git activity, and a warning when the home needs an upgrade or a fix — so ${agent} wakes up with continuity instead of a blank slate.`,
   SessionEnd:
     'Fires when a session ends. Captures the full transcript to `knowledge/raw/sessions/YYYY-MM-DD.md`. This is how every session is saved — later compiled into long-term memory.',
   PreCompact:
@@ -1639,14 +1646,19 @@ const buildContextBody = (snap: StatusSnapshot): string => {
     ];
   });
 
-  const manifestRows = context.dynamic.entries.map((entry) => {
-    const { icon, cls } = MANIFEST_ICON[entry.status];
-    return [
-      `<span class="${cls}">${icon}</span>`,
-      esc(entry.label),
-      `<span class="dim">${esc(humanBytes(entry.bytes))}</span>`
-    ];
-  });
+  // The date leads every injection but isn't a manifest entry, which the terminal banner also prints.
+  const dateRow = ['<span class="good">✓</span>', `today's date <span class="dim">${esc(context.dynamic.date)}</span>`, ''];
+  const manifestRows = [
+    dateRow,
+    ...context.dynamic.entries.map((entry) => {
+      const { icon, cls } = MANIFEST_ICON[entry.status];
+      return [
+        `<span class="${cls}">${icon}</span>`,
+        `${esc(entry.label)}${entry.note ? ` <span class="dim">${esc(entry.note)}</span>` : ''}`,
+        `<span class="dim">${esc(humanBytes(entry.bytes))}</span>`
+      ];
+    })
+  ];
 
   return [
     section(

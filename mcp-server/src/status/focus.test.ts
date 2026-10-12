@@ -52,6 +52,7 @@ const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusI
   today: TODAY,
   generatedAt: '09:12',
   markdownUrl: 'obsidian://open?path={path}',
+  projectHues: {},
   timeZone: 'UTC',
   ...overrides
 });

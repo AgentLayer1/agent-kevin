@@ -16,8 +16,8 @@
  *    reading a resolved path is fine).
  *  - **Stranded**: a `SOUL.md` but no data dir — another agent's home, or this
  *    one's marker lost in a restore. Explain, and steer away from init.
- *  - **Post-init**: assemble the dynamic lane (today, last session tail, git
- *    activity, today's reports). Static identity (SOUL/IDENTITY/USER + the
+ *  - **Post-init**: assemble the dynamic lane (today, last session tail, today's
+ *    and pinned reports, git activity). Static identity (SOUL/IDENTITY/USER + the
  *    AGENTS.md manual) is loaded natively by the harness — Claude Code via the
  *    `@-imports` in `.claude/CLAUDE.md`, AGENTS.md-aware hosts directly.
  *

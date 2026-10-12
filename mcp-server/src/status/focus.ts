@@ -27,6 +27,7 @@ import {
   type FocusView
 } from './focus-data';
 import { renderFocusHtml } from './focus-render';
+import { projectHues } from './surfaces';
 import { titleize } from './format';
 
 const log = createLogger('status.focus');
@@ -55,6 +56,7 @@ export interface FocusInputs {
   today: string;
   generatedAt: string;
   markdownUrl: string;
+  projectHues: Readonly<Record<string, number>>;
   timeZone: string;
 }
 
@@ -238,6 +240,7 @@ export const buildFocusView = (inputs: FocusInputs): FocusView => {
     roadmap: buildRoadmap(inputs),
     snapshot: inputs.snapshot,
     markdownUrl: inputs.markdownUrl,
+    projectHues: inputs.projectHues,
     queuePulled: inputs.snapshot ? pulledAt(inputs.snapshot.fetchedAt, inputs.today, inputs.timeZone) : null
   };
 };
@@ -315,6 +318,7 @@ export const collectFocusView = (project = ''): FocusView => {
     generatedAt: nowTime(),
     home: FOLDERS.HOME,
     markdownUrl: MARKDOWN_URL,
+    projectHues: projectHues(),
     timeZone: TIMEZONE
   });
 };

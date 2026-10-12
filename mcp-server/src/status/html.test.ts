@@ -19,6 +19,7 @@ const emptyFocus = buildFocusView({
   today: '2026-06-15',
   generatedAt: '09:00',
   markdownUrl: 'obsidian://open?path={path}',
+  projectHues: {},
   timeZone: 'UTC'
 });
 
@@ -55,6 +56,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     history: { state: 'off', gitDir: null, lastCommit: null }
   },
   markdownUrl: 'obsidian://open?path={path}',
+  projectHues: {},
   surfaces: [],
   pinned: [],
   persona: {
@@ -431,6 +433,7 @@ describe('renderDashboardHtml', () => {
       today: '2026-06-15',
       generatedAt: '09:00',
       markdownUrl: 'obsidian://open?path={path}',
+      projectHues: {},
       timeZone: 'UTC'
     });
     const html = renderDashboardHtml(makeSnapshot({ focus }));
@@ -657,8 +660,9 @@ describe('renderDashboardHtml', () => {
       })
     );
     expect(html).toContain(
-      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/roadmap.html')}">Project roadmap</a>`
+      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/roadmap.html')}">Roadmap</a>`
     );
+    expect(html).toMatch(/<summary>[\s\S]*?<span class="proj-link">🗺️ <a [^>]+>Roadmap<\/a><\/span>[\s\S]*?<\/summary>/);
   });
 
   test('a project card links its own focus page when it has one', () => {
@@ -669,13 +673,18 @@ describe('renderDashboardHtml', () => {
       })
     );
     expect(html).toContain(
-      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/focus.html')}">Project focus</a>`
+      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/focus.html')}">Focus</a>`
     );
   });
 
-  test('a project card without a roadmap renders no roadmap row', () => {
+  test("a project's README hue colors its card and chips instead of its name's hash", () => {
+    const html = renderDashboardHtml(makeSnapshot({ projectHues: { 'life-os': 121 } }));
+    expect(html).toContain('<span class="proj-dot" style="background:hsl(121, 55%, 62%)"></span><span class="proj-name">life-os</span>');
+  });
+
+  test('a project card without a roadmap renders no roadmap link', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).not.toContain('Project roadmap');
+    expect(html).not.toContain('class="proj-link"');
   });
 
   test('system logs tab carries the scrollable tail', () => {
@@ -930,7 +939,7 @@ describe('surfaces', () => {
 
   test('appTab surfaces open through the markdownUrl app template', () => {
     const html = renderDashboardHtml(
-      makeSnapshot({ surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }] })
+      makeSnapshot({ surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🗺️', appTab: true }] })
     );
     expect(html).toContain(
       `<a class="nav-item" href="obsidian://open?path=${encodeURIComponent('/home/kevin/roadmap.html')}">`
@@ -946,7 +955,7 @@ describe('surfaces', () => {
   test('pinned reports render under their own Pinned group after Surfaces', () => {
     const html = renderDashboardHtml(
       makeSnapshot({
-        surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }],
+        surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🗺️', appTab: true }],
         pinned: [{ title: 'Security plan', href: '/home/kevin/reports/security/plan.html', icon: '🛡️', appTab: true }]
       })
     );
@@ -956,6 +965,28 @@ describe('surfaces', () => {
     expect(html).toContain(
       `href="obsidian://open?path=${encodeURIComponent('/home/kevin/reports/security/plan.html')}"`
     );
+  });
+
+  test("the Brain page's SessionStart list leads with the date and shows each entry's note", () => {
+    const base = makeSnapshot();
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        context: {
+          ...base.context,
+          dynamic: { date: 'Monday, October 12, 2026', bytes: 500, entries: [{ label: 'pinned reports', status: 'off', bytes: 0, note: 'none pinned' }] }
+        }
+      })
+    );
+    expect(html).toContain("today's date <span class=\"dim\">Monday, October 12, 2026</span>");
+    expect(html).toContain('pinned reports <span class="dim">none pinned</span>');
+  });
+
+  test('the Reports page leads with the pins and filters to them with a Pinned chip', () => {
+    const pin = { title: 'Security plan', href: '/home/kevin/reports/security/plan.html', icon: '🛡️', appTab: true };
+    const html = renderDashboardHtml(makeSnapshot({ pinned: [pin] }));
+    expect(html).toContain('data-catfilter="pinned"');
+    expect(html).toContain('<h3 class="group">📌 Pinned</h3><div class="row" data-row data-cat="pinned">');
+    expect(html).not.toContain('No reports yet');
   });
 
   test('title and href are escaped', () => {

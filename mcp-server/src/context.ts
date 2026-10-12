@@ -7,8 +7,8 @@
  * under) AGENT_HOME.
  *
  * This hook only injects what CC can't know from files alone: today's date in
- * the user's timezone, the tail of yesterday's session log for continuity, and
- * recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
+ * the user's timezone, the tail of yesterday's session log for continuity, today's
+ * and pinned reports, and recent git activity. Caps at ~10KB per CC's hook limit, but usually fits in
  * a few KB.
  */
 import {
@@ -343,7 +343,8 @@ interface GatheredContext {
 
 /**
  * Gather the dynamic SessionStart context once: today's date, last-session
- * tail, today's reports, and recent git activity across the tracked repos.
+ * tail, today's reports, pinned reports, recent git activity across the tracked
+ * repos, and a warning for each home check that fails.
  * Shared by `assembleContext` (which renders the hook payload) and
  * `contextManifest` (which exposes the structured manifest for the status
  * screen) so the two never drift.

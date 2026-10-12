@@ -51,7 +51,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
 import { collectFocusView } from './focus';
 import type { FocusView } from './focus-data';
-import { livePins, surfaceFiles } from './surfaces';
+import { livePins, projectHues, surfaceFiles } from './surfaces';
 
 export interface SettingsLayer {
   label: string;
@@ -385,6 +385,8 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
+  /** Hues set in project READMEs (`hue:`), keyed by project; a project without one hashes its name. */
+  projectHues: Record<string, number>;
   /** Convention-discovered standalone pages: the HOME-root roadmap.html, then
    *  each project's dashboard.html. Empty renders nothing. */
   surfaces: SurfaceLink[];
@@ -1847,7 +1849,7 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
  *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] =>
   surfaceFiles().map(({ kind, title, path }) =>
-    surfaceAt(path, kind === 'roadmap' ? { title, icon: '🧭', appTab: true } : { title, icon: '📊', appTab: false })
+    surfaceAt(path, kind === 'roadmap' ? { title, icon: '🗺️', appTab: true } : { title, icon: '📊', appTab: false })
   );
 
 /** The pins in reports/pinned.md whose file is there; a broken one is the brain audit's to flag. */
@@ -1864,6 +1866,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     persona: collectPersona(),
     operator: collectOperatorInfo(knowledge.facets),
     markdownUrl: collectMarkdownUrl(),
+    projectHues: projectHues(),
     surfaces: collectSurfaces(),
     pinned: collectPinned(),
     skills: collectSkills(),

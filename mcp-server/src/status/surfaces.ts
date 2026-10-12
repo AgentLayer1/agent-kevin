@@ -48,6 +48,19 @@ export const readPins = (): Pin[] => {
 /** The pins whose file is there, which the sidebar and the session context show. */
 export const livePins = (): Pin[] => readPins().filter((pin) => pin.exists);
 
+/** The `hue:` (0–359) each project's README frontmatter sets, so the operator can pick a project's color. */
+export const projectHues = (): Record<string, number> =>
+  Object.fromEntries(
+    (existsSync(FOLDERS.PROJECTS) ? readdirSync(FOLDERS.PROJECTS, { withFileTypes: true }) : [])
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => {
+        const readme = resolve(FOLDERS.PROJECTS, entry.name, 'README.md');
+        const front = existsSync(readme) ? /^---\n([\s\S]*?)\n---/.exec(readFileSync(readme, 'utf-8'))?.[1] : undefined;
+        const hue = Number(/^hue:\s*(\d{1,3})\s*$/m.exec(front ?? '')?.[1]);
+        return Number.isInteger(hue) && hue < 360 ? [[entry.name, hue] as const] : [];
+      })
+  );
+
 /** The HOME-root roadmap.html, then every project's dashboard.html by title, whichever exist. */
 export const surfaceFiles = (): SurfaceFile[] => {
   const roadmap: SurfaceFile[] = existsSync(FILES.ROADMAP)

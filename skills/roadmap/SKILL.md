@@ -69,7 +69,7 @@ Rules: a `done` status needs evidence from this session (task frontmatter, git, 
 5. **Render check**: screenshot the `file://` URL (`browser_screenshot`) and confirm every section renders — the page fails soft, so a data-object typo silently renders header-only. Fix before handoff. In full-page shots, below-fold cards sit at opacity 0 mid entry-animation and read as blank sections — pass `css: ".ms, .bcard { animation: none !important; opacity: 1 !important; transform: none !important; }"` before concluding a section is broken.
 6. Link the roadmap from the subject's README (or memory index for a HOME-root north star), then give a 3–5 line summary: shapes, horizons, and any status you marked `planned` because it couldn't be verified. Include the `file://` path; only launch `open` if Bash runs unsandboxed.
 
-   For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit its `roadmap-data` block, reload". The dashboard picks the file up on its own (a 🧭 row on the project's card); no config, no manual registration.
+   For a project roadmap that means one line in the README's `## Structure` list, alongside `tasks/`: "`roadmap.html` — the living project roadmap; edit its `roadmap-data` block, reload". The dashboard picks the file up on its own (a 🗺️ Roadmap link on the first line of the project's card); no config, no manual registration.
 
    A north star asked in Round 1 also goes into the `## Yearly Goals` header line in `projects/TASKS.md` (`· north star: <one line>`); edit only that line.
 

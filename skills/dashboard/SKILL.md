@@ -76,7 +76,15 @@ The sidebar's Pinned group lists `reports/pinned.md`, one line per pin:
 otherwise) and the link relative to `reports/`. "Pin this report" appends its
 line, creating the file with a `# Pinned` heading; "unpin" deletes the line.
 Then refresh. Every session's context lists the pins, and the self-review brain
-pass asks about one whose file is gone or unchanged for 60 days.
+pass asks about one whose file is gone or unchanged for 60 days. The Reports
+page lists them first, with a Pinned filter.
+
+## Project colors
+
+Each project's color comes from its name. To pick one ("make acme green"),
+set `hue:` (0–359 on the color wheel: 0 red, 120 green, 210 blue, 300 pink) in
+the frontmatter of `projects/<slug>/README.md`, then refresh; the card, its chips
+and the focus pages follow.
 
 ## Notes
 

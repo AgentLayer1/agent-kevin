@@ -17,7 +17,7 @@ import {
   type FocusTask,
   type FocusView
 } from './focus-data';
-import { escapeHtml as esc, nameHue } from './html-primitives';
+import { escapeHtml as esc, projectHue } from './html-primitives';
 
 const TEMPLATE = readFileSync(new URL('focus.html', import.meta.url), 'utf-8');
 
@@ -39,7 +39,7 @@ interface RowOptions {
 const taskRow = (view: FocusView, task: FocusTask, options: RowOptions): string => {
   const meta = [
     taskLink(view, task),
-    !view.project && `<span class="proj" style="--h:${nameHue(task.project)}">${esc(task.project)}</span>`,
+    !view.project && `<span class="proj" style="--h:${projectHue(task.project, view.projectHues)}">${esc(task.project)}</span>`,
     `<span class="pri ${esc(task.priority.toLowerCase())}">${esc(task.priority)}</span>`,
     options.from && `<span class="from">from ${esc(horizonLabel(task.horizon))}</span>`,
     task.due &&
