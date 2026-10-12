@@ -1,6 +1,6 @@
 import type { AgendaItem, TodayView } from '../types';
 
-const OPEN_STATUSES = ['open', 'active'];
+export const OPEN_STATUSES = ['open', 'active'];
 const PRIORITIES = ['P0', 'P1', 'P2', 'P3'];
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;

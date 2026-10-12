@@ -75,6 +75,9 @@ and prompts per optional one. The new template files are the source of truth for
 - **Explainers have a template.** The engineer skill writes only an explainer's body; a script
   (`skills/engineer/scripts/explainer.ts`) checks it, parses its diagrams, and wraps it in a page
   with a sticky top bar, a contents dropdown that tracks the section in view, and the theme switch.
+- **`/done` suggests the task to close.** After `/done `, a letter of the id or a word of the title
+  lists the open and active tasks that match, id matches first and most urgent first, so closing
+  one no longer means remembering its id.
 
 ### Changed
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so

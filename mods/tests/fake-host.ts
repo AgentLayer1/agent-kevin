@@ -25,7 +25,9 @@ export const TASKS = [
   { id: 'ac-001', title: 'Licence fixture', status: 'active', priority: 'P1', due: '2026-03-01' },
   { id: 'ac-002', title: 'Due today fixture', status: 'open', priority: 'P2', due: '2026-03-10' },
   { id: 'ac-003', title: 'Closed fixture', status: 'done', priority: 'P0', due: '2026-02-01' },
-  { id: 'ac-005', title: 'Urgent fixture', status: 'open', priority: 'P0', due: '2026-03-08' }
+  { id: 'ac-005', title: 'Urgent fixture', status: 'open', priority: 'P0', due: '2026-03-08' },
+  { id: 'ac-006', title: 'Blocked fixture', status: 'blocked', priority: 'P0' },
+  { id: 'bx-001', title: 'Acme fixture', status: 'open', priority: 'P0' }
 ];
 
 /**
@@ -179,6 +181,7 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     host.suggestions.push(e.text);
     return { isShown: true };
   });
+  on('prompt.autocomplete', () => ({ suggestions: [] }));
   on('command.run', (_$, e) => {
     host.commands.push(e.command);
     return {};

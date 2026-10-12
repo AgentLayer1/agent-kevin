@@ -5,13 +5,17 @@ import type { AgendaItem, TodayView } from '../types';
 
 import { COMMANDS_FEATURE } from '../shared/catalog';
 import { cliArgv, cliError } from '../shared/cli';
+import { doneSuggestions, isDoneArgument } from './done';
 import type { TaskFrontmatter } from './today';
 import { STALE_SYNC_HOURS, buildToday, formatAge, parseEmoji, summarize } from './today';
 
 const todayViews = atom({ plugin: 'agent-kevin', key: 'todayViews' } as const, {});
 
 const VIEWS_KEPT = 10;
+const TASKS_FRESH_MS = 60_000;
 const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
+
+let doneTasks: { readAt: number; tasks: TaskFrontmatter[] } | undefined;
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -22,6 +26,10 @@ async function runCli($: EngineInterface, args: readonly string[]): Promise<stri
     throw cliError(stderr, args, exitCode);
   }
   return stdout;
+}
+
+async function readTasks($: EngineInterface): Promise<TaskFrontmatter[]> {
+  return JSON.parse(await runCli($, ['task', 'query'])) as TaskFrontmatter[];
 }
 
 async function captureAs($: EngineInterface, kind: 'inbox' | 'feedback', text: string) {
@@ -42,7 +50,7 @@ async function todayView($: EngineInterface): Promise<TodayView> {
     timezone: string;
   };
   const [tasks, syncedAt, identityText, now] = await Promise.all([
-    runCli($, ['task', 'query']).then((text) => JSON.parse(text) as TaskFrontmatter[]),
+    readTasks($),
     $.fs
       .read(`${data}/cadence.json`)
       .then((text) => (JSON.parse(text) as { sync?: string }).sync)
@@ -69,7 +77,19 @@ export const registerCommands = (on: On): void => {
       return { text: 'Usage: /done <task-id>' };
     }
     await runCli($, ['task', 'close', id]);
+    doneTasks = undefined;
     return { text: `Closed ${id}` };
+  });
+
+  on('prompt.autocomplete', async ($, e, next) => {
+    if (!isDoneArgument(e.text.slice(0, e.start))) {
+      return next(e);
+    }
+    const [result, now] = await Promise.all([next(e), $.clock.now()]);
+    if (doneTasks === undefined || now - doneTasks.readAt > TASKS_FRESH_MS) {
+      doneTasks = { readAt: now, tasks: await readTasks($) };
+    }
+    return { suggestions: [...result.suggestions, ...doneSuggestions(doneTasks.tasks, e.token)] };
   });
 
   on('command.run', { command: 'today' }, async ($) => {
