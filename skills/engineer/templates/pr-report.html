@@ -652,7 +652,7 @@
   const drawDiagrams = async () => {
     if (!mermaidLib) { return; }
     const dark = document.documentElement.getAttribute("data-theme") !== "light";
-    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
+    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: dark ? "dark" : "default" });
     const boxes = [...document.querySelectorAll(".diagram")];
     await Promise.all(boxes.map(async (box, i) => {
       const source = box.dataset.source || box.textContent;

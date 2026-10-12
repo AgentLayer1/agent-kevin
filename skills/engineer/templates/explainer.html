@@ -402,7 +402,7 @@
     if (!mermaidLib) { return; }
     const run = ++generation;
     const dark = document.documentElement.getAttribute("data-theme") !== "light";
-    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default", themeVariables: { fontFamily: "IBM Plex Sans, system-ui, sans-serif" } });
+    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: dark ? "dark" : "default", themeVariables: { fontFamily: "IBM Plex Sans, system-ui, sans-serif" } });
     await Promise.all(boxes.map(async (box, index) => {
       try {
         const { svg } = await mermaidLib.render(`diagram-${index}-${Date.now()}`, box.dataset.source);
