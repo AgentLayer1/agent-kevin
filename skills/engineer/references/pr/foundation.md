@@ -27,19 +27,13 @@ Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (
 
 Call `github_pr_view`. Record: `author.login`, `headRefName`, `headRefOid`, `isCrossRepository`, `baseRefName`, `isDraft`, `state`, `additions`/`deletions`/`changedFiles`, `files`, `body`, `latestReviews`, `reviewDecision`, `mergeStateStatus`.
 
-**Whose PR it is picks the playbook.** The PR is the operator's when its author is their login: the `GitHub login:` line in `<HOME>/USER.md` under "Where Things Live". When the line is missing or still the template placeholder, ask once with `AskUserQuestion` and offer to fill it in so it never asks again.
-
-| Whose PR | The ask | Playbook |
-|---|---|---|
-| A teammate's | "review 142", `/engineer review 142` | [pr review](../playbooks/pr-review.md) |
-| The operator's | "reply to the comments", "address the review", `/engineer replies 142` | [pr replies](../playbooks/pr-replies.md) |
-| The operator's | "help me present", "prep for standup", "walk me through my PR", "quiz me", `/engineer walkthrough 142` | [pr walkthrough](../playbooks/pr-walkthrough.md) |
+**Whose PR it is picks the playbook** (the routing table is in [SKILL.md](../../SKILL.md)). The PR is the operator's when its author is their login: the `GitHub login:` line in `<HOME>/USER.md` under "Where Things Live". When the line is missing or still the template placeholder, ask once with `AskUserQuestion` and offer to fill it in so it never asks again.
 
 An explicit `review`, `replies`, or `walkthrough` argument wins over the inference, so `/engineer review <n>` on the operator's own PR runs the full review lanes as a self-review. A plain "review my PR" means replies, which carries its own bounded self-pass. A walkthrough of a teammate's PR stops in one line and offers `/engineer review <n>` instead.
 
 **Stacked PR.** If `baseRefName` is not the repo's default branch, this is one layer of a stack. `github_pr_diff` is already layer-only. Note the base PR in the report, work on only this layer's hunks, and check the base branch is the intended parent (a layer accidentally based on the default branch shows the whole stack as its diff).
 
-**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix. The head branch is usually deleted after merge, and `origin/<base>` already contains the PR, so the audit reads the merge or squash commit instead: find it on the base (`git log --oneline --grep="(#<n>)" origin/<base>`, then confirm its per-file stats match the PR's), cut the Step 2 worktree there, and use its first parent wherever a step or the verifier compares against the base. Name both commits in the report.
+**Closed or merged PR.** A review still works as a post-merge audit; say so in the banner line. Replies on a merged PR only draft, never fix. The head branch is usually deleted after merge, and `origin/<base>` already contains the PR, so the audit reads the merge or squash commit instead: `github_pr_view`'s `mergeCommit.oid` (only when that is empty, search the base with `git log --oneline --grep="(#<n>)" origin/<base>` and confirm its per-file stats match the PR's). Cut the Step 2 worktree there, and use its first parent wherever a step or the verifier compares against the base. A rebase-merged PR's commit has no merge parent, so its base is the parent of the oldest PR commit on the base branch. Name both commits in the report.
 
 ## Step 1: Prior context (mandatory, before reading the diff)
 
@@ -58,9 +52,9 @@ Every later step reads the PR on its own head commit, so the checkout comes firs
 1. `github_fast_forward` on the repo so `origin/<headRefName>` is current.
 2. `list_worktrees` on the repo. If the head branch is already checked out somewhere, reuse that path and do not create another. A reused worktree is never torn down.
 3. Otherwise `setup_worktree`, and keep the `worktreePath` and `branchExists` it returns for teardown:
-   - **A teammate's PR:** `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch.
+   - **A teammate's PR:** `{ repoPath, branch: "pr-<n>-review", baseBranch: "origin/<headRefName>", slug: "pr-<n>" }`. This cuts a throwaway operator-namespaced branch at the PR head. Never check out or modify the author's branch. A PR from a fork (`isCrossRepository`) has its branch in another repo, so `origin/<headRefName>` is missing or, worse, a different branch of the same name: first fetch its head with `git -C "<repoPath>" fetch origin pull/<n>/head:refs/remotes/origin/pr-<n>-head` (the operator runs it when the sandbox blocks the fetch), then use `baseBranch: "origin/pr-<n>-head"`.
    - **The operator's own PR:** `{ repoPath, branch: "<headRefName>" }`, which checks the existing branch out.
-4. Confirm the checkout is the PR: for a teammate's PR, `git -C "<worktree>" rev-parse HEAD` must equal `headRefOid` (a merged PR's audit uses its merge commit instead). On the operator's own branch a difference is normal (local commits not yet pushed, or a push not yet pulled): say which in the report, and judge the local head. A PR from a fork (`isCrossRepository`) has its branch in another repo, so `origin/<headRefName>` is missing or, worse, a different branch of the same name: fetch its head with `git -C "<repoPath>" fetch origin pull/<n>/head:refs/remotes/origin/pr-<n>-head` (the operator runs it when the sandbox blocks the fetch) and cut the worktree from `origin/pr-<n>-head`. Never review a teammate's checkout that does not match.
+4. Confirm the checkout is the PR: for a teammate's PR, `git -C "<worktree>" rev-parse HEAD` must equal `headRefOid` (a merged PR's audit uses its merge commit instead). On the operator's own branch a difference is normal (local commits not yet pushed, or a push not yet pulled): say which in the report, and judge the local head. Never review a teammate's checkout that does not match.
 
 Pull the diff with `github_pr_diff`. The diff is the file list of record: `github_pr_view.files` can lag a fresh push by minutes. If it truncates, call again with `nameOnly: true` and read the files from the worktree instead of raising `maxChars` past ~200k. Every grep and read below runs in the worktree, never the main checkout, which usually sits on another branch.
 
@@ -73,7 +67,7 @@ Build the model before judging it, with the [how](../playbooks/how.md) playbook'
 
 Draft **How it works** now: for a review, the report data's `explanation`, `flows` (one Mermaid diagram per flow, never ASCII), `areas`, and `behavior` (a **before → after** row per case a caller or user sees change; a pure refactor says so), per [PR report](report.md) → Review. Keep it to what the operator needs to hold the conversation: two screens at most.
 
-The diff's file list is also the **coverage checklist**. Split it: files to read line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends as `reviewed` or `skipped (<reason>)`, per review lane and in the report's checks table. Reading an implementation file does not cover its interface, schema, migration, or config counterpart: each file gets its own pass.
+The diff's file list is also the **coverage checklist**. Split it: files to read line by line, and files skipped up front with a reason (generated code, snapshots, lockfiles, vendored assets). Every file on the checklist ends as `reviewed` or `skipped (<reason>)`, per review lane and in the report's checks table.
 
 **Triage** every file on the checklist into one class, so the human knows where their attention goes:
 
@@ -103,7 +97,7 @@ Every gate lands in the report with its result and the reason. This is what turn
 
 ## Saving the report
 
-Every PR playbook saves with `report_write` into `category: 'reviews'` with `skill: 'engineer'`, a `pr-<n>-…` slug, and `pr-<n>` among the tags; the playbook names the slug; for review and replies, `pr-report.ts card` supplies the status and `extra`. A re-run on the same PR supersedes the prior report of its kind and says what changed: the old file stays, and the new report's `supersedes` names it. A review and replies save the card [PR report](report.md) renders, then write the page beside it, which parses every diagram. The walkthrough saves its markdown report as is.
+A review and replies save as [PR report](report.md) → Writing it describes; the walkthrough saves its markdown report as its playbook shows.
 
 ## Teardown
 

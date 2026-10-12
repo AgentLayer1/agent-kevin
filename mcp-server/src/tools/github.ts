@@ -418,7 +418,8 @@ const PR_VIEW_FIELDS = [
   'changedFiles',
   'files',
   'mergeable',
-  'mergeStateStatus'
+  'mergeStateStatus',
+  'mergeCommit'
 ].join(',');
 
 const PR_LIST_FIELDS = [
@@ -603,7 +604,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_pr_view',
     description:
-      'View one pull request in full (read-only): body, latest reviews, conversation comments, changed files, diff stats, label/review state, and mergeability. Use github_pr_comments for inline review threads, github_pr_diff for the actual patch.',
+      'View one pull request in full (read-only): body, latest reviews, conversation comments, changed files, diff stats, label/review state, mergeability, the head commit and fork flag, and the merge commit once merged. Use github_pr_comments for inline review threads, github_pr_diff for the actual patch.',
     inputSchema: { ...repoField, ...prNumberField },
     handler: async ({ repo, number }) => {
       const target = await resolveRepo(repo);
