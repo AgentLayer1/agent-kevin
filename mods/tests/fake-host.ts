@@ -19,6 +19,10 @@ export const CODE = '/fixture/code';
  * How long the fake person takes to answer a question.
  */
 export const QUESTION_MS = 30_000;
+/**
+ * How long the fake Skill tool takes, so a test can expand the skill while the call is open.
+ */
+export const SKILL_MS = 1_000;
 export const NOW = Date.parse('2026-03-10T09:00:00+08:00');
 
 export const TASKS = [
@@ -174,9 +178,13 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     if (e.tool === 'AskUserQuestion') {
       await clock.sleep(QUESTION_MS);
     }
+    if (e.tool === 'Skill') {
+      await clock.sleep(SKILL_MS);
+    }
     return { result: 'ok', text: host.toolText[e.tool] ?? '{}' };
   });
   on('skill.prompt', (_$, e) => ({ text: e.text }));
+  on('agent.spawn', (_$, e) => ({ model: 'fake', agentId: e.description }));
   on('turn.complete', () => ({ text: '', reason: 'answer' as const }));
   on('session.compact', (_$, e) => ({ messages: e.messages }));
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }));

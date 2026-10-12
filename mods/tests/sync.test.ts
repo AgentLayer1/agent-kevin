@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing';
 import type { Engine } from 'claude-code/testing';
 
-import { BAND_PROPS, CLI, PLUGIN, QUESTION_MS, STATS_TOOL, fakeHost, machine } from './fake-host';
+import { BAND_PROPS, CLI, PLUGIN, QUESTION_MS, SKILL_MS, STATS_TOOL, fakeHost, machine } from './fake-host';
 
 const MCP = `mcp__plugin_${PLUGIN}_${CLI}__` as const;
 const SURFACES = ['terminal', 'desktop'] as const;
@@ -19,6 +19,39 @@ const stats = async ($: Engine) => {
     brain: { before: { staleTasks: number } | null; after: { staleTasks: number } | null };
     phaseTimings: { phase: string; ms: number }[];
   };
+};
+
+const bandText = async ($: Engine, surface: (typeof SURFACES)[number]) => {
+  const band = await $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
+  return (await band.findAll({ type: 'Text' })).map((element) => element.text).join('');
+};
+
+const endTurn = ($: Engine, agentId?: string) =>
+  $.turn.complete({
+    answer: '',
+    durationMs: 0,
+    isAborted: false,
+    turnId: 't1',
+    reason: 'answer',
+    ...(agentId ? { agentId } : {})
+  });
+
+const spawnAgent = ($: Engine, agentId: string) =>
+  $.agent.spawn({
+    tool_use_id: 'toolu_spawn',
+    prompt: 'run the sync',
+    description: agentId,
+    subagentType: 'general-purpose',
+    provider: { plugin: 'engine', tier: 'core' },
+    parentModel: 'fake',
+    background: true,
+    fork: false
+  });
+
+// A call from a subagent's loop carries its agentId, which the kit's typed literal leaves out.
+const loadSyncIn = ($: Engine, agentId: string) => {
+  const call = { tool: 'Skill' as const, skill: `${PLUGIN}:sync`, agentId };
+  return $.tool.call(call);
 };
 
 describe('sync tracking', () => {
@@ -82,12 +115,42 @@ describe('sync tracking', () => {
     expect(Array.isArray(stored) && stored).toHaveLength(1);
     expect(Array.isArray(stored) ? stored[0]?.totalMs : undefined).toBe(90_000);
   });
-});
 
-const bandText = async ($: Engine, surface: (typeof SURFACES)[number]) => {
-  const band = await $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
-  return (await band.findAll({ type: 'Text' })).map((element) => element.text).join('');
-};
+  test('a sync handed to a background agent ends with that agent, not the main turn', async ($, on) => {
+    const host = fakeHost(on, machine());
+    await startSync($);
+    await spawnAgent($, 'sync-agent');
+    const load = loadSyncIn($, 'sync-agent');
+    await host.clock.settle();
+    await startSync($);
+    await host.clock.advance(SKILL_MS);
+    await load;
+    await endTurn($);
+    await $.tool.call({ tool: `${MCP}compile_write`, itemId: 'session:a', agentId: 'sync-agent' });
+    await host.clock.advance(120_000);
+    expect(await bandText($, 'terminal')).toContain('⟳ sync · running · 2m01s');
+    expect((await stats($)).actions.compiled).toBe(1);
+    await endTurn($, 'sync-agent');
+    expect(await bandText($, 'terminal')).toContain('✓ sync · done · 2m01s');
+    const stored = host.store.get('sync-history');
+    expect(Array.isArray(stored) ? stored[0]?.totalMs : undefined).toBe(121_000);
+  });
+
+  test('a sync loaded only by a background agent ignores the main turn and its calls', async ($, on) => {
+    const host = fakeHost(on);
+    const load = loadSyncIn($, 'sync-agent');
+    await host.clock.settle();
+    await startSync($);
+    await host.clock.advance(SKILL_MS);
+    await load;
+    await $.tool.call({ tool: `${MCP}compile_write`, itemId: 'session:a' });
+    await endTurn($);
+    expect(await bandText($, 'terminal')).toContain('⟳ sync · running');
+    expect((await stats($)).actions.compiled).toBe(0);
+    await endTurn($, 'sync-agent');
+    expect(await bandText($, 'terminal')).toContain('✓ sync · done');
+  });
+});
 
 describe('sync band', () => {
   for (const surface of SURFACES) {

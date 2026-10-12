@@ -11,6 +11,8 @@ import {
   finish,
   isOver,
   formatDuration,
+  joined,
+  left,
   markWaiting,
   parseBrain,
   parseCompile,
@@ -34,6 +36,9 @@ const syncTick = atom({ plugin: 'agent-kevin', key: 'syncTick' } as const, 0);
 const [STATS_TOOL] = SYNC_FEATURE.tools;
 const SYNC_SKILL = /(^|:)sync$/;
 const TICK_MS = 1000;
+const MAIN = 'main';
+
+const loopOf = (agentId: string | undefined): string => agentId ?? MAIN;
 
 const LOOKS = {
   running: { icon: '⟳', color: 'cyan', status: 'running' },
@@ -44,6 +49,8 @@ const LOOKS = {
 
 // Module state: a reload drops the timer and the next run starts a new one.
 let ticker: Timer | undefined;
+// skill.prompt carries no agentId, so the Skill call that loads sync names its loop here.
+let loadingLoop: string | undefined;
 
 async function runQuiet($: EngineInterface, argv: readonly string[]): Promise<string> {
   const { exitCode, stdout } = await $.process.run(argv, { cwd: await $.session.root() });
@@ -88,13 +95,30 @@ export const registerSync = (on: On): void => {
     return next(e);
   });
 
+  on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
+    if (!SYNC_SKILL.test(e.skill)) {
+      return next(e);
+    }
+    loadingLoop = loopOf(e.agentId);
+    try {
+      return await next(e);
+    } finally {
+      loadingLoop = undefined;
+    }
+  });
+
   on('skill.prompt', { skill: SYNC_SKILL }, async ($, e, next) => {
     const result = await next(e);
-    const now = await $.clock.now();
-    const before = await snapshot($).catch(() => null);
-    await update($, syncRun, () => startRun(now, before));
-    ticker?.cancel();
-    ticker = $.clock.every(TICK_MS, () => void update($, syncTick, (tick) => tick + 1));
+    const loop = loadingLoop ?? MAIN;
+    const current = await read($, syncRun);
+    // A loop already on the run (the agent it was handed to) is continuing it, not starting over.
+    if (current === null || isOver(current) || !current.loops.includes(loop)) {
+      const now = await $.clock.now();
+      const before = await snapshot($).catch(() => null);
+      await update($, syncRun, () => startRun(now, before, loop));
+      ticker?.cancel();
+      ticker = $.clock.every(TICK_MS, () => void update($, syncTick, (tick) => tick + 1));
+    }
     const tools = await $.tool.list();
     const statsTool = tools.find((tool) => tool.name.endsWith(`__${STATS_TOOL}`));
     return statsTool ? { text: result.text + statsInstruction(statsTool.name) } : result;
@@ -102,7 +126,7 @@ export const registerSync = (on: On): void => {
 
   on('tool.call', async ($, e, next) => {
     const before = await read($, syncRun);
-    if (before === null || isOver(before) || e.agentId !== undefined) {
+    if (before === null || isOver(before) || !before.loops.includes(loopOf(e.agentId))) {
       return next(e);
     }
     const phase = classify({ tool: e.tool, input: e }, $.plugin.name);
@@ -146,10 +170,24 @@ export const registerSync = (on: On): void => {
     return { result: JSON.stringify(statsPayload({ ...run, after }, now, await history($))) };
   });
 
+  on('agent.spawn', async ($, e, next) => {
+    const result = await next(e);
+    const child = result.agentId;
+    if (child !== undefined) {
+      await update($, syncRun, (run) => (run && !isOver(run) ? joined(run, loopOf(e.parentAgentId), child) : run));
+    }
+    return result;
+  });
+
   on('turn.complete', async ($, e, next) => {
     const result = await next(e);
+    const loop = loopOf(e.agentId);
     const run = await read($, syncRun);
-    if (run === null || isOver(run) || e.agentId !== undefined) {
+    if (run === null || isOver(run) || !run.working.includes(loop)) {
+      return result;
+    }
+    if (run.working.length > 1) {
+      await update($, syncRun, (current) => (current ? left(current, loop) : current));
       return result;
     }
     ticker?.cancel();

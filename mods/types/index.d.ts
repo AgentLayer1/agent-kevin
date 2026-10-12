@@ -72,6 +72,10 @@ export interface SyncRun {
   before: SyncSnapshot | null;
   after: SyncSnapshot | null;
   endedAt: number | null;
+  /** The loops doing the sync: the one that loaded it and every agent spawned during it. */
+  loops: string[];
+  /** The loops whose turn has not ended yet; the run ends with the last. */
+  working: string[];
 }
 
 export interface SyncHistoryEntry {
