@@ -6,7 +6,7 @@ An explanation worth more than a chat reply (an architecture walkthrough, a rese
 
 `<skill dir>` is this skill's base directory, which every host shows when it loads the skill. The plugin's dependencies sit two levels up.
 
-1. Make a scratch folder: `mktemp -d "$TMPDIR/explainer-XXXXXX"`. The body is `<folder>/body.html`; use that exact path in every later step.
+1. Make a scratch folder: `mktemp -d "${TMPDIR:-/tmp}/explainer-XXXXXX"`. The body is `<folder>/body.html`; use that exact path in every later step.
 2. Write the body (shape below), then validate it. This parses every diagram, so fix the body until it passes:
 
    ```bash
@@ -24,7 +24,7 @@ An explanation worth more than a chat reply (an architecture walkthrough, a rese
 
 ## The body
 
-Plain HTML, no `<script>`, `<style>`, `<link>` or event attributes (the check refuses them). In order:
+Plain HTML: no `<script>`, `<style>`, `<link>`, `<iframe>`, `<form>`, `<object>`, `<embed>`, `<base>` or `<meta>`, no event attributes and no `javascript:` URLs (the check refuses them). In order:
 
 - Optional `<p class="eyebrow">repo · kind</p>`, then exactly one `<h1>` (the page title and the tab title), then an optional `<p class="lede">` in one or two sentences.
 - One `<section>` per part, each opening with an `<h2>`. Sections number themselves and fill the contents dropdown; keep titles short, since the top bar shows the one in view.

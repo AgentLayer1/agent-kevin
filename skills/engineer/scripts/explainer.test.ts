@@ -37,12 +37,33 @@ describe('checkBody', () => {
 
   test('rejects script, style and event handlers, which the shell owns', () => {
     const errors = checkBody(body(section('<script>x()</script><style>p{}</style><img src="a" onerror="x()">'))).errors;
-    expect(errors.filter((error) => error.includes('the shell owns'))).toHaveLength(3);
+    expect(errors.filter((error) => error.includes('the shell owns'))).toHaveLength(2);
+  });
+
+  test('rejects the spellings a browser still runs as script', () => {
+    const bypasses = [
+      '<img/onerror=x() src=a>',
+      '<a href="&#106;avascript:x()">go</a>',
+      '<a href="&#x6A;avascript:x()">go</a>',
+      '<a href="java\tscript:x()">go</a>',
+      '<a href="javascript&colon;x()">go</a>',
+      '<form action="javascript:x()"><button>go</button></form>',
+      '<object data="x.swf"></object>',
+      '<meta http-equiv="refresh" content="0;url=https://example.com">',
+      '<base href="https://example.com/">'
+    ];
+    bypasses.forEach((html) => expect(checkBody(body(section(html))).errors.join()).toContain('the shell owns'));
   });
 
   test('allows prose that merely says "on"', () => {
     expect(checkBody(body(section('<p>Turn it on = done, once = enough; never write javascript: links.</p>'))).errors).toEqual([]);
     expect(checkBody(body(section('<a href="javascript:x()">go</a>'))).errors[0]).toContain('javascript:');
+  });
+
+  test('a comment before the <h2> and a single-quoted diagram class still read', () => {
+    const result = checkBody(body("<section><!-- intro --><h2>A</h2><pre class='diagram'>flowchart LR\n  A --> B</pre></section>"));
+    expect(result.errors).toEqual([]);
+    expect(result.diagrams).toHaveLength(1);
   });
 
   test('needs one <h1> and sections that open with an <h2>', () => {
