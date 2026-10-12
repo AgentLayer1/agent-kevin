@@ -34,6 +34,13 @@ describe('scanShell', () => {
     ]);
   });
 
+  test('keeps backslashes in double quotes unless they escape a special character', () => {
+    expect(texts('cd "C:\\Users\\acme" && echo "a\\"b" "\\$HOME"')).toEqual([
+      { depth: 0, words: ['cd', 'C:\\Users\\acme'] },
+      { depth: 0, words: ['echo', 'a"b', '$HOME'] }
+    ]);
+  });
+
   test('marks only unquoted glob characters', () => {
     const [command] = scanShell(`ls /tmp/a-* "/tmp/b-*" '/tmp/c?' "$DIR"/d-[0-9]`);
     expect(command?.words.map((word) => word.globbed)).toEqual([false, true, false, false, true]);

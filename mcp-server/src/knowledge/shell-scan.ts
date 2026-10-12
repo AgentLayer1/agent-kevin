@@ -71,7 +71,7 @@ export function scanShell(script: string): ShellCommand[] {
     while (i < source.length) {
       const ch = source[i];
       const next = source[i + 1];
-      if (ch === '\\') {
+      if (ch === '\\' && (!quoted || '$`"\\\n'.includes(next ?? ''))) {
         text += next ?? '';
         inWord = true;
         i += 2;

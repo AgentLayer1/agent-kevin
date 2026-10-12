@@ -1,7 +1,14 @@
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, posix, resolve, win32 } from 'node:path';
 import { commandWords, scanShell, type ShellCommand } from './shell-scan';
+
+type PathApi = typeof posix;
+const pathFor = (platform: NodeJS.Platform): PathApi => (platform === 'win32' ? win32 : posix);
+
+/** Git Bash and Cygwin spell C:\Users as /c/Users or /cygdrive/c/Users; Windows path APIs need the drive form. */
+const nativePath = (path: string, platform: NodeJS.Platform): string =>
+  platform === 'win32' ? path.replace(/^\/(?:cygdrive\/)?([a-z])(?=\/|$)/i, '$1:/') : path;
 
 const HOME_TREES = ['knowledge', 'projects', 'reports'];
 const TREE = HOME_TREES.join('|');
@@ -15,9 +22,9 @@ const CD = /^\s*\(?\s*(?:cd|pushd)(?:\s+(?:--\s+)?(.+?))?\s*$/;
 const HEREDOC = /<<-?\s*(["']?)(\w+)\1/;
 const COMPUTED = /[$`(]/;
 
-const insideHome = (dir: string, home: string): boolean => {
-  const fromHome = relative(home, dir);
-  return fromHome === '' || (!fromHome.startsWith('..') && !isAbsolute(fromHome));
+const insideHome = (dir: string, home: string, api: PathApi = pathFor(process.platform)): boolean => {
+  const fromHome = api.relative(home, dir);
+  return fromHome === '' || (!fromHome.startsWith('..') && !api.isAbsolute(fromHome));
 };
 
 /**
@@ -78,7 +85,8 @@ const COMPUTED_DIR = /[$`*?[]/;
  * session's, and a name written by hand can be written by another session at the same time.
  */
 export function scratchProblem(commands: ShellCommand[]): string | undefined {
-  const fix = 'Make scratch with mktemp "$TMPDIR/<prefix>-XXXXXX" (or mktemp -d) and use the exact path it prints.';
+  const fix =
+    'Make scratch with mktemp "${TMPDIR:-/tmp}/<prefix>-XXXXXX" (or mktemp -d) and use the exact path it prints.';
   const problems = commands.flatMap((command) => {
     const [name, ...args] = commandWords(command);
     const globbed = command.words.find((word) => word.globbed && TEMP_PATH.test(word.text));
@@ -97,7 +105,8 @@ export function scratchProblem(commands: ShellCommand[]): string | undefined {
   return problems[0];
 }
 
-const resolveCd = (dir: string | undefined, command: ShellCommand): string | undefined => {
+const resolveCd = (dir: string | undefined, command: ShellCommand, platform: NodeJS.Platform): string | undefined => {
+  const api = pathFor(platform);
   const [name, ...args] = commandWords(command);
   if (name?.text !== 'cd' && name?.text !== 'pushd' && name?.text !== 'popd') {
     return dir;
@@ -110,8 +119,8 @@ const resolveCd = (dir: string | undefined, command: ShellCommand): string | und
   if (raw === '-' || COMPUTED_DIR.test(raw)) {
     return undefined;
   }
-  const path = raw.replace(/^~(?=$|\/)/, homedir());
-  return isAbsolute(path) ? resolve(path) : dir && resolve(dir, path);
+  const path = nativePath(raw.replace(/^~(?=$|\/)/, homedir()), platform);
+  return api.isAbsolute(path) ? api.resolve(path) : dir && api.resolve(dir, path);
 };
 
 /**
@@ -121,12 +130,21 @@ const resolveCd = (dir: string | undefined, command: ShellCommand): string | und
  * shell computes (`$VAR`, `-`, `popd`) can't be read here and is let through; if it did leave the
  * home, the session has drifted, and every command after it is refused until one returns.
  */
-export function driftMessage(commands: ShellCommand[], cwd: string, home: string): string | undefined {
-  const end = commands.filter((command) => command.depth === 0).reduce<string | undefined>(resolveCd, cwd);
-  if (end === undefined || insideHome(end, home)) {
+export function driftMessage(
+  commands: ShellCommand[],
+  cwd: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  const api = pathFor(platform);
+  const start = api.resolve(nativePath(cwd, platform));
+  const end = commands
+    .filter((command) => command.depth === 0)
+    .reduce<string | undefined>((dir, command) => resolveCd(dir, command, platform), start);
+  if (end === undefined || insideHome(end, api.resolve(nativePath(home, platform)), api)) {
     return undefined;
   }
-  if (end === cwd) {
+  if (end === start) {
     return (
       `Blocked: the session's working directory is ${cwd}, outside the agent home ${home}, because an earlier cd moved it. ` +
       `Run cd ${home} first (alone, or as this command's start), then name other repos with git -C <repo> and absolute paths.`
@@ -143,12 +161,23 @@ export type GuardHost = 'claude' | 'codex';
 /**
  * The first reason to refuse a shell command, or undefined to let it run. Codex starts every
  * command in the workspace, so a cd never carries over there and drift is checked on Claude only.
+ * On native Windows Codex runs PowerShell, which the POSIX scan can't read, so it judges only
+ * Claude Code's Git Bash there.
  */
-export function shellGuard(command: string, cwd: string, home: string, host: GuardHost): string | undefined {
-  const leak = homeRelativeLeak(command, cwd, home);
+export function shellGuard(
+  command: string,
+  cwd: string,
+  home: string,
+  host: GuardHost,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  const leak = homeRelativeLeak(command, nativePath(cwd, platform), home);
   if (leak) {
     return leakMessage(leak, cwd, home);
   }
+  if (host === 'codex' && platform === 'win32') {
+    return undefined;
+  }
   const commands = scanShell(command);
-  return scratchProblem(commands) ?? (host === 'claude' ? driftMessage(commands, cwd, home) : undefined);
+  return scratchProblem(commands) ?? (host === 'claude' ? driftMessage(commands, cwd, home, platform) : undefined);
 }

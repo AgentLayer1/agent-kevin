@@ -151,3 +151,38 @@ describe('shellGuard: shared temp dir', () => {
     expect(shellGuard('ls -d /tmp/x-* | head -1', home, home, 'codex')).toContain('by pattern');
   });
 });
+
+describe('shellGuard on native Windows', () => {
+  const winHome = 'C:\\Users\\acme\\Documents\\Agents\\Scout';
+  const winRepo = 'C:\\Users\\acme\\Developer\\shop';
+  const onWindows = (command: string, cwd = winHome, host: 'claude' | 'codex' = 'claude'): string | undefined =>
+    shellGuard(command, cwd, winHome, host, 'win32');
+
+  test('reads Git Bash and Cygwin drive paths as the drive they name', () => {
+    expect(onWindows('cd /c/Users/acme/Developer/shop && git status')).toContain('Blocked');
+    expect(onWindows('cd /cygdrive/c/Users/acme/Developer/shop')).toContain('Blocked');
+    expect(onWindows('cd /c/Users/acme/Documents/Agents/Scout', winRepo)).toBeUndefined();
+    expect(onWindows('cd /c/Users/acme/Documents/Agents/Scout/projects && ls')).toBeUndefined();
+  });
+
+  test('takes drive-letter paths with either slash, in any case', () => {
+    expect(onWindows('cd "C:\\Users\\acme\\Developer\\shop"')).toContain('Blocked');
+    expect(onWindows("cd 'c:/users/acme/documents/agents/scout'", winRepo)).toBeUndefined();
+  });
+
+  test('a cwd the host reports in Git Bash form is still the home', () => {
+    expect(onWindows('git status', '/c/Users/acme/Documents/Agents/Scout')).toBeUndefined();
+    expect(onWindows('git status', '/c/Users/acme/Developer/shop')).toContain('because an earlier cd moved it');
+  });
+
+  test('a subshell cd and the temp-dir rules work the same in Git Bash', () => {
+    expect(onWindows('(cd /c/Users/acme/Developer/shop && make)')).toBeUndefined();
+    expect(onWindows('ls -d /tmp/mmd-* | head -1')).toContain('by pattern');
+  });
+
+  test("leaves Codex's PowerShell commands alone", () => {
+    expect(onWindows('Set-Location C:\\Users\\acme\\Developer\\shop; git status', winHome, 'codex')).toBeUndefined();
+    expect(onWindows('Get-ChildItem /tmp/mmd-* | Select-Object -First 1', winHome, 'codex')).toBeUndefined();
+    expect(onWindows('Write-Output "line`nnext"', winHome, 'codex')).toBeUndefined();
+  });
+});
