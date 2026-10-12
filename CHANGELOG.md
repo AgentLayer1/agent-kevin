@@ -48,14 +48,15 @@ and prompts per optional one. The new template files are the source of truth for
 ### Added
 - **`/queue <prompt>`** (Claude Code mod) holds a prompt until the current task ends, then sends
   it as its own turn, one per turn and in order, never mid-task. A count above the prompt shows
-  what is waiting, and `/queue clear` drops the rest. The dashboard's Mods tab and the cheatsheet
+  what is waiting, and `/queue clear` drops the rest. A turn you stop with Esc, or one that fails,
+  pauses the queue until a turn ends normally. The dashboard's Mods tab and the cheatsheet
   list it.
 - **PR reviews and replies end in one page** with a Copy button on every finding, question, nit,
   bot reply, thread reply and commit message, plus a file map showing each file's comments. A
   short markdown card sits beside it for the index, dashboard and other skills. A validator
   (`skills/engineer/scripts/pr-report.ts`) checks the data before anything is saved: thread links
-  must be the comment's own GitHub URL, anchors must name listed files, and the verdict must agree
-  with the findings.
+  must be the comment's own GitHub URL, reading-guide, decision and finding anchors must name listed
+  files, a misspelled key in any row is an error, and the verdict must agree with the findings.
 - **Two new review lanes.** `generated-code` covers what fast, often model-written code gets wrong
   while still compiling: invented APIs, reinvented helpers, partial migrations, tests bent to pass.
   `performance` covers round trips, unbounded work, missing indexes and timeouts. TypeScript
@@ -63,13 +64,13 @@ and prompts per optional one. The new template files are the source of truth for
 - **Reviews add a reading guide and a case against merging.** A review now names the hunks worth
   reading and what to skim, shows behavior before and after, and makes the strongest argument
   against merging. Every review-bot comment is verified and gets a disposition.
-- `github_pr_view` returns `headRefOid` and `isCrossRepository`, so a review can confirm it checked
-  out the PR's head and fetch a fork's head instead of reading a branch with the same name in the
-  base repo.
+- `github_pr_view` returns `headRefOid`, `isCrossRepository` and `mergeCommit`, so a review can
+  confirm it checked out the PR's head, fetch a fork's head instead of reading a branch with the
+  same name in the base repo, and find a merged PR's commit.
 - **Every generated page has an Auto / Light / Dark switch, Auto by default.** The dashboard,
   focus pages, PR pages, roadmap, tax dashboard, itinerary and explainers share one block
   (`mcp-server/src/shared/theme.ts`) that sets the theme before first paint, follows the system
-  live on Auto, and saves one choice every page reads. The dashboard and focus pages gain a light
+  live on Auto, and remembers one choice per browser that every page reads. The dashboard and focus pages gain a light
   palette and the itinerary a dark one; an itinerary always prints light. A `roadmap.html` or
   itinerary built earlier keeps its old look until the roadmap or itinerary skill renders it again.
 - **Explainers have a template.** The engineer skill writes only an explainer's body; a script
@@ -79,12 +80,13 @@ and prompts per optional one. The new template files are the source of truth for
   lists the open and active tasks that match, id matches first and most urgent first, so closing
   one no longer means remembering its id.
 - **A new folder points at setup.** In a folder that isn't an agent home yet, a row above the
-  prompt has a Set up button that runs init, and init is the Tab suggestion. A folder holding a
-  home, or a `SOUL.md` from one, never shows it.
+  prompt has a Set up button that runs init, and init is the Tab suggestion. A folder in or under
+  a home, or one holding a `SOUL.md`, never shows it.
 - **Pin reports to the dashboard sidebar.** List them in `reports/pinned.md`, one markdown link
   per line with an optional emoji before it (`- 🗺️ [Roadmap](plans/roadmap.html)`), relative to
-  `reports/`. The dashboard draws them as a Pinned group under Surfaces, each opening in a new
-  tab; a listed file that is gone drops out.
+  `reports/`; `*` bullets, `%20`, `#anchors` and `<…>` targets read too. The dashboard draws them
+  as a Pinned group under Surfaces, each opening in a new tab; a listed file that is gone, or one
+  outside the home, drops out.
 - **Pins and surfaces reach the agent.** Every session's context lists the pinned reports. The
   self-review brain pass asks about a pin whose file is gone (fix the link or unpin), and about a
   pin, the roadmap or a project dashboard unchanged for 60 days (refresh, still accurate, unpin, or
@@ -107,31 +109,33 @@ and prompts per optional one. The new template files are the source of truth for
 - PR replies answer every part of a reviewer's question, quote each comment's opening words so a
   GitHub search finds the thread, and mark each thread To post, Posted or Follow-up on a re-run.
   A stack of PRs gets one report.
-- The engineer skill may call `github_pr_checks` and `github_run_log`, which its PR playbooks
-  already used.
-- The mermaid validator exports `parseMermaid`. Its CLI is unchanged.
+- The engineer skill may call `github_pr_checks` and `github_run_log` without a prompt, to read a
+  PR's CI.
+- The mermaid validator exports `parseMermaid`, and its failure line now carries Mermaid's
+  "Expecting …" hint.
 - **The Xcode pack stops asking before `RunCodeSnippet`.** Snippets run Swift outside the
   sandbox, but so do the test and run tools on code the agent can already write, so the prompt
   removed no capability. It fired whenever a snippet checked a value during debugging.
   `InvokeDebuggerCommand` stays gated, since LLDB can run shell commands directly.
 - **The `guard` hook enforces the two shell rules a written rule couldn't hold.** Under Claude
-  Code a `cd` in one command carries over to every later one, so the hook refuses a top-level
-  `cd` that would leave the session outside the agent home. It also refuses every command from a
-  session that has already left, until one returns. Codex starts each command in the workspace,
+  Code a `cd` in one command carries over to every later one, so in a session launched in the
+  agent home the hook refuses a top-level `cd` that would leave it. It also refuses every command
+  from a session that has already left, until one returns. Codex starts each command in the workspace,
   so this check runs on Claude Code only. On both hosts it refuses a pattern in the folder name
   right under the shared temp dir (`ls -d $TMPDIR/mmd-*`), which can pick another session's
   scratch, and a hand-picked `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute
   paths and a subshell `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
   in a subshell now. On Windows the guard reads Git Bash paths (`/c/Users/…`, `/cygdrive/c/…`) and
-  drive-letter paths as the same place, and leaves Codex's PowerShell commands alone.
+  drive-letter paths as the same place, and checks Codex's PowerShell commands only for a
+  home-tree write from the wrong folder.
 
 ### Removed
 - The markdown review and replies templates. The page and its card replace them, and
   `references/pr/report.md` holds every field's rule.
 
 ### Fixed
-- A post-merge PR audit can find its code after the head branch is deleted: it reads the merge or
-  squash commit on the base and uses that commit's first parent as the base.
+- A post-merge PR audit can find its code after the head branch is deleted: it reads the PR's
+  merge commit from `github_pr_view` and uses that commit's first parent as the base.
 - `browser_screenshot` and `browser_pdf` of an explainer or PR page capture its diagrams drawn,
   not their Mermaid source. The page marks when drawing has finished, including when a diagram
   fails or the library can't load, and the capture waits for that mark.
