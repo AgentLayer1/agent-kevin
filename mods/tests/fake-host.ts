@@ -1,6 +1,6 @@
 import { mock } from 'claude-code/testing';
 import type { Engine, MockClock } from 'claude-code/testing';
-import type { FsStat, On, ProcessRunResult } from 'claude-code';
+import type { AgentInfo, FsStat, On, ProcessRunResult } from 'claude-code';
 
 import type { Notice } from '../types';
 
@@ -56,6 +56,8 @@ export interface FakeMachine {
   failing: string[];
   /** The folder the session started in. */
   root: string;
+  /** The subagents `$.agent.list()` answers; a spawn adds one running. */
+  agents: AgentInfo[];
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -79,6 +81,7 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   commands: [],
   failing: [],
   root: HOME,
+  agents: [],
   ...overrides
 });
 
@@ -184,7 +187,11 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     return { result: 'ok', text: host.toolText[e.tool] ?? '{}' };
   });
   on('skill.prompt', (_$, e) => ({ text: e.text }));
-  on('agent.spawn', (_$, e) => ({ model: 'fake', agentId: e.description }));
+  on('agent.spawn', (_$, e) => {
+    host.agents.push({ id: e.description, description: e.description, type: e.subagentType, status: 'running' });
+    return { model: 'fake', agentId: e.description };
+  });
+  on('agent.list', () => ({ value: host.agents }));
   on('turn.complete', () => ({ text: '', reason: 'answer' as const }));
   on('session.compact', (_$, e) => ({ messages: e.messages }));
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }));

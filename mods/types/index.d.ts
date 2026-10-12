@@ -72,9 +72,11 @@ export interface SyncRun {
   before: SyncSnapshot | null;
   after: SyncSnapshot | null;
   endedAt: number | null;
-  /** The loops doing the sync: the one that loaded it and every agent spawned during it. */
+  /** The loop that loaded sync; the run ends with one of its turns. */
+  owner: string;
+  /** The loops doing the sync: the owner and every agent spawned from one of them. */
   loops: string[];
-  /** The loops whose turn has not ended yet; the run ends with the last. */
+  /** The spawned agents still working; the owner waits on them before the run can end. */
   working: string[];
 }
 

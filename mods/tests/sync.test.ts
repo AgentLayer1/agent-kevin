@@ -2,6 +2,7 @@ import { describe, expect, test } from 'claude-code/testing';
 import type { Engine } from 'claude-code/testing';
 
 import { BAND_PROPS, CLI, PLUGIN, QUESTION_MS, SKILL_MS, STATS_TOOL, fakeHost, machine } from './fake-host';
+import type { FakeHost } from './fake-host';
 
 const MCP = `mcp__plugin_${PLUGIN}_${CLI}__` as const;
 const SURFACES = ['terminal', 'desktop'] as const;
@@ -52,6 +53,15 @@ const spawnAgent = ($: Engine, agentId: string) =>
 const loadSyncIn = ($: Engine, agentId: string) => {
   const call = { tool: 'Skill' as const, skill: `${PLUGIN}:sync`, agentId };
   return $.tool.call(call);
+};
+
+const endAgent = async ($: Engine, host: FakeHost, agentId: string) => {
+  host.agents.splice(
+    0,
+    host.agents.length,
+    ...host.agents.map((agent) => (agent.id === agentId ? { ...agent, status: 'completed' as const } : agent))
+  );
+  await endTurn($, agentId);
 };
 
 describe('sync tracking', () => {
@@ -116,8 +126,9 @@ describe('sync tracking', () => {
     expect(Array.isArray(stored) ? stored[0]?.totalMs : undefined).toBe(90_000);
   });
 
-  test('a sync handed to a background agent ends with that agent, not the main turn', async ($, on) => {
+  test('a sync handed to a background agent runs on through the hand-back turn', async ($, on) => {
     const host = fakeHost(on, machine());
+    on('prompt.submit', (_$, e) => ({ text: e.text }));
     await startSync($);
     await spawnAgent($, 'sync-agent');
     const load = loadSyncIn($, 'sync-agent');
@@ -129,11 +140,24 @@ describe('sync tracking', () => {
     await $.tool.call({ tool: `${MCP}compile_write`, itemId: 'session:a', agentId: 'sync-agent' });
     await host.clock.advance(120_000);
     expect(await bandText($, 'terminal')).toContain('⟳ sync · running · 2m01s');
+    await endAgent($, host, 'sync-agent');
+    expect(await bandText($, 'terminal')).toContain('⟳ sync · running');
+    await $.prompt.submit({ text: 'the agent handed back', wait: false, origin: { kind: 'composer' } });
     expect((await stats($)).actions.compiled).toBe(1);
-    await endTurn($, 'sync-agent');
-    expect(await bandText($, 'terminal')).toContain('✓ sync · done · 2m01s');
+    await host.clock.advance(30_000);
+    await endTurn($);
+    expect(await bandText($, 'terminal')).toContain('✓ sync · done · 2m31s');
     const stored = host.store.get('sync-history');
-    expect(Array.isArray(stored) ? stored[0]?.totalMs : undefined).toBe(121_000);
+    expect(Array.isArray(stored) ? stored[0]?.totalMs : undefined).toBe(151_000);
+  });
+
+  test('an agent killed without a turn end does not hold the run open', async ($, on) => {
+    const host = fakeHost(on);
+    await startSync($);
+    await spawnAgent($, 'sync-agent');
+    host.agents.splice(0, host.agents.length, ...host.agents.map((agent) => ({ ...agent, status: 'killed' as const })));
+    await endTurn($);
+    expect(await bandText($, 'terminal')).toContain('✓ sync · done');
   });
 
   test('a sync loaded only by a background agent ignores the main turn and its calls', async ($, on) => {

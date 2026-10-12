@@ -102,7 +102,7 @@ const tallyAction = (actions: SyncActions, name: string, resultText: string): Sy
   }
 };
 
-export const startRun = (now: number, before: SyncSnapshot | null, loop: string): SyncRun => ({
+export const startRun = (now: number, before: SyncSnapshot | null, owner: string): SyncRun => ({
   status: 'running',
   startedAt: now,
   phase: -1,
@@ -112,8 +112,9 @@ export const startRun = (now: number, before: SyncSnapshot | null, loop: string)
   before,
   after: null,
   endedAt: null,
-  loops: [loop],
-  working: [loop]
+  owner,
+  loops: [owner],
+  working: []
 });
 
 /**
@@ -123,7 +124,7 @@ export const joined = (run: SyncRun, parent: string, child: string): SyncRun =>
   run.loops.includes(parent) ? { ...run, loops: [...run.loops, child], working: [...run.working, child] } : run;
 
 /**
- * One of the run's loops finished its turn.
+ * A spawned agent finished its turn.
  */
 export const left = (run: SyncRun, loop: string): SyncRun => ({
   ...run,

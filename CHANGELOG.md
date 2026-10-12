@@ -153,10 +153,11 @@ and prompts per optional one. The new template files are the source of truth for
 - On a busy day, the session context's list of today's reports is cut at the last whole entry,
   not partway through a link.
 - **The sync band follows a sync handed to a background agent.** It used to show the run done
-  seconds after it started, once the main turn ended, with its counters stuck at the start, and
-  saved that short run to the history behind the average. The run now belongs to the loop that
-  loaded sync plus every agent spawned during it: their tool calls move the rail and counters, and
-  the run ends when the last of them finishes.
+  once the main turn ended, with its counters stuck at the start, save that short run to the
+  history behind the average, and answer `sync_stats` in the hand-back turn with "No sync is
+  running". The run now belongs to the loop that loaded sync, joined by every agent spawned from
+  it: their tool calls move the rail and counters, and the run ends with the loading loop's turn
+  once none of its agents is still working, so the hand-back turn stays part of it.
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.7.2.ts. It drops `mcp__xcode__RunCodeSnippet` from `permissions.ask` in `.claude/settings.json` (the settings merge only adds, so the removal lives here); `mcp__xcode__InvokeDebuggerCommand` and every other entry keep their place. A home without the Xcode pack is untouched.

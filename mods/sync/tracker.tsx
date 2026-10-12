@@ -39,6 +39,7 @@ const TICK_MS = 1000;
 const MAIN = 'main';
 
 const loopOf = (agentId: string | undefined): string => agentId ?? MAIN;
+const ENDED_AGENT = ['completed', 'failed', 'killed'];
 
 const LOOKS = {
   running: { icon: '⟳', color: 'cyan', status: 'running' },
@@ -79,6 +80,15 @@ async function refresh($: EngineInterface, fresh: Promise<Partial<SyncSnapshot>>
   await update($, syncRun, (run) => (run && !isOver(run) ? remeasured(run, measured) : run));
 }
 
+/**
+ * The run's agents the host still lists as working, so one killed without a turn end can't hold the run open.
+ */
+async function stillWorking($: EngineInterface, ids: readonly string[]): Promise<string[]> {
+  const agents = await $.agent.list().catch(() => []);
+  const live = new Set(agents.filter((agent) => !ENDED_AGENT.includes(agent.status)).map((agent) => agent.id));
+  return ids.filter((id) => live.has(id));
+}
+
 async function history($: EngineInterface) {
   return parseHistory(await $.store.get(SYNC_HISTORY_KEY));
 }
@@ -111,8 +121,9 @@ export const registerSync = (on: On): void => {
     const result = await next(e);
     const loop = loadingLoop ?? MAIN;
     const current = await read($, syncRun);
-    // A loop already on the run (the agent it was handed to) is continuing it, not starting over.
-    if (current === null || isOver(current) || !current.loops.includes(loop)) {
+    // An agent the run spawned (the one sync was handed to) is continuing it, not starting over.
+    const isHandedOn = current !== null && !isOver(current) && loop !== current.owner && current.loops.includes(loop);
+    if (!isHandedOn) {
       const now = await $.clock.now();
       const before = await snapshot($).catch(() => null);
       await update($, syncRun, () => startRun(now, before, loop));
@@ -183,11 +194,15 @@ export const registerSync = (on: On): void => {
     const result = await next(e);
     const loop = loopOf(e.agentId);
     const run = await read($, syncRun);
-    if (run === null || isOver(run) || !run.working.includes(loop)) {
+    if (run === null || isOver(run) || !run.loops.includes(loop)) {
       return result;
     }
-    if (run.working.length > 1) {
+    if (loop !== run.owner) {
       await update($, syncRun, (current) => (current ? left(current, loop) : current));
+      return result;
+    }
+    // The owner waits on its agents; their hand-back comes as its next turn, and the run ends there.
+    if ((await stillWorking($, run.working)).length > 0) {
       return result;
     }
     ticker?.cancel();
