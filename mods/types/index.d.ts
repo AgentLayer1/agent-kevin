@@ -110,6 +110,8 @@ export interface NoticeActing {
 export interface Queue {
   pending: string[];
   isBusy: boolean;
+  /** Set when a turn was stopped or failed; the next turn that ends normally resumes the queue. */
+  isPaused: boolean;
 }
 
 declare module 'claude-code' {

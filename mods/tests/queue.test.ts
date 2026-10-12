@@ -19,13 +19,13 @@ const queueHost = (on: On) => {
 
 const startTurn = ($: Engine) => $.turn.start({ text: '', turnId: 't1' });
 
-const endTurn = ($: Engine, agentId?: string) =>
+const endTurn = ($: Engine, agentId?: string, reason: 'answer' | 'aborted' | 'error' = 'answer') =>
   $.turn.complete({
     answer: '',
     durationMs: 0,
-    isAborted: false,
+    isAborted: reason === 'aborted',
     turnId: 't1',
-    reason: 'answer',
+    reason,
     ...(agentId ? { agentId } : {})
   });
 
@@ -116,6 +116,43 @@ describe('queue', () => {
 
     expect(result.text).toBe('Cleared 2 queued prompts.');
     expect(submitted).toEqual([]);
+  });
+
+  for (const reason of ['aborted', 'error'] as const) {
+    test(`a turn that ends ${reason} holds the queue until a turn ends normally`, async ($, on) => {
+      const { clock, submitted } = queueHost(on);
+
+      await startTurn($);
+      await run($, 'queue', 'Q1');
+      await run($, 'queue', 'Q2');
+      await endTurn($, undefined, reason);
+      await clock.settle();
+      expect(submitted).toEqual([]);
+      expect(await bandText($, 'terminal')).toContain('⏸ 2 queued (paused)');
+
+      await run($, 'queue', 'Q3');
+      await clock.settle();
+      expect(submitted).toEqual([]);
+
+      await startTurn($);
+      await endTurn($);
+      await clock.settle();
+      expect(submitted).toEqual(['Q1']);
+      expect(await bandText($, 'terminal')).toContain('⏳ 2 queued');
+    });
+  }
+
+  test('/queue clear lifts a pause', async ($, on) => {
+    const { clock, submitted } = queueHost(on);
+
+    await startTurn($);
+    await run($, 'queue', 'Q1');
+    await endTurn($, undefined, 'aborted');
+    await run($, 'queue', 'clear');
+    await run($, 'queue', 'Q2');
+    await clock.settle();
+
+    expect(submitted).toEqual(['Q2']);
   });
 
   test("a subagent's turn ending does not release the next prompt", async ($, on) => {

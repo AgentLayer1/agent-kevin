@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code';
 import type { EngineInterface, On, Timer } from 'claude-code';
 
 import { cliArgv, cliError } from '../shared/cli';
+import { TURN_REASONS } from '../shared/turns';
 import { SYNC_HISTORY_KEY, formatDuration, parseHistory, typicalMs } from '../sync/stats';
 import type { Notice, NoticeActing } from '../types';
 
@@ -152,7 +153,7 @@ export const registerNotices = (on: On): void => {
   });
 
   // The command's skill started inside the running turn, so the next main turn to end is the command's own, however it ended.
-  on('turn.complete', { reason: ['answer', 'aborted', 'refusal', 'error'] }, async ($, e, next) => {
+  on('turn.complete', { reason: TURN_REASONS }, async ($, e, next) => {
     const result = await next(e);
     if (e.agentId === undefined && (await read($, acting))?.isStarted) {
       $.clock.after(0, () => void settle($));

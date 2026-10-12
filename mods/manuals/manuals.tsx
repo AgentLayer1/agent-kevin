@@ -1,8 +1,9 @@
 import { atom, read, update } from 'claude-code';
-import type { EngineInterface, On, ToolCallResult, TurnCompleteReason } from 'claude-code';
+import type { EngineInterface, On, ToolCallResult } from 'claude-code';
 
 import { MANUALS_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
+import { TURN_REASONS } from '../shared/turns';
 import {
   CLAUDE_FILES,
   HOME_MARKERS,
@@ -28,7 +29,6 @@ const delivered = atom({ plugin: 'agent-kevin', key: 'delivered' } as const, [])
 const thisTurn = atom({ plugin: 'agent-kevin', key: 'manualsThisTurn' } as const, []);
 
 const MAIN = 'main';
-const TURN_REASONS: readonly TurnCompleteReason[] = ['answer', 'aborted', 'refusal', 'error'];
 
 // Read once per module load; a reload picks up changed grants.
 let grantsCache: string[] | undefined;

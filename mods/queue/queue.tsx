@@ -2,17 +2,18 @@ import { atom, read, update } from 'claude-code';
 import type { EngineInterface, On } from 'claude-code';
 
 import { QUEUE_FEATURE } from '../shared/catalog';
+import { TURN_REASONS } from '../shared/turns';
 import type { Queue } from '../types';
 
-const EMPTY: Queue = { pending: [], isBusy: false };
+const EMPTY: Queue = { pending: [], isBusy: false, isPaused: false };
 const queue = atom({ plugin: 'agent-kevin', key: 'queue' } as const, EMPTY);
 
 const drain = async ($: EngineInterface): Promise<void> => {
   // update() may rerun the change on a conflict; only the committed run's pick is sent.
   let text: string | undefined;
-  await update($, queue, ({ pending, isBusy }) => {
-    text = isBusy ? undefined : pending[0];
-    return text === undefined ? { pending, isBusy } : { pending: pending.slice(1), isBusy: true };
+  await update($, queue, (current) => {
+    text = current.isBusy || current.isPaused ? undefined : current.pending[0];
+    return text === undefined ? current : { ...current, pending: current.pending.slice(1), isBusy: true };
   });
 
   if (text !== undefined) {
@@ -38,7 +39,7 @@ export const registerQueue = (on: On): void => {
       let cleared = 0;
       await update($, queue, (current) => {
         cleared = current.pending.length;
-        return { ...current, pending: [] };
+        return { ...current, pending: [], isPaused: false };
       });
       return { text: `Cleared ${cleared} queued prompt${cleared === 1 ? '' : 's'}.` };
     }
@@ -53,9 +54,11 @@ export const registerQueue = (on: On): void => {
     return next(e);
   });
 
-  on('turn.complete', { reason: ['answer', 'aborted', 'refusal', 'error'] }, async ($, e, next) => {
+  // Esc on a runaway task, or an error such as a rate limit, holds what waits instead of sending it into the same trouble.
+  on('turn.complete', { reason: TURN_REASONS }, async ($, e, next) => {
     if (e.agentId === undefined) {
-      await update($, queue, (current) => ({ ...current, isBusy: false }));
+      const isPaused = e.reason === 'aborted' || e.reason === 'error';
+      await update($, queue, (current) => ({ ...current, isBusy: false, isPaused: isPaused && current.pending.length > 0 }));
       await drain($);
     }
     return next(e);
@@ -63,14 +66,17 @@ export const registerQueue = (on: On): void => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e);
-    const { pending } = await read($, queue);
+    const { pending, isPaused } = await read($, queue);
     if (!pending.length || e.props.hasSurvey) {
       return below;
     }
     const { Box, Text } = $.ui.resolve(e);
+    const line = isPaused
+      ? `⏸ ${pending.length} queued (paused) · send a prompt to resume, /queue clear to drop`
+      : `⏳ ${pending.length} queued · /queue clear to drop`;
     return (
       <Box flexDirection="column">
-        <Text dimColor>{`⏳ ${pending.length} queued · /queue clear to drop`}</Text>
+        <Text dimColor>{line}</Text>
         {below}
       </Box>
     );
