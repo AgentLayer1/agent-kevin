@@ -104,6 +104,7 @@ and prompts per optional one. The new template files are the source of truth for
   A stack of PRs gets one report.
 - The engineer skill may call `github_pr_checks` and `github_run_log`, which its PR playbooks
   already used.
+- The mermaid validator exports `parseMermaid`. Its CLI is unchanged.
 - **The Xcode pack stops asking before `RunCodeSnippet`.** Snippets run Swift outside the
   sandbox, but so do the test and run tools on code the agent can already write, so the prompt
   removed no capability. It fired whenever a snippet checked a value during debugging.
