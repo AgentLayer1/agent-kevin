@@ -17,21 +17,22 @@ tells every consumer exactly what their home needs after they `/plugin update`.
 
 Runs against the plugin repo at `${CLAUDE_PLUGIN_ROOT}`. **Never commits, tags, or
 pushes without explicit approval** — it stages everything and stops (per the
-standing "one approval ≠ blanket commit license" rule). Run each shell block below in a
-subshell on the repo, `( cd "${CLAUDE_PLUGIN_ROOT}" && … )`, so the session stays in the
-home; the `guard` hook refuses a `cd` that would move it.
+standing "one approval ≠ blanket commit license" rule). Every command below names the repo
+with `git -C "${CLAUDE_PLUGIN_ROOT}"` or an absolute path, so the session stays in the home
+(the `guard` hook refuses a `cd` that would move it) and no git call lands in the home's own
+repo. Shell variables don't survive between calls: where a block says `<range>`, write the
+literal range from Step 0 (`<last tag>..HEAD`, or `HEAD` when there is no tag).
 
 ## Step 0 — Locate the plugin repo + last release
 
 ```bash
-( PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
-cd "$PLUGIN_ROOT" || exit 1
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "not a git repo"; exit 1; }
-CURRENT=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' .claude-plugin/plugin.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-LAST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
+R="${CLAUDE_PLUGIN_ROOT}"
+git -C "$R" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "not a git repo"; exit 1; }
+CURRENT=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$R/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+LAST_TAG=$(git -C "$R" tag --list 'v*' --sort=-v:refname | head -1)
 echo "current plugin.json version: $CURRENT"
 echo "last tag: ${LAST_TAG:-<none>}"
-git status --short )
+git -C "$R" status --short
 ```
 
 Determine the **last release point**, in order of preference:
@@ -45,9 +46,8 @@ part of this release (usually yes) before proceeding.
 ## Step 1 — Gather changes since the last release
 
 ```bash
-RANGE="${LAST_TAG:+$LAST_TAG..}HEAD"   # tag..HEAD, or all of HEAD if no tag
-git log --oneline --no-merges $RANGE
-git diff --stat $RANGE
+git -C "${CLAUDE_PLUGIN_ROOT}" log --oneline --no-merges <range>
+git -C "${CLAUDE_PLUGIN_ROOT}" diff --stat <range>
 ```
 
 Read the commit subjects + the changed-file list. Group the human-facing notes into
@@ -61,7 +61,7 @@ Diff the paths to derive the `### Upgrade` block. Check each:
 **Dependencies** — did the MCP server's deps change?
 
 ```bash
-git diff $RANGE -- mcp-server/package.json mcp-server/bun.lock | grep -E '^\+' | grep -v '^\+\+\+' || echo "(no dep changes)"
+git -C "${CLAUDE_PLUGIN_ROOT}" diff <range> -- mcp-server/package.json mcp-server/bun.lock | grep -E '^\+' | grep -v '^\+\+\+' || echo "(no dep changes)"
 ```
 
 If any dependency was added/changed → `` `deps: required` `` naming the new packages.
@@ -69,7 +69,7 @@ If any dependency was added/changed → `` `deps: required` `` naming the new pa
 **Templates** — did any scaffolded-file source change?
 
 ```bash
-git diff --stat $RANGE -- templates/
+git -C "${CLAUDE_PLUGIN_ROOT}" diff --stat <range> -- templates/
 ```
 
 For each changed `templates/<file>`, emit `` `template/<file>: <severity>` ``. Propose
@@ -95,8 +95,8 @@ severity, let the maintainer confirm/override:
 **Settings** — do new MCP tools or skills need `permissions.allow` entries?
 
 ```bash
-git diff $RANGE -- mcp-server/src/tools/ | grep -E "name:\s*'[a-z_]+'" || true   # new defineTool names
-git diff --stat $RANGE -- skills/                                                 # new skill dirs
+git -C "${CLAUDE_PLUGIN_ROOT}" diff <range> -- mcp-server/src/tools/ | grep -E "name:\s*'[a-z_]+'" || true   # new defineTool names
+git -C "${CLAUDE_PLUGIN_ROOT}" diff --stat <range> -- skills/                                                 # new skill dirs
 ```
 
 A new always-on core tool, or a new model-invocable skill, needs a grant in consumer
@@ -107,7 +107,7 @@ list in `skills/init/SKILL.md`.
 **Scripts** — did this release add a version-pinned migration script?
 
 ```bash
-git diff --name-only --diff-filter=A $RANGE -- skills/upgrade/scripts/ || true
+git -C "${CLAUDE_PLUGIN_ROOT}" diff --name-only --diff-filter=A <range> -- skills/upgrade/scripts/ || true
 ```
 
 A new `skills/upgrade/scripts/<X.Y.Z>.ts` is a heavy one-time HOME migration. Emit
@@ -201,8 +201,8 @@ The version + CHANGELOG edits are made, but **nothing in git has run yet**. Show
 maintainer the full diff to be committed:
 
 ```bash
-git --no-pager diff -- .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md
-git status --short
+git -C "${CLAUDE_PLUGIN_ROOT}" --no-pager diff -- .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md
+git -C "${CLAUDE_PLUGIN_ROOT}" status --short
 ```
 
 Then **ask** with the `AskUserQuestion` tool how far to take it — never commit, tag, or
@@ -216,10 +216,10 @@ rule). Offer exactly these options:
 ("Other" lets the maintainer abort or hand-tune.) Then run **only** the chosen subset:
 
 ```bash
-git add .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md   # + any release-scoped files
-git commit -m "Release vX.Y.Z"
-git tag -a vX.Y.Z -m "vX.Y.Z"      # commit+tag and above only
-git push && git push --tags        # push option only
+git -C "${CLAUDE_PLUGIN_ROOT}" add .claude-plugin/plugin.json .codex-plugin/plugin.json CHANGELOG.md   # + any release-scoped files
+git -C "${CLAUDE_PLUGIN_ROOT}" commit -m "Release vX.Y.Z"
+git -C "${CLAUDE_PLUGIN_ROOT}" tag -a vX.Y.Z -m "vX.Y.Z"                   # commit+tag and above only
+git -C "${CLAUDE_PLUGIN_ROOT}" push && git -C "${CLAUDE_PLUGIN_ROOT}" push --tags   # push option only
 ```
 
 A pushed tag never moves. If `vX.Y.Z` already exists on the remote, leave it where it is:
