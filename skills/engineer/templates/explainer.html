@@ -417,9 +417,11 @@
     }));
   };
   if (boxes.length) {
+    window.__renderDone = false;
     import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
       .then((module) => { mermaidLib = module.default; return draw(); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { window.__renderDone = true; });
   }
   document.addEventListener("themechange", draw);
 })();

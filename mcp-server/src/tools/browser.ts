@@ -153,6 +153,19 @@ async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> 
     return;
   }
   await page.goto(target.url, { waitUntil: 'load' });
+  await waitForDiagrams(page);
+}
+
+// Explainer and PR report pages draw Mermaid after `load`; they hold __renderDone at false until every
+// diagram is drawn or has failed, so a page that never sets it is captured at once.
+async function waitForDiagrams(page: PageLike): Promise<void> {
+  try {
+    await page.waitForFunction(() => (globalThis as { __renderDone?: boolean }).__renderDone !== false, {
+      timeout: 15000
+    });
+  } catch {
+    log.info('diagram render timeout — capturing anyway');
+  }
 }
 
 async function runStep(page: PageLike, step: Step): Promise<void> {
