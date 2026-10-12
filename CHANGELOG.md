@@ -97,10 +97,10 @@ and prompts per optional one. The new template files are the source of truth for
   Code a `cd` in one command carries over to every later one, so the hook refuses a top-level
   `cd` that would leave the session outside the agent home. It also refuses every command from a
   session that has already left, until one returns. Codex starts each command in the workspace,
-  so this check runs on Claude Code only. On both hosts it refuses finding scratch in the shared
-  temp dir by pattern, listing or searching the temp dir itself, and a hand-picked
-  `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute paths and a subshell
-  `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
+  so this check runs on Claude Code only. On both hosts it refuses a pattern in the folder name
+  right under the shared temp dir (`ls -d $TMPDIR/mmd-*`), which can pick another session's
+  scratch, and a hand-picked `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute
+  paths and a subshell `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
   in a subshell now. On Windows the guard reads Git Bash paths (`/c/Users/…`, `/cygdrive/c/…`) and
   drive-letter paths as the same place, and leaves Codex's PowerShell commands alone.
 
