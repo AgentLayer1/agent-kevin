@@ -34,12 +34,13 @@ import { log as baseLog } from '@/shared/log';
 import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { countOf } from '@/shared/utils';
+import { readPins } from '@/status/surfaces';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import { basename, relative, resolve } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
 
 const log = baseLog.session.with('context');
@@ -205,6 +206,21 @@ async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   };
 }
 
+/** The reports the operator pinned to the dashboard, as HOME-relative paths. A pin whose file is
+ *  gone is left out; the brain audit flags it. No pins is a choice, so it reads `off`. */
+export function pinnedReports(maxBytes: number): ReportsResult {
+  const pins = readPins().filter((pin) => pin.exists);
+  if (pins.length === 0) {
+    return { content: null, entry: { label: 'pinned reports', status: 'off', bytes: 0, note: 'none pinned' } };
+  }
+  const lines = pins.map((pin) => `- ${pin.icon ? `${pin.icon} ` : ''}${pin.title} — ${relative(FOLDERS.HOME, pin.path)}`);
+  const list = lines.join('\n');
+  const body = `The operator pinned these to the dashboard (reports/pinned.md); read one when the work touches it.\n${
+    list.length > maxBytes ? `${list.slice(0, maxBytes).trimEnd()}\n…(see reports/pinned.md)` : list
+  }`;
+  return { content: body, entry: { label: 'pinned reports', status: 'loaded', bytes: body.length, note: countOf(pins.length, 'pin') } };
+}
+
 const formatKB = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
 const STATUS_ICON: Record<ManifestEntry['status'], string> = {
@@ -333,6 +349,7 @@ interface GatheredContext {
 async function gatherContext(restoredHistory = false): Promise<GatheredContext> {
   const tail = await lastSessionTail(CONTEXT.SESSION_TAIL_BYTES);
   const reports = await todaysReports(CONTEXT.REPORTS_BYTES);
+  const pinned = pinnedReports(CONTEXT.PINNED_BYTES);
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -369,6 +386,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
   const entries: ManifestEntry[] = [
     tail.entry,
     reports.entry,
+    pinned.entry,
     ...(knowledgeGit ? [homeHistoryLane(knowledgeGit, restoredHistory)] : []),
     ...extraGit
   ];
@@ -378,6 +396,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
   if (welcomePending()) parts.push(welcomePart());
   if (tail.content) parts.push(`## Last Session Memory (archived — not this conversation)\n\n${tail.content}`);
   if (reports.content) parts.push(`## Today's Reports\n\n${reports.content}`);
+  if (pinned.content) parts.push(`## Pinned\n\n${pinned.content}`);
 
   const gitSections = gitLogs
     .filter((log) => log.output)
