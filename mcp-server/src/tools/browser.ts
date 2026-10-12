@@ -144,7 +144,7 @@ async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> 
       // that, capture what we have so a slow CDN doesn't hang the tool.
       try {
         await page.waitForFunction(() => (globalThis as { __renderDone?: boolean }).__renderDone === true, {
-          timeout: 15000
+          timeout: BROWSER.RENDER_TIMEOUT_MS
         });
       } catch {
         log.info('mermaid render timeout — capturing anyway');
@@ -161,7 +161,7 @@ async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> 
 async function waitForDiagrams(page: PageLike): Promise<void> {
   try {
     await page.waitForFunction(() => (globalThis as { __renderDone?: boolean }).__renderDone !== false, {
-      timeout: 15000
+      timeout: BROWSER.RENDER_TIMEOUT_MS
     });
   } catch {
     log.info('diagram render timeout — capturing anyway');
@@ -240,7 +240,7 @@ export const tools: ToolDef[] = [
         if (css) {
           await page.addStyleTag({ content: css });
         }
-        await page.pdf({ path: outPath, format: 'A4' });
+        await page.pdf({ path: outPath, format: BROWSER.PDF_FORMAT });
         log.info(`pdf -> ${outPath}`);
       } finally {
         await close();

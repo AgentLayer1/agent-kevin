@@ -153,6 +153,8 @@ export const BROWSER = {
     return resolve(FOLDERS.REPORTS, 'captures');
   },
   INTERACTIVE_ARGS: ['--window-size=1280,900', '--window-position=120,80'] as readonly string[],
+  PDF_FORMAT: 'A4',
+  RENDER_TIMEOUT_MS: 15_000,
   LOGIN_WAIT_MS: 300_000
 } as const;
 
