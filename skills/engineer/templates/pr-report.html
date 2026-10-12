@@ -649,8 +649,11 @@
   window.addEventListener("resize", fitNav);
 
   let mermaidLib = null;
+  // A theme flip mid-draw starts a new run; the older run's late results are dropped.
+  let generation = 0;
   const drawDiagrams = async () => {
     if (!mermaidLib) { return; }
+    const run = ++generation;
     const dark = document.documentElement.getAttribute("data-theme") !== "light";
     mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: dark ? "dark" : "default" });
     const boxes = [...document.querySelectorAll(".diagram")];
@@ -659,8 +662,10 @@
       box.dataset.source = source;
       try {
         const { svg } = await mermaidLib.render(`diagram-${i}-${Date.now()}`, source);
+        if (run !== generation) { return; }
         box.innerHTML = svg;
       } catch (err) {
+        if (run !== generation) { return; }
         box.replaceChildren(h("pre", {}, source));
       }
     }));

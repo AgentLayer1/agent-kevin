@@ -92,15 +92,14 @@ export const themeBlockOf = (html: string): string | null => BLOCK.exec(html)?.[
 
 export const withThemeBlock = (html: string): string => html.replace(BLOCK, () => THEME_BLOCK);
 
-const PLUGIN_ROOT = join(import.meta.dir, '..', '..', '..');
-
 if (import.meta.main) {
+  const pluginRoot = join(import.meta.dir, '..', '..', '..');
   if (process.argv[2] !== 'sync') {
     console.error('usage: bun theme.ts sync');
     process.exit(1);
   }
   THEMED_TEMPLATES.forEach((relative) => {
-    const path = join(PLUGIN_ROOT, relative);
+    const path = join(pluginRoot, relative);
     const html = readFileSync(path, 'utf-8');
     if (themeBlockOf(html) === null) {
       console.error(`${relative}: no ${START} … ${END} block in <head>`);

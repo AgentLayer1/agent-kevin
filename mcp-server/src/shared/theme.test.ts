@@ -60,7 +60,7 @@ describe('theme control', () => {
   test('defaults to Auto and follows the system', async () => {
     const page = await open('<span id="theme-slot"></span>');
     expect(page.root.getAttribute('data-theme')).toBe('dark');
-        expect(page.pressed()).toEqual(['auto']);
+    expect(page.pressed()).toEqual(['auto']);
     page.flip(false);
     expect(page.root.getAttribute('data-theme')).toBe('light');
     expect(page.changes).toEqual(['light']);
