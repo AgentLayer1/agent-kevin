@@ -162,6 +162,7 @@ describe('sync tracking', () => {
 
   test('a sync loaded only by a background agent ignores the main turn and its calls', async ($, on) => {
     const host = fakeHost(on);
+    await spawnAgent($, 'sync-agent');
     const load = loadSyncIn($, 'sync-agent');
     await host.clock.settle();
     await startSync($);

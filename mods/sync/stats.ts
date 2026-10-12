@@ -113,23 +113,14 @@ export const startRun = (now: number, before: SyncSnapshot | null, owner: string
   after: null,
   endedAt: null,
   owner,
-  loops: [owner],
-  working: []
+  loops: [owner]
 });
 
 /**
  * An agent spawned from one of the run's loops works on the sync too.
  */
 export const joined = (run: SyncRun, parent: string, child: string): SyncRun =>
-  run.loops.includes(parent) ? { ...run, loops: [...run.loops, child], working: [...run.working, child] } : run;
-
-/**
- * A spawned agent finished its turn.
- */
-export const left = (run: SyncRun, loop: string): SyncRun => ({
-  ...run,
-  working: run.working.filter((item) => item !== loop)
-});
+  run.loops.includes(parent) ? { ...run, loops: [...run.loops, child] } : run;
 
 const closePhase = (run: SyncRun, now: number): SyncRun =>
   run.phase < 0

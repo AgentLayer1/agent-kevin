@@ -1,9 +1,9 @@
 import { atom, read, update } from 'claude-code';
-import type { EngineInterface, On, Timer } from 'claude-code';
+import type { AgentStatus, EngineInterface, On, Timer } from 'claude-code';
 
 import { SYNC_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
-import type { SyncSnapshot } from '../types';
+import type { SyncRun, SyncSnapshot } from '../types';
 import { PHASES, bareToolName, classify } from './phases';
 import {
   actionNotes,
@@ -12,7 +12,6 @@ import {
   isOver,
   formatDuration,
   joined,
-  left,
   markWaiting,
   parseBrain,
   parseCompile,
@@ -39,7 +38,7 @@ const TICK_MS = 1000;
 const MAIN = 'main';
 
 const loopOf = (agentId: string | undefined): string => agentId ?? MAIN;
-const ENDED_AGENT = ['completed', 'failed', 'killed'];
+const ENDED: readonly AgentStatus[] = ['completed', 'failed', 'killed'];
 
 const LOOKS = {
   running: { icon: '⟳', color: 'cyan', status: 'running' },
@@ -81,12 +80,13 @@ async function refresh($: EngineInterface, fresh: Promise<Partial<SyncSnapshot>>
 }
 
 /**
- * The run's agents the host still lists as working, so one killed without a turn end can't hold the run open.
+ * Whether an agent the run spawned is still working, as the host lists it; a killed one counts as ended.
  */
-async function stillWorking($: EngineInterface, ids: readonly string[]): Promise<string[]> {
+async function isHelperWorking($: EngineInterface, run: SyncRun): Promise<boolean> {
   const agents = await $.agent.list().catch(() => []);
-  const live = new Set(agents.filter((agent) => !ENDED_AGENT.includes(agent.status)).map((agent) => agent.id));
-  return ids.filter((id) => live.has(id));
+  return agents.some(
+    (agent) => agent.id !== run.owner && run.loops.includes(agent.id) && !ENDED.includes(agent.status)
+  );
 }
 
 async function history($: EngineInterface) {
@@ -192,17 +192,12 @@ export const registerSync = (on: On): void => {
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e);
-    const loop = loopOf(e.agentId);
     const run = await read($, syncRun);
-    if (run === null || isOver(run) || !run.loops.includes(loop)) {
-      return result;
-    }
-    if (loop !== run.owner) {
-      await update($, syncRun, (current) => (current ? left(current, loop) : current));
+    if (run === null || isOver(run) || loopOf(e.agentId) !== run.owner) {
       return result;
     }
     // The owner waits on its agents; their hand-back comes as its next turn, and the run ends there.
-    if ((await stillWorking($, run.working)).length > 0) {
+    if (await isHelperWorking($, run)) {
       return result;
     }
     ticker?.cancel();

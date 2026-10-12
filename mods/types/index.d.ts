@@ -76,8 +76,6 @@ export interface SyncRun {
   owner: string;
   /** The loops doing the sync: the owner and every agent spawned from one of them. */
   loops: string[];
-  /** The spawned agents still working; the owner waits on them before the run can end. */
-  working: string[];
 }
 
 export interface SyncHistoryEntry {
