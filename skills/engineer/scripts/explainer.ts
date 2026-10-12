@@ -12,18 +12,16 @@ import { diagramErrors } from './diagrams';
 export const TEMPLATE_PATH = join(import.meta.dir, '..', 'templates', 'explainer.html');
 
 const BODY = /<!-- body:start -->\n?([\s\S]*?)<!-- body:end -->/;
-const FORBIDDEN = [
-  [/<(script|style|link|iframe|frame|object|embed|form|base|meta)\b/i, 'a <script>, <style>, <link>, <iframe>, <object>, <embed>, <form>, <base> or <meta> tag'],
-  [/<[^>]*[\s/"']on[a-z]+\s*=/i, 'an on… event attribute'],
-] as const;
+const FORBIDDEN_TAG = /<(script|style|link|iframe|frame|object|embed|form|base|meta)\b/i;
+const EVENT_ATTRIBUTE = /<[^>]*[\s/"']on[a-z]+\s*=/i;
 
 /** Browsers read entity-encoded and whitespace-split scheme names (`&#106;avascript:`, `java\tscript:`) as the scheme. */
-const NAMED: Record<string, string> = { colon: ':', tab: '', newline: '' };
 const schemeText = (html: string): string =>
   html
     .replace(/&#x([0-9a-f]+);?/gi, (_match, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
     .replace(/&#(\d+);?/g, (_match, decimal: string) => String.fromCodePoint(Number(decimal)))
-    .replace(/&(colon|tab|newline);/gi, (_match, name: string) => NAMED[name.toLowerCase()] ?? '')
+    .replace(/&colon;/gi, ':')
+    .replace(/&(tab|newline);/gi, '')
     .replace(/[\s\u0000-\u001f]+/g, '');
 
 const ENTITIES: Record<string, string> = { '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&amp;': '&' };
@@ -38,13 +36,17 @@ interface BodyCheck {
 
 export const checkBody = (body: string): BodyCheck => {
   const h1s = [...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)];
+  const forbiddenTag = FORBIDDEN_TAG.exec(body)?.[1];
   const sections = [...body.matchAll(/<section\b[^>]*>\s*(?:<!--[\s\S]*?-->\s*)*(<h2\b)?/gi)];
   const diagramBlocks = [...body.matchAll(/<pre\b[^>]*class=(["'])[^"']*\bdiagram\b[^"']*\1[^>]*>([\s\S]*?)<\/pre>/gi)].map((match) => match[2]);
   const errors = [
-    ...FORBIDDEN.filter(([pattern]) => pattern.test(body)).map(([, what]) => `the body holds ${what}; the shell owns all script and style`),
-    ...((body.match(/<[^>]*>/g) ?? []).some((tag) => /=["']?javascript:/i.test(schemeText(tag)))
-      ? ['the body holds a javascript: URL; the shell owns all script and style']
-      : []),
+    ...[
+      forbiddenTag && `a <${forbiddenTag.toLowerCase()}> tag`,
+      EVENT_ATTRIBUTE.test(body) && 'an on… event attribute',
+      (body.match(/<[^>]*>/g) ?? []).some((tag) => /=["']?javascript:/i.test(schemeText(tag))) && 'a javascript: URL'
+    ]
+      .filter((what): what is string => typeof what === 'string')
+      .map((what) => `the body holds ${what}; the shell owns all script and style`),
     ...(h1s.length === 1 ? [] : [`the body needs exactly one <h1> (the page title), found ${h1s.length}`]),
     ...(sections.length ? [] : ['the body has no <section>; each part of the explainer is a <section> opening with an <h2>']),
     ...sections.flatMap((match, index) => (match[1] ? [] : [`section ${index + 1} doesn't open with an <h2>`])),

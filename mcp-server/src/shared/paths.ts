@@ -6,6 +6,7 @@
  * imports config). Three copies of the same three lines used to live in those files, and they
  * had already drifted — two handled `~/foo` but not a bare `~`.
  */
+import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
@@ -15,6 +16,15 @@ export const expandTilde = (path: string): string => {
     return homedir();
   }
   return path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path;
+};
+
+/** The file or folder a symlinked path points at (/tmp for /private/tmp); a path that doesn't exist stays as written. */
+export const existingTarget = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
 };
 
 /** Whether `child` is `parent` or somewhere beneath it (lexical; resolve symlinks first when they matter). */

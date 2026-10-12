@@ -1,6 +1,7 @@
 import { FOLDERS } from '@/config';
+import { existingTarget } from '@/shared/paths';
 import { randomUUID } from 'node:crypto';
-import { chmodSync, mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'fs';
+import { chmodSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { dirname, relative } from 'path';
 
 // ── Path helpers ──────────────────────────────────────────────────────
@@ -17,14 +18,6 @@ export function repoRelative(absolutePath: string): string {
 }
 
 // ── Filesystem helpers ────────────────────────────────────────────────
-
-const existingTarget = (path: string): string => {
-  try {
-    return realpathSync(path);
-  } catch {
-    return path;
-  }
-};
 
 /**
  * Atomic write: serialise to a uniquely named sibling temp file, then rename. A crash leaves the

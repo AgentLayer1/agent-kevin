@@ -194,7 +194,7 @@ export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   if (body.length > maxBytes) {
     // Cut at the last whole entry: a half link points at a file that isn't there.
     const lastBreak = body.lastIndexOf('\n', maxBytes);
-    body = [body.slice(0, Math.max(lastBreak, 0)).trimEnd(), '…(see reports/index.md)'].filter(Boolean).join('\n');
+    body = lastBreak > 0 ? `${body.slice(0, lastBreak).trimEnd()}\n…(see reports/index.md)` : '…(see reports/index.md)';
   }
 
   return {

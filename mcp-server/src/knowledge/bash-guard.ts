@@ -1,6 +1,7 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
+import { existingTarget } from '../shared/paths';
 import { commandWords, scanShell, type ShellCommand } from './shell-scan';
 
 /** One platform's path rules, with the home and the starting cwd already in that platform's form. */
@@ -15,20 +16,11 @@ interface Paths {
 /** Git Bash and Cygwin spell C:\Users as /c/Users or /cygdrive/c/Users; Windows path APIs need the drive form. */
 const driveForm = (path: string): string => path.replace(/^\/(?:cygdrive\/)?([a-z])(?=\/|$)/i, '$1:/');
 
-/** The target of a symlinked spelling (/tmp for /private/tmp); a path that doesn't exist stays as written. */
-const physical = (path: string): string => {
-  try {
-    return realpathSync(path);
-  } catch {
-    return path;
-  }
-};
-
 const pathsFor = (cwd: string, home: string, platform: NodeJS.Platform): Paths => {
   const api = platform === 'win32' ? win32 : posix;
   const native = platform === 'win32' ? driveForm : (path: string) => path;
   const resolvedHome = api.resolve(native(home));
-  return { api, native, home: resolvedHome, realHome: physical(resolvedHome), start: api.resolve(native(cwd)) };
+  return { api, native, home: resolvedHome, realHome: existingTarget(resolvedHome), start: api.resolve(native(cwd)) };
 };
 
 const within = (root: string, dir: string, api: typeof posix): boolean => {
@@ -37,7 +29,7 @@ const within = (root: string, dir: string, api: typeof posix): boolean => {
 };
 
 const insideHome = (dir: string, { api, home, realHome }: Paths): boolean =>
-  within(home, dir, api) || within(realHome, physical(dir), api);
+  within(home, dir, api) || within(realHome, existingTarget(dir), api);
 
 const COMPUTED_DIR = /[$`*?[]|^~/;
 const HOME_PREFIX = /^(?:~|\$HOME|\$\{HOME\})(?=$|\/)/;
@@ -52,7 +44,11 @@ const resolveCd = (dir: string | undefined, command: ShellCommand, { api, native
   if (name.text === 'popd' || (name.text === 'pushd' && !target)) {
     return undefined;
   }
-  const raw = (target?.text ?? '~').replace(HOME_PREFIX, homedir());
+  // `$HOME` in single quotes is a folder named $HOME, which the computed check below lets through.
+  const raw =
+    target === undefined
+      ? homedir()
+      : target.text.replace(target.expands ? HOME_PREFIX : /^~(?=$|\/)/, homedir());
   if (raw === '-' || COMPUTED_DIR.test(raw)) {
     return undefined;
   }

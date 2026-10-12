@@ -221,8 +221,8 @@ const reviewErrors = (data: Row): string[] => {
       ...textErrors(row, ['title', 'diagram'], at),
       ...rowErrors(row.steps, `${at}.steps`, KEYS.step, (step, stepAt) => [...textErrors(step, ['text'], stepAt), ...optionalAnchor(step.anchor, `${stepAt}.anchor`)])
     ]),
-    ...rowErrors(data.areas, 'areas', KEYS.area, (row, at) => textErrors(row, ['area', 'what', 'why'], at)),
-    ...rowErrors(data.behavior, 'behavior', KEYS.behavior, (row, at) => textErrors(row, ['case', 'before', 'after'], at)),
+    ...rowErrors(data.areas, 'areas', KEYS.area, (row, at) => textErrors(row, KEYS.area, at)),
+    ...rowErrors(data.behavior, 'behavior', KEYS.behavior, (row, at) => textErrors(row, KEYS.behavior, at)),
     ...textListErrors(data.holdQuestions, 'holdQuestions'),
     ...(data.caseAgainst === undefined
       ? []
@@ -474,13 +474,12 @@ export const renderPage = (template: string, data: Row): string => {
 export const cardMismatch = (saved: string, data: Row): string | null => {
   const front = /^---\n([\s\S]*?)\n---\n/.exec(saved)?.[1] ?? '';
   const field = (key: string): string => (new RegExp(`^${key}:\\s*(.*)$`, 'm').exec(front)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-  const args = reportArgs(data);
-  const { extra } = args;
+  const { status, extra } = reportArgs(data);
   if (field('pr') !== String(extra.pr) || field('mode') !== String(extra.mode)) {
     return `the card is PR #${field('pr') || '?'} (${field('mode') || '?'}), but the data is PR #${String(extra.pr)} (${String(extra.mode)})`;
   }
   const changed = [
-    ['status', args.status],
+    ['status', status],
     ...(data.kind === 'review' ? [['verdict', String(extra.verdict)], ['blockers', String(extra.blockers)]] : [])
   ].filter(([key, value]) => field(key) !== value);
   return changed.length

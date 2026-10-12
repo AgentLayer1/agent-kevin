@@ -143,6 +143,7 @@ describe('shellGuard: directory drift', () => {
     expect(claude('cd $HOME && ls')).toContain('Blocked');
     expect(claude('cd ${HOME}/x')).toContain('Blocked');
     expect(claude('cd ~root')).toBeUndefined();
+    expect(claude("cd '$HOME'")).toBeUndefined();
   });
 
   test('reads a symlinked spelling of the home as the home', () => {
