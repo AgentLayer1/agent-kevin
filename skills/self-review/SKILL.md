@@ -1,6 +1,6 @@
 ---
 name: self-review
-description: Monthly upkeep of the agent's brain and rules, with the operator. The brain pass finds decay (stale or dormant tasks, quiet projects, memory lines gone false, decisions worth keeping, outdated articles, old captures), asks about each with evidence and a recommendation, and applies the answers. The rules pass prunes the prompt surface, turns feedback into prompt, skill, or code-plan changes, and promotes generic rules to the plugin. Sync offers it when due. Triggers on "run a self-review", "clean up the brain", "what's gone stale", "prune your memory", "review your own instructions", or /self-review.
+description: Monthly upkeep of the agent's brain and rules, with the operator. The brain pass finds decay (stale or dormant tasks, quiet projects, memory lines gone false, decisions worth keeping, outdated articles, broken pins and stale surfaces, old captures), asks about each with evidence and a recommendation, and applies the answers. The rules pass prunes the prompt surface, turns feedback into prompt, skill, or code-plan changes, and promotes generic rules to the plugin. Sync offers it when due. Triggers on "run a self-review", "clean up the brain", "what's gone stale", "prune your memory", "review your own instructions", or /self-review.
 ---
 
 # Self-Review

@@ -181,7 +181,7 @@ Watermarks live in `.state/cadence.json` (`goals-week`, `goals-month`, `goals-ye
 bun "${CLAUDE_PLUGIN_ROOT}/skills/self-review/scripts/brain-audit.ts"
 ```
 
-Read its `counts` into the `🧹 Brain` output line, so decay stays visible between monthly reviews. No questions come from it here; the self-review's brain pass asks them.
+Read its `counts` into the `🧹 Brain` output line, so decay stays visible between monthly reviews. No questions come from it here; the self-review's brain pass asks them. A broken pin is the exception worth naming: the dashboard drops it from the sidebar without a word, so list each one's title in the line.
 
 ### 7. Read the dust-settled state
 
@@ -308,7 +308,7 @@ One block, tight. Skip empty sections — don't pad.
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
 
-🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · oldest waiting since <date>   (omit when every count is 0)
+🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · <n> broken pins · <n> stale surfaces · oldest waiting since <date>   (omit when every count is 0)
 
 💻 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, diverged, or held by a worktree>

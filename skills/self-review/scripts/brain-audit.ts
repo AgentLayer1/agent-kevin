@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /**
  * The brain pass's decay inventory: stale and dormant tasks, dormant projects, memory-index lines
- * worth a question, archived decisions no pass has settled, stale articles, and old captures.
+ * worth a question, archived decisions no pass has settled, stale articles, broken pins and stale
+ * surfaces, and old captures.
  * Every bucket is a date comparison or a count; the interview judges, this only detects. Read-only.
  *
  * Usage: brain-audit.ts [--home <dir>] [--today YYYY-MM-DD]   (else the agent's home variable, else the cwd)
@@ -24,6 +25,7 @@ const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/sha
 const { daysBetween, todayDate } = await import('../../../mcp-server/src/shared/date');
 const { hashBuffer, splitFrontmatter } = await import('../../../mcp-server/src/knowledge/utils');
 const { discoverProjects, scanAllTasks, scanArchivedTasks } = await import('../../../mcp-server/src/tasks/scan');
+const { readPins, surfaceFiles } = await import('../../../mcp-server/src/status/surfaces');
 
 if (!isAgentHome(agentHomePath())) {
   console.error(`not an agent home: ${agentHomePath()}`);
@@ -290,6 +292,34 @@ const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice
   })
   .filter((group) => !keptQuiet(group.key));
 
+// What the operator keeps in view: the roadmap, project dashboards and pinned reports. A broken pin
+// silently drops off the sidebar, so it is always reported. The rest go stale by mtime: pinned
+// filenames are dated slugs no operator turn names.
+const pins = readPins();
+const brokenPins = pins
+  .filter((pin) => !pin.exists)
+  .map((pin) => ({ key: `pin:${pin.href}`, title: pin.title, href: pin.href }));
+const surfaceRows = [
+  ...surfaceFiles().map((surface) => ({
+    kind: surface.kind,
+    title: surface.kind === 'roadmap' ? 'Roadmap' : surface.slug,
+    path: surface.path
+  })),
+  ...pins.filter((pin) => pin.exists).map((pin) => ({ kind: 'pin' as const, title: pin.title, path: pin.path }))
+].map((surface) => ({
+  key: `surface:${homeRelative(surface.path)}`,
+  kind: surface.kind,
+  title: surface.title,
+  path: homeRelative(surface.path),
+  modified: todayDate(statSync(surface.path).mtime),
+  hash: hash(read(surface.path))
+}));
+// A pin to the roadmap is the same file twice: the first row wins, since its kind says how to refresh it.
+const staleSurfaces = surfaceRows
+  .filter((row, index) => surfaceRows.findIndex((other) => other.key === row.key) === index)
+  .filter((row) => (age(row.modified) ?? 0) >= DORMANT_DAYS && !keptQuiet(row.key, row.hash))
+  .toSorted((left, right) => left.modified.localeCompare(right.modified));
+
 const memory = {
   threads: memoryLines('Active Threads'),
   pending: memoryLines('Pending'),
@@ -311,6 +341,7 @@ const audit = {
   memory,
   decisions: archivedDecisions,
   articles: staleArticles,
+  surfaces: { broken: brokenPins, stale: staleSurfaces },
   storage: { captures },
   counts: {
     staleTasks: staleTasks.length,
@@ -323,6 +354,8 @@ const audit = {
       openQuestions.length,
     decisions: archivedDecisions.length,
     staleArticles: staleArticles.length,
+    brokenPins: brokenPins.length,
+    staleSurfaces: staleSurfaces.length,
     oldCaptureFiles: captures.reduce((sum, group) => sum + group.files.length + group.folders.length, 0),
     oldestWaiting
   }

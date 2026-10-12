@@ -1,6 +1,6 @@
 # Brain pass
 
-The agent's data, not its rules: tasks nobody touches, projects gone quiet, memory lines that went false, decisions worth keeping, articles current state has outrun, and storage nobody needs. Only the operator knows whether something stale is still wanted, so this pass asks, one item at a time, with the evidence and a recommendation in front of them. It detects with a script, verifies on the machine, and applies each answer as it lands.
+The agent's data, not its rules: tasks nobody touches, projects gone quiet, memory lines that went false, decisions worth keeping, articles current state has outrun, pinned reports and surfaces gone broken or old, and storage nobody needs. Only the operator knows whether something stale is still wanted, so this pass asks, one item at a time, with the evidence and a recommendation in front of them. It detects with a script, verifies on the machine, and applies each answer as it lands.
 
 ## Step 1 — Inventory
 
@@ -22,6 +22,8 @@ It prints JSON, writes nothing, and counts only. Every bucket is a date comparis
 | `memory.openQuestions` | the `[stale]` gaps compile's gap pass flagged |
 | `decisions` | archived decisions from the last 45 days that no pass has settled; any `asked` answer settles one. Most are already held by an article and are recorded silently |
 | `articles` | concepts and user facets untouched for 60 days and unmentioned for 60 |
+| `surfaces.broken` | pins in `reports/pinned.md` whose file is gone; the dashboard drops them without a word, so every one is asked |
+| `surfaces.stale` | the roadmap, each project's `dashboard.html`, and every pinned report, unchanged on disk for 60 days (`kind`: `roadmap`, `dashboard` or `pin`) |
 | `storage.captures` | captures older than 30 days (a folder by its newest file), one group per month with its exact `files` and `folders` |
 
 "Operator mention" counts only `**User:**` turns, matched on whole words: the agent names overdue ids in its own output every day. A pasted report inside a user turn still counts, so treat a mention as a reason to look, never as proof of activity. Every keepable row carries a `key` and a `hash`; items kept within the last 90 days are already filtered out while their hash is unchanged.
@@ -37,6 +39,8 @@ The script only detects. Before an item becomes a question, check it against the
 - **Open Questions.** Find the source the gap is about (a task, a README, a concept, a memory line). A question you can't trace to a source gets asked as is.
 - **Decisions.** Grep the concepts, user facets and project READMEs for each decision's key terms. Only a durable decision that no permanent article holds becomes a question; the rest stay archived silently.
 - **Articles.** Read each one and compare its claims with current state. Bring specific contradictions ("says v0.4; the plugin is on 0.6"). With none found, the question is whether it's still accurate.
+- **Broken pins.** Search `reports/` for the missing file's name. A hit makes the recommendation "fix the link to `<path>`"; no hit, Unpin.
+- **Stale surfaces.** Read each like an article and compare it with current state: the roadmap against the task board and recent decisions, a project dashboard against that project's tasks and README, a pinned report against what it describes.
 - **Captures.** Read the group's size and its file and folder counts; nothing else.
 
 Drop any item verification shows is already handled: the operator never answers a question the machine already answered.
@@ -47,10 +51,11 @@ Order, because a stale item costs most where it's loaded most:
 
 1. The flywheel's stalled tasks, when sync handed any.
 2. Memory lines: Active Threads, Pending, Key Context, Open Questions.
-3. The work: dormant tasks, then stale ones, then old active ones, then dormant projects. Oldest first within each.
-4. Decisions to promote.
-5. Articles.
-6. Capture months.
+3. Broken pins, then stale surfaces: the operator chose to keep these in view.
+4. The work: dormant tasks, then stale ones, then old active ones, then dormant projects. Oldest first within each.
+5. Decisions to promote.
+6. Articles.
+7. Capture months.
 
 Ask 4 questions per call (`AskUserQuestion` under Claude Code; a numbered list per batch under Codex). Each question names the item, gives one line of evidence, and puts your recommendation first, marked `(Recommended)`. Apply each batch's answers before asking the next, so stopping early loses nothing. Apply them in this session, never through a subagent: the approval lives in this conversation, and a permission check that can't see it may refuse the write. After 6 calls (24 questions), ask **Continue** or **Stop here**. Whatever's left is asked first next month: the next inventory ranks the same items oldest first, minus what was answered.
 
@@ -64,6 +69,8 @@ Ask 4 questions per call (`AskUserQuestion` under Claude Code; a numbered list p
 | Open Question | **Answer** → apply the answer to the question's source; the next sync's gap pass drops the question · **No longer relevant** → correct or remove the stale fact at its source · **Keep** |
 | Decision | **Promote** → write it into the named article, with the date · **Leave it archived** |
 | Article | **Rewrite** → apply your draft built from the contradictions · **Still accurate** · **Delete the section** (or the article, updating `knowledge/index.md`) |
+| Broken pin | **Fix the link** → rewrite its line in `reports/pinned.md` to the found path · **Unpin** → delete its line |
+| Stale surface | **Refresh** → a pin: rewrite it from the contradictions, with the operator; the roadmap: the roadmap skill's update; a project dashboard: rerun what renders it (the tax engine for `tax`), else rewrite it · **Still accurate** · **Unpin** (pins only) → delete its line · **Promote** (pins only) → `capture` it into `raw/inbox/` for compile, since a pin already says it is durable |
 | Capture month | **Keep** · **Delete** → the question states how many files and folders (a folder goes with everything in it). Remove exactly what the inventory listed, each absolute path written out in full: `rm -- '<file>' …` for `files`, `rm -r -- '<folder>' …` for `folders`. Never a glob or a built path. A folder belonging to another agent's home is deleted like any other, never moved |
 
 A typed answer ("Other") is applied as stated, when it maps to an effect above. Otherwise, ask once to clarify. Never edit `## Learnings` or `## Open Questions` directly: a fix lands on the source, and compile does the rest. Quote every line you delete or rewrite, as it read before, for the report.
@@ -80,13 +87,13 @@ Merge into `<HOME>/.state/review.json`, keeping every other key:
 }
 ```
 
-Add an `asked` entry for each **Keep** or **Still accurate** that changes nothing on disk: a memory line, an Open Question, an article, an old active task, a project, or a capture month. Use the row's `key` and `hash` exactly as the inventory emitted them, with `answer: "keep"` for either answer. A stale task kept with a horizon needs no entry, since setting it moves its `updated`; a plain Keep gets `task:<id>` with an empty `hash`. Record every decision the pass reached, with its `key` and `answer: "promote"` or `"leave"`, including those left silently because an article already holds them, so they are not checked again. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
+Add an `asked` entry for each **Keep** or **Still accurate** that changes nothing on disk: a memory line, an Open Question, an article, a surface, an old active task, a project, or a capture month. Use the row's `key` and `hash` exactly as the inventory emitted them, with `answer: "keep"` for either answer. A stale task kept with a horizon needs no entry, since setting it moves its `updated`; a plain Keep gets `task:<id>` with an empty `hash`. Record every decision the pass reached, with its `key` and `answer: "promote"` or `"leave"`, including those left silently because an article already holds them, so they are not checked again. Drop `asked` entries older than 90 days. Remove `snoozeUntil` and `skippedOn` if present. Write `brainLastRun` on Stop too: the leftovers come first next time anyway.
 
 ## Step 5 — Hand off to the report
 
 Give the shared wrap (SKILL.md, Finish) a `## Brain` section:
 
-- the decisions by kind with counts (kept, parked, cancelled, closed, dropped, rewritten, promoted, deleted), tallied from what landed (the task files and `asked` entries written this sitting), never from a running count;
+- the decisions by kind with counts (kept, parked, cancelled, closed, dropped, rewritten, promoted, refreshed, unpinned, deleted), tallied from what landed (the task files and `asked` entries written this sitting), never from a running count;
 - how many items are still waiting, and how old the oldest one is;
 - promotions with their target articles;
 - projects handed to archive;

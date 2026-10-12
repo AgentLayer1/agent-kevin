@@ -163,4 +163,38 @@ describe('brain-audit', () => {
     ]);
     expect(audit.counts.oldCaptureFiles).toBe(3);
   });
+
+  test('a broken pin is always reported, and a surface is stale from 60 days untouched until kept unchanged', () => {
+    const { write, run, age } = home();
+    write('roadmap.html', 'roadmap');
+    write('projects/acme/dashboard.html', 'dashboard');
+    write('reports/plans/old.md', 'old pin');
+    write('reports/plans/kept.md', 'kept pin');
+    write('reports/plans/fresh.md', 'fresh pin');
+    ['roadmap.html', 'projects/acme/dashboard.html', 'reports/plans/old.md', 'reports/plans/kept.md'].forEach((rel) =>
+      age(rel, 61)
+    );
+    write(
+      'reports/pinned.md',
+      '# Pinned\n\n- [Old](plans/old.md)\n- [Kept](plans/kept.md)\n- [Fresh](plans/fresh.md)\n- [Gone](plans/gone.html)\n- [Roadmap](../roadmap.html)\n'
+    );
+    write(
+      join(RUNTIME_DIR, 'review.json'),
+      JSON.stringify({
+        asked: { 'surface:reports/plans/kept.md': { date: daysAgo(10), answer: 'keep', hash: hashBuffer('kept pin') } }
+      })
+    );
+    const audit = run();
+    expect(audit.surfaces.broken).toEqual([{ key: 'pin:plans/gone.html', title: 'Gone', href: 'plans/gone.html' }]);
+    expect(audit.surfaces.stale.map((row: { key: string; kind: string }) => [row.key, row.kind])).toEqual([
+      ['surface:roadmap.html', 'roadmap'],
+      ['surface:projects/acme/dashboard.html', 'dashboard'],
+      ['surface:reports/plans/old.md', 'pin']
+    ]);
+    expect(audit.counts).toMatchObject({ brokenPins: 1, staleSurfaces: 3 });
+
+    write('reports/plans/kept.md', 'kept pin, rewritten');
+    age('reports/plans/kept.md', 61);
+    expect(run().surfaces.stale.map((row: { key: string }) => row.key)).toContain('surface:reports/plans/kept.md');
+  });
 });
