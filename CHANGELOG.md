@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [0.7.2] - 2026-10-11
+## [0.7.2] - 2026-10-12
 
 ### Added
 - **`/queue <prompt>`** (Claude Code mod) holds a prompt until the current task ends, then sends
@@ -92,8 +92,17 @@ and prompts per optional one. The new template files are the source of truth for
   pin, the roadmap or a project dashboard unchanged for 60 days (refresh, still accurate, unpin, or
   promote a pin into the brain). Sync's 🧹 Brain line counts both. "Pin this report" goes through
   the dashboard skill.
+- **The Reports page leads with the pins** as their own group, with a 📌 Pinned filter chip beside
+  the categories.
+- **Pick a project's color.** `hue:` (0–359) in a project README's frontmatter colors its card,
+  chips and focus rows; a project without one keeps the color its name hashes to.
 
 ### Changed
+- **A project card shows its Roadmap and Focus links on its first line**, so they're visible
+  without expanding it, and a roadmap is a 🗺️ everywhere on the dashboard (it was 🧭).
+- **The Brain page's Injected at SessionStart list** leads with today's date and shows each
+  entry's note (how many pins, snapshots or reports), and the SessionStart hook's description
+  names the pinned reports and the home-check warnings it can add.
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so
   sync calls it directly rather than looking it up first.
 - Claude Code 2.1.293 or newer is required (mod autocomplete and tools kept out of tool search):
@@ -144,7 +153,8 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.7.2.ts. It drops `mcp__xcode__RunCodeSnippet` from `permissions.ask` in `.claude/settings.json` (the settings merge only adds, so the removal lives here); `mcp__xcode__InvokeDebuggerCommand` and every other entry keep their place. A home without the Xcode pack is untouched.
-- `template/AGENTS.md: mandatory` — Platform's shell-commands paragraph replaces "every git or build call starts with its own absolute `cd`" with `git -C`, absolute paths or a subshell `cd`, and keeps the absolute `cd` for commands handed to the operator. The scratch-files paragraph gains the exact-printed-name rule and names the `guard` hook, and its `mktemp` form gains a `/tmp` fallback for a Git Bash without `TMPDIR`.
+- `template/AGENTS.md: mandatory` — Platform's shell-commands paragraph replaces "every git or build call starts with its own absolute `cd`" with `git -C`, absolute paths or a subshell `cd`, and keeps the absolute `cd` for commands handed to the operator. The scratch-files paragraph gains the exact-printed-name rule and names the `guard` hook, and its `mktemp` form gains a `/tmp` fallback for a Git Bash without `TMPDIR`. Context Loading's dynamic list gains today's and pinned reports.
+- `template/CLAUDE.md: mandatory` — the bridge's SessionStart sentence names today's and pinned reports.
 
 ## [0.7.1] - 2026-10-08
 
