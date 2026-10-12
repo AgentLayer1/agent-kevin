@@ -50,6 +50,8 @@ export interface FakeMachine {
   commands: string[];
   /** CLI calls (`task query`) that exit 1. */
   failing: string[];
+  /** The folder the session started in. */
+  root: string;
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -72,6 +74,7 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   suggestions: [],
   commands: [],
   failing: [],
+  root: HOME,
   ...overrides
 });
 
@@ -132,7 +135,7 @@ export interface FakeHost extends FakeMachine {
 
 export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   const clock = mock.clock(on, { now: NOW });
-  on('session.root', () => ({ value: HOME }));
+  on('session.root', () => ({ value: host.root }));
   on('env.get', () => ({ value: USER_HOME }));
   on('settings.read', () => ({ value: { permissions: { additionalDirectories: [CODE, '~/granted'] } } }));
   on('process.run', (_$, e) => {

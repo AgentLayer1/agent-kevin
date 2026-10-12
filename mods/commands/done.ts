@@ -5,7 +5,7 @@ import { OPEN_STATUSES } from './today';
 
 const MAX_ROWS = 8;
 
-export const isDoneArgument = (beforeToken: string): boolean => /^\/done\s+$/.test(beforeToken);
+export const isDoneArgument = (beforeToken: string): boolean => /^\/(?:[\w-]+:)?done\s+$/.test(beforeToken);
 
 /**
  * Open tasks whose id starts with the token, then those whose title holds it, each in the task list's order.

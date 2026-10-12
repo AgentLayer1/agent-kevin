@@ -50,6 +50,13 @@ describe('setup prompt', () => {
     });
   }
 
+  test('a folder inside a home shows nothing, so init never nests a home', async ($, on) => {
+    const host = fakeHost(on, machine({ root: `${HOME}/projects`, files: { [`${HOME}/.state/version.json`]: '{}' } }));
+    await start($, host);
+    expect(await shown($, 'terminal')).not.toContain('set up');
+    expect(host.suggestions).not.toContain(`/${INIT}`);
+  });
+
   test('typing init by hand hides the row too', async ($, on) => {
     const host = fakeHost(on, machine({ files: {} }));
     await start($, host);

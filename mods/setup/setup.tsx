@@ -1,9 +1,11 @@
 import { atom, read, update } from 'claude-code';
 import type { EngineInterface, On } from 'claude-code';
 
-import { DATA_DIR, HOME_MARKERS } from '../manuals/repo';
+import { DATA_DIR, HOME_MARKERS, parentOf } from '../manuals/repo';
 
 const needsSetup = atom({ plugin: 'agent-kevin', key: 'needsSetup' } as const, false);
+
+const selfAndAncestors = (dir: string): string[] => (dir === '/' ? [] : [dir, ...selfAndAncestors(parentOf(dir))]);
 
 const exists = ($: EngineInterface, path: string): Promise<boolean> =>
   $.fs.stat(path).then(
@@ -12,15 +14,18 @@ const exists = ($: EngineInterface, path: string): Promise<boolean> =>
   );
 
 /**
- * No data dir holds a home marker and no SOUL.md sits at the root, so init has nothing to overwrite. Read from
- * disk rather than the CLI, which refuses to run outside a home and needs the plugin's packages installed.
+ * No data dir at the root or above it holds a home marker and no SOUL.md sits at the root, so init has nothing
+ * to overwrite and won't nest a home inside one. Read from disk rather than the CLI, which refuses to run
+ * outside a home and needs the plugin's packages installed.
  */
 async function isFresh($: EngineInterface): Promise<boolean> {
   const root = await $.session.root();
   const legacyDir = `.${$.plugin.name.replace(/^agent-/, '')}`;
   const paths = [
     `${root}/SOUL.md`,
-    ...[DATA_DIR, legacyDir].flatMap((dir) => HOME_MARKERS.map((marker) => `${root}/${dir}/${marker}`))
+    ...selfAndAncestors(root).flatMap((folder) =>
+      [DATA_DIR, legacyDir].flatMap((dir) => HOME_MARKERS.map((marker) => `${folder}/${dir}/${marker}`))
+    )
   ];
   return !(await Promise.all(paths.map((path) => exists($, path)))).includes(true);
 }

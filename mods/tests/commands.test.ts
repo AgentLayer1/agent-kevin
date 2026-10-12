@@ -54,6 +54,11 @@ describe('commands', () => {
     expect(suggestions[0]?.description).toBe('Licence fixture');
   });
 
+  test('/done suggests under its namespaced name too', async ($, on) => {
+    fakeHost(on);
+    expect((await typed($, `/${PLUGIN}:done ac-001`)).suggestions.map((row) => row.text)).toEqual(['ac-001']);
+  });
+
   test('/done also matches a word of the title', async ($, on) => {
     fakeHost(on);
     expect((await typed($, '/done licence')).suggestions.map((row) => row.text)).toEqual(['ac-001']);
