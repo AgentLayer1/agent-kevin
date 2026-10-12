@@ -51,6 +51,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
 import { collectFocusView } from './focus';
 import type { FocusView } from './focus-data';
+import { readPins, surfaceFiles } from './surfaces';
 
 export interface SettingsLayer {
   label: string;
@@ -1850,30 +1851,20 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
  *  deliberately absent — it belongs on that project's card, not in a sidebar
  *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] => {
-  const northStar = surfaceAt(FILES.ROADMAP, { title: 'Roadmap', icon: '🧭', appTab: true });
-  const projects: SurfaceLink[] = !existsSync(FOLDERS.PROJECTS)
-    ? []
-    : readdirSync(FOLDERS.PROJECTS, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .flatMap((entry) =>
-          surfaceAt(resolve(FOLDERS.PROJECTS, entry.name, 'dashboard.html'), {
-            title: titleize(entry.name),
-            icon: '📊',
-            appTab: false
-          })
-        )
-        .sort((a, b) => a.title.localeCompare(b.title));
+  const surfaces = surfaceFiles();
+  const northStar = surfaces
+    .filter((surface) => surface.kind === 'roadmap')
+    .flatMap((surface) => surfaceAt(surface.path, { title: 'Roadmap', icon: '🧭', appTab: true }));
+  const projects = surfaces
+    .filter((surface) => surface.kind === 'dashboard')
+    .flatMap((surface) => surfaceAt(surface.path, { title: titleize(surface.slug), icon: '📊', appTab: false }))
+    .sort((a, b) => a.title.localeCompare(b.title));
   return [...northStar, ...projects];
 };
 
-/** `- [Title](plans/x.html)` lines in reports/pinned.md, an optional icon
- *  before the link. Links are relative to reports/, like the index. */
-const collectPinned = (): SurfaceLink[] => {
-  const body = existsSync(FILES.REPORTS_PINNED) ? readFileSync(FILES.REPORTS_PINNED, 'utf-8') : '';
-  return [...body.matchAll(/^- (?:(\S+) )?\[([^\]]+)\]\(([^)]+)\)/gm)].flatMap(([, icon, title, href]) =>
-    surfaceAt(resolve(FOLDERS.REPORTS, href), { title, icon: icon ?? '📌', appTab: true })
-  );
-};
+/** The pins in reports/pinned.md whose file is there; a broken one is the brain audit's to flag. */
+const collectPinned = (): SurfaceLink[] =>
+  readPins().flatMap((pin) => surfaceAt(pin.path, { title: pin.title, icon: pin.icon ?? '📌', appTab: true }));
 
 const MAX_REPORTS = 60;
 
