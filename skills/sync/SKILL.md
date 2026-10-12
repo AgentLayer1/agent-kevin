@@ -308,7 +308,7 @@ One block, tight. Skip empty sections — don't pad.
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
 
-🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · <n> broken pins · <n> stale surfaces · oldest waiting since <date>   (omit when every count is 0)
+🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · <n> broken pins (<their titles>) · <n> stale surfaces · oldest waiting since <date>   (omit when every count is 0)
 
 💻 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, diverged, or held by a worktree>
