@@ -1,6 +1,6 @@
 ---
 name: dashboard
-description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (the focus skill's where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on.
+description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (the focus skill's where-am-i radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on. Also "pin this report".
 allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:focus), Bash
 ---
 
@@ -68,6 +68,15 @@ the health badge). Today opens on Focus, the home focus view (the focus skill
 renders it and `dashboard.html` embeds its data as a `focus-data` block). Each
 page's header tiles open the tab that explains them. Sub-tabs deep-link:
 `dashboard.html#today/focus`, `#tasks/attention`.
+
+## Pins
+
+The sidebar's Pinned group lists `reports/pinned.md`, one line per pin:
+`- 🛡️ [Security plan](plans/security-plan.html)`, the emoji optional (📌
+otherwise) and the link relative to `reports/`. "Pin this report" appends its
+line, creating the file with a `# Pinned` heading; "unpin" deletes the line.
+Then refresh. Every session's context lists the pins, and the self-review brain
+pass asks about one whose file is gone or unchanged for 60 days.
 
 ## Notes
 
