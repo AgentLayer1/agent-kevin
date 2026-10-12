@@ -299,25 +299,26 @@ const pins = readPins();
 const brokenPins = pins
   .filter((pin) => !pin.exists)
   .map((pin) => ({ key: `pin:${pin.href}`, title: pin.title, href: pin.href }));
-const surfaceRows = [
-  ...surfaceFiles().map((surface) => ({
-    kind: surface.kind,
-    title: surface.kind === 'roadmap' ? 'Roadmap' : surface.slug,
-    path: surface.path
-  })),
-  ...pins.filter((pin) => pin.exists).map((pin) => ({ kind: 'pin' as const, title: pin.title, path: pin.path }))
-].map((surface) => ({
-  key: `surface:${homeRelative(surface.path)}`,
-  kind: surface.kind,
-  title: surface.title,
-  path: homeRelative(surface.path),
-  modified: todayDate(statSync(surface.path).mtime),
-  hash: hash(read(surface.path))
-}));
-// A pin to the roadmap is the same file twice: the first row wins, since its kind says how to refresh it.
-const staleSurfaces = surfaceRows
-  .filter((row, index) => surfaceRows.findIndex((other) => other.key === row.key) === index)
-  .filter((row) => (age(row.modified) ?? 0) >= DORMANT_DAYS && !keptQuiet(row.key, row.hash))
+const surfaces = surfaceFiles();
+// A pin to the roadmap or a dashboard is asked about once, under that kind: the kind says how to refresh it.
+const surfacePaths = new Set(surfaces.map((surface) => surface.path));
+const staleSurfaces = [
+  ...surfaces,
+  ...pins
+    .filter((pin) => pin.exists && !surfacePaths.has(pin.path))
+    .map((pin) => ({ kind: 'pin' as const, title: pin.title, path: pin.path }))
+]
+  .map((surface) => ({ ...surface, modified: todayDate(statSync(surface.path).mtime) }))
+  .filter((surface) => (age(surface.modified) ?? 0) >= DORMANT_DAYS)
+  .map(({ kind, title, path, modified }) => ({
+    key: `surface:${homeRelative(path)}`,
+    kind,
+    title,
+    path: homeRelative(path),
+    modified,
+    hash: hash(read(path))
+  }))
+  .filter((row) => !keptQuiet(row.key, row.hash))
   .toSorted((left, right) => left.modified.localeCompare(right.modified));
 
 const memory = {

@@ -17,7 +17,7 @@ import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan'
 import { existsSync, readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { boldField, collectGoals, titleize } from './collect';
+import { boldField, collectGoals } from './collect';
 import {
   FocusSnapshotSchema,
   type FocusGroup,
@@ -27,6 +27,7 @@ import {
   type FocusView
 } from './focus-data';
 import { renderFocusHtml } from './focus-render';
+import { titleize } from './format';
 
 const log = createLogger('status.focus');
 

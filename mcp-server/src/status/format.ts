@@ -33,6 +33,12 @@ export const relTime = (iso: string | null): string => {
 export const truncate = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
+export const titleize = (slug: string): string =>
+  slug
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
 /** Strip the `mcp__<server>__` prefix MCP adds, leaving the bare tool name. */
 export const shortToolName = (name: string): string => {
   const idx = name.lastIndexOf('__');

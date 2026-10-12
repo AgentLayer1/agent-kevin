@@ -1833,38 +1833,28 @@ const computeHealth = (snap: Omit<StatusSnapshot, 'health'>): Health => {
   };
 };
 
-export const titleize = (slug: string): string =>
-  slug
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-/** One surface when the file is there, none when it isn't. appTab links go
- *  through the opener app, which needs an absolute path; in-frame ones are
- *  HOME-relative. */
-const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLink[] =>
-  existsSync(absPath) ? [{ ...entry, href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath) }] : [];
+/** appTab links go through the opener app, which needs an absolute path;
+ *  in-frame ones are HOME-relative. */
+const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLink => ({
+  ...entry,
+  href: entry.appTab ? absPath : relative(FOLDERS.HOME, absPath)
+});
 
 /** Surfaces are discovered by convention, never configured: the HOME-root
  *  roadmap.html (the north star, opened as a new tab) leads, then every
  *  project's dashboard.html. A project's own roadmap or focus page is
  *  deliberately absent — it belongs on that project's card, not in a sidebar
  *  that grows a row per project. */
-const collectSurfaces = (): SurfaceLink[] => {
-  const surfaces = surfaceFiles();
-  const northStar = surfaces
-    .filter((surface) => surface.kind === 'roadmap')
-    .flatMap((surface) => surfaceAt(surface.path, { title: 'Roadmap', icon: '🧭', appTab: true }));
-  const projects = surfaces
-    .filter((surface) => surface.kind === 'dashboard')
-    .flatMap((surface) => surfaceAt(surface.path, { title: titleize(surface.slug), icon: '📊', appTab: false }))
-    .sort((a, b) => a.title.localeCompare(b.title));
-  return [...northStar, ...projects];
-};
+const collectSurfaces = (): SurfaceLink[] =>
+  surfaceFiles().map(({ kind, title, path }) =>
+    surfaceAt(path, kind === 'roadmap' ? { title, icon: '🧭', appTab: true } : { title, icon: '📊', appTab: false })
+  );
 
 /** The pins in reports/pinned.md whose file is there; a broken one is the brain audit's to flag. */
 const collectPinned = (): SurfaceLink[] =>
-  readPins().flatMap((pin) => surfaceAt(pin.path, { title: pin.title, icon: pin.icon ?? '📌', appTab: true }));
+  readPins()
+    .filter((pin) => pin.exists)
+    .map((pin) => surfaceAt(pin.path, { title: pin.title, icon: pin.icon ?? '📌', appTab: true }));
 
 const MAX_REPORTS = 60;
 
