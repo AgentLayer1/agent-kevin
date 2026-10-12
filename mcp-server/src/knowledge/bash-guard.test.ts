@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { homeRelativeLeak, shellGuard } from './bash-guard';
@@ -63,6 +63,7 @@ describe('homeRelativeLeak', () => {
     expect(homeRelativeLeak('cp projects/a.md /tmp/b.md', repo, home)).toBeUndefined();
     expect(homeRelativeLeak('cp notes.md projects/a.md', repo, home)).toBe('projects/a.md');
     expect(homeRelativeLeak('make 2> reports/build.log', repo, home)).toBe('reports/build.log');
+    expect(homeRelativeLeak('echo hi >| knowledge/x.md', repo, home)).toBe('knowledge/x.md');
   });
 
   test("a quoted '>' is an argument, and a subshell's cd stays in the subshell", () => {
@@ -134,6 +135,29 @@ describe('shellGuard: directory drift', () => {
     expect(claude('cd ..cache && ls')).toBeUndefined();
   });
 
+  test('prints a quoted cd back to the home', () => {
+    expect(claude('git status', repo)).toContain(`Run cd "${home}" first`);
+  });
+
+  test('expands $HOME like ~, and treats ~user as computed', () => {
+    expect(claude('cd $HOME && ls')).toContain('Blocked');
+    expect(claude('cd ${HOME}/x')).toContain('Blocked');
+    expect(claude('cd ~root')).toBeUndefined();
+  });
+
+  test('reads a symlinked spelling of the home as the home', () => {
+    const linked = join(root, 'linked-home');
+    symlinkSync(home, linked);
+    expect(shellGuard('git status', join(linked, 'projects'), home, 'claude')).toBeUndefined();
+    expect(shellGuard('git status', home, linked, 'claude')).toBeUndefined();
+  });
+
+  test('is skipped for a session launched outside the home, which a pinned home still reaches', () => {
+    expect(shellGuard('git status', repo, home, 'claude', { launch: repo })).toBeUndefined();
+    expect(shellGuard(`cd ${root}`, repo, home, 'claude', { launch: repo })).toBeUndefined();
+    expect(shellGuard('git status', repo, home, 'claude', { launch: home })).toContain('earlier cd');
+  });
+
   test('is skipped under Codex, which starts every command in the workspace', () => {
     expect(shellGuard(`cd ${repo} && git status`, home, home, 'codex')).toBeUndefined();
   });
@@ -168,6 +192,17 @@ describe('shellGuard: shared temp dir', () => {
     expect(claude("grep -rn 'tmp/*' src")).toBeUndefined();
   });
 
+  test('a $TMPDIR in single quotes is text, not a path', () => {
+    expect(claude("grep -rn '$TMPDIR/prompt.md' templates/")).toBeUndefined();
+    expect(claude("ls '$TMPDIR/mmd-*'")).toBeUndefined();
+    expect(claude('cat \\$TMPDIR/prompt.md')).toBeUndefined();
+    expect(claude('cat "$TMPDIR/prompt.md"')).toContain('hand-picked name');
+  });
+
+  test('only TMPDIR itself is the temp dir', () => {
+    expect(claude('cat ${TMPDIRX}/prompt.md')).toBeUndefined();
+  });
+
   test('a pattern after a --flag= is still a pattern', () => {
     expect(claude('bun x.ts --out=$TMPDIR/run-*')).toContain('by pattern');
   });
@@ -181,7 +216,7 @@ describe('shellGuard on native Windows', () => {
   const winHome = 'C:\\Users\\acme\\Documents\\Agents\\Scout';
   const winRepo = 'C:\\Users\\acme\\Developer\\shop';
   const onWindows = (command: string, cwd = winHome, host: 'claude' | 'codex' = 'claude'): string | undefined =>
-    shellGuard(command, cwd, winHome, host, 'win32');
+    shellGuard(command, cwd, winHome, host, { platform: 'win32' });
 
   test('reads Git Bash and Cygwin drive paths as the drive they name', () => {
     expect(onWindows('cd /c/Users/acme/Developer/shop && git status')).toContain('Blocked');

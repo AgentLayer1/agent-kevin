@@ -3,6 +3,8 @@ export interface ShellWord {
   text: string;
   /** Holds an unquoted `*`, `?` or `[`, so the shell would expand it. */
   globbed: boolean;
+  /** Holds a `$` the shell expands, as opposed to one in single quotes or escaped. */
+  expands: boolean;
   /** A redirection such as `>`, `2>&1` or `<<`, as opposed to a word that merely reads like one. */
   operator: boolean;
 }
@@ -14,7 +16,7 @@ export interface ShellCommand {
 }
 
 const HEREDOC = /(?<!<)<<-?\s*(["']?)([\w.-]+)\1/;
-const REDIRECT = /^(?:&>>?|[<>]+&?(?:\d+-?|-)?)/;
+const REDIRECT = /^(?:&>>?|>\||[<>]+&?(?:\d+-?|-)?)/;
 
 const withoutHeredocBodies = (script: string): string => {
   const lines = script.split('\n');
@@ -47,14 +49,16 @@ export function scanShell(script: string): ShellCommand[] {
     let words: ShellWord[] = [];
     let text = '';
     let globbed = false;
+    let expands = false;
     let inWord = false;
     let quoted = false;
     const endWord = (): void => {
       if (inWord) {
-        words.push({ text, globbed, operator: false });
+        words.push({ text, globbed, expands, operator: false });
       }
       text = '';
       globbed = false;
+      expands = false;
       inWord = false;
     };
     const endCommand = (): void => {
@@ -66,6 +70,7 @@ export function scanShell(script: string): ShellCommand[] {
     };
     const nested = (from: number, nestedCloser: string): number => {
       inWord = true;
+      expands = true;
       text += '$(…)';
       return scan(from, [...shells, ++lastShell], nestedCloser);
     };
@@ -89,6 +94,7 @@ export function scanShell(script: string): ShellCommand[] {
         i = nested(i + 1, '`');
       } else if (quoted) {
         quoted = ch !== '"';
+        expands ||= ch === '$';
         text += quoted ? ch : '';
         i += 1;
       } else if (ch === '"') {
@@ -115,7 +121,7 @@ export function scanShell(script: string): ShellCommand[] {
         }
         endWord();
         const operator = REDIRECT.exec(source.slice(i))?.[0] ?? ch;
-        words.push({ text: fd + operator, globbed: false, operator: true });
+        words.push({ text: fd + operator, globbed: false, expands: false, operator: true });
         i += operator.length;
       } else if (ch === '\n' || ch === ';' || ch === '|' || ch === '&') {
         endCommand();
@@ -125,6 +131,7 @@ export function scanShell(script: string): ShellCommand[] {
         i += 1;
       } else {
         globbed ||= ch === '*' || ch === '?' || ch === '[';
+        expands ||= ch === '$';
         text += ch;
         inWord = true;
         i += 1;

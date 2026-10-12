@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
 import { commandWords, scanShell, type ShellCommand } from './shell-scan';
@@ -6,34 +6,44 @@ import { commandWords, scanShell, type ShellCommand } from './shell-scan';
 /** One platform's path rules, with the home and the starting cwd already in that platform's form. */
 interface Paths {
   api: typeof posix;
-  platform: NodeJS.Platform;
+  native: (path: string) => string;
   home: string;
+  realHome: string;
   start: string;
 }
 
 /** Git Bash and Cygwin spell C:\Users as /c/Users or /cygdrive/c/Users; Windows path APIs need the drive form. */
-const nativePath = (path: string, platform: NodeJS.Platform): string =>
-  platform === 'win32' ? path.replace(/^\/(?:cygdrive\/)?([a-z])(?=\/|$)/i, '$1:/') : path;
+const driveForm = (path: string): string => path.replace(/^\/(?:cygdrive\/)?([a-z])(?=\/|$)/i, '$1:/');
+
+/** The target of a symlinked spelling (/tmp for /private/tmp); a path that doesn't exist stays as written. */
+const physical = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
 
 const pathsFor = (cwd: string, home: string, platform: NodeJS.Platform): Paths => {
   const api = platform === 'win32' ? win32 : posix;
-  return {
-    api,
-    platform,
-    home: api.resolve(nativePath(home, platform)),
-    start: api.resolve(nativePath(cwd, platform))
-  };
+  const native = platform === 'win32' ? driveForm : (path: string) => path;
+  const resolvedHome = api.resolve(native(home));
+  return { api, native, home: resolvedHome, realHome: physical(resolvedHome), start: api.resolve(native(cwd)) };
 };
 
-const insideHome = (dir: string, { api, home }: Paths): boolean => {
-  const fromHome = api.relative(home, dir);
-  return fromHome !== '..' && !fromHome.startsWith(`..${api.sep}`) && !api.isAbsolute(fromHome);
+const within = (root: string, dir: string, api: typeof posix): boolean => {
+  const fromRoot = api.relative(root, dir);
+  return fromRoot !== '..' && !fromRoot.startsWith(`..${api.sep}`) && !api.isAbsolute(fromRoot);
 };
 
-const COMPUTED_DIR = /[$`*?[]/;
+const insideHome = (dir: string, { api, home, realHome }: Paths): boolean =>
+  within(home, dir, api) || within(realHome, physical(dir), api);
+
+const COMPUTED_DIR = /[$`*?[]|^~/;
+const HOME_PREFIX = /^(?:~|\$HOME|\$\{HOME\})(?=$|\/)/;
 
 /** Where a shell stands after `command`; undefined once a cd target is one the shell computes. */
-const resolveCd = (dir: string | undefined, command: ShellCommand, { api, platform }: Paths): string | undefined => {
+const resolveCd = (dir: string | undefined, command: ShellCommand, { api, native }: Paths): string | undefined => {
   const [name, ...args] = commandWords(command);
   if (name?.text !== 'cd' && name?.text !== 'pushd' && name?.text !== 'popd') {
     return dir;
@@ -42,11 +52,11 @@ const resolveCd = (dir: string | undefined, command: ShellCommand, { api, platfo
   if (name.text === 'popd' || (name.text === 'pushd' && !target)) {
     return undefined;
   }
-  const raw = target?.text ?? '~';
+  const raw = (target?.text ?? '~').replace(HOME_PREFIX, homedir());
   if (raw === '-' || COMPUTED_DIR.test(raw)) {
     return undefined;
   }
-  const path = nativePath(raw.replace(/^~(?=$|\/)/, homedir()), platform);
+  const path = native(raw);
   return api.isAbsolute(path) ? api.resolve(path) : dir && api.resolve(dir, path);
 };
 
@@ -78,7 +88,7 @@ const walk = (commands: ShellCommand[], paths: Paths): { steps: Step[]; end: str
 
 const HOME_TREES = ['knowledge', 'projects', 'reports'];
 const TREE_PATH = new RegExp(`^(?:\\./)?(${HOME_TREES.join('|')})/`);
-const OUTPUT_REDIRECT = /^(?:\d*>>?|&>>?)$/;
+const OUTPUT_REDIRECT = /^(?:\d*>[>|]?|&>>?)$/;
 /** What each writing command writes: every operand, or only the last (its destination). */
 const WRITES = new Map<string, 'all' | 'last'>([
   ['mkdir', 'all'],
@@ -131,7 +141,7 @@ export function homeRelativeLeak(
   return leakIn(walk(scanShell(command), paths).steps, paths);
 }
 
-const TMPDIR_VAR = String.raw`\$(?:TMPDIR\b|\{TMPDIR[^}]*\})`;
+const TMPDIR_VAR = String.raw`\$(?:TMPDIR\b|\{TMPDIR(?:[:=?+-][^}]*)?\})`;
 /** A path under the shared temp dir, after an optional `name=`: group 1 is the `$TMPDIR` spelling when used, group 2 the folder right under it. */
 const TEMP_PATH = new RegExp(
   String.raw`^(?:[\w-]+=)?(?:(${TMPDIR_VAR})|/(?:private/)?tmp(?:/claude-\d+)?|/var/folders/[^/]+/[^/]+/T)/([^/]*)`
@@ -147,7 +157,9 @@ const SCRATCH_FIX =
 const scratchProblem = (command: ShellCommand): string | undefined => {
   const temp = command.words.flatMap((word) => {
     const match = TEMP_PATH.exec(word.text);
-    return match ? [{ word, variable: match[1], folder: match[2] ?? '' }] : [];
+    return match && (match[1] === undefined || word.expands)
+      ? [{ word, variable: match[1], folder: match[2] ?? '' }]
+      : [];
   });
   const pattern = temp.find(({ word, folder }) => word.globbed && /[*?[]/.test(folder));
   if (pattern) {
@@ -168,34 +180,41 @@ const scratchProblem = (command: ShellCommand): string | undefined => {
  * Code a cd in one call carries over to every later call, so a session that already drifted (an
  * operator `!` cd, a computed cd) is refused until a command returns.
  */
-const driftMessage = (end: string | undefined, paths: Paths, cwd: string, home: string): string | undefined => {
+const driftMessage = (end: string | undefined, paths: Paths): string | undefined => {
   if (end === undefined || insideHome(end, paths)) {
     return undefined;
   }
   if (end === paths.start) {
     return (
-      `Blocked: the session's working directory is ${cwd}, outside the agent home ${home}, because an earlier cd moved it. ` +
-      `Run cd ${home} first (alone, or as this command's start), then name other repos with git -C <repo> and absolute paths.`
+      `Blocked: the session's working directory is ${paths.start}, outside the agent home ${paths.home}, because an earlier cd moved it. ` +
+      `Run cd "${paths.home.replaceAll('\\', '/')}" first (alone, or as this command's start), then name other repos with git -C <repo> and absolute paths.`
     );
   }
   return (
-    `Blocked: this command would leave the session's working directory at ${end}, outside the agent home ${home}, ` +
+    `Blocked: this command would leave the session's working directory at ${end}, outside the agent home ${paths.home}, ` +
     `and a cd carries over to every later command. Name the repo instead (git -C <repo>, absolute paths), or keep the cd in a subshell: ( cd <repo> && … ).`
   );
 };
 
+interface GuardOptions {
+  platform?: NodeJS.Platform;
+  /** The folder the session was launched from; drift is checked only for a session launched in the home. */
+  launch?: string;
+}
+
 /**
  * The first reason to refuse a shell command, or undefined to let it run. Codex starts every
- * command in the workspace, so a cd never carries over there and drift is checked on Claude only.
- * On native Windows Codex runs PowerShell, so only the home-tree check, whose redirects read the
- * same there, applies; the temp-dir and drift checks judge Claude Code's Git Bash.
+ * command in the workspace, so a cd never carries over there and drift is checked on Claude only,
+ * and only for a session launched in the home (a pinned home also reaches sessions started in a
+ * repo). On native Windows Codex runs PowerShell, so only the home-tree check, whose redirects
+ * read the same there, applies; the temp-dir and drift checks judge Claude Code's Git Bash.
  */
 export function shellGuard(
   command: string,
   cwd: string,
   home: string,
   host: 'claude' | 'codex',
-  platform: NodeJS.Platform = process.platform
+  { platform = process.platform, launch }: GuardOptions = {}
 ): string | undefined {
   const paths = pathsFor(cwd, home, platform);
   const commands = scanShell(command);
@@ -210,7 +229,9 @@ export function shellGuard(
   if (host === 'codex' && platform === 'win32') {
     return undefined;
   }
+  const launchedHome = launch === undefined || insideHome(paths.api.resolve(paths.native(launch)), paths);
   return (
-    commands.map(scratchProblem).find(Boolean) ?? (host === 'claude' ? driftMessage(end, paths, cwd, home) : undefined)
+    commands.map(scratchProblem).find(Boolean) ??
+    (host === 'claude' && launchedHome ? driftMessage(end, paths) : undefined)
   );
 }

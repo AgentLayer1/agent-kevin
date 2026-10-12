@@ -577,7 +577,7 @@ async function run(): Promise<void> {
     if (typeof commandText !== 'string' || !input.cwd) return;
     const { shellGuard } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/bash-guard'));
     const host = [command, ...args].includes('--hook-protocol=codex') ? 'codex' : 'claude';
-    const refusal = shellGuard(commandText, input.cwd, FOLDERS.HOME, host);
+    const refusal = shellGuard(commandText, input.cwd, FOLDERS.HOME, host, { launch: process.env.CLAUDE_PROJECT_DIR });
     if (refusal) {
       console.error(refusal);
       process.exit(2);
