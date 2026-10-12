@@ -15,6 +15,15 @@ describe("today's reports in the session context", () => {
     expect(content).toBe(`${entry(1)}\n…(see reports/index.md)`);
     rmSync(FILES.REPORTS_INDEX, { force: true });
   });
+
+  test('a first entry longer than the cap is left out whole, not cut mid-link', async () => {
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+    mkdirSync(FOLDERS.REPORTS, { recursive: true });
+    writeFileSync(FILES.REPORTS_INDEX, `# Reports\n\n## ${today}\n\n- 09:00 · [A long one](plans/a-long-one.md)\n`);
+
+    expect((await todaysReports(10)).content).toBe('…(see reports/index.md)');
+    rmSync(FILES.REPORTS_INDEX, { force: true });
+  });
 });
 
 describe('pinned reports in the session context', () => {

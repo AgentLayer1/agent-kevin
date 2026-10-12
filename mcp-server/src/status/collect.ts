@@ -51,7 +51,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
 import { collectFocusView } from './focus';
 import type { FocusView } from './focus-data';
-import { readPins, surfaceFiles } from './surfaces';
+import { livePins, surfaceFiles } from './surfaces';
 
 export interface SettingsLayer {
   label: string;
@@ -385,8 +385,8 @@ export interface StatusSnapshot {
   /** URL template for opening markdown files, `{path}` = encoded abs path.
    *  Configurable via the MARKDOWN_URL env var (settings.local.json `env`). */
   markdownUrl: string;
-  /** Convention-discovered standalone pages: the HOME-root roadmap.html and
-   *  focus.html, then each project's dashboard.html. Empty renders nothing. */
+  /** Convention-discovered standalone pages: the HOME-root roadmap.html, then
+   *  each project's dashboard.html. Empty renders nothing. */
   surfaces: SurfaceLink[];
   /** Reports listed in reports/pinned.md, in file order; missing files drop out. */
   pinned: SurfaceLink[];
@@ -1852,9 +1852,7 @@ const collectSurfaces = (): SurfaceLink[] =>
 
 /** The pins in reports/pinned.md whose file is there; a broken one is the brain audit's to flag. */
 const collectPinned = (): SurfaceLink[] =>
-  readPins()
-    .filter((pin) => pin.exists)
-    .map((pin) => surfaceAt(pin.path, { title: pin.title, icon: pin.icon ?? '📌', appTab: true }));
+  livePins().map((pin) => surfaceAt(pin.path, { title: pin.title, icon: pin.icon ?? '📌', appTab: true }));
 
 const MAX_REPORTS = 60;
 

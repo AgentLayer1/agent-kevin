@@ -35,6 +35,8 @@ export interface BrainCounts {
   decisions: number;
   staleArticles: number;
   oldCaptureFiles: number;
+  brokenPins: number;
+  staleSurfaces: number;
   oldestWaiting: string | null;
 }
 

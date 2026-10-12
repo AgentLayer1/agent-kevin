@@ -34,7 +34,7 @@ import { log as baseLog } from '@/shared/log';
 import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
 import { isInside } from '@/shared/paths';
 import { countOf } from '@/shared/utils';
-import { readPins } from '@/status/surfaces';
+import { livePins } from '@/status/surfaces';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
@@ -194,7 +194,7 @@ export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   if (body.length > maxBytes) {
     // Cut at the last whole entry: a half link points at a file that isn't there.
     const lastBreak = body.lastIndexOf('\n', maxBytes);
-    body = `${body.slice(0, lastBreak > 0 ? lastBreak : maxBytes).trimEnd()}\n…(see reports/index.md)`;
+    body = [body.slice(0, Math.max(lastBreak, 0)).trimEnd(), '…(see reports/index.md)'].filter(Boolean).join('\n');
   }
 
   return {
@@ -211,7 +211,7 @@ export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
 /** The reports the operator pinned to the dashboard, as HOME-relative paths. A pin whose file is
  *  gone is left out; the brain audit flags it. No pins is a choice, so it reads `off`. */
 export function pinnedReports(maxPins: number): ReportsResult {
-  const pins = readPins().filter((pin) => pin.exists);
+  const pins = livePins();
   if (pins.length === 0) {
     return { content: null, entry: { label: 'pinned reports', status: 'off', bytes: 0, note: 'none pinned' } };
   }

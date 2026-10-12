@@ -69,6 +69,8 @@ export const parseBrain = (text: string): BrainCounts | null => {
     decisions: count(counts.decisions),
     staleArticles: count(counts.staleArticles),
     oldCaptureFiles: count(counts.oldCaptureFiles),
+    brokenPins: count(counts.brokenPins),
+    staleSurfaces: count(counts.staleSurfaces),
     oldestWaiting: typeof counts.oldestWaiting === 'string' ? counts.oldestWaiting : null
   };
 };
