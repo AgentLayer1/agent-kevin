@@ -85,6 +85,11 @@ and prompts per optional one. The new template files are the source of truth for
   per line with an optional emoji before it (`- 🗺️ [Roadmap](plans/roadmap.html)`), relative to
   `reports/`. The dashboard draws them as a Pinned group under Surfaces, each opening in a new
   tab; a listed file that is gone drops out.
+- **Pins and surfaces reach the agent.** Every session's context lists the pinned reports. The
+  self-review brain pass asks about a pin whose file is gone (fix the link or unpin), and about a
+  pin, the roadmap or a project dashboard unchanged for 60 days (refresh, still accurate, unpin, or
+  promote a pin into the brain). Sync's 🧹 Brain line counts both. "Pin this report" goes through
+  the dashboard skill.
 
 ### Changed
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so
