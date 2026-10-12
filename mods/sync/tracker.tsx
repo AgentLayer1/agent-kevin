@@ -82,7 +82,8 @@ export const registerSync = (on: On): void => {
       name: STATS_TOOL,
       description:
         "Counted numbers for the sync that is running: compile backlog, task health and brain counts measured at the run's start and now, actions tallied from tool results, and phase timings. Call once before writing sync's output block.",
-      inputSchema: { type: 'object', properties: {} }
+      inputSchema: { type: 'object', properties: {} },
+      isDeferred: false
     });
     return next(e);
   });

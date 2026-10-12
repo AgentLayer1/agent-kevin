@@ -77,6 +77,11 @@ and prompts per optional one. The new template files are the source of truth for
   with a sticky top bar, a contents dropdown that tracks the section in view, and the theme switch.
 
 ### Changed
+- **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so
+  sync calls it directly rather than looking it up first.
+- Claude Code 2.1.293 or newer is required (mod autocomplete and tools kept out of tool search):
+  init and upgrade stop below it with `claude update`, and the SessionStart banner warns until the
+  host is updated.
 - **Review depth follows risk.** A PR under 300 changed lines with no risk-triaged file runs
   compact: three agents carrying three lanes each, and at most two verifiers. `--full` overrides.
   The local checks find the repo's own gates in its docs and manifests and run them with its own

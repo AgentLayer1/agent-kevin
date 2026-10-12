@@ -1,10 +1,13 @@
-import { checkHosts, hostIssues, parseHostVersion, requiredHosts, type HostName } from '@/hosts';
+import { HOST_FLOORS, checkHosts, hostIssues, parseHostVersion, requiredHosts, type HostName } from '@/hosts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const runner = (versions: Partial<Record<HostName, string | null>>) => (name: HostName) => versions[name] ?? null;
+
+const aboveFloor = (name: HostName): string =>
+  (HOST_FLOORS.find((floor) => floor.name === name)?.version ?? '').replace(/\d+$/, (patch) => `${Number(patch) + 1}`);
 
 describe('hosts', () => {
   test('parses the first x.y.z from either CLI, prerelease included', () => {
@@ -20,7 +23,7 @@ describe('hosts', () => {
   });
 
   test('an absent codex passes when optional and fails when required', () => {
-    const versions = runner({ claude: '2.1.290 (Claude Code)' });
+    const versions = runner({ claude: `${aboveFloor('claude')} (Claude Code)` });
     expect(checkHosts(new Set(['claude']), versions).ok).toBe(true);
     expect(hostIssues(checkHosts(new Set(['claude']), versions))).toEqual([]);
     const required = checkHosts(new Set(['claude', 'codex']), versions);
@@ -31,7 +34,7 @@ describe('hosts', () => {
   test('an outdated optional host keeps ok but still surfaces as an issue', () => {
     const report = checkHosts(
       new Set(['claude']),
-      runner({ claude: '2.1.290 (Claude Code)', codex: 'codex-cli 0.150.0' })
+      runner({ claude: `${aboveFloor('claude')} (Claude Code)`, codex: 'codex-cli 0.150.0' })
     );
     expect(report.ok).toBe(true);
     expect(hostIssues(report)).toHaveLength(1);
@@ -40,7 +43,7 @@ describe('hosts', () => {
   test('a prerelease above the floor passes', () => {
     const report = checkHosts(
       new Set(['claude', 'codex']),
-      runner({ claude: '2.1.291 (Claude Code)', codex: 'codex-cli 0.155.0-alpha.6' })
+      runner({ claude: `${aboveFloor('claude')} (Claude Code)`, codex: `codex-cli ${aboveFloor('codex')}-alpha.6` })
     );
     expect(report.ok).toBe(true);
   });
