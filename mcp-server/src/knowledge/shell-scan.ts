@@ -3,12 +3,14 @@ export interface ShellWord {
   text: string;
   /** Holds an unquoted `*`, `?` or `[`, so the shell would expand it. */
   globbed: boolean;
+  /** A redirection such as `>`, `2>&1` or `<<`, as opposed to a word that merely reads like one. */
+  operator: boolean;
 }
 
 export interface ShellCommand {
   words: ShellWord[];
-  /** 0 runs in the session's shell; deeper runs in a subshell or command substitution. */
-  depth: number;
+  /** The shells it runs in, outermost first: `[0]` is the session's shell, each subshell or substitution adds an id. */
+  shells: number[];
 }
 
 const HEREDOC = /(?<!<)<<-?\s*(["']?)([\w.-]+)\1/;
@@ -39,8 +41,9 @@ const withoutHeredocBodies = (script: string): string => {
 export function scanShell(script: string): ShellCommand[] {
   const source = withoutHeredocBodies(script);
   const commands: ShellCommand[] = [];
+  let lastShell = 0;
 
-  const scan = (start: number, depth: number, closer: string | undefined): number => {
+  const scan = (start: number, shells: number[], closer: string | undefined): number => {
     let words: ShellWord[] = [];
     let text = '';
     let globbed = false;
@@ -48,7 +51,7 @@ export function scanShell(script: string): ShellCommand[] {
     let quoted = false;
     const endWord = (): void => {
       if (inWord) {
-        words.push({ text, globbed });
+        words.push({ text, globbed, operator: false });
       }
       text = '';
       globbed = false;
@@ -57,21 +60,23 @@ export function scanShell(script: string): ShellCommand[] {
     const endCommand = (): void => {
       endWord();
       if (words.length) {
-        commands.push({ words, depth });
+        commands.push({ words, shells });
       }
       words = [];
     };
     const nested = (from: number, nestedCloser: string): number => {
       inWord = true;
       text += '$(…)';
-      return scan(from, depth + 1, nestedCloser);
+      return scan(from, [...shells, ++lastShell], nestedCloser);
     };
 
     let i = start;
     while (i < source.length) {
       const ch = source[i];
       const next = source[i + 1];
-      if (ch === '\\' && (!quoted || '$`"\\\n'.includes(next ?? ''))) {
+      if (ch === '\\' && next === '\n') {
+        i += 2;
+      } else if (ch === '\\' && (!quoted || '$`"\\'.includes(next ?? ''))) {
         text += next ?? '';
         inWord = true;
         i += 2;
@@ -98,7 +103,7 @@ export function scanShell(script: string): ShellCommand[] {
         i = stop + 1;
       } else if (ch === '(' && !inWord) {
         endCommand();
-        i = scan(i + 1, depth + 1, ')');
+        i = scan(i + 1, [...shells, ++lastShell], ')');
       } else if (ch === '#' && !inWord) {
         const end = source.indexOf('\n', i);
         i = end < 0 ? source.length : end;
@@ -110,7 +115,7 @@ export function scanShell(script: string): ShellCommand[] {
         }
         endWord();
         const operator = REDIRECT.exec(source.slice(i))?.[0] ?? ch;
-        words.push({ text: fd + operator, globbed: false });
+        words.push({ text: fd + operator, globbed: false, operator: true });
         i += operator.length;
       } else if (ch === '\n' || ch === ';' || ch === '|' || ch === '&') {
         endCommand();
@@ -129,7 +134,7 @@ export function scanShell(script: string): ShellCommand[] {
     return i;
   };
 
-  scan(0, 0, undefined);
+  scan(0, [0], undefined);
   return commands;
 }
 

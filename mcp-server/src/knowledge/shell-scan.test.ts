@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { commandWords, scanShell } from './shell-scan';
 
 const texts = (script: string): { depth: number; words: string[] }[] =>
-  scanShell(script).map((command) => ({ depth: command.depth, words: command.words.map((word) => word.text) }));
+  scanShell(script).map((command) => ({
+    depth: command.shells.length - 1,
+    words: command.words.map((word) => word.text)
+  }));
 
 describe('scanShell', () => {
   test('splits on the shell operators', () => {
@@ -39,6 +42,27 @@ describe('scanShell', () => {
       { depth: 0, words: ['cd', 'C:\\Users\\acme'] },
       { depth: 0, words: ['echo', 'a"b', '$HOME'] }
     ]);
+  });
+
+  test('a backslash at the end of a line joins the lines', () => {
+    expect(texts('cd \\\n  /repo && ls')).toEqual([
+      { depth: 0, words: ['cd', '/repo'] },
+      { depth: 0, words: ['ls'] }
+    ]);
+  });
+
+  test('each subshell is its own shell, so sibling subshells never share one', () => {
+    expect(scanShell('(cd /a); (cd /b) && echo $(pwd)').map((command) => command.shells)).toEqual([
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [0]
+    ]);
+  });
+
+  test('marks redirections, not words that only read like one', () => {
+    const [command] = scanShell("grep -c '>' notes.md > out.txt");
+    expect(command?.words.map((word) => word.operator)).toEqual([false, false, false, false, true, false]);
   });
 
   test('marks only unquoted glob characters', () => {

@@ -56,6 +56,22 @@ describe('homeRelativeLeak', () => {
     expect(homeRelativeLeak('git add . && git commit -m "projects/ done"', repo, home)).toBeUndefined();
   });
 
+  test('only the paths a command writes count, not its text or what it reads', () => {
+    expect(homeRelativeLeak(`grep -rln "reports/reviews|plans" src 2>/dev/null`, repo, home)).toBeUndefined();
+    expect(homeRelativeLeak(`printf '%s' "reports/plans/a.md" > "$L"`, repo, home)).toBeUndefined();
+    expect(homeRelativeLeak("sed -i '' 's/reports/the/' notes.md", repo, home)).toBeUndefined();
+    expect(homeRelativeLeak('cp projects/a.md /tmp/b.md', repo, home)).toBeUndefined();
+    expect(homeRelativeLeak('cp notes.md projects/a.md', repo, home)).toBe('projects/a.md');
+    expect(homeRelativeLeak('make 2> reports/build.log', repo, home)).toBe('reports/build.log');
+  });
+
+  test("a quoted '>' is an argument, and a subshell's cd stays in the subshell", () => {
+    expect(homeRelativeLeak("grep -c '>' reports/a.md", repo, home)).toBeUndefined();
+    expect(homeRelativeLeak(`(cd ${repo} && true); echo hi > projects/a.md`, home, home)).toBeUndefined();
+    expect(homeRelativeLeak(`echo $(cd ${repo}) > projects/a.md`, home, home)).toBeUndefined();
+    expect(homeRelativeLeak(`(cd ${repo}; echo hi > projects/a.md)`, home, home)).toBe('projects/a.md');
+  });
+
   test('allows the same writes from the home or a directory inside it', () => {
     expect(homeRelativeLeak('mkdir -p projects/blog-dev/posts', home, home)).toBeUndefined();
     expect(homeRelativeLeak('echo x > knowledge/index.md', join(home, 'projects'), home)).toBeUndefined();
@@ -114,6 +130,10 @@ describe('shellGuard: directory drift', () => {
     expect(claude(`cat > notes.md <<'EOF'\ncd ${repo}\nEOF`)).toBeUndefined();
   });
 
+  test('a folder inside the home whose name starts with .. is still inside', () => {
+    expect(claude('cd ..cache && ls')).toBeUndefined();
+  });
+
   test('is skipped under Codex, which starts every command in the workspace', () => {
     expect(shellGuard(`cd ${repo} && git status`, home, home, 'codex')).toBeUndefined();
   });
@@ -127,9 +147,10 @@ describe('shellGuard: shared temp dir', () => {
     expect(claude('rm -rf /private/tmp/claude-501/demo-?')).toContain('by pattern');
   });
 
-  test('refuses listing or searching the temp dir itself', () => {
-    expect(claude('ls -t "$TMPDIR" | head -1')).toContain('listing or searching');
-    expect(claude("find /tmp/claude-501 -name 'mmd-*'")).toContain('listing or searching');
+  test('allows a pattern inside one known folder, and looking at the temp dir itself', () => {
+    expect(claude('ls /tmp/claude-501/mirror-Eq5mgg/0003-*')).toBeUndefined();
+    expect(claude('ls -d /private/tmp/claude-501/bundled-skills/*/*/types/claude-code.d.ts')).toBeUndefined();
+    expect(claude('echo "TMPDIR=$TMPDIR"; ls -ld "$TMPDIR"')).toBeUndefined();
   });
 
   test('refuses a hand-picked $TMPDIR name, whatever the command does with it', () => {
@@ -145,6 +166,10 @@ describe('shellGuard: shared temp dir', () => {
     expect(claude('cat /tmp/claude-501/run-tKyadL/pages/good.html')).toBeUndefined();
     expect(claude(`find "$W" -name '*.png'`)).toBeUndefined();
     expect(claude("grep -rn 'tmp/*' src")).toBeUndefined();
+  });
+
+  test('a pattern after a --flag= is still a pattern', () => {
+    expect(claude('bun x.ts --out=$TMPDIR/run-*')).toContain('by pattern');
   });
 
   test('applies under Codex too', () => {
