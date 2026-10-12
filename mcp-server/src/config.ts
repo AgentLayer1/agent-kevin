@@ -317,8 +317,8 @@ export const CONTEXT = {
   SESSION_TAIL_BYTES: 1_500,
   /** Today's section of `reports/index.md`, injected so the agent sees what was already produced today. */
   REPORTS_BYTES: 1_000,
-  /** The list of reports pinned in `reports/pinned.md`. */
-  PINNED_BYTES: 600,
+  /** Pins from `reports/pinned.md` listed by name; the rest are counted. */
+  MAX_PINS: 10,
   /** Commits to surface in the recent-git-activity slice. */
   MAX_GIT_LOG_COMMITS: 15
 } as const;

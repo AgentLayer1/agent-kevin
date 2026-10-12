@@ -40,7 +40,7 @@ import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { basename, relative, resolve } from 'node:path';
+import { basename, relative, resolve, sep } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
 
 const log = baseLog.session.with('context');
@@ -145,7 +145,7 @@ interface ReportsResult {
  * index file is the source of truth — written transactionally by `writeReport`
  * alongside each report file, so it's always current.
  */
-async function todaysReports(maxBytes: number): Promise<ReportsResult> {
+export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   let raw: string;
   try {
@@ -192,7 +192,9 @@ async function todaysReports(maxBytes: number): Promise<ReportsResult> {
 
   let body = sectionLines.join('\n');
   if (body.length > maxBytes) {
-    body = `${body.slice(0, maxBytes).trimEnd()}\n…(see reports/index.md)`;
+    // Cut at the last whole entry: a half link points at a file that isn't there.
+    const lastBreak = body.lastIndexOf('\n', maxBytes);
+    body = `${body.slice(0, lastBreak > 0 ? lastBreak : maxBytes).trimEnd()}\n…(see reports/index.md)`;
   }
 
   return {
@@ -208,16 +210,16 @@ async function todaysReports(maxBytes: number): Promise<ReportsResult> {
 
 /** The reports the operator pinned to the dashboard, as HOME-relative paths. A pin whose file is
  *  gone is left out; the brain audit flags it. No pins is a choice, so it reads `off`. */
-export function pinnedReports(maxBytes: number): ReportsResult {
+export function pinnedReports(maxPins: number): ReportsResult {
   const pins = readPins().filter((pin) => pin.exists);
   if (pins.length === 0) {
     return { content: null, entry: { label: 'pinned reports', status: 'off', bytes: 0, note: 'none pinned' } };
   }
-  const lines = pins.map((pin) => `- ${pin.icon ? `${pin.icon} ` : ''}${pin.title} — ${relative(FOLDERS.HOME, pin.path)}`);
-  const list = lines.join('\n');
-  const body = `The operator pinned these to the dashboard (reports/pinned.md); read one when the work touches it.\n${
-    list.length > maxBytes ? `${list.slice(0, maxBytes).trimEnd()}\n…(see reports/pinned.md)` : list
-  }`;
+  const lines = pins
+    .slice(0, maxPins)
+    .map((pin) => `- ${pin.icon ? `${pin.icon} ` : ''}${pin.title} — ${relative(FOLDERS.HOME, pin.path).split(sep).join('/')}`);
+  const more = pins.length > maxPins ? `\n…${pins.length - maxPins} more in reports/pinned.md` : '';
+  const body = `The operator pinned these to the dashboard (reports/pinned.md); read one when the work touches it.\n${lines.join('\n')}${more}`;
   return { content: body, entry: { label: 'pinned reports', status: 'loaded', bytes: body.length, note: countOf(pins.length, 'pin') } };
 }
 
@@ -349,7 +351,7 @@ interface GatheredContext {
 async function gatherContext(restoredHistory = false): Promise<GatheredContext> {
   const tail = await lastSessionTail(CONTEXT.SESSION_TAIL_BYTES);
   const reports = await todaysReports(CONTEXT.REPORTS_BYTES);
-  const pinned = pinnedReports(CONTEXT.PINNED_BYTES);
+  const pinned = pinnedReports(CONTEXT.MAX_PINS);
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',

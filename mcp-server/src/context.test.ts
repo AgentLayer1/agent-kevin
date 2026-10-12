@@ -1,12 +1,25 @@
-import { FOLDERS } from '@/config';
-import { pinnedReports } from '@/context';
+import { FILES, FOLDERS, TIMEZONE } from '@/config';
+import { pinnedReports, todaysReports } from '@/context';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+describe("today's reports in the session context", () => {
+  test('a section over the cap is cut at the last whole entry', async () => {
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+    const entry = (index: number) => `- 09:0${index} · [Report ${index}](plans/report-${index}.md) · \`plan-spec\``;
+    mkdirSync(FOLDERS.REPORTS, { recursive: true });
+    writeFileSync(FILES.REPORTS_INDEX, `# Reports\n\n## ${today}\n\n${[1, 2, 3].map(entry).join('\n')}\n`);
+
+    const { content } = await todaysReports(entry(1).length + entry(2).length / 2);
+    expect(content).toBe(`${entry(1)}\n…(see reports/index.md)`);
+    rmSync(FILES.REPORTS_INDEX, { force: true });
+  });
+});
+
 describe('pinned reports in the session context', () => {
   test('lists the pins whose file is there, HOME-relative, and reads off with none pinned', () => {
-    expect(pinnedReports(600)).toEqual({
+    expect(pinnedReports(10)).toEqual({
       content: null,
       entry: { label: 'pinned reports', status: 'off', bytes: 0, note: 'none pinned' }
     });
@@ -18,10 +31,11 @@ describe('pinned reports in the session context', () => {
     const pins = join(FOLDERS.REPORTS, 'pinned.md');
     writeFileSync(pins, '# Pinned\n\n- 🛡️ [Auth plan](plans/auth.md)\n- [Gone](plans/gone.html)\n');
 
-    const { content, entry } = pinnedReports(600);
+    const { content, entry } = pinnedReports(10);
     expect(content).toContain('- 🛡️ Auth plan — reports/plans/auth.md');
     expect(content).not.toContain('Gone');
     expect(entry).toMatchObject({ status: 'loaded', note: '1 pin' });
+    expect(pinnedReports(0).content).toEndWith('\n…1 more in reports/pinned.md');
     [plan, pins].forEach((path) => rmSync(path, { force: true }));
   });
 });
