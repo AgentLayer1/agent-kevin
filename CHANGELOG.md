@@ -101,7 +101,8 @@ and prompts per optional one. The new template files are the source of truth for
   temp dir by pattern, listing or searching the temp dir itself, and a hand-picked
   `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute paths and a subshell
   `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
-  in a subshell now.
+  in a subshell now. On Windows the guard reads Git Bash paths (`/c/Users/…`, `/cygdrive/c/…`) and
+  drive-letter paths as the same place, and leaves Codex's PowerShell commands alone.
 
 ### Removed
 - The markdown review and replies templates. The page and its card replace them, and
@@ -116,7 +117,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.7.2.ts. It drops `mcp__xcode__RunCodeSnippet` from `permissions.ask` in `.claude/settings.json` (the settings merge only adds, so the removal lives here); `mcp__xcode__InvokeDebuggerCommand` and every other entry keep their place. A home without the Xcode pack is untouched.
-- `template/AGENTS.md: mandatory` — Platform's shell-commands paragraph replaces "every git or build call starts with its own absolute `cd`" with `git -C`, absolute paths or a subshell `cd`, and keeps the absolute `cd` for commands handed to the operator. The scratch-files paragraph gains the exact-printed-name rule and names the `guard` hook.
+- `template/AGENTS.md: mandatory` — Platform's shell-commands paragraph replaces "every git or build call starts with its own absolute `cd`" with `git -C`, absolute paths or a subshell `cd`, and keeps the absolute `cd` for commands handed to the operator. The scratch-files paragraph gains the exact-printed-name rule and names the `guard` hook, and its `mktemp` form gains a `/tmp` fallback for a Git Bash without `TMPDIR`.
 
 ## [0.7.1] - 2026-10-08
 
