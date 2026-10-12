@@ -43,6 +43,71 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.7.2] - 2026-10-11
+
+### Added
+- **`/queue <prompt>`** (Claude Code mod) holds a prompt until the current task ends, then sends
+  it as its own turn, one per turn and in order, never mid-task. A count above the prompt shows
+  what is waiting, and `/queue clear` drops the rest. The dashboard's Mods tab and the cheatsheet
+  list it.
+- **PR reviews and replies end in one page** with a Copy button on every finding, question, nit,
+  bot reply, thread reply and commit message, plus a file map showing each file's comments. A
+  short markdown card sits beside it for the index, dashboard and other skills. A validator
+  (`skills/engineer/scripts/pr-report.ts`) checks the data before anything is saved: thread links
+  must be the comment's own GitHub URL, anchors must name listed files, and the verdict must agree
+  with the findings.
+- **Two new review lanes.** `generated-code` covers what fast, often model-written code gets wrong
+  while still compiling: invented APIs, reinvented helpers, partial migrations, tests bent to pass.
+  `performance` covers round trips, unbounded work, missing indexes and timeouts. TypeScript
+  specifics move to a `langs/typescript.md` addendum, so the lanes read the same in any language.
+- **Reviews add a reading guide and a case against merging.** A review now names the hunks worth
+  reading and what to skim, shows behavior before and after, and makes the strongest argument
+  against merging. Every review-bot comment is verified and gets a disposition.
+- `github_pr_view` returns `headRefOid` and `isCrossRepository`, so a review can confirm it checked
+  out the PR's head and fetch a fork's head instead of reading a branch with the same name in the
+  base repo.
+- **Every generated page has an Auto / Light / Dark switch, Auto by default.** The dashboard,
+  focus pages, PR pages, roadmap, tax dashboard, itinerary and explainers share one block
+  (`mcp-server/src/shared/theme.ts`) that sets the theme before first paint, follows the system
+  live on Auto, and saves one choice every page reads. The dashboard and focus pages gain a light
+  palette and the itinerary a dark one; an itinerary always prints light. A `roadmap.html` or
+  itinerary built earlier keeps its old look until the roadmap or itinerary skill renders it again.
+- **Explainers have a template.** The engineer skill writes only an explainer's body; a script
+  (`skills/engineer/scripts/explainer.ts`) checks it, parses its diagrams, and wraps it in a page
+  with a sticky top bar, a contents dropdown that tracks the section in view, and the theme switch.
+
+### Changed
+- **Review depth follows risk.** A PR under 300 changed lines with no risk-triaged file runs
+  compact: three agents carrying three lanes each, and at most two verifiers. `--full` overrides.
+  The local checks find the repo's own gates in its docs and manifests and run them with its own
+  tool. Where a repo's written conventions say nothing, a change is held to what its neighboring
+  code already does.
+- Lanes carry slugs, and findings are routed by evidence. A real defect that was already there
+  before the PR is reported under Noticed instead of being dropped.
+- PR replies answer every part of a reviewer's question, quote each comment's opening words so a
+  GitHub search finds the thread, and mark each thread To post, Posted or Follow-up on a re-run.
+  A stack of PRs gets one report.
+- The engineer skill may call `github_pr_checks` and `github_run_log`, which its PR playbooks
+  already used.
+- **The Xcode pack stops asking before `RunCodeSnippet`.** Snippets run Swift outside the
+  sandbox, but so do the test and run tools on code the agent can already write, so the prompt
+  removed no capability. It fired whenever a snippet checked a value during debugging.
+  `InvokeDebuggerCommand` stays gated, since LLDB can run shell commands directly.
+
+### Removed
+- The markdown review and replies templates. The page and its card replace them, and
+  `references/pr/report.md` holds every field's rule.
+
+### Fixed
+- A post-merge PR audit can find its code after the head branch is deleted: it reads the merge or
+  squash commit on the base and uses that commit's first parent as the base.
+- `browser_screenshot` and `browser_pdf` of an explainer or PR page capture its diagrams drawn,
+  not their Mermaid source. The page marks when drawing has finished, including when a diagram
+  fails or the library can't load, and the capture waits for that mark.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.7.2.ts. It drops `mcp__xcode__RunCodeSnippet` from `permissions.ask` in `.claude/settings.json` (the settings merge only adds, so the removal lives here); `mcp__xcode__InvokeDebuggerCommand` and every other entry keep their place. A home without the Xcode pack is untouched.
+
 ## [0.7.1] - 2026-10-08
 
 ### Added
