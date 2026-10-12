@@ -103,6 +103,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **The Brain page's Injected at SessionStart list** leads with today's date and shows each
   entry's note (how many pins, snapshots or reports), and the SessionStart hook's description
   names the pinned reports and the home-check warnings it can add.
+- The README installs the plugin with one command, `/plugin install agent-kevin --marketplace <repo>`,
+  which adds the marketplace when it's missing.
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so
   sync calls it directly rather than looking it up first.
 - Claude Code 2.1.293 or newer is required (mod autocomplete and tools kept out of tool search):
@@ -133,8 +135,8 @@ and prompts per optional one. The new template files are the source of truth for
   so this check runs on Claude Code only. On both hosts it refuses a pattern in the folder name
   right under the shared temp dir (`ls -d $TMPDIR/mmd-*`), which can pick another session's
   scratch, and a hand-picked `$TMPDIR/<name>` used anywhere but in `mktemp`. `git -C`, absolute
-  paths and a subshell `( cd <repo> && … )` pass. The PR playbook's gate commands and the release skill run their `cd`
-  in a subshell now. On Windows the guard reads Git Bash paths (`/c/Users/…`, `/cygdrive/c/…`) and
+  paths and a subshell `( cd <repo> && … )` pass. The PR playbook's gate commands run their `cd`
+  in a subshell now, and the release skill names the repo with `git -C` in every step. On Windows the guard reads Git Bash paths (`/c/Users/…`, `/cygdrive/c/…`) and
   drive-letter paths as the same place, and checks Codex's PowerShell commands only for a
   home-tree write from the wrong folder.
 
