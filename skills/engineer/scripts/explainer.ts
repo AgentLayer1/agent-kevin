@@ -30,7 +30,7 @@ const ENTITIES: Record<string, string> = { '&lt;': '<', '&gt;': '>', '&quot;': '
 const decode = (html: string): string => html.replace(/&(lt|gt|quot|#39|amp);/g, (entity) => ENTITIES[entity] ?? entity);
 const textOf = (html: string): string => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 
-export interface BodyCheck {
+interface BodyCheck {
   errors: string[];
   title: string;
   diagrams: { label: string; source: string }[];

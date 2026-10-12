@@ -10,6 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { isRecord, isScriptSafe, jsonBlock, readJsonBlock } from '../../../mcp-server/src/shared/json-block';
+import { escapeHtml } from '../../../mcp-server/src/status/html-primitives';
 import { diagramErrors } from './diagrams';
 
 export const BLOCK_ID = 'pr-report-data';
@@ -30,7 +31,7 @@ const RESULTS = ['pass', 'fail', 'not-run', 'partial', 'info'];
 const WHERE = ['inline', 'conversation', 'review'];
 const STATUSES = ['to-post', 'follow-up', 'posted'];
 const PATH = /^[^\s:`]+$/;
-const LINES = /^(\d+)(?:-(\d+))?$/;
+const LINES = /^([1-9]\d*)(?:-([1-9]\d*))?$/;
 const REPO = /^[\w.-]+\/[\w.-]+$/;
 const COMMENT_ID = /^(discussion_r|issuecomment-|pullrequestreview-)\d+$/;
 const LOOK_LIMIT = 5;
@@ -40,11 +41,26 @@ const KEYS = {
   review: ['verdict', 'risk', 'riskWhy', 'executed', 'lookAt', 'skim', 'decisions', 'asked', 'explanation', 'flows', 'areas', 'behavior', 'holdQuestions', 'caseAgainst', 'findings', 'files', 'bots', 'verifiedClean', 'summaryComment', 'noticed', 'dropped', 'notChecked'],
   replies: ['threads', 'ownFindings', 'commits', 'resolveOnly', 'stillOpen'],
   pr: ['number', 'title', 'author', 'repo', 'head', 'base', 'adds', 'dels'],
+  stack: ['number', 'title', 'current'],
+  check: ['check', 'result', 'notes'],
+  look: ['anchor', 'why'],
+  decision: ['decision', 'picks', 'anchor'],
+  asked: ['criterion', 'status', 'anchor'],
+  flow: ['title', 'diagram', 'steps'],
+  step: ['anchor', 'text'],
+  area: ['area', 'what', 'why'],
+  behavior: ['case', 'before', 'after'],
+  caseAgainst: ['strongest', 'threeMonths', 'cut'],
   finding: ['id', 'severity', 'title', 'anchor', 'lanes', 'principle', 'introduced', 'failure', 'evidence', 'comment'],
   file: ['path', 'class', 'concern', 'summary', 'adds', 'dels', 'hunks'],
+  hunk: ['lines', 'text'],
   bot: ['bot', 'anchor', 'claim', 'disposition', 'finding', 'reason', 'reply'],
+  noticed: ['anchor', 'text'],
   dropped: ['anchor', 'lanes', 'claim', 'reason'],
-  thread: ['id', 'url', 'where', 'anchor', 'reviewer', 'bot', 'outdated', 'pr', 'point', 'quote', 'status', 'reply']
+  thread: ['id', 'url', 'where', 'anchor', 'reviewer', 'bot', 'outdated', 'pr', 'point', 'quote', 'status', 'reply'],
+  ownFinding: ['title', 'anchor', 'detail', 'comment'],
+  commit: ['subject', 'body'],
+  resolveOnly: ['anchor', 'topic', 'why']
 };
 
 const VERDICT_LABEL: Record<string, string> = {
@@ -57,7 +73,7 @@ const VERDICT_LABEL: Record<string, string> = {
 const SEVERITY_ICON: Record<string, string> = { blocker: '🔴', 'fix-before-merge': '🟠', nit: '🟡', question: '❓' };
 const STATUS_LABEL: Record<string, string> = { 'to-post': 'To post', 'follow-up': 'Follow-up', posted: 'Posted' };
 
-export interface ReportCheck {
+interface ReportCheck {
   errors: string[];
   warnings: string[];
   diagrams: { flow: string; source: string }[];
@@ -110,12 +126,21 @@ const lanesErrors = (value: unknown, path: string): string[] =>
       ? [`${path} must be a non-empty list`]
       : value.flatMap((lane, index) => (isLane(lane) ? [] : [`${path}[${index}] must be one of ${LANES.join(' | ')} | bot:<login>, got ${JSON.stringify(lane)}`]));
 
-const rowErrors = (value: unknown, path: string, check: (row: Row, at: string) => string[]): string[] =>
+// A misspelled key would otherwise drop its section from the page without a word.
+const keyErrors = (record: Row, allowed: string[], path: string): string[] =>
+  Object.keys(record)
+    .filter((key) => !allowed.includes(key))
+    .map((key) => `${path}${path ? '.' : ''}${key} is not a field${key === 'lane' ? ' (use lanes, a list)' : ''}`);
+
+const rowErrors = (value: unknown, path: string, keys: string[], check: (row: Row, at: string) => string[]): string[] =>
   value === undefined
     ? []
     : !Array.isArray(value)
       ? [`${path} must be a list`]
-      : value.flatMap((row, index) => (isRecord(row) ? check(row, `${path}[${index}]`) : [`${path}[${index}] must be an object`]));
+      : value.flatMap((row, index) => {
+          const at = `${path}[${index}]`;
+          return isRecord(row) ? [...check(row, at), ...keyErrors(row, keys, at)] : [`${at} must be an object`];
+        });
 
 const textListErrors = (value: unknown, path: string): string[] =>
   value === undefined
@@ -125,12 +150,6 @@ const textListErrors = (value: unknown, path: string): string[] =>
       : value.flatMap((item, index) => (isText(item) ? [] : [`${path}[${index}] must be non-empty text`]));
 
 const prOf = (data: Row): Row => (isRecord(data.pr) ? data.pr : {});
-
-// A misspelled key would otherwise drop its section from the page without a word.
-const keyErrors = (record: Row, allowed: string[], path: string): string[] =>
-  Object.keys(record)
-    .filter((key) => !allowed.includes(key))
-    .map((key) => `${path}${path ? '.' : ''}${key} is not a field${key === 'lane' ? ' (use lanes, a list)' : ''}`);
 
 const optionalTextErrors = (record: Row, keys: string[], path: string): string[] =>
   keys.filter((key) => record[key] !== undefined && !isText(record[key])).map((key) => `${path}${path ? '.' : ''}${key} must be text`);
@@ -144,9 +163,13 @@ const verdictErrors = (data: Row): string[] => {
   const blockers = severityCount(data, 'blocker');
   const fixes = severityCount(data, 'fix-before-merge');
   const questions = severityCount(data, 'question');
+  const nits = severityCount(data, 'nit');
   const rule: Record<string, [boolean, string]> = {
     approve: [blockers + fixes + questions === 0, 'approve leaves no blocker, fix-before-merge or question'],
-    'approve-with-fixes': [blockers + fixes === 0, 'approve-with-fixes leaves no blocker or fix-before-merge'],
+    'approve-with-fixes': [
+      blockers + fixes === 0 && questions + nits > 0,
+      'approve-with-fixes leaves no blocker or fix-before-merge, and has a question or nit to act on'
+    ],
     'needs-discussion': [blockers + fixes === 0, 'needs-discussion means nothing is broken: no blocker or fix-before-merge'],
     'changes-requested': [blockers + fixes > 0, 'changes-requested needs a blocker or fix-before-merge finding'],
     'do-not-merge': [blockers > 0, 'do-not-merge needs a blocker']
@@ -164,12 +187,12 @@ const commonErrors = (data: Row): string[] => {
     ...(pr && isText(pr.repo) && !REPO.test(pr.repo) ? [`pr.repo must be owner/name, got ${JSON.stringify(pr.repo)}`] : []),
     ...(isText(data.summary) ? [] : ['summary must be non-empty text']),
     ...(data.draft === undefined || typeof data.draft === 'boolean' ? [] : ['draft must be true or false']),
-    ...rowErrors(data.stack, 'stack', (row, at) => [
+    ...rowErrors(data.stack, 'stack', KEYS.stack, (row, at) => [
       ...(Number.isInteger(row.number) ? [] : [`${at}.number must be an integer`]),
       ...textErrors(row, ['title'], at),
       ...oneLineErrors(row, ['title'], at)
     ]),
-    ...rowErrors(data.checks, 'checks', (row, at) => [...textErrors(row, ['check'], at), ...enumErrors(row.result, RESULTS, `${at}.result`)]),
+    ...rowErrors(data.checks, 'checks', KEYS.check, (row, at) => [...textErrors(row, ['check'], at), ...enumErrors(row.result, RESULTS, `${at}.result`)]),
     ...textListErrors(data.sinceLast, 'sinceLast'),
     ...textListErrors(data.prior, 'prior')
   ];
@@ -186,27 +209,27 @@ const reviewErrors = (data: Row): string[] => {
     ...enumErrors(data.risk, RISKS, 'risk'),
     ...optionalTextErrors(data, ['riskWhy', 'executed', 'skim', 'explanation', 'summaryComment'], ''),
     ...(list(data.lookAt).length ? [] : ['lookAt needs at least one hunk to read']),
-    ...rowErrors(data.lookAt, 'lookAt', (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at), ...textErrors(row, ['why'], at)]),
-    ...rowErrors(data.decisions, 'decisions', (row, at) => [...textErrors(row, ['decision', 'picks'], at), ...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at)]),
-    ...rowErrors(data.asked, 'asked', (row, at) => [
+    ...rowErrors(data.lookAt, 'lookAt', KEYS.look, (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at), ...textErrors(row, ['why'], at)]),
+    ...rowErrors(data.decisions, 'decisions', KEYS.decision, (row, at) => [...textErrors(row, ['decision', 'picks'], at), ...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at)]),
+    ...rowErrors(data.asked, 'asked', KEYS.asked, (row, at) => [
       ...textErrors(row, ['criterion'], at),
       ...enumErrors(row.status, ASKED, `${at}.status`),
       ...optionalAnchor(row.anchor, `${at}.anchor`)
     ]),
     ...(isText(data.explanation) || list(data.flows).length ? [] : ['How it works needs an explanation or at least one flow']),
-    ...rowErrors(data.flows, 'flows', (row, at) => [
+    ...rowErrors(data.flows, 'flows', KEYS.flow, (row, at) => [
       ...textErrors(row, ['title', 'diagram'], at),
-      ...rowErrors(row.steps, `${at}.steps`, (step, stepAt) => [...textErrors(step, ['text'], stepAt), ...optionalAnchor(step.anchor, `${stepAt}.anchor`)])
+      ...rowErrors(row.steps, `${at}.steps`, KEYS.step, (step, stepAt) => [...textErrors(step, ['text'], stepAt), ...optionalAnchor(step.anchor, `${stepAt}.anchor`)])
     ]),
-    ...rowErrors(data.areas, 'areas', (row, at) => textErrors(row, ['area', 'what', 'why'], at)),
-    ...rowErrors(data.behavior, 'behavior', (row, at) => textErrors(row, ['case', 'before', 'after'], at)),
+    ...rowErrors(data.areas, 'areas', KEYS.area, (row, at) => textErrors(row, ['area', 'what', 'why'], at)),
+    ...rowErrors(data.behavior, 'behavior', KEYS.behavior, (row, at) => textErrors(row, ['case', 'before', 'after'], at)),
     ...textListErrors(data.holdQuestions, 'holdQuestions'),
     ...(data.caseAgainst === undefined
       ? []
       : isRecord(data.caseAgainst)
-        ? textErrors(data.caseAgainst, ['strongest', 'threeMonths', 'cut'], 'caseAgainst')
+        ? [...textErrors(data.caseAgainst, KEYS.caseAgainst, 'caseAgainst'), ...keyErrors(data.caseAgainst, KEYS.caseAgainst, 'caseAgainst')]
         : ['caseAgainst must be an object']),
-    ...rowErrors(data.findings, 'findings', (row, at) => [
+    ...rowErrors(data.findings, 'findings', KEYS.finding, (row, at) => [
       ...(Number.isInteger(row.id) ? [] : [`${at}.id must be an integer`]),
       ...enumErrors(row.severity, SEVERITIES, `${at}.severity`),
       ...textErrors(row, ['title', 'comment'], at),
@@ -214,24 +237,22 @@ const reviewErrors = (data: Row): string[] => {
       ...anchorErrors(row.anchor, `${at}.anchor`, row.severity === 'nit'),
       ...inFiles(row.anchor, at),
       ...(row.lanes === undefined ? [`${at}.lanes must list every source that raised it`] : lanesErrors(row.lanes, `${at}.lanes`)),
-      ...keyErrors(row, KEYS.finding, at),
       ...optionalEnum(row.introduced, INTRODUCED, `${at}.introduced`),
       ...(row.severity === 'blocker' || row.severity === 'fix-before-merge' ? textErrors(row, ['failure', 'evidence'], at) : [])
     ]),
     ...(new Set(findingIds).size === findingIds.length ? [] : ['findings ids must be unique']),
     ...(list(data.files).length ? [] : ['files needs every file on the coverage checklist']),
-    ...rowErrors(data.files, 'files', (row, at) => [
+    ...rowErrors(data.files, 'files', KEYS.file, (row, at) => [
       ...textErrors(row, ['path', 'concern', 'summary'], at),
       ...(isText(row.path) && !PATH.test(row.path) ? [`${at}.path must have no spaces, colons or backticks`] : []),
       ...enumErrors(row.class, CLASSES, `${at}.class`),
-      ...keyErrors(row, KEYS.file, at),
       ...countErrors(row, ['adds', 'dels'], at),
-      ...rowErrors(row.hunks, `${at}.hunks`, (hunk, hunkAt) => [
+      ...rowErrors(row.hunks, `${at}.hunks`, KEYS.hunk, (hunk, hunkAt) => [
         ...textErrors(hunk, ['lines', 'text'], hunkAt),
         ...(isText(hunk.lines) && !linesOk(hunk.lines) ? [`${hunkAt}.lines must be "line" or "start-end" with start ≤ end, got ${JSON.stringify(hunk.lines)}`] : [])
       ])
     ]),
-    ...rowErrors(data.bots, 'bots', (row, at) => [
+    ...rowErrors(data.bots, 'bots', KEYS.bot, (row, at) => [
       ...textErrors(row, ['bot', 'claim'], at),
       ...oneLineErrors(row, ['bot', 'claim'], at),
       ...enumErrors(row.disposition, DISPOSITIONS, `${at}.disposition`),
@@ -239,16 +260,14 @@ const reviewErrors = (data: Row): string[] => {
       ...(row.finding === undefined || findingIds.includes(row.finding) ? [] : [`${at}.finding points at no finding id`]),
       ...(row.disposition === 'confirmed' && row.finding === undefined ? [`${at}.finding must name the finding a confirmed bot comment became`] : []),
       ...(row.disposition === 'false-positive' && !isText(row.reason) ? [`${at}.reason must say why it is a false positive`] : []),
-      ...(row.disposition === 'false-positive' && !isText(row.reply) ? [`${at}.reply must give the operator a reply to paste on the bot's thread`] : []),
-      ...keyErrors(row, KEYS.bot, at)
+      ...(row.disposition === 'false-positive' && !isText(row.reply) ? [`${at}.reply must give the operator a reply to paste on the bot's thread`] : [])
     ]),
     ...textListErrors(data.verifiedClean, 'verifiedClean'),
-    ...rowErrors(data.noticed, 'noticed', (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...textErrors(row, ['text'], at)]),
-    ...rowErrors(data.dropped, 'dropped', (row, at) => [
+    ...rowErrors(data.noticed, 'noticed', KEYS.noticed, (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...textErrors(row, ['text'], at)]),
+    ...rowErrors(data.dropped, 'dropped', KEYS.dropped, (row, at) => [
       ...anchorErrors(row.anchor, `${at}.anchor`),
       ...textErrors(row, ['claim', 'reason'], at),
-      ...lanesErrors(row.lanes, `${at}.lanes`),
-      ...keyErrors(row, KEYS.dropped, at)
+      ...lanesErrors(row.lanes, `${at}.lanes`)
     ]),
     ...textListErrors(data.notChecked, 'notChecked')
   ];
@@ -257,7 +276,7 @@ const reviewErrors = (data: Row): string[] => {
 const repliesErrors = (data: Row): string[] => {
   const pr = prOf(data);
   return [
-    ...rowErrors(data.threads, 'threads', (row, at) => {
+    ...rowErrors(data.threads, 'threads', KEYS.thread, (row, at) => {
       const number = row.pr ?? pr.number;
       const url = `https://github.com/${text(pr.repo)}/pull/${String(number)}#${text(row.id)}`;
       return [
@@ -269,17 +288,16 @@ const repliesErrors = (data: Row): string[] => {
         ...enumErrors(row.where, WHERE, `${at}.where`),
         ...enumErrors(row.status, STATUSES, `${at}.status`),
         ...optionalAnchor(row.anchor, `${at}.anchor`),
-        ...(row.status === 'posted' || isText(row.reply) ? [] : [`${at}.reply must be non-empty text unless the thread is posted`]),
-        ...keyErrors(row, KEYS.thread, at)
+        ...(row.status === 'posted' || isText(row.reply) ? [] : [`${at}.reply must be non-empty text unless the thread is posted`])
       ];
     }),
-    ...rowErrors(data.ownFindings, 'ownFindings', (row, at) => [
+    ...rowErrors(data.ownFindings, 'ownFindings', KEYS.ownFinding, (row, at) => [
       ...textErrors(row, ['title', 'detail'], at),
       ...oneLineErrors(row, ['title'], at),
       ...anchorErrors(row.anchor, `${at}.anchor`)
     ]),
-    ...rowErrors(data.commits, 'commits', (row, at) => [...textErrors(row, ['subject'], at), ...oneLineErrors(row, ['subject'], at)]),
-    ...rowErrors(data.resolveOnly, 'resolveOnly', (row, at) => [...textErrors(row, ['topic', 'why'], at), ...optionalAnchor(row.anchor, `${at}.anchor`)]),
+    ...rowErrors(data.commits, 'commits', KEYS.commit, (row, at) => [...textErrors(row, ['subject'], at), ...oneLineErrors(row, ['subject'], at)]),
+    ...rowErrors(data.resolveOnly, 'resolveOnly', KEYS.resolveOnly, (row, at) => [...textErrors(row, ['topic', 'why'], at), ...optionalAnchor(row.anchor, `${at}.anchor`)]),
     ...textListErrors(data.stillOpen, 'stillOpen')
   ];
 };
@@ -415,9 +433,15 @@ export const statusOf = (data: Row): string => {
 /**
  * Everything `report_write` needs that the data decides; the playbook adds category, slug, title, skill, tags and supersedes.
  */
-export const reportArgs = (data: Row): Row => {
+interface ReportArgs {
+  body: string;
+  summary: string;
+  status: string;
+  extra: Row;
+}
+
+export const reportArgs = (data: Row): ReportArgs => {
   const pr = prOf(data);
-  const blockers = rows(data.findings).filter((finding) => finding.severity === 'blocker').length;
   return {
     body: renderCard(data),
     summary: text(data.summary).replace(/\s+/g, ' ').trim(),
@@ -428,7 +452,7 @@ export const reportArgs = (data: Row): Row => {
       head: pr.head,
       base: pr.base,
       mode: data.kind === 'replies' ? 'reply' : 'review',
-      ...(data.kind === 'review' ? { verdict: data.verdict, blockers } : {})
+      ...(data.kind === 'review' ? { verdict: data.verdict, blockers: severityCount(data, 'blocker') } : {})
     }
   };
 };
@@ -439,10 +463,9 @@ export const reportArgs = (data: Row): Row => {
 export const renderPage = (template: string, data: Row): string => {
   const pr = prOf(data);
   const title = `PR #${String(pr.number)}${data.kind === 'replies' ? ' replies' : ''} — ${text(pr.title)}`;
-  const escaped = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return template
     .replace(new RegExp(`<script\\b[^>]*\\bid="${BLOCK_ID}"[^>]*>[\\s\\S]*?</script>`), () => jsonBlock(BLOCK_ID, data, 'data'))
-    .replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escaped}</title>`);
+    .replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escapeHtml(title)}</title>`);
 };
 
 /**
@@ -452,12 +475,12 @@ export const cardMismatch = (saved: string, data: Row): string | null => {
   const front = /^---\n([\s\S]*?)\n---\n/.exec(saved)?.[1] ?? '';
   const field = (key: string): string => (new RegExp(`^${key}:\\s*(.*)$`, 'm').exec(front)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
   const args = reportArgs(data);
-  const extra = isRecord(args.extra) ? args.extra : {};
+  const { extra } = args;
   if (field('pr') !== String(extra.pr) || field('mode') !== String(extra.mode)) {
     return `the card is PR #${field('pr') || '?'} (${field('mode') || '?'}), but the data is PR #${String(extra.pr)} (${String(extra.mode)})`;
   }
   const changed = [
-    ['status', String(args.status)],
+    ['status', args.status],
     ...(data.kind === 'review' ? [['verdict', String(extra.verdict)], ['blockers', String(extra.blockers)]] : [])
   ].filter(([key, value]) => field(key) !== value);
   return changed.length
@@ -493,12 +516,16 @@ const readData = (path: string): Row => {
   }
 };
 
-const checked = async (data: unknown): Promise<void> => {
-  const { errors, warnings, diagrams } = validate(data);
+/** Prints a check's warnings and errors, diagrams parsed, and returns how many errors it found. */
+const reported = async ({ errors, warnings, diagrams }: ReportCheck): Promise<number> => {
   const allErrors = [...errors, ...(await parseDiagrams(diagrams))];
   warnings.forEach((item) => console.error(`warning: ${item}`));
   allErrors.forEach((item) => console.error(`error: ${item}`));
-  if (allErrors.length) {
+  return allErrors.length;
+};
+
+const checked = async (data: Row): Promise<void> => {
+  if (await reported(validate(data))) {
     process.exit(1);
   }
 };
@@ -514,9 +541,6 @@ if (import.meta.main) {
     await checked(data);
     const pageName = `${basename(second, '.md')}.html`;
     const saved = existsSync(second) ? readFileSync(second, 'utf-8') : fail(`no card at ${second}; pass the absolute path report_write returned`);
-    if (!saved.includes(PAGE_TOKEN) && !saved.includes(pageName)) {
-      fail(`${second} is not this report's card (no page link in it)`);
-    }
     const mismatch = cardMismatch(saved, data);
     if (mismatch) {
       fail(`${second}: ${mismatch}`);
@@ -526,12 +550,9 @@ if (import.meta.main) {
     console.log(`✓ ${join(dirname(second), pageName)}`);
   } else if (command === 'check' && first) {
     const html = existsSync(first) ? readFileSync(first, 'utf-8') : fail(`no page at ${first}`);
-    const { errors, warnings, diagrams } = checkPage(html);
-    const allErrors = [...errors, ...(await parseDiagrams(diagrams))];
-    warnings.forEach((item) => console.error(`warning: ${item}`));
-    allErrors.forEach((item) => console.error(`error: ${item}`));
-    console.log(allErrors.length ? `✗ ${allErrors.length} error(s) in ${first}` : `✓ ${first}`);
-    process.exit(allErrors.length ? 1 : 0);
+    const count = await reported(checkPage(html));
+    console.log(count ? `✗ ${count} error(s) in ${first}` : `✓ ${first}`);
+    process.exit(count ? 1 : 0);
   } else {
     console.error('usage: bun pr-report.ts card <data.json> | write <data.json> <report.md> | check <report.html>');
     process.exit(2);

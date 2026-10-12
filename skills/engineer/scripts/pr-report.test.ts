@@ -29,8 +29,8 @@ const replies = (): Data => ({
   summary: 'Two threads from Grace. The fix is in the working tree, not committed.',
   threads: [
     {
-      id: 'discussion_r4011695208',
-      url: 'https://github.com/acme/shop/pull/52#discussion_r4011695208',
+      id: 'discussion_r1234567890',
+      url: 'https://github.com/acme/shop/pull/52#discussion_r1234567890',
       where: 'inline',
       anchor: 'src/limits.ts:14',
       reviewer: 'grace',
@@ -40,8 +40,8 @@ const replies = (): Data => ({
       reply: 'Changed. The rate limit counts every call, rejected ones included.\n\n```suggestion\nconst counted = calls;\n```'
     },
     {
-      id: 'issuecomment-5686065667',
-      url: 'https://github.com/acme/shop/pull/52#issuecomment-5686065667',
+      id: 'issuecomment-2345678901',
+      url: 'https://github.com/acme/shop/pull/52#issuecomment-2345678901',
       where: 'conversation',
       reviewer: 'coderabbitai[bot]',
       bot: true,
@@ -50,7 +50,7 @@ const replies = (): Data => ({
       status: 'posted'
     }
   ],
-  commits: [{ subject: 'Count rejected calls toward the rate limit', body: 'Grace asked for it on discussion_r4011695208.' }],
+  commits: [{ subject: 'Count rejected calls toward the rate limit', body: 'Grace asked for it on discussion_r1234567890.' }],
   stillOpen: ['The per-endpoint limits need a measurement before they change.']
 });
 
@@ -92,16 +92,16 @@ describe('validate', () => {
 
   test('a thread url must be the comment on this PR, so a javascript: url is refused', () => {
     const errors = validate(withThread(replies(), { url: 'javascript:alert(1)' })).errors;
-    expect(errors).toEqual(['threads[0].url must be https://github.com/acme/shop/pull/52#discussion_r4011695208, got "javascript:alert(1)"']);
+    expect(errors).toEqual(['threads[0].url must be https://github.com/acme/shop/pull/52#discussion_r1234567890, got "javascript:alert(1)"']);
   });
 
   test('a thread id is the full URL fragment', () => {
-    const errors = validate(withThread(replies(), { id: 'r4011695208', url: 'https://github.com/acme/shop/pull/52#r4011695208' })).errors;
+    const errors = validate(withThread(replies(), { id: 'r1234567890', url: 'https://github.com/acme/shop/pull/52#r1234567890' })).errors;
     expect(errors[0]).toStartWith("threads[0].id must be the comment's URL fragment");
   });
 
   test('a stacked thread links to its own PR', () => {
-    const change = { pr: 51, url: 'https://github.com/acme/shop/pull/51#discussion_r4011695208' };
+    const change = { pr: 51, url: 'https://github.com/acme/shop/pull/51#discussion_r1234567890' };
     expect(validate(withThread(replies(), change)).errors).toEqual([]);
   });
 
@@ -113,6 +113,22 @@ describe('validate', () => {
   test('a nit may anchor to a whole file, a finding may not', () => {
     const errors = validate(withFinding(sampleReview(), 0, { anchor: 'src/orders/edit.ts' })).errors;
     expect(errors).toEqual(['findings[0].anchor must be "path:line" or "path:start-end" with start ≤ end, got "src/orders/edit.ts"']);
+  });
+
+  test('a misspelled key in any row is an error, so no paste text drops silently', () => {
+    expect(validate({ ...replies(), commits: [{ subject: 'x', bdy: 'why' }] }).errors).toEqual(['commits[0].bdy is not a field']);
+    expect(validate({ ...replies(), ownFindings: [{ title: 't', anchor: 'a.ts:1', detail: 'd', coment: 'c' }] }).errors).toEqual([
+      'ownFindings[0].coment is not a field'
+    ]);
+    expect(validate({ ...sampleReview(), checks: [{ check: 'Build', result: 'pass', note: 'x' }] }).errors).toEqual(['checks[0].note is not a field']);
+  });
+
+  test('approve-with-fixes needs something to act on, and line 0 is no line', () => {
+    const { findings: _findings, ...data } = sampleReview();
+    expect(validate({ ...data, verdict: 'approve-with-fixes' }).errors).toContain(
+      'verdict: approve-with-fixes leaves no blocker or fix-before-merge, and has a question or nit to act on'
+    );
+    expect(validate(withFinding(sampleReview(), 0, { anchor: 'src/orders/edit.ts:0' })).errors[0]).toStartWith('findings[0].anchor must be');
   });
 
   test('a reversed range and a finding outside the file list fail', () => {
@@ -209,13 +225,13 @@ describe('card', () => {
     const card = renderCard(replies());
     expect(card).toContain('**Threads** 1 to post · 0 follow-up · 1 posted · 0 resolve only');
     expect(card).toContain(
-      '- To post · grace · Rejected calls skip the limit · `src/limits.ts:14` · [discussion_r4011695208](https://github.com/acme/shop/pull/52#discussion_r4011695208)'
+      '- To post · grace · Rejected calls skip the limit · `src/limits.ts:14` · [discussion_r1234567890](https://github.com/acme/shop/pull/52#discussion_r1234567890)'
     );
   });
 
   test('a re-run card says what changed since the last report', () => {
-    expect(renderCard({ ...replies(), sinceLast: ['discussion_r4011695208 answered since.'] })).toContain(
-      '## Since the last run\n\n- discussion_r4011695208 answered since.'
+    expect(renderCard({ ...replies(), sinceLast: ['discussion_r1234567890 answered since.'] })).toContain(
+      '## Since the last run\n\n- discussion_r1234567890 answered since.'
     );
   });
 });
