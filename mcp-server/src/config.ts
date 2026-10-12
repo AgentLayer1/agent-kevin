@@ -212,6 +212,10 @@ export const FILES = {
   get REPORTS_INDEX() {
     return resolve(FOLDERS.REPORTS, 'index.md');
   },
+  /** Hand-kept list of reports pinned to the dashboard sidebar. */
+  get REPORTS_PINNED() {
+    return resolve(FOLDERS.REPORTS, 'pinned.md');
+  },
   get SOUL() {
     return resolve(homeRoot(), 'SOUL.md');
   },

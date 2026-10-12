@@ -487,6 +487,25 @@ describe('focus pages on disk', () => {
     [own, root, focusPagePath('acme')].forEach((path) => rmSync(path, { force: true }));
   });
 
+  test('pinned reports come from reports/pinned.md in file order, and a missing file drops out', async () => {
+    const plans = join(FOLDERS.REPORTS, 'plans');
+    mkdirSync(plans, { recursive: true });
+    const [roadmap, auth] = [join(plans, 'roadmap.html'), join(plans, 'auth.md')];
+    [roadmap, auth].forEach((path) => writeFileSync(path, 'x'));
+    const pins = join(FOLDERS.REPORTS, 'pinned.md');
+    writeFileSync(
+      pins,
+      '# Pinned\n\n- 🗺️ [Roadmap](plans/roadmap.html)\n- [Gone](plans/gone.html)\n- [Auth](plans/auth.md) — who signs in where\n'
+    );
+
+    const { pinned } = await collectStatus();
+    expect(pinned).toEqual([
+      { title: 'Roadmap', icon: '🗺️', appTab: true, href: roadmap },
+      { title: 'Auth', icon: '📌', appTab: true, href: auth }
+    ]);
+    [roadmap, auth, pins].forEach((path) => rmSync(path, { force: true }));
+  });
+
   test('the home scope has no page of its own; it lives in the dashboard', () => {
     expect(() => focusPagePath('')).toThrow('lives in the dashboard');
     expect(() => writeFocusPage('')).toThrow('lives in the dashboard');

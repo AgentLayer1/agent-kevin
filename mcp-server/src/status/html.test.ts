@@ -56,6 +56,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   },
   markdownUrl: 'obsidian://open?path={path}',
   surfaces: [],
+  pinned: [],
   persona: {
     name: 'Kevin',
     kind: 'AI assistant (Claude Code plugin)',
@@ -940,6 +941,21 @@ describe('surfaces', () => {
   test('no discovered surfaces renders no Surfaces group', () => {
     const html = renderDashboardHtml(makeSnapshot());
     expect(html).not.toContain('<div class="nav-group">');
+  });
+
+  test('pinned reports render under their own Pinned group after Surfaces', () => {
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        surfaces: [{ title: 'Roadmap', href: '/home/kevin/roadmap.html', icon: '🧭', appTab: true }],
+        pinned: [{ title: 'Security plan', href: '/home/kevin/reports/security/plan.html', icon: '🛡️', appTab: true }]
+      })
+    );
+    expect(html.indexOf('<div class="nav-group">Pinned</div>')).toBeGreaterThan(
+      html.indexOf('<div class="nav-group">Surfaces</div>')
+    );
+    expect(html).toContain(
+      `href="obsidian://open?path=${encodeURIComponent('/home/kevin/reports/security/plan.html')}"`
+    );
   });
 
   test('title and href are escaped', () => {

@@ -43,6 +43,7 @@ import type {
   SkillInfo,
   StaticImport,
   StatusSnapshot,
+  SurfaceLink,
   TaskRef
 } from './collect';
 import { focusData, horizonLabel } from './focus-data';
@@ -2045,7 +2046,8 @@ const sidebarNav = (snap: StatusSnapshot): string =>
     })
     .join('\n');
 
-/** Convention-discovered sub-dashboards, grouped under a divider with an ↗ so
+/** A sidebar group of outbound links (convention-discovered surfaces, pinned
+ *  reports) under a divider with an ↗ so
  *  navigating away is never a surprise. appTab entries (the roadmap) go
  *  through the markdownUrl app template — a new Obsidian tab, the same
  *  mechanism as every markdown link. The rest are data-href rows navigated
@@ -2054,11 +2056,11 @@ const sidebarNav = (snap: StatusSnapshot): string =>
  *  swallowed, window.open blocked, and window.top.location silently no-ops —
  *  so no fallback chains, a silent no-op first hop short-circuits the working
  *  call). Empty renders nothing. */
-const sidebarSurfaces = (snap: StatusSnapshot): string => {
-  if (snap.surfaces.length === 0) {
+const sidebarLinks = (snap: StatusSnapshot, label: string, links: SurfaceLink[]): string => {
+  if (links.length === 0) {
     return '';
   }
-  const items = snap.surfaces
+  const items = links
     .map((surface) => {
       const inner = `<span class="ico">${esc(surface.icon)}</span>${esc(surface.title)}<span class="out">↗</span>`;
       return surface.appTab
@@ -2066,7 +2068,7 @@ const sidebarSurfaces = (snap: StatusSnapshot): string => {
         : `<div class="nav-item" data-href="${esc(surface.href)}">${inner}</div>`;
     })
     .join('\n');
-  return `\n<div class="nav-group">Surfaces</div>\n${items}`;
+  return `\n<div class="nav-group">${label}</div>\n${items}`;
 };
 
 /** Sidebar health badge — green "all nominal" or amber with the issue list.
@@ -2162,7 +2164,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     LAST_SYNC: esc(snap.runtime.lastSync),
     SYNC_CMD: esc(syncCmd),
     BANNER: sidebarBanner(snap),
-    NAV: sidebarNav(snap) + sidebarSurfaces(snap),
+    NAV: sidebarNav(snap) + sidebarLinks(snap, 'Surfaces', snap.surfaces) + sidebarLinks(snap, 'Pinned', snap.pinned),
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
     FOOTER: footer,

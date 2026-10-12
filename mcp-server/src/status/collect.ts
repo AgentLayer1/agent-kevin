@@ -387,6 +387,8 @@ export interface StatusSnapshot {
   /** Convention-discovered standalone pages: the HOME-root roadmap.html and
    *  focus.html, then each project's dashboard.html. Empty renders nothing. */
   surfaces: SurfaceLink[];
+  /** Reports listed in reports/pinned.md, in file order; missing files drop out. */
+  pinned: SurfaceLink[];
   skills: { count: number; details: SkillInfo[] };
   mcp: { toolCount: number; toolDetails: ToolInfo[] };
   /** Goals blocks from projects/TASKS.md (lines, markdown stripped). */
@@ -1864,6 +1866,15 @@ const collectSurfaces = (): SurfaceLink[] => {
   return [...northStar, ...projects];
 };
 
+/** `- [Title](plans/x.html)` lines in reports/pinned.md, an optional icon
+ *  before the link. Links are relative to reports/, like the index. */
+const collectPinned = (): SurfaceLink[] => {
+  const body = existsSync(FILES.REPORTS_PINNED) ? readFileSync(FILES.REPORTS_PINNED, 'utf-8') : '';
+  return [...body.matchAll(/^- (?:(\S+) )?\[([^\]]+)\]\(([^)]+)\)/gm)].flatMap(([, icon, title, href]) =>
+    surfaceAt(resolve(FOLDERS.REPORTS, href), { title, icon: icon ?? '📌', appTab: true })
+  );
+};
+
 const MAX_REPORTS = 60;
 
 export const collectStatus = async (): Promise<StatusSnapshot> => {
@@ -1875,6 +1886,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     operator: collectOperatorInfo(knowledge.facets),
     markdownUrl: collectMarkdownUrl(),
     surfaces: collectSurfaces(),
+    pinned: collectPinned(),
     skills: collectSkills(),
     mcp: await collectMcp(),
     goals: collectGoals(),
