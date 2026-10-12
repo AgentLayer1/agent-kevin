@@ -123,6 +123,7 @@ declare module 'claude-code' {
       notices: Notice[];
       noticeActing: NoticeActing | null;
       queue: Queue;
+      needsSetup: boolean;
     };
   }
 }

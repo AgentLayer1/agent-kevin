@@ -18,6 +18,11 @@ export const MAX_IMPORT_HOPS = 4;
  */
 export const HOME_MARKERS = ['version.json', 'knowledge.json'];
 
+/**
+ * Every agent's data dir: the runtime's `RUNTIME_DIR`, which a test keeps equal.
+ */
+export const DATA_DIR = '.state';
+
 const CODE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g;
 const IMPORT = /(?:^|\s)@(\S+)/g;
 

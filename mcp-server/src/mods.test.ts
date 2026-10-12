@@ -1,13 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { HOME_MARKER_FILES } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR } from '@/shared/naming';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { HOME_MARKERS } from '../../mods/manuals/repo';
+import { DATA_DIR, HOME_MARKERS } from '../../mods/manuals/repo';
 import { MOD_FEATURES } from '../../mods/shared/catalog';
 
 describe('mods', () => {
   test("the instruction loader marks an agent home with the runtime's own marker files", () => {
     expect(HOME_MARKERS).toEqual([...HOME_MARKER_FILES]);
+  });
+
+  test("the setup prompt looks for the runtime's own data dir", () => {
+    expect(DATA_DIR).toBe(RUNTIME_DIR);
   });
 
   test('the dashboard catalog lists every feature the module registers', () => {

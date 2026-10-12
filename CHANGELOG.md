@@ -78,6 +78,9 @@ and prompts per optional one. The new template files are the source of truth for
 - **`/done` suggests the task to close.** After `/done `, a letter of the id or a word of the title
   lists the open and active tasks that match, id matches first and most urgent first, so closing
   one no longer means remembering its id.
+- **A new folder points at setup.** In a folder that isn't an agent home yet, a row above the
+  prompt has a Set up button that runs init, and init is the Tab suggestion. A folder holding a
+  home, or a `SOUL.md` from one, never shows it.
 
 ### Changed
 - **Sync's `sync_stats` tool sits in the prompt's tool list** instead of behind tool search, so

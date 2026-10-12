@@ -53,7 +53,8 @@ export interface FakeMachine {
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   files: {
     [`${HOME}/IDENTITY.md`]: '- **Name:** Ada\n- **Emoji:** 🦊\n',
-    [`${HOME}/.data/cadence.json`]: JSON.stringify({ sync: '2026-03-06T09:00:00+08:00' })
+    [`${HOME}/.data/cadence.json`]: JSON.stringify({ sync: '2026-03-06T09:00:00+08:00' }),
+    [`${HOME}/.state/version.json`]: JSON.stringify({ plugin: PLUGIN })
   },
   folders: [],
   compilePending: { sessions: 3, feedback: 1, inbox: 0 },

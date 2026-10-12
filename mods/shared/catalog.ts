@@ -89,10 +89,20 @@ export const QUEUE_FEATURE = {
   tools: []
 } as const satisfies ModFeature;
 
+export const SETUP_FEATURE = {
+  id: 'setup',
+  title: 'Setup prompt',
+  summary: "In a folder that isn't an agent home yet, a row with a button that runs init; also the Tab suggestion.",
+  where: 'above the prompt',
+  commands: [],
+  tools: []
+} as const satisfies ModFeature;
+
 export const MOD_FEATURES: readonly ModFeature[] = [
   COMMANDS_FEATURE,
   MANUALS_FEATURE,
   SYNC_FEATURE,
   NOTICES_FEATURE,
-  QUEUE_FEATURE
+  QUEUE_FEATURE,
+  SETUP_FEATURE
 ];
