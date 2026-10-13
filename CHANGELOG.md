@@ -43,6 +43,16 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.7.3] - 2026-10-13
+
+### Removed
+- **The manual no longer asks for bare markdown paths in chat.** The rule worked around a terminal
+  that previewed a Cmd-clicked markdown path only without a `:line` or a hyperlink. cmux 0.65.1 opens
+  `notes.md:12` in its Markdown viewer, so markdown files take the usual `file_path:line_number` form.
+
+### Upgrade
+- `template/AGENTS.md: optional` — the Platform section drops the "Paths in chat are bare when the terminal opens them" paragraph.
+
 ## [0.7.2] - 2026-10-12
 
 ### Added
