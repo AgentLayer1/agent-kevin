@@ -45,6 +45,19 @@ and prompts per optional one. The new template files are the source of truth for
 
 ## [0.7.3] - 2026-10-13
 
+### Added
+- **`/reports`** (Claude Code mod) shows the reports this conversation produced in a row above the
+  prompt until you press Dismiss: every report a skill saved (a subagent's included), and any file
+  the conversation wrote or edited that is a deliverable, meaning anything under `reports/`, a page
+  or document inside a project folder (not its README or tasks), and the home's `roadmap.html`. A
+  report with an HTML page shows the page. The row shows the latest five and follows new ones while
+  open, and Claude gets the full list. `/reports attach <path>` adds any file by hand. A resumed
+  conversation keeps its list, and the dashboard's Mods tab and cheatsheet list the command.
+
+### Changed
+- **`/today` shows its agenda in a row above the prompt** with a Dismiss button, the same way
+  sync and `/queue` draw. It used to print only its one-line summary in the terminal.
+
 ### Removed
 - **The manual no longer asks for bare markdown paths in chat.** The rule worked around a terminal
   that previewed a Cmd-clicked markdown path only without a `:line` or a hyperlink. cmux 0.65.1 opens
