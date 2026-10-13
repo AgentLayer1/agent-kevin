@@ -51,8 +51,9 @@ and prompts per optional one. The new template files are the source of truth for
   the conversation wrote or edited that is a deliverable, meaning anything under `reports/`, a page
   or document inside a project folder (not its README or tasks), and the home's `roadmap.html`. A
   report with an HTML page shows the page. The row shows the latest five and follows new ones while
-  open, and Claude gets the full list. `/reports attach <path>` adds any file by hand. A resumed
-  conversation keeps its list, and the dashboard's Mods tab and cheatsheet list the command.
+  open, and Claude gets the full list. `/reports attach <path> …` adds files by hand, several at
+  once, with a path that has spaces in quotes. A resumed conversation keeps its list, and the
+  dashboard's Mods tab and cheatsheet list the command.
 - **`/session`** (Claude Code mod) shows this conversation's session id in a row above the prompt,
   with a Copy button and a Dismiss button. Nothing reaches the clipboard until you press Copy, and a
   `/clear` takes the row down because the next conversation has another id.
