@@ -3,6 +3,7 @@ import type { EngineInterface, On } from 'claude-code';
 
 import type { ReportRow, SessionReport } from '../types';
 
+import { pathsInCommand } from '../manuals/repo';
 import { REPORTS_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
 import { bareToolName } from '../sync/phases';
@@ -51,8 +52,10 @@ const fileName = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
 const isDocument = (path: string): boolean => path.endsWith('.md') || path.endsWith('.html');
 
-const mayBeReport = (path: string): boolean =>
-  isDocument(path) && (path.includes('/reports/') || path.includes('/projects/') || path.endsWith('/roadmap.html'));
+const namesDeliverableFolder = (text: string): boolean =>
+  text.includes('/reports/') || text.includes('/projects/') || text.includes('/roadmap.html');
+
+const mayBeReport = (path: string): boolean => isDocument(path) && namesDeliverableFolder(path);
 
 async function home($: EngineInterface): Promise<string | undefined> {
   homeCache ??= $.process
@@ -104,8 +107,13 @@ async function rowFor($: EngineInterface, report: SessionReport, root: string): 
 
 async function rowsFor($: EngineInterface, key: string): Promise<ReportRow[]> {
   const [reports, root] = await Promise.all([storedReports($, key), $.session.root()]);
-  const drawn = await Promise.all(reports.map((report) => rowFor($, report, root)));
-  return drawn.filter((row, index) => drawn.findIndex((other) => other.shownPath === row.shownPath) === index);
+  const drawn = await Promise.all(reports.map(async (report) => ({ report, row: await rowFor($, report, root) })));
+  // A page and its card share a row; the card carries the title report_write gave it.
+  const pick = (shownPath: string) => {
+    const same = drawn.filter((item) => item.row.shownPath === shownPath);
+    return same.find((item) => item.report.path.endsWith('.md')) ?? same[0];
+  };
+  return drawn.filter((item) => pick(item.row.shownPath) === item).map((item) => item.row);
 }
 
 const inQueue = <T,>(task: () => Promise<T>): Promise<T> => {
@@ -175,6 +183,35 @@ export const registerReports = (on: On): void => {
         if (await isDeliverable($, e.file_path)) {
           await record($, key, e.file_path);
         }
+      });
+    }
+    return result;
+  });
+
+  // A shell write leaves no structured trace, so a named path counts once its modified time follows the call's start.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (!namesDeliverableFolder(e.command)) {
+      return next(e);
+    }
+    const startedAt = await $.clock.now();
+    const result = await next(e);
+    if (result.deny === undefined) {
+      const key = await sessionKey($);
+      queue(async () => {
+        const root = await home($);
+        const named = root === undefined ? [] : [...new Set(pathsInCommand(e.command, [root]))].filter(isDocument);
+        const written = await Promise.all(
+          named.map(async (path) => {
+            const isWritten =
+              (await isDeliverable($, path)) &&
+              (await $.fs.stat(path).then(
+                (stat) => stat.kind === 'file' && stat.mtimeMs >= startedAt,
+                () => false
+              ));
+            return isWritten ? [path] : [];
+          })
+        );
+        await written.flat().reduce((previous, path) => previous.then(() => record($, key, path)), Promise.resolve());
       });
     }
     return result;

@@ -149,6 +149,15 @@ describe('/reports', () => {
     expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-explainer.html · Architecture explainer'));
   });
 
+  test('a page written before its card still takes the card title', async ($, on) => {
+    const host = setUp(on);
+    const page = reportPath('plans', 'explainer').replace(/\.md$/, '.html');
+    host.files[page] = '<html></html>';
+    await write($, page);
+    await writeReport($, 'plans', 'explainer', 'Architecture explainer');
+    expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-explainer.html · Architecture explainer'));
+  });
+
   test('an edit that cannot be a report costs no process, filesystem or store calls', async ($, on) => {
     const host = setUp(on);
     await $.tool.call({ tool: 'Edit', file_path: OUTSIDE_GRANTS, old_string: 'a', new_string: 'b' });
@@ -196,6 +205,38 @@ describe('/reports', () => {
       list('reports/briefings/2026-03-10-0900-first.md · First', 'reports/briefings/2026-03-10-0900-second.md · Second')
     );
     expect(host.store.has('reports:session-2')).toBe(false);
+  });
+});
+
+describe('/reports from shell writes', () => {
+  const shell = ($: Engine, command: string) => $.tool.call({ tool: 'Bash', command });
+
+  test('a deliverable a shell command writes counts, and its page shows over its card', async ($, on) => {
+    const card = `${HOME}/reports/plans/2026-03-10-0900-plan.md`;
+    const page = `${HOME}/reports/plans/2026-03-10-0900-plan.html`;
+    const render = `bun explainer.ts render body.md > ${page} && sed -i '' 's/a/b/' ${card}`;
+    setUp(on, machine({ shellWrites: { [render]: [page, card] } }));
+    await shell($, render);
+    expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-plan.html · 2026-03-10-0900-plan.md'));
+  });
+
+  test('a command that only reads a report, or writes state, adds nothing', async ($, on) => {
+    const report = `${HOME}/reports/plans/old.md`;
+    const readme = `${HOME}/projects/acme/README.md`;
+    const host = setUp(on, machine({ shellWrites: { [`echo x >> ${readme}`]: [readme] } }));
+    host.files[report] = 'x';
+    await shell($, `cat ${report}`);
+    await shell($, `echo x >> ${readme}`);
+    expect(await listed($)).toBe(EMPTY);
+  });
+
+  test('a command naming no deliverable folder costs no process, filesystem or store calls', async ($, on) => {
+    const host = setUp(on);
+    await shell($, 'git -C /elsewhere/app status');
+    await drainSaves($);
+    expect(host.argv).toEqual([]);
+    expect(host.fsCalls).toEqual([]);
+    expect(host.store.size).toBe(0);
   });
 });
 

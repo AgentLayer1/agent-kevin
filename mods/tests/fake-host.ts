@@ -64,6 +64,10 @@ export interface FakeMachine {
   sessionId: string;
   /** What `ping` says about the folder: false outside an agent home. */
   isHome: boolean;
+  /** The files a shell command writes, by the command's exact text; each gets the clock's time as its modified time. */
+  shellWrites: Record<string, string[]>;
+  /** Modified times by path; a file not listed was last modified at 0. */
+  mtimes: Record<string, number>;
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -91,6 +95,8 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   agents: [],
   sessionId: 'session-1',
   isHome: true,
+  shellWrites: {},
+  mtimes: {},
   ...overrides
 });
 
@@ -98,7 +104,9 @@ const ran = (exitCode: number, stdout: string, stderr = ''): { value: ProcessRun
   value: { exitCode, stdout, stderr, isStdoutTruncated: false, isStderrTruncated: false }
 });
 
-const stat = (kind: FsStat['kind']): { value: FsStat } => ({ value: { kind, size: 0, mtimeMs: 0, isLink: false } });
+const stat = (kind: FsStat['kind'], mtimeMs = 0): { value: FsStat } => ({
+  value: { kind, size: 0, mtimeMs, isLink: false }
+});
 
 // A real filesystem resolves '.' and '..' segments, so the fake does too.
 const resolved = (path: string): string =>
@@ -180,7 +188,7 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
       return stat('dir');
     }
     if (host.files[resolved(e.path)] !== undefined) {
-      return stat('file');
+      return stat('file', host.mtimes[resolved(e.path)]);
     }
     throw new Error(`ENOENT ${e.path}`);
   });
@@ -201,6 +209,12 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     }
     if (e.tool === 'Skill') {
       await clock.sleep(SKILL_MS);
+    }
+    if (e.tool === 'Bash') {
+      (host.shellWrites[e.command] ?? []).forEach((path) => {
+        host.files[path] = host.files[path] ?? 'written';
+        host.mtimes[path] = clock.now();
+      });
     }
     return { result: 'ok', text: host.toolText[e.tool] ?? '{}' };
   });
