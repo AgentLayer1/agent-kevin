@@ -9,9 +9,7 @@ import { doneSuggestions, isDoneArgument } from './done';
 import type { TaskFrontmatter } from './today';
 import { STALE_SYNC_HOURS, buildToday, formatAge, parseEmoji, summarize } from './today';
 
-const todayViews = atom({ plugin: 'agent-kevin', key: 'todayViews' } as const, {});
-
-const VIEWS_KEPT = 10;
+const todayBand = atom({ plugin: 'agent-kevin', key: 'todayBand' } as const, null);
 const TASKS_FRESH_MS = 60_000;
 const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
 
@@ -93,25 +91,29 @@ export const registerCommands = (on: On): void => {
     return { suggestions: [...result.suggestions, ...doneSuggestions(await doneTasks.tasks, e.token)] };
   });
 
+  // Claude reads the one-line summary; the person sees the agenda in the band until they dismiss it.
   on('command.run', { command: 'today' }, async ($) => {
     const view = await todayView($).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
     if (typeof view === 'string') {
       return { text: `Couldn't read today's state: ${view}` };
     }
-    const text = summarize(view);
-    await update($, todayViews, (views) =>
-      Object.fromEntries([...Object.entries(views), [text, view]].slice(-VIEWS_KEPT))
-    );
-    return { text };
+    await update($, todayBand, () => view);
+    return { context: [summarize(view)] };
   });
 
-  // Claude reads the one-line summary; the transcript draws the agenda stored under it.
-  on('ui.render', { component: 'CommandOutput', props: { command: 'today' } }, async ($, e, next) => {
-    const view = (await read($, todayViews))[e.props.text];
-    if (view === undefined) {
-      return next(e);
+  // A /clear or a resume starts another conversation in the same process.
+  on('session.end', { reason: ['clear', 'resume'] }, async ($, e, next) => {
+    await update($, todayBand, () => null);
+    return next(e);
+  });
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const below = await next(e);
+    const view = await read($, todayBand);
+    if (view === null || e.props.hasSurvey) {
+      return below;
     }
-    const { Box, Text } = $.ui.resolve(e);
+    const { Box, Button, Text } = $.ui.resolve(e);
     const isStale = view.syncAgeHours === null || view.syncAgeHours >= STALE_SYNC_HOURS;
     const idWidth = Math.max(0, ...[...view.overdue, ...view.dueToday].map((item) => item.id.length));
     const row = (item: AgendaItem, isLate: boolean) => (
@@ -139,13 +141,15 @@ export const registerCommands = (on: On): void => {
       ) : null;
     return (
       <Box flexDirection="column">
-        <Box>
-          <Text>{view.emoji} </Text>
+        <Box gap={1}>
+          <Text>{view.emoji}</Text>
           <Text bold>Today</Text>
           <Text dimColor>
-            {' '}
             · {view.dateLabel} · {view.hijriLabel}
           </Text>
+          <Box marginLeft={2}>
+            <Button key="today:dismiss" dimColor label="Dismiss" onPress={() => update($, todayBand, () => null)} />
+          </Box>
         </Box>
         {section('Overdue', view.overdue, true)}
         {section('Due today', view.dueToday, false)}
@@ -159,6 +163,7 @@ export const registerCommands = (on: On): void => {
             ⟳ {view.syncAgeHours === null ? 'never synced' : `last sync ${formatAge(view.syncAgeHours)}`}
           </Text>
         </Box>
+        {below}
       </Box>
     );
   });

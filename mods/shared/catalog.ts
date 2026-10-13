@@ -22,7 +22,7 @@ export const COMMANDS_FEATURE = {
   id: 'commands',
   title: 'Instant commands',
   summary: 'Capture a thought, log a lesson, close a task or see today, answered at once without a model turn.',
-  where: 'slash commands',
+  where: 'slash commands · the Today row above the prompt',
   commands: [
     {
       name: 'capture',
@@ -49,6 +49,22 @@ export const MANUALS_FEATURE = {
     "The first file read or written in a granted code repo, or named by absolute path in a shell command, attaches that repo's CLAUDE.md or AGENTS.md, once, and again after a compaction or /clear.",
   where: 'tool results · a 📎 line above the prompt',
   commands: [{ name: 'manuals', description: 'Repo instructions attached to this conversation (no Claude turn)' }],
+  tools: []
+} as const satisfies ModFeature;
+
+export const REPORTS_FEATURE = {
+  id: 'reports',
+  title: 'Session reports',
+  summary:
+    "The reports this conversation wrote or edited, its own and its subagents', its project documents and anything attached by hand, until dismissed; a report with an HTML page shows the page.",
+  where: 'slash command · a 📎 row above the prompt',
+  commands: [
+    {
+      name: 'reports',
+      description: 'Reports this conversation wrote or attached (no Claude turn)',
+      argumentHint: '[attach <path>]'
+    }
+  ],
   tools: []
 } as const satisfies ModFeature;
 
@@ -101,6 +117,7 @@ export const SETUP_FEATURE = {
 export const MOD_FEATURES: readonly ModFeature[] = [
   COMMANDS_FEATURE,
   MANUALS_FEATURE,
+  REPORTS_FEATURE,
   SYNC_FEATURE,
   NOTICES_FEATURE,
   QUEUE_FEATURE,

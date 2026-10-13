@@ -113,6 +113,22 @@ export interface NoticeActing {
   at: number;
 }
 
+/**
+ * A report this conversation wrote, edited or attached, as the store keeps it.
+ */
+export interface SessionReport {
+  title: string;
+  path: string;
+}
+
+/**
+ * One row of the /reports band: the page beside the card when there is one, else the card.
+ */
+export interface ReportRow {
+  title: string;
+  shownPath: string;
+}
+
 export interface Queue {
   pending: string[];
   isBusy: boolean;
@@ -126,7 +142,8 @@ declare module 'claude-code' {
       syncRun: SyncRun | null;
       delivered: string[];
       manualsThisTurn: string[];
-      todayViews: Record<string, TodayView>;
+      todayBand: TodayView | null;
+      reportsBand: ReportRow[] | null;
       syncTick: number;
       notices: Notice[];
       noticeActing: NoticeActing | null;

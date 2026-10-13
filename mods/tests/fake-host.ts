@@ -58,6 +58,10 @@ export interface FakeMachine {
   root: string;
   /** The subagents `$.agent.list()` answers; a spawn adds one running. */
   agents: AgentInfo[];
+  /** What `$.session.id()` answers; a test changes it to stand for another conversation. */
+  sessionId: string;
+  /** What `ping` says about the folder: false outside an agent home. */
+  isHome: boolean;
 }
 
 export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
@@ -82,6 +86,8 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   failing: [],
   root: HOME,
   agents: [],
+  sessionId: 'session-1',
+  isHome: true,
   ...overrides
 });
 
@@ -106,7 +112,10 @@ const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult }
     return ran(1, '', `${args} failed`);
   }
   if (args === 'ping') {
-    return ran(0, JSON.stringify({ ok: true, home: HOME, data: `${HOME}/.data`, timezone: 'Asia/Kuala_Lumpur' }));
+    return ran(
+      0,
+      JSON.stringify({ ok: host.isHome, home: HOME, data: `${HOME}/.data`, timezone: 'Asia/Kuala_Lumpur' })
+    );
   }
   if (args === 'task query') {
     return ran(0, JSON.stringify(TASKS));
@@ -143,6 +152,7 @@ export interface FakeHost extends FakeMachine {
 export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   const clock = mock.clock(on, { now: NOW });
   on('session.root', () => ({ value: host.root }));
+  on('session.id', () => ({ value: host.sessionId }));
   on('env.get', () => ({ value: USER_HOME }));
   on('settings.read', () => ({ value: { permissions: { additionalDirectories: [CODE, '~/granted'] } } }));
   on('process.run', (_$, e) => {
@@ -176,6 +186,11 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     host.store.set(e.key, e.value);
     return { value: undefined };
   });
+  on('store.delete', (_$, e) => {
+    host.store.delete(e.key);
+    return { value: undefined };
+  });
+  on('store.keys', () => ({ value: [...host.store.keys()] }));
   on('tool.list', () => ({ value: [{ name: STATS_TOOL, description: 'stats', mcp: true }] }));
   on('tool.call', async (_$, e) => {
     if (e.tool === 'AskUserQuestion') {
@@ -212,7 +227,6 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
     return {};
   });
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Box' as const }));
-  on('ui.render', { component: 'CommandOutput' }, () => ({ type: 'Box' as const, props: { key: 'plain-row' } }));
   return Object.assign(host, { clock });
 };
 

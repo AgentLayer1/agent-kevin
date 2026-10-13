@@ -1247,6 +1247,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     what: 'Sent once the current task ends, one per turn, never mid-task (Claude Code; `/queue clear` drops the rest).'
   },
   {
+    when: 'Find what this session made',
+    say: '/reports',
+    what: 'The reports and project pages this conversation wrote, in a row above the prompt (Claude Code; `/reports attach <path>` adds any file).'
+  },
+  {
     when: 'File work',
     say: '“create a task in <project>: …”',
     what: 'New task file with id, priority, and due date; shows up here and in TASKS.md.'
