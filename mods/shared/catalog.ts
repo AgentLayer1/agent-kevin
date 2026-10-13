@@ -64,7 +64,7 @@ export const REPORTS_FEATURE = {
     {
       name: 'reports',
       description: 'Reports this conversation wrote or attached (no Claude turn)',
-      argumentHint: '[attach <path>]'
+      argumentHint: '[attach <path>…]'
     }
   ],
   tools: []

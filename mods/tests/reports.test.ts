@@ -158,6 +158,21 @@ describe('/reports', () => {
     expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-explainer.html · Architecture explainer'));
   });
 
+  test('a page saved again moves its row to the end, still under the card title', async ($, on) => {
+    const host = setUp(on);
+    const page = reportPath('plans', 'explainer').replace(/\.md$/, '.html');
+    await writeReport($, 'plans', 'explainer', 'Architecture explainer');
+    await writeReport($, 'briefings', 'morning', 'Morning brief');
+    host.files[page] = '<html></html>';
+    await write($, page);
+    expect(await listed($)).toBe(
+      list(
+        'reports/briefings/2026-03-10-0900-morning.md · Morning brief',
+        'reports/plans/2026-03-10-0900-explainer.html · Architecture explainer'
+      )
+    );
+  });
+
   test('an edit that cannot be a report costs no process, filesystem or store calls', async ($, on) => {
     const host = setUp(on);
     await $.tool.call({ tool: 'Edit', file_path: OUTSIDE_GRANTS, old_string: 'a', new_string: 'b' });
@@ -220,6 +235,22 @@ describe('/reports from shell writes', () => {
     expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-plan.html · 2026-03-10-0900-plan.md'));
   });
 
+  test('reads a quoted path with spaces, a redirect and an assignment as the shell does', async ($, on) => {
+    const spaced = `${HOME}/projects/acme/kick off.md`;
+    const redirected = `${HOME}/reports/plans/redirected.md`;
+    const assigned = `${HOME}/reports/plans/assigned.html`;
+    const command = `cp draft.md "${spaced}" && echo x >${redirected}; P=${assigned}&& render > "$P"`;
+    setUp(on, machine({ shellWrites: { [command]: [spaced, redirected, assigned] } }));
+    await shell($, command);
+    expect(await listed($)).toBe(
+      list(
+        'projects/acme/kick off.md · kick off.md',
+        'reports/plans/redirected.md · redirected.md',
+        'reports/plans/assigned.html · assigned.html'
+      )
+    );
+  });
+
   test('a command that only reads a report, or writes state, adds nothing', async ($, on) => {
     const report = `${HOME}/reports/plans/old.md`;
     const readme = `${HOME}/projects/acme/README.md`;
@@ -228,6 +259,29 @@ describe('/reports from shell writes', () => {
     await shell($, `cat ${report}`);
     await shell($, `echo x >> ${readme}`);
     expect(await listed($)).toBe(EMPTY);
+  });
+
+  test('a denied command adds nothing, even when its path was modified meanwhile', async ($, on) => {
+    on('tool.call', { tool: 'Bash' }, () => ({ deny: 'not allowed' }));
+    const report = `${HOME}/reports/plans/fresh.md`;
+    const host = setUp(on);
+    host.files[report] = 'x';
+    host.mtimes[report] = host.clock.now();
+    await shell($, `echo x > ${report}`);
+    expect(await listed($)).toBe(EMPTY);
+  });
+
+  test('outside an agent home, matching commands ask the CLI once a minute at most', async ($, on) => {
+    const host = setUp(on, machine({ isHome: false }));
+    const pings = () => host.argv.filter((args) => args.slice(2).join(' ') === 'ping').length;
+    await shell($, 'ls /elsewhere/projects/app.md');
+    await shell($, 'ls /elsewhere/projects/web.md');
+    await drainSaves($);
+    expect(pings()).toBe(1);
+    await host.clock.advance(61_000);
+    await shell($, 'ls /elsewhere/projects/api.md');
+    await drainSaves($);
+    expect(pings()).toBe(2);
   });
 
   test('a command naming no deliverable folder costs no process, filesystem or store calls', async ($, on) => {
@@ -241,18 +295,17 @@ describe('/reports from shell writes', () => {
 });
 
 describe('/reports attach', () => {
-  test('attaches any existing file by relative, home-relative or absolute path', async ($, on) => {
+  const USAGE = 'Usage: /reports, or /reports attach <path> [<path> …] (quote a path with spaces)';
+
+  test('attaches several files in one go, by relative, home-relative or absolute path, in order', async ($, on) => {
     const host = setUp(on);
     host.files[`${HOME}/knowledge/concepts/fixture.md`] = 'x';
     host.files[`${USER_HOME}/Downloads/statement.pdf`] = 'x';
     host.files['/fixture/elsewhere/notes.txt'] = 'x';
-    host.files[`${HOME}/projects/acme/meeting  notes.md`] = 'x';
-    await run($, 'reports', 'attach projects/acme/meeting  notes.md');
-    await run($, 'reports', 'attach knowledge/concepts/fixture.md');
-    await run($, 'reports', 'attach ~/Downloads/statement.pdf');
-    expect(await listed($, 'attach /fixture/elsewhere/notes.txt')).toBe(
+    expect(
+      await listed($, 'attach knowledge/concepts/fixture.md ~/Downloads/statement.pdf  /fixture/elsewhere/notes.txt')
+    ).toBe(
       list(
-        'projects/acme/meeting  notes.md · meeting  notes.md',
         'knowledge/concepts/fixture.md · fixture.md',
         `${USER_HOME}/Downloads/statement.pdf · statement.pdf`,
         '/fixture/elsewhere/notes.txt · notes.txt'
@@ -260,11 +313,46 @@ describe('/reports attach', () => {
     );
   });
 
+  test('keeps a path with spaces whole when quoted, single-quoted, escaped, or quoted in part', async ($, on) => {
+    const host = setUp(on);
+    host.files[`${HOME}/projects/acme/meeting  notes.md`] = 'x';
+    host.files[`${HOME}/projects/acme/kick off.md`] = 'x';
+    host.files[`${USER_HOME}/My Docs/q3 plan.md`] = 'x';
+    host.files[`${USER_HOME}/My Docs/budget.md`] = 'x';
+    const args = `attach "projects/acme/meeting  notes.md" 'projects/acme/kick off.md' ~/My\\ Docs/q3\\ plan.md ~/"My Docs"/budget.md`;
+    expect(await listed($, args)).toBe(
+      list(
+        'projects/acme/meeting  notes.md · meeting  notes.md',
+        'projects/acme/kick off.md · kick off.md',
+        `${USER_HOME}/My Docs/q3 plan.md · q3 plan.md`,
+        `${USER_HOME}/My Docs/budget.md · budget.md`
+      )
+    );
+  });
+
+  test('attaches the files that exist and names the ones that do not', async ($, on) => {
+    const host = setUp(on);
+    host.files[`${HOME}/knowledge/concepts/fixture.md`] = 'x';
+    const result = await run($, 'reports', 'attach missing.md knowledge/concepts/fixture.md "gone away.md"');
+    expect(result.text).toBe('No file at missing.md, gone away.md');
+    expect(result.context?.[0]).toBe(list('knowledge/concepts/fixture.md · fixture.md'));
+  });
+
   test('refuses a missing file, a missing path and an unknown word', async ($, on) => {
     setUp(on);
     expect((await run($, 'reports', 'attach missing.md')).text).toBe('No file at missing.md');
-    expect((await run($, 'reports', 'attach')).text).toBe('Usage: /reports, or /reports attach <path>');
-    expect((await run($, 'reports', 'list')).text).toBe('Usage: /reports, or /reports attach <path>');
+    expect((await run($, 'reports', 'attach')).text).toBe(USAGE);
+    expect((await run($, 'reports', 'list')).text).toBe(USAGE);
+    expect((await run($, 'reports', 'attach ""')).text).toBe(USAGE);
+    expect(await listed($)).toBe(EMPTY);
+  });
+
+  test('refuses an unclosed quote instead of splitting the path', async ($, on) => {
+    const host = setUp(on);
+    host.files[`${HOME}/off.md`] = 'x';
+    expect((await run($, 'reports', 'attach "projects/acme/kick off.md')).text).toBe(
+      'A quote isn\'t closed in: attach "projects/acme/kick off.md'
+    );
     expect(await listed($)).toBe(EMPTY);
   });
 });

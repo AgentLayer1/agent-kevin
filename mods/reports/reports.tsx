@@ -3,7 +3,6 @@ import type { EngineInterface, On } from 'claude-code';
 
 import type { ReportRow, SessionReport } from '../types';
 
-import { pathsInCommand } from '../manuals/repo';
 import { REPORTS_FEATURE } from '../shared/catalog';
 import { cliArgv } from '../shared/cli';
 import { bareToolName } from '../sync/phases';
@@ -13,12 +12,16 @@ const reportsBand = atom({ plugin: 'agent-kevin', key: 'reportsBand' } as const,
 const KEY_PREFIX = 'reports:';
 const SESSIONS_KEPT = 50;
 const ROWS_SHOWN = 5;
-const USAGE = 'Usage: /reports, or /reports attach <path>';
+const USAGE = 'Usage: /reports, or /reports attach <path> [<path> …] (quote a path with spaces)';
+// A subset of shell word rules: whitespace splits, "…" and '…' keep spaces, and a backslash escapes one character.
+const WORD = /(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])+/g;
+const QUOTED = /"([^"]*)"|'([^']*)'|\\(.)/g;
 const INDEXES = ['reports/index.md', 'reports/pinned.md'];
+const HOME_RECHECK_MS = 60_000;
 
 // Subagents can finish report_write together; one store write at a time keeps both rows.
 let writes: Promise<void> = Promise.resolve();
-let homeCache: Promise<string | undefined> | undefined;
+let homeCache: { home: Promise<string | undefined>; at: number } | undefined;
 
 const isSessionReport = (item: unknown): item is SessionReport =>
   typeof item === 'object' &&
@@ -57,8 +60,13 @@ const namesDeliverableFolder = (text: string): boolean =>
 
 const mayBeReport = (path: string): boolean => isDocument(path) && namesDeliverableFolder(path);
 
+// A miss is asked again after a minute, so a folder set up as a home mid-session is picked up.
 async function home($: EngineInterface): Promise<string | undefined> {
-  homeCache ??= $.process
+  const now = await $.clock.now();
+  if (homeCache !== undefined && ((await homeCache.home) !== undefined || now - homeCache.at < HOME_RECHECK_MS)) {
+    return homeCache.home;
+  }
+  const lookup = $.process
     .run(cliArgv($.plugin.root, $.plugin.name, ['ping']), { cwd: await $.session.root() })
     .then(({ exitCode, stdout }) => {
       const parsed: unknown = exitCode === 0 ? JSON.parse(stdout) : undefined;
@@ -73,11 +81,8 @@ async function home($: EngineInterface): Promise<string | undefined> {
         : undefined;
     })
     .catch(() => undefined);
-  const found = await homeCache;
-  if (found === undefined) {
-    homeCache = undefined;
-  }
-  return found;
+  homeCache = { home: lookup, at: now };
+  return lookup;
 }
 
 async function isDeliverable($: EngineInterface, path: string): Promise<boolean> {
@@ -108,12 +113,17 @@ async function rowFor($: EngineInterface, report: SessionReport, root: string): 
 async function rowsFor($: EngineInterface, key: string): Promise<ReportRow[]> {
   const [reports, root] = await Promise.all([storedReports($, key), $.session.root()]);
   const drawn = await Promise.all(reports.map(async (report) => ({ report, row: await rowFor($, report, root) })));
-  // A page and its card share a row; the card carries the title report_write gave it.
-  const pick = (shownPath: string) => {
-    const same = drawn.filter((item) => item.row.shownPath === shownPath);
-    return same.find((item) => item.report.path.endsWith('.md')) ?? same[0];
-  };
-  return drawn.filter((item) => pick(item.row.shownPath) === item).map((item) => item.row);
+  const latestFirst = [...drawn].reverse();
+  // A page and its card share one row, placed by the latest save, titled by the card report_write named.
+  return latestFirst
+    .filter((item, index) => latestFirst.findIndex((other) => other.row.shownPath === item.row.shownPath) === index)
+    .map((item) => {
+      const card = drawn.find(
+        (other) => other.row.shownPath === item.row.shownPath && other.report.path.endsWith('.md')
+      );
+      return { ...item.row, title: (card ?? item).row.title };
+    })
+    .reverse();
 }
 
 const inQueue = <T,>(task: () => Promise<T>): Promise<T> => {
@@ -143,23 +153,40 @@ async function record($: EngineInterface, key: string, path: string, title?: str
   }
 }
 
-async function attach($: EngineInterface, spelled: string): Promise<string | undefined> {
-  const [root, userHome] = await Promise.all([$.session.root(), $.env.get('HOME')]);
-  const path = spelled.startsWith('/')
-    ? spelled
-    : spelled.startsWith('~/') && userHome
-      ? `${userHome}/${spelled.slice(2)}`
-      : `${root}/${spelled.replace(/^\.\//, '')}`;
-  const isFile = await $.fs.stat(path).then(
-    (stat) => stat.kind === 'file',
-    () => false
+// A redirect, an assignment or a following operator can sit against a path: `>/x.md`, `P=~/x.md`, `/x.md;ls`.
+const pathIn = (word: string, userHome: string | undefined): string | undefined => {
+  const start = word.search(/~\/|\//);
+  const path = start === -1 ? undefined : word.slice(start).split(/[;|&<>()]/)[0];
+  return path?.startsWith('~/') && userHome ? `${userHome}${path.slice(1)}` : path;
+};
+
+const shellWords = (text: string): string[] =>
+  (text.match(WORD) ?? []).map((word) =>
+    word.replace(
+      QUOTED,
+      (_match, double?: string, single?: string, escaped?: string) => double ?? single ?? escaped ?? ''
+    )
   );
-  if (!isFile) {
-    return `No file at ${spelled}`;
-  }
-  const key = await sessionKey($);
-  queue(() => record($, key, path));
-  return undefined;
+
+async function attach($: EngineInterface, spelled: readonly string[]): Promise<string[]> {
+  const [root, userHome, key] = await Promise.all([$.session.root(), $.env.get('HOME'), sessionKey($)]);
+  const resolve = (path: string) =>
+    path.startsWith('/')
+      ? path
+      : path.startsWith('~/') && userHome
+        ? `${userHome}/${path.slice(2)}`
+        : `${root}/${path.replace(/^\.\//, '')}`;
+  const paths = spelled.map(resolve);
+  const found = await Promise.all(
+    paths.map((path) =>
+      $.fs.stat(path).then(
+        (stat) => stat.kind === 'file',
+        () => false
+      )
+    )
+  );
+  paths.filter((_path, index) => found[index]).forEach((path) => queue(() => record($, key, path)));
+  return spelled.filter((_path, index) => !found[index]);
 }
 
 export const registerReports = (on: On): void => {
@@ -198,8 +225,10 @@ export const registerReports = (on: On): void => {
     if (result.deny === undefined) {
       const key = await sessionKey($);
       queue(async () => {
-        const root = await home($);
-        const named = root === undefined ? [] : [...new Set(pathsInCommand(e.command, [root]))].filter(isDocument);
+        const [root, userHome] = await Promise.all([home($), $.env.get('HOME')]);
+        const named = [...new Set(shellWords(e.command).flatMap((word) => pathIn(word, userHome) ?? []))].filter(
+          (path) => root !== undefined && path.startsWith(`${root}/`) && isDocument(path)
+        );
         const written = await Promise.all(
           named.map(async (path) => {
             const isWritten =
@@ -224,21 +253,16 @@ export const registerReports = (on: On): void => {
 
   // Claude reads the full list; the person sees the latest rows in the band until they dismiss it.
   on('command.run', { command: 'reports' }, async ($, e) => {
-    const args = e.args.trim();
-    const verb = args.split(/\s+/)[0] ?? '';
-    if (verb && verb !== 'attach') {
+    if (e.args.replace(WORD, '').trim()) {
+      return { text: `A quote isn't closed in: ${e.args.trim()}` };
+    }
+    const [verb = '', ...words] = shellWords(e.args);
+    const paths = words.filter(Boolean);
+    if ((verb && verb !== 'attach') || (verb === 'attach' && paths.length === 0)) {
       return { text: USAGE };
     }
-    if (verb === 'attach') {
-      const spelled = args.slice(verb.length).trim();
-      if (!spelled) {
-        return { text: USAGE };
-      }
-      const failure = await attach($, spelled);
-      if (failure !== undefined) {
-        return { text: failure };
-      }
-    }
+    const missing = verb === 'attach' ? await attach($, paths) : [];
+    const notice = missing.length ? `No file at ${missing.join(', ')}` : undefined;
     const key = await sessionKey($);
     // Read in the queue, so a save landing meanwhile either comes first or finds the band open.
     const rows = await inQueue(async () => {
@@ -249,9 +273,10 @@ export const registerReports = (on: On): void => {
       return found;
     });
     if (rows.length === 0) {
-      return { text: 'No reports in this conversation yet.' };
+      return { text: notice ?? 'No reports in this conversation yet.' };
     }
     return {
+      ...(notice === undefined ? {} : { text: notice }),
       context: [['Reports in this conversation:', ...rows.map((row) => `- ${row.shownPath} · ${row.title}`)].join('\n')]
     };
   });
