@@ -21,8 +21,9 @@ export interface ModFeature {
 export const COMMANDS_FEATURE = {
   id: 'commands',
   title: 'Instant commands',
-  summary: 'Capture a thought, log a lesson, close a task or see today, answered at once without a model turn.',
-  where: 'slash commands · the Today row above the prompt',
+  summary:
+    "Capture a thought, log a lesson, close a task, see today or copy this conversation's session id, answered at once without a model turn.",
+  where: 'slash commands · the Today and Session rows above the prompt',
   commands: [
     {
       name: 'capture',
@@ -37,7 +38,8 @@ export const COMMANDS_FEATURE = {
       immediate: true
     },
     { name: 'done', description: 'Close a task by id (no Claude turn)', argumentHint: '<task-id>', immediate: true },
-    { name: 'today', description: "Overdue work, what's due today and the last sync (no Claude turn)" }
+    { name: 'today', description: "Overdue work, what's due today and the last sync (no Claude turn)" },
+    { name: 'session', description: "This conversation's session id, with a Copy button (no Claude turn)" }
   ],
   tools: []
 } as const satisfies ModFeature;

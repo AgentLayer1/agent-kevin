@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code';
-import type { EngineInterface, On } from 'claude-code';
+import type { EngineInterface, On, UiPressArgument } from 'claude-code';
 
 import type { AgendaItem, TodayView } from '../types';
 
@@ -10,6 +10,7 @@ import type { TaskFrontmatter } from './today';
 import { STALE_SYNC_HOURS, buildToday, formatAge, parseEmoji, summarize } from './today';
 
 const todayBand = atom({ plugin: 'agent-kevin', key: 'todayBand' } as const, null);
+const sessionBand = atom({ plugin: 'agent-kevin', key: 'sessionBand' } as const, null);
 const TASKS_FRESH_MS = 60_000;
 const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
 
@@ -101,10 +102,42 @@ export const registerCommands = (on: On): void => {
     return { context: [summarize(view)] };
   });
 
+  on('command.run', { command: 'session' }, async ($) => {
+    const id = await $.session.id();
+    await update($, sessionBand, () => id);
+    return { context: [`Session id: ${id}`] };
+  });
+
   // A /clear or a resume starts another conversation in the same process.
   on('session.end', { reason: ['clear', 'resume'] }, async ($, e, next) => {
-    await update($, todayBand, () => null);
+    await Promise.all([update($, todayBand, () => null), update($, sessionBand, () => null)]);
     return next(e);
+  });
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const below = await next(e);
+    const id = await read($, sessionBand);
+    if (id === null || e.props.hasSurvey) {
+      return below;
+    }
+    const { Box, Button, Text } = $.ui.resolve(e);
+    const copy = async (press: UiPressArgument) => {
+      const copied = await $.ui.copy({ text: id, surface: press.surface });
+      $.ui.toast(copied.isCopied ? 'Session id copied' : `Couldn't copy the session id (${copied.reason})`);
+    };
+    return (
+      <Box flexDirection="column">
+        <Box gap={1}>
+          <Text bold>Session</Text>
+          <Text>{id}</Text>
+          <Box marginLeft={2} gap={2}>
+            <Button key="session:copy" label="Copy" onPress={copy} />
+            <Button key="session:dismiss" dimColor label="Dismiss" onPress={() => update($, sessionBand, () => null)} />
+          </Box>
+        </Box>
+        {below}
+      </Box>
+    );
   });
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

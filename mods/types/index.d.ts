@@ -143,6 +143,7 @@ declare module 'claude-code' {
       delivered: string[];
       manualsThisTurn: string[];
       todayBand: TodayView | null;
+      sessionBand: string | null;
       reportsBand: ReportRow[] | null;
       syncTick: number;
       notices: Notice[];

@@ -50,6 +50,8 @@ export interface FakeMachine {
   fsCalls: string[];
   notices: Notice[];
   toasts: string[];
+  /** What `$.ui.copy` put on the clipboard. */
+  copied: string[];
   suggestions: string[];
   commands: string[];
   /** CLI calls (`task query`) that exit 1. */
@@ -81,6 +83,7 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   fsCalls: [],
   notices: [],
   toasts: [],
+  copied: [],
   suggestions: [],
   commands: [],
   failing: [],
@@ -216,6 +219,10 @@ export const fakeHost = (on: On, host: FakeMachine = machine()): FakeHost => {
   on('ui.toast', (_$, e) => {
     host.toasts.push(e.text);
     return { value: undefined };
+  });
+  on('ui.copy', (_$, e) => {
+    host.copied.push(e.text);
+    return { value: { isCopied: true as const } };
   });
   on('prompt.suggest', (_$, e) => {
     host.suggestions.push(e.text);

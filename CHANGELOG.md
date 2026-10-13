@@ -53,6 +53,9 @@ and prompts per optional one. The new template files are the source of truth for
   report with an HTML page shows the page. The row shows the latest five and follows new ones while
   open, and Claude gets the full list. `/reports attach <path>` adds any file by hand. A resumed
   conversation keeps its list, and the dashboard's Mods tab and cheatsheet list the command.
+- **`/session`** (Claude Code mod) shows this conversation's session id in a row above the prompt,
+  with a Copy button and a Dismiss button. Nothing reaches the clipboard until you press Copy, and a
+  `/clear` takes the row down because the next conversation has another id.
 
 ### Changed
 - **`/today` shows its agenda in a row above the prompt** with a Dismiss button, the same way
