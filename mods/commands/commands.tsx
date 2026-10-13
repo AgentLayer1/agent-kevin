@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code';
-import type { EngineInterface, On, UiPressArgument } from 'claude-code';
+import type { EngineInterface, On } from 'claude-code';
 
 import type { AgendaItem, TodayView } from '../types';
 
@@ -121,17 +121,20 @@ export const registerCommands = (on: On): void => {
       return below;
     }
     const { Box, Button, Text } = $.ui.resolve(e);
-    const copy = async (press: UiPressArgument) => {
-      const copied = await $.ui.copy({ text: id, surface: press.surface });
-      $.ui.toast(copied.isCopied ? 'Session id copied' : `Couldn't copy the session id (${copied.reason})`);
-    };
     return (
       <Box flexDirection="column">
         <Box gap={1}>
           <Text bold>Session</Text>
           <Text>{id}</Text>
           <Box marginLeft={2} gap={2}>
-            <Button key="session:copy" label="Copy" onPress={copy} />
+            <Button
+              key="session:copy"
+              label="Copy"
+              onPress={async (press) => {
+                const copied = await $.ui.copy({ text: id, surface: press.surface });
+                $.ui.toast(copied.isCopied ? 'Session id copied' : `Couldn't copy the session id (${copied.reason})`);
+              }}
+            />
             <Button key="session:dismiss" dimColor label="Dismiss" onPress={() => update($, sessionBand, () => null)} />
           </Box>
         </Box>

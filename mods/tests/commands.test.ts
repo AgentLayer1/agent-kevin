@@ -140,8 +140,8 @@ describe('/today row', () => {
 describe('/session row', () => {
   const band = ($: Engine, surface: 'terminal' | 'desktop') =>
     $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: BAND_PROPS });
-  const drawn = async ($: Engine) =>
-    (await (await band($, 'terminal')).findAll({ type: 'Text' })).map((element) => element.text).join('|');
+  const drawn = async ($: Engine, surface: 'terminal' | 'desktop') =>
+    (await (await band($, surface)).findAll({ type: 'Text' })).map((element) => element.text).join('|');
 
   test("/session tells Claude this conversation's id and copies nothing by itself", async ($, on) => {
     const host = fakeHost(on);
@@ -154,14 +154,14 @@ describe('/session row', () => {
   for (const surface of ['terminal', 'desktop'] as const) {
     test(`shows the id above the prompt, copies it on Copy, and goes on Dismiss on ${surface}`, async ($, on) => {
       const host = fakeHost(on);
-      expect(await drawn($)).not.toContain('Session');
+      expect(await drawn($, surface)).not.toContain('Session');
       await run($, 'session');
-      expect(await drawn($)).toContain('Session|session-1');
+      expect(await drawn($, surface)).toContain('Session|session-1');
       await (await band($, surface)).press({ key: 'session:copy' });
       expect(host.copied).toEqual(['session-1']);
       expect(host.toasts).toEqual(['Session id copied']);
       await (await band($, surface)).press({ key: 'session:dismiss' });
-      expect(await drawn($)).not.toContain('Session');
+      expect(await drawn($, surface)).not.toContain('Session');
     });
   }
 
@@ -169,6 +169,6 @@ describe('/session row', () => {
     fakeHost(on);
     await run($, 'session');
     await $.session.end({ reason: 'clear', sessionId: 'session-1', resume: { id: 'session-1' } });
-    expect(await drawn($)).not.toContain('Session');
+    expect(await drawn($, 'terminal')).not.toContain('Session');
   });
 });
