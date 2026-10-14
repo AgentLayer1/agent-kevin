@@ -11,7 +11,6 @@ const reportsBand = atom({ plugin: 'agent-kevin', key: 'reportsBand' } as const,
 
 const KEY_PREFIX = 'reports:';
 const SESSIONS_KEPT = 50;
-const ROWS_SHOWN = 5;
 const USAGE = 'Usage: /reports, or /reports attach <path> [<path> …] (quote a path with spaces)';
 // A subset of shell word rules: whitespace splits, "…" and '…' keep spaces, and a backslash escapes one character.
 const WORD = /(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])+/g;
@@ -52,6 +51,8 @@ async function storedReports($: EngineInterface, key: string): Promise<SessionRe
 }
 
 const fileName = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
+
+const stem = (path: string): string => fileName(path).replace(/\.[^.]+$/, '');
 
 const isDocument = (path: string): boolean => path.endsWith('.md') || path.endsWith('.html');
 
@@ -121,7 +122,8 @@ async function rowsFor($: EngineInterface, key: string): Promise<ReportRow[]> {
       const card = drawn.find(
         (other) => other.row.shownPath === item.row.shownPath && other.report.path.endsWith('.md')
       );
-      return { ...item.row, title: (card ?? item).row.title };
+      const title = (card ?? item).row.title ?? '';
+      return stem(title) === stem(item.row.shownPath) ? { shownPath: item.row.shownPath } : { ...item.row, title };
     })
     .reverse();
 }
@@ -277,7 +279,12 @@ export const registerReports = (on: On): void => {
     }
     return {
       ...(notice === undefined ? {} : { text: notice }),
-      context: [['Reports in this conversation:', ...rows.map((row) => `- ${row.shownPath} · ${row.title}`)].join('\n')]
+      context: [
+        [
+          'Reports in this conversation:',
+          ...rows.map((row) => (row.title ? `- ${row.shownPath} · ${row.title}` : `- ${row.shownPath}`))
+        ].join('\n')
+      ]
     };
   });
 
@@ -294,7 +301,6 @@ export const registerReports = (on: On): void => {
       return below;
     }
     const { Box, Button, Text } = $.ui.resolve(e);
-    const hidden = rows.length - ROWS_SHOWN;
     return (
       <Box flexDirection="column">
         <Box gap={1}>
@@ -304,17 +310,19 @@ export const registerReports = (on: On): void => {
             <Button key="reports:dismiss" dimColor label="Dismiss" onPress={() => update($, reportsBand, () => null)} />
           </Box>
         </Box>
-        {hidden > 0 ? <Text dimColor>{`   +${hidden} earlier`}</Text> : null}
-        {rows.slice(-ROWS_SHOWN).map((row) => (
+        {/* Newest first: past the band's height the engine scrolls the rest. */}
+        {[...rows].reverse().map((row) => (
           <Box key={row.shownPath} paddingLeft={3}>
             <Box flexShrink={0}>
               <Text>{row.shownPath}</Text>
             </Box>
-            <Box flexGrow={1} flexShrink={1} marginLeft={2}>
-              <Text dimColor wrap="truncate-end">
-                {row.title}
-              </Text>
-            </Box>
+            {row.title ? (
+              <Box flexGrow={1} flexShrink={1} marginLeft={2}>
+                <Text dimColor wrap="truncate-end">
+                  {row.title}
+                </Text>
+              </Box>
+            ) : null}
           </Box>
         ))}
         {below}

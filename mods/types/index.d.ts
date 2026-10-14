@@ -125,8 +125,9 @@ export interface SessionReport {
  * One row of the /reports band: the page beside the card when there is one, else the card.
  */
 export interface ReportRow {
-  title: string;
   shownPath: string;
+  /** Absent when it would only repeat the file name. */
+  title?: string;
 }
 
 export interface Queue {

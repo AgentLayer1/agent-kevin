@@ -113,9 +113,9 @@ describe('/reports', () => {
     expect(await listed($)).toBe(
       list(
         'reports/plans/2026-03-10-0900-spec.md · Final spec',
-        'projects/trips/itineraries/langkawi-v1.html · langkawi-v1.html',
-        'projects/acme/careers/interview-card.md · interview-card.md',
-        'roadmap.html · roadmap.html'
+        'projects/trips/itineraries/langkawi-v1.html',
+        'projects/acme/careers/interview-card.md',
+        'roadmap.html'
       )
     );
   });
@@ -232,7 +232,7 @@ describe('/reports from shell writes', () => {
     const render = `bun explainer.ts render body.md > ${page} && sed -i '' 's/a/b/' ${card}`;
     setUp(on, machine({ shellWrites: { [render]: [page, card] } }));
     await shell($, render);
-    expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-plan.html · 2026-03-10-0900-plan.md'));
+    expect(await listed($)).toBe(list('reports/plans/2026-03-10-0900-plan.html'));
   });
 
   test('reads a quoted path with spaces, a redirect and an assignment as the shell does', async ($, on) => {
@@ -243,11 +243,7 @@ describe('/reports from shell writes', () => {
     setUp(on, machine({ shellWrites: { [command]: [spaced, redirected, assigned] } }));
     await shell($, command);
     expect(await listed($)).toBe(
-      list(
-        'projects/acme/kick off.md · kick off.md',
-        'reports/plans/redirected.md · redirected.md',
-        'reports/plans/assigned.html · assigned.html'
-      )
+      list('projects/acme/kick off.md', 'reports/plans/redirected.md', 'reports/plans/assigned.html')
     );
   });
 
@@ -305,11 +301,7 @@ describe('/reports attach', () => {
     expect(
       await listed($, 'attach knowledge/concepts/fixture.md ~/Downloads/statement.pdf  /fixture/elsewhere/notes.txt')
     ).toBe(
-      list(
-        'knowledge/concepts/fixture.md · fixture.md',
-        `${USER_HOME}/Downloads/statement.pdf · statement.pdf`,
-        '/fixture/elsewhere/notes.txt · notes.txt'
-      )
+      list('knowledge/concepts/fixture.md', `${USER_HOME}/Downloads/statement.pdf`, '/fixture/elsewhere/notes.txt')
     );
   });
 
@@ -322,10 +314,10 @@ describe('/reports attach', () => {
     const args = `attach "projects/acme/meeting  notes.md" 'projects/acme/kick off.md' ~/My\\ Docs/q3\\ plan.md ~/"My Docs"/budget.md`;
     expect(await listed($, args)).toBe(
       list(
-        'projects/acme/meeting  notes.md · meeting  notes.md',
-        'projects/acme/kick off.md · kick off.md',
-        `${USER_HOME}/My Docs/q3 plan.md · q3 plan.md`,
-        `${USER_HOME}/My Docs/budget.md · budget.md`
+        'projects/acme/meeting  notes.md',
+        'projects/acme/kick off.md',
+        `${USER_HOME}/My Docs/q3 plan.md`,
+        `${USER_HOME}/My Docs/budget.md`
       )
     );
   });
@@ -335,7 +327,7 @@ describe('/reports attach', () => {
     host.files[`${HOME}/knowledge/concepts/fixture.md`] = 'x';
     const result = await run($, 'reports', 'attach missing.md knowledge/concepts/fixture.md "gone away.md"');
     expect(result.text).toBe('No file at missing.md, gone away.md');
-    expect(result.context?.[0]).toBe(list('knowledge/concepts/fixture.md · fixture.md'));
+    expect(result.context?.[0]).toBe(list('knowledge/concepts/fixture.md'));
   });
 
   test('refuses a missing file, a missing path and an unknown word', async ($, on) => {
@@ -374,17 +366,21 @@ describe('reports row', () => {
     });
   }
 
-  test('shows the latest five and counts the rest', async ($, on) => {
+  test('lists every report, newest first, and leaves a tall row to the band to scroll', async ($, on) => {
     setUp(on);
     for (const index of [1, 2, 3, 4, 5, 6, 7]) {
       await writeReport($, 'plans', `plan-${index}`, `Plan ${index}`);
     }
     await run($, 'reports');
-    const texts = await bandTexts($);
-    expect(texts).toContain('   +2 earlier');
-    expect(texts).not.toContain('Plan 2');
-    expect(texts).toContain('Plan 3');
-    expect(texts).toContain('Plan 7');
+    const titles = (await bandTexts($)).filter((text) => text.startsWith('Plan '));
+    expect(titles).toEqual(['Plan 7', 'Plan 6', 'Plan 5', 'Plan 4', 'Plan 3', 'Plan 2', 'Plan 1']);
+  });
+
+  test('a row whose title only repeats its file name shows just the path', async ($, on) => {
+    setUp(on);
+    await write($, `${HOME}/projects/acme/notes.md`);
+    await run($, 'reports');
+    expect((await bandTexts($)).filter((text) => text.includes('notes'))).toEqual(['projects/acme/notes.md']);
   });
 
   test('an open row picks up a report that lands after it', async ($, on) => {
