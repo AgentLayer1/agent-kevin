@@ -277,9 +277,9 @@ export const registerSync = (on: On): void => {
     );
 
     const counters = (
-      <Box gap={3}>
+      <Box flexWrap="wrap" columnGap={3}>
         {progressOf(run).map((item) => (
-          <Box key={item.label}>
+          <Box key={item.label} flexShrink={0}>
             <Text dimColor>{item.label} </Text>
             <Text color={item.cleared && item.cleared === item.total ? 'green' : undefined}>
               {item.cleared}/{item.total}
@@ -288,7 +288,7 @@ export const registerSync = (on: On): void => {
           </Box>
         ))}
         {notes.map((note) => (
-          <Box key={note.label}>
+          <Box key={note.label} flexShrink={0}>
             <Text dimColor>{note.label} </Text>
             <Text>{note.count}</Text>
           </Box>
@@ -298,9 +298,10 @@ export const registerSync = (on: On): void => {
 
     return isEnded ? (
       <Box flexDirection="column">
-        <Box gap={2}>
-          {header}
-          {rail}
+        {/* A narrow pane wraps whole pieces onto the next line instead of breaking words. */}
+        <Box flexWrap="wrap" columnGap={2}>
+          <Box flexShrink={0}>{header}</Box>
+          <Box flexShrink={0}>{rail}</Box>
           {counters}
         </Box>
         {below}
