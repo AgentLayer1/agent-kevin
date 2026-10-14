@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [0.7.3] - 2026-10-13
+## [0.7.3] - 2026-10-14
 
 ### Added
 - **`/reports`** (Claude Code mod) shows the reports this conversation produced in a row above the
@@ -68,7 +68,7 @@ and prompts per optional one. The new template files are the source of truth for
   `notes.md:12` in its Markdown viewer, so markdown files take the usual `file_path:line_number` form.
 
 ### Upgrade
-- `template/AGENTS.md: optional` — the Platform section drops the "Paths in chat are bare when the terminal opens them" paragraph.
+- `template/AGENTS.md: mandatory` — the Platform section drops the "Paths in chat are bare when the terminal opens them" paragraph.
 
 ## [0.7.2] - 2026-10-12
 
