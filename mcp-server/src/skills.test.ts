@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { LEGACY_RUNTIME_DIR, RUNTIME_DIR } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 import { routerPlaybooks } from '@/shared/playbooks';
 import { RETIRED_SKILLS } from '@/shared/retired-skills';
 import { PHASES } from '../../mods/sync/phases';
@@ -107,7 +107,7 @@ describe('skills', () => {
   // The data dir moved to the shared `.state` in 0.7.0. The old name survives only beside the new one (the
   // checks that keep a home working until its upgrade moves it) or beside the release it belongs to.
   test('skill and template text names the old data dir only beside .state or a release', () => {
-    const legacy = new RegExp(`\\${LEGACY_RUNTIME_DIR}(?![\\w.\\]])`);
+    const legacy = /\.kevin(?![\w.\]])/;
     const files = [
       ...markdownFiles(SKILLS),
       ...markdownFiles(join(ROOT, 'templates')),

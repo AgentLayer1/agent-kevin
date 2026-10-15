@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FILES, FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
-import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 import { recordOutcome } from '@/notices/ledger';
 import { ANSI, stripAnsi } from '@/shared/banner';
@@ -105,32 +105,6 @@ describe('sessionStart', () => {
       () => sessionStart()
     );
     expect(result.additionalContext).not.toContain('Operating manual layout');
-  });
-
-  // A session still on the pre-0.7.0 plugin writes there after the upgrade moved the folder.
-  test('a legacy data dir back beside .state is flagged, since nothing in it is read', async () => {
-    const result = await withHome(
-      (home) => {
-        markedHome(home, {});
-        mkdirSync(resolve(home, LEGACY_RUNTIME_DIR), { recursive: true });
-        writeFileSync(resolve(home, LEGACY_RUNTIME_DIR, 'knowledge.json'), '{}\n');
-      },
-      () => sessionStart()
-    );
-    expect(result.additionalContext).toContain('Two data folders');
-  });
-
-  test('a home the upgrade has not moved yet still loads from its legacy dir, with no warning', async () => {
-    const result = await withHome(
-      (home) => {
-        mkdirSync(resolve(home, LEGACY_RUNTIME_DIR), { recursive: true });
-        writeFileSync(resolve(home, LEGACY_RUNTIME_DIR, 'version.json'), '{}\n');
-        writeFileSync(resolve(home, 'SOUL.md'), '# Soul\n');
-      },
-      () => sessionStart()
-    );
-    expect(result.systemMessage).not.toContain('Do NOT run init');
-    expect(result.additionalContext).not.toContain('Two data folders');
   });
 
   const staleBin = `/cache/${pluginName()}/0.0.1/bin/${pluginName().replace(/^agent-/, '')}`;

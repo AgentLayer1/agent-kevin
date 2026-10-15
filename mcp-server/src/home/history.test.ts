@@ -16,7 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { followMove, type HistoryEnv, historyStatus, restorePointer, setupHistory } from '@/home/history';
-import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
+import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { PLUGIN_NAME } from '@/config';
 
 let root: string;
@@ -134,7 +134,7 @@ describe('setupHistory', () => {
       JSON.stringify({
         env: { AGENT_CODE_PATH: '/code/acme' },
         permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code'] },
-        sandbox: { filesystem: { allowWrite: ['/code'], denyRead: [`${LEGACY_RUNTIME_DIR}/secrets`] } }
+        sandbox: { filesystem: { allowWrite: ['/code'], denyRead: [`${RUNTIME_DIR}/secrets`] } }
       })
     );
     setupHistory(home, {}, historyEnv);
@@ -142,7 +142,7 @@ describe('setupHistory', () => {
     expect(settingsOf(home)).toEqual({
       env: { AGENT_CODE_PATH: '/code/acme', AGENT_HOME_GIT_DIR: gitDir },
       permissions: { allow: ['Bash(ls)'], additionalDirectories: ['/code', gitDir] },
-      sandbox: { filesystem: { allowWrite: ['/code', gitDir], denyRead: [`${LEGACY_RUNTIME_DIR}/secrets`] } }
+      sandbox: { filesystem: { allowWrite: ['/code', gitDir], denyRead: [`${RUNTIME_DIR}/secrets`] } }
     });
   });
 

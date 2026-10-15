@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { LEGACY_RUNTIME_DIR, legacyEnvPrefix, pluginName } from '../../../mcp-server/src/shared/naming';
+import { legacyEnvPrefix, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const PLUGIN_NAME = pluginName();
 const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
@@ -241,8 +241,6 @@ describe('codex-setup mcp registration', () => {
     });
     expect(config.permissions[AGENT_SLUG].extends).toBe(':workspace');
     expect(config.permissions[AGENT_SLUG].filesystem[join(home, '.state', 'secrets')]).toBe('deny');
-    // A bare home started on `.state`, so the legacy store gets no deny of its own.
-    expect(config.permissions[AGENT_SLUG].filesystem[join(home, LEGACY_RUNTIME_DIR, 'secrets')]).toBeUndefined();
     expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']).toEqual({
       '.git': 'write',
       '**/.state/secrets/**': 'deny',
@@ -270,12 +268,7 @@ describe('codex-setup mcp registration', () => {
       join(home, '.claude', 'settings.json'),
       JSON.stringify({
         permissions: {
-          deny: [
-            `Read(//**/${LEGACY_RUNTIME_DIR}/secrets/**)`,
-            'Read(~/.ssh/**)',
-            'Read(vault/**)',
-            'WebFetch(domain:example.com)'
-          ],
+          deny: ['Read(//**/.acme/secrets/**)', 'Read(~/.ssh/**)', 'Read(vault/**)', 'WebFetch(domain:example.com)'],
           ask: [
             'Bash(git push)',
             'Bash(git push *)',
@@ -302,7 +295,7 @@ describe('codex-setup mcp registration', () => {
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
     const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
     expect(config.permissions[AGENT_SLUG].workspace_roots).toEqual({ [code]: true, [extra]: true });
-    expect(config.permissions[AGENT_SLUG].filesystem[`/**/${LEGACY_RUNTIME_DIR}/secrets/**`]).toBe('deny');
+    expect(config.permissions[AGENT_SLUG].filesystem['/**/.acme/secrets/**']).toBe('deny');
     expect(config.permissions[AGENT_SLUG].filesystem[join(homedir(), '.ssh', '**')]).toBe('deny');
     expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']['vault/**']).toBe('deny');
     expect(JSON.stringify(config)).not.toContain('example.com');

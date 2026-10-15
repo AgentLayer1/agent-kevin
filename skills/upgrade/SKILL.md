@@ -25,7 +25,7 @@ ask before anything optional.
 
 ```bash
 HOME_DIR="${AGENT_HOME:-$PWD}"
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
 [ -d "$PLUGIN_ROOT/.claude-plugin" ] || echo "SET PLUGIN_ROOT: $PLUGIN_ROOT is not the plugin checkout"
@@ -77,12 +77,6 @@ ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 
 Confirm `$HOME_DIR` is a real Kevin home (its data dir holds `version.json` or `knowledge.json`). If not, stop and tell
 the user to run this from their agent home (or set `AGENT_HOME`).
-
-**`$DATA_DIR` is resolved in every block, never carried over.** In 0.7.0 the data dir moved from `.kevin/`
-to `.state/`, and this skill runs on both sides of that move: the 0.7.0 script in Step 4
-performs it. Each block below that touches the data dir starts with the same resolution line, so a
-path from before the move is never reused after it. Never create `.state/` by hand in a home that
-still has `.kevin/`: the 0.7.0 script refuses to move onto a `.state/` it doesn't own.
 
 **`GIT_CHECKOUT` → bring the plugin code current before reading versions.** Call
 `github_fast_forward` with `repos: ["<PLUGIN_ROOT>"]` — it runs outside the Bash
@@ -249,7 +243,7 @@ Snapshot every HOME file the plan will touch, before any write. `.gitignore`,
 reconcile may change them on any run.
 
 ```bash
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 TS=$(date +%Y%m%d-%H%M%S)
 BACKUP="$DATA_DIR/updates/${BASELINE:-init}-to-${INSTALLED}-${TS}"
 mkdir -p "$BACKUP"
@@ -350,7 +344,7 @@ never writes a user-level file, and the home's profile carries the user-level de
 operator pastes:
 
 ```bash
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" --out "$DATA_DIR/updates/codex-user-config.md"
 ```
 
@@ -421,7 +415,7 @@ wrote (never to be lost). Only the templates as they stood at the home's baselin
 the two apart, so materialize them, then run the drift lever against both:
 
 ```bash
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 BASE_TPL=""
 if [ -d "$DATA_DIR/template-base" ]; then
   BASE_TPL="$DATA_DIR/template-base"
@@ -525,7 +519,7 @@ and prior `history` entries.)
 Then snapshot the templates this home now tracks, so the next upgrade has its base:
 
 ```bash
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 rm -rf "$DATA_DIR/template-base" && cp -R "$PLUGIN_ROOT/templates" "$DATA_DIR/template-base"
 ```
 
@@ -610,7 +604,7 @@ then on every write to the file the new rule names is judged as Instruction Pois
 Never transcribe the block or compare its prose by eye — generate and check it:
 
 ```bash
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 bun "$PLUGIN_ROOT/skills/init/scripts/automode-block.ts" --home "$HOME_DIR" --check \
   --out "$DATA_DIR/updates/automode-block.md"
 ```

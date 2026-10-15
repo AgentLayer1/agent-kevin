@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, dataDirOf, legacyEnvPrefix, ownDataDir, pluginName } from './naming';
+import { RUNTIME_DIR, dataDirOf, legacyEnvPrefix, ownDataDir, pluginName } from './naming';
 
 describe('legacyEnvPrefix', () => {
   // The fork seam, asserted in one place — every other test builds legacy key names
@@ -12,9 +12,8 @@ describe('legacyEnvPrefix', () => {
     expect(legacyEnvPrefix()).toBe('KEVIN_');
   });
 
-  test("this agent's data dir is .state, moved from .kevin", () => {
+  test("this agent's data dir is .state", () => {
     expect(RUNTIME_DIR).toBe('.state');
-    expect(LEGACY_RUNTIME_DIR).toBe('.kevin');
   });
 });
 
@@ -43,23 +42,6 @@ describe('ownDataDir', () => {
   test("an unrecorded or foreign .state is never this agent's", () => {
     expect(ownDataDir(homeWith({ [RUNTIME_DIR]: unrecorded }))).toBeUndefined();
     expect(ownDataDir(homeWith({ [RUNTIME_DIR]: other }))).toBeUndefined();
-  });
-
-  test('a legacy dir counts recorded or not, but never when it records another plugin', () => {
-    const legacyHome = homeWith({ [LEGACY_RUNTIME_DIR]: unrecorded });
-    expect(ownDataDir(legacyHome)).toBe(resolve(legacyHome, LEGACY_RUNTIME_DIR));
-    expect(ownDataDir(homeWith({ [LEGACY_RUNTIME_DIR]: ours }))).toBeDefined();
-    expect(ownDataDir(homeWith({ [LEGACY_RUNTIME_DIR]: other }))).toBeUndefined();
-  });
-
-  test('.state wins over a legacy dir left beside it', () => {
-    const home = homeWith({ [RUNTIME_DIR]: ours, [LEGACY_RUNTIME_DIR]: unrecorded });
-    expect(ownDataDir(home)).toBe(resolve(home, RUNTIME_DIR));
-  });
-
-  test('a home not yet moved keeps its legacy dir even beside a foreign .state', () => {
-    const home = homeWith({ [RUNTIME_DIR]: other, [LEGACY_RUNTIME_DIR]: unrecorded });
-    expect(dataDirOf(home)).toBe(resolve(home, LEGACY_RUNTIME_DIR));
   });
 
   test('a home with no data dir yet writes to .state', () => {

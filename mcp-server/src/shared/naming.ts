@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 /**
  * Agent naming — the bottom of the config stack: how env keys resolve, the name
@@ -102,12 +102,6 @@ export const resolveEnv = (key: string): string | undefined => process.env[key]?
 export const RUNTIME_DIR = '.state';
 
 /**
- * The agent-named data dir every home used before 0.7.0. Still read, so a home
- * keeps working between a plugin update and the upgrade that moves its folder.
- */
-export const LEGACY_RUNTIME_DIR = '.kevin';
-
-/**
  * Files that mark a data dir as a scaffolded agent home: the upgrade baseline
  * (`version.json`, written by init) and the compile cursor (`knowledge.json`).
  * The bare directory is NOT the marker — best-effort runtime writers (the
@@ -135,26 +129,16 @@ export const recordedPlugin = (dataDir: string): string | undefined => {
 
 /**
  * True when `dataDir` carries a home marker and was scaffolded by this plugin.
- * The shared `.state` name proves nothing, so it must record this plugin; the
- * agent-named legacy dir may also predate the record.
+ * The shared `.state` name proves nothing, so it must record this plugin.
  */
-export const isOwnDataDir = (dataDir: string): boolean => {
-  if (!HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file)))) {
-    return false;
-  }
-  const recorded = recordedPlugin(dataDir);
-  return recorded === undefined ? basename(dataDir) === LEGACY_RUNTIME_DIR : recorded === pluginName();
+export const isOwnDataDir = (dataDir: string): boolean =>
+  HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file))) && recordedPlugin(dataDir) === pluginName();
+
+/** `home`'s `.state` when it is this agent's data dir; undefined when `home` is not this agent's home. */
+export const ownDataDir = (home: string): string | undefined => {
+  const dataDir = resolve(home, RUNTIME_DIR);
+  return isOwnDataDir(dataDir) ? dataDir : undefined;
 };
 
-/**
- * `home`'s data dir when it is this agent's: `.state`, else the legacy dir of a
- * home not yet upgraded. Undefined when `home` is not this agent's home.
- */
-export const ownDataDir = (home: string): string | undefined =>
-  [RUNTIME_DIR, LEGACY_RUNTIME_DIR].map((name) => resolve(home, name)).find(isOwnDataDir);
-
-/**
- * Where `home` keeps its runtime state: its own data dir, or `.state` for a home
- * that has none yet (init writes there).
- */
-export const dataDirOf = (home: string): string => ownDataDir(home) ?? resolve(home, RUNTIME_DIR);
+/** Where `home` keeps its runtime state, whether or not init has written it yet. */
+export const dataDirOf = (home: string): string => resolve(home, RUNTIME_DIR);

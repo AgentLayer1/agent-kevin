@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFile
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { AGENT_SLUG } from '@/config';
-import { LEGACY_RUNTIME_DIR } from '@/shared/naming';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 // One hermetic HOME for the whole pipeline, overriding the preload's throwaway home so
 // capture and compile share a tree this file can assert against. `config` resolves paths live,
@@ -28,8 +28,12 @@ let STATE_PATH: string;
 
 beforeAll(async () => {
   mkdirSync(SESSIONS, { recursive: true });
-  mkdirSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`), { recursive: true });
-  writeFileSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`, 'version.json'), '{}\n'); // isInitialized() gate — the marker file marks this agent's home
+  mkdirSync(resolve(HOME, RUNTIME_DIR), { recursive: true });
+  writeFileSync(
+    resolve(HOME, RUNTIME_DIR, 'version.json'),
+    `${JSON.stringify({ plugin: pluginName() })}
+`
+  ); // isInitialized() gate — the marker file marks this agent's home
   ({ captureSession } = await import('@/knowledge/session-capture'));
   ({ pickNext, markComplete, getStatus } = await import('@/knowledge/compile'));
   ({ hashBuffer } = await import('@/knowledge/utils'));

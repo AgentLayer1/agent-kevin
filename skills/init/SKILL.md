@@ -52,7 +52,7 @@ any project the plugin is installed into, and init appends to it when it does.)
 
 Act on the probes before anything else:
 
-- **`LEGACY_DATA_DIR`** — this home predates 0.7.0: its data dir is still `.kevin/`. Re-running init would scaffold a second data dir beside it. Tell the operator to run `/agent-kevin:upgrade` instead, which moves `.kevin/` to `.state/`, and **STOP**.
+- **`LEGACY_DATA_DIR`** — this home never ran the 0.7.0 upgrade: its data dir is still `.kevin/`, which this version neither reads nor moves to `.state/`. Re-running init would scaffold a second data dir beside it. Tell the operator to install agent-kevin v0.7.3, run `/agent-kevin:upgrade` there, then update to this version, and **STOP**.
 - **`CWD_IS_A_REPO`** — cwd is inside a git work tree that isn't a Kevin home: almost certainly a code repo, and scaffolding a brain into a repo pollutes it (SOUL.md, knowledge/, `.state/` all land in the working tree). `AskUserQuestion`:
 
   > **This looks like a code repo, not a home for Kevin's brain.** You launched `claude` in `<HOME_DIR>`, which is a git repository without a Kevin scaffold. Where should the home live?

@@ -34,8 +34,8 @@ const seedHome = (home: string, initArgs: string[] = []): string => {
   git(home, "init", "-b", "main", ...initArgs);
   git(home, "config", "user.email", "test@example.com");
   git(home, "config", "user.name", "Test");
-  mkdirSync(join(home, ".kevin"), { recursive: true });
-  write(home, ".gitignore", ".env\n.kevin/*\n");
+  mkdirSync(join(home, ".state"), { recursive: true });
+  write(home, ".gitignore", ".env\n.state/*\n");
   for (const file of SEED_FILES.slice(1)) {
     write(home, file, `seed ${file}\n`);
   }
@@ -191,7 +191,7 @@ describe("commitBrain grouping", () => {
     const gitDir = join(root, "data.git");
     mkdirSync(home);
     seedHome(home, ["--separate-git-dir", gitDir]);
-    write(home, ".gitignore", ".env\n.kevin/*\n.claude/settings.local.json\n");
+    write(home, ".gitignore", ".env\n.state/*\n.claude/settings.local.json\n");
     git(home, "commit", "-qam", "ignore local settings");
     write(home, ".claude/settings.local.json", JSON.stringify({ env: { AGENT_HOME_GIT_DIR: gitDir } }));
     unlinkSync(join(home, ".git"));

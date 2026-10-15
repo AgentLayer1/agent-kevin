@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
+import { pluginName } from '../../../mcp-server/src/shared/naming';
 
 const PLUGIN_NAME = pluginName();
 const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
@@ -232,7 +232,7 @@ describe('home-baseline settings', () => {
   // A curated global list names the stores its author knew of, and this one moved in 0.7.0.
   test('keeps the secrets store guarded even under a curated global deny list and sandbox', () => {
     const global = {
-      permissions: { deny: [`Read(//**/${LEGACY_RUNTIME_DIR}/secrets/**)`] },
+      permissions: { deny: ['Read(//**/.kevin/secrets/**)'] },
       sandbox: { enabled: true }
     };
     const curated = run(scratchHome(), ['--claude-dir', claudeDirWith(global)]).settings;
@@ -318,7 +318,7 @@ describe('home-baseline settings', () => {
 });
 
 describe('home-baseline identity', () => {
-  const withBaseline = (content: string, dir = LEGACY_RUNTIME_DIR): { home: string; file: string } => {
+  const withBaseline = (content: string, dir = '.state'): { home: string; file: string } => {
     const home = scratchHome();
     mkdirSync(join(home, dir));
     const file = join(home, dir, 'version.json');
@@ -361,7 +361,6 @@ describe('home-baseline identity', () => {
     expect(readFileSync(file, 'utf-8')).toBe('not json');
     const bare = scratchHome();
     expect(run(bare, ['--write']).identity).toEqual({ state: 'no-baseline' });
-    expect(existsSync(join(bare, LEGACY_RUNTIME_DIR, 'version.json'))).toBe(false);
     expect(existsSync(join(bare, '.state', 'version.json'))).toBe(false);
   });
 

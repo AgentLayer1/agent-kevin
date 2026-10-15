@@ -131,7 +131,7 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, dueSoon, stale, priority
 
 ```bash
 HOME_DIR="${AGENT_HOME:-$PWD}"
-DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
+DATA_DIR="$HOME_DIR/.state"
 [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 # NOT_AN_AGENT_HOME → STOP the whole sync: no marked data dir means $HOME_DIR
 # isn't this agent's scaffolded home, so every downstream read/write would hit

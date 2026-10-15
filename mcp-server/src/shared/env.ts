@@ -1,4 +1,4 @@
-import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, ownDataDir, resolveEnv } from '@/shared/naming';
+import { RUNTIME_DIR, ownDataDir, resolveEnv } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -109,9 +109,7 @@ const secretsEnvFile = (): string | null => {
   return dataDir ? resolve(dataDir, 'secrets', '.env') : null;
 };
 
-// Both names, so a store the upgrade hasn't moved yet (or a stray legacy copy) stays out of reach.
-const gatedSecretsDirs = (): string[] =>
-  [RUNTIME_DIR, LEGACY_RUNTIME_DIR].map((name) => resolve(agentHomePath(), name, 'secrets'));
+const gatedSecretsDir = (): string => resolve(agentHomePath(), RUNTIME_DIR, 'secrets');
 
 /**
  * Minimal dotenv parser — private. Handing a raw env-file parser (or raw secret
@@ -159,7 +157,8 @@ function parseDotenv(raw: string): Record<string, string> {
 export function readEnvFile(path: string): Record<string, string> {
   const resolved = resolve(path);
   try {
-    if (gatedSecretsDirs().some((gated) => resolved === gated || resolved.startsWith(gated + sep))) {
+    const gated = gatedSecretsDir();
+    if (resolved === gated || resolved.startsWith(gated + sep)) {
       return {};
     }
   } catch {

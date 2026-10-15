@@ -38,7 +38,6 @@ describe('setup prompt', () => {
 
   const homes: Record<string, Record<string, string>> = {
     'a .state home': { [`${HOME}/.state/version.json`]: '{}' },
-    'a home not yet moved off its legacy data dir': { [`${HOME}/.kevin/knowledge.json`]: '{}' },
     "a folder holding another home's SOUL.md": { [`${HOME}/SOUL.md`]: '# Soul' }
   };
   for (const [name, files] of Object.entries(homes)) {

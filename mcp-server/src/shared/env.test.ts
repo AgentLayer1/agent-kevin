@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, legacyEnvPrefix, pluginName } from './naming';
+import { HOME_MARKER_FILES, RUNTIME_DIR, legacyEnvPrefix, pluginName } from './naming';
 import { agentHomePath, env, isAgentHome, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
@@ -147,11 +147,6 @@ describe('agentHomePath', () => {
     return home;
   };
 
-  // A home the 0.7.0 upgrade hasn't moved yet keeps working through its agent-named dir.
-  test.each(unproven)('anchors on a legacy data dir whose version.json %s', (_label, content) => {
-    expect(isAgentHome(homeWithVersion(LEGACY_RUNTIME_DIR, content))).toBe(true);
-  });
-
   test.each(unproven)('does not anchor on a .state whose version.json %s', (_label, content) => {
     expect(isAgentHome(homeWithVersion(RUNTIME_DIR, content))).toBe(false);
   });
@@ -260,23 +255,6 @@ describe('readEnvFile', () => {
         expect(readEnvFile(secretsPath)).toEqual({});
         expect(readEnvFile(resolve(home, RUNTIME_DIR, 'secrets', 'nested', '.env'))).toEqual({});
         expect(readEnvFile(flowPath)).toEqual({ CARD: '4111111111111111' });
-      }
-    );
-  });
-
-  // A home the upgrade hasn't moved yet still keeps its keys in the legacy store.
-  test('refuses the legacy secret store too', () => {
-    const home = mkdtempSync(resolve(tmpdir(), 'kevin-home-'));
-    const legacyPath = resolve(home, LEGACY_RUNTIME_DIR, 'secrets', '.env');
-    mkdirSync(resolve(home, LEGACY_RUNTIME_DIR, 'secrets'), { recursive: true });
-    writeFileSync(legacyPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
-
-    withHomeEnv(
-      () => {
-        process.env.AGENT_HOME = home;
-      },
-      () => {
-        expect(readEnvFile(legacyPath)).toEqual({});
       }
     );
   });

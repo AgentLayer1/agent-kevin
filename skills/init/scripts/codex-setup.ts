@@ -114,13 +114,6 @@ const settingList = (key: keyof NonNullable<ClaudeSettings['permissions']>): str
     const list = settings.permissions?.[key];
     return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
   });
-// The agent-named folder predates `.state`; deny it only where the home still has it or its Claude
-// posture still guards it, so a home that started on `.state` carries no trace of the old name.
-const legacyDir = `.${agent}`;
-const guardsLegacy =
-  existsSync(resolve(homeDir, legacyDir)) || settingList('deny').some((rule) => rule.includes(`${legacyDir}/secrets`));
-const runtimeDirs = guardsLegacy ? ['.state', legacyDir] : ['.state'];
-const secretsDirs = runtimeDirs.map((name) => resolve(homeDir, name, 'secrets'));
 
 /** Directories the agent works in outside the home, in the order the settings name them. */
 const insideHome = (path: string): boolean => {
@@ -465,12 +458,12 @@ const agentTables = [
   'extends = ":workspace"',
   '',
   `[permissions.${agent}.filesystem]`,
-  ...secretsDirs.map((dir) => `${tomlString(dir)} = "deny"`),
+  `${tomlString(resolve(homeDir, '.state', 'secrets'))} = "deny"`,
   ...absoluteDenies.map((glob) => `${tomlString(glob)} = "deny"`),
   '',
   `[permissions.${agent}.filesystem.":workspace_roots"]`,
   '".git" = "write"',
-  ...runtimeDirs.map((name) => `${tomlString(`**/${name}/secrets/**`)} = "deny"`),
+  '"**/.state/secrets/**" = "deny"',
   ...[...new Set(['**/*.env', '**/.env.*', ...relativeDenies])].map((glob) => `${tomlString(glob)} = "deny"`),
   '',
   `[permissions.${agent}.network]`,

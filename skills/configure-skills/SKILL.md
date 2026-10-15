@@ -23,10 +23,8 @@ This skill manages Kevin's optional capabilities. Use it to:
 HOME_DIR="${AGENT_HOME:-$PWD}"
 [ -f "$HOME_DIR/.state/version.json" ] || [ -f "$HOME_DIR/.state/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 # NOT_AN_AGENT_HOME → STOP before any write: no marked .state/ data dir means
-# this isn't this agent's scaffolded home. A $HOME_DIR/.kevin/ means a pre-0.7.0
-# home: tell the operator to run /agent-kevin:upgrade first, which moves it to
-# .state/. Otherwise tell them to set AGENT_HOME or relaunch from the
-# agent home (or run /agent-kevin:init first on a fresh machine).
+# this isn't this agent's scaffolded home. Tell the operator to set AGENT_HOME
+# or relaunch from the agent home (or run /agent-kevin:init first on a fresh machine).
 SKILLS_DIR="$HOME_DIR/.claude/skills"
 PROJECT_SETTINGS="$HOME_DIR/.claude/settings.json"
 SETTINGS_FILE="$HOME_DIR/.claude/settings.local.json"

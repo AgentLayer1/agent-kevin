@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
+import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { HOME_PLACEHOLDER, renameAgent, validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
@@ -106,7 +106,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  // Best-effort: the command sandbox denies **/.kevin/secrets paths, so homes that
+  // Best-effort: the command sandbox denies **/.state/secrets paths, so homes that
   // gained a secrets store can't be fully removed from inside a sandboxed test run.
   for (const home of homes) {
     try {
@@ -171,7 +171,7 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('CLAUDE.md')).not.toBeNull();
     expect(validateSeedPath('.claude/CLAUDE.md')).not.toBeNull();
     expect(validateSeedPath('knowledge/memory/index.md')).not.toBeNull();
-    expect(validateSeedPath(`${LEGACY_RUNTIME_DIR}/secrets/.env`)).not.toBeNull();
+    expect(validateSeedPath(`${RUNTIME_DIR}/secrets/.env`)).not.toBeNull();
     expect(validateSeedPath('.claude/settings.json')).not.toBeNull();
     expect(validateSeedPath('projects/acme/tasks/ac-001-private.md')).not.toBeNull();
     expect(validateSeedPath('projects/TASKS.md')).not.toBeNull();
@@ -336,15 +336,15 @@ describe('importSeed', () => {
     const evil = mkdtempSync(join(tmpdir(), 'seed-evil-'));
     homes.push(evil);
     const payload = 'owned\n';
-    mkdirSync(join(evil, 'files', LEGACY_RUNTIME_DIR, 'secrets'), { recursive: true });
-    writeFileSync(join(evil, 'files', LEGACY_RUNTIME_DIR, 'secrets', '.env'), payload);
+    mkdirSync(join(evil, 'files', RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(join(evil, 'files', RUNTIME_DIR, 'secrets', '.env'), payload);
     writeFileSync(
       join(evil, 'manifest.json'),
       JSON.stringify({
         formatVersion: 1,
         agentName: 'Mallory',
         createdAt: '2026-01-01T00:00:00Z',
-        files: [{ path: `${LEGACY_RUNTIME_DIR}/secrets/.env`, hash: sha256(Buffer.from(payload)) }]
+        files: [{ path: `${RUNTIME_DIR}/secrets/.env`, hash: sha256(Buffer.from(payload)) }]
       })
     );
     const evilZip = join(evil, 'evil.zip');

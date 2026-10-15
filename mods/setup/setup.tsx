@@ -20,12 +20,9 @@ const exists = ($: EngineInterface, path: string): Promise<boolean> =>
  */
 async function isFresh($: EngineInterface): Promise<boolean> {
   const root = await $.session.root();
-  const legacyDir = `.${$.plugin.name.replace(/^agent-/, '')}`;
   const paths = [
     `${root}/SOUL.md`,
-    ...selfAndAncestors(root).flatMap((folder) =>
-      [DATA_DIR, legacyDir].flatMap((dir) => HOME_MARKERS.map((marker) => `${folder}/${dir}/${marker}`))
-    )
+    ...selfAndAncestors(root).flatMap((folder) => HOME_MARKERS.map((marker) => `${folder}/${DATA_DIR}/${marker}`))
   ];
   return !(await Promise.all(paths.map((path) => exists($, path)))).includes(true);
 }

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { AGENT_SLUG } from '@/config';
-import { LEGACY_RUNTIME_DIR } from '@/shared/naming';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 const HOME = mkdtempSync(resolve(tmpdir(), `${AGENT_SLUG}-inbox-`));
 const PRELOAD_HOME = process.env.AGENT_HOME;
@@ -18,8 +18,12 @@ let markComplete: typeof import('@/knowledge/compile').markComplete;
 let getStatus: typeof import('@/knowledge/compile').getStatus;
 
 beforeAll(async () => {
-  mkdirSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`), { recursive: true });
-  writeFileSync(resolve(HOME, `${LEGACY_RUNTIME_DIR}`, 'version.json'), '{}\n');
+  mkdirSync(resolve(HOME, RUNTIME_DIR), { recursive: true });
+  writeFileSync(
+    resolve(HOME, RUNTIME_DIR, 'version.json'),
+    `${JSON.stringify({ plugin: pluginName() })}
+`
+  );
   mkdirSync(join(INBOX, 'acme-history', 'notes'), { recursive: true });
   mkdirSync(join(INBOX, '.hidden'), { recursive: true });
   writeFileSync(join(INBOX, 'acme-history', '00-readme.md'), '# Readme\n');
