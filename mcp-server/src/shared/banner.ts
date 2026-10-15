@@ -15,8 +15,9 @@ const RESET = `${ESC}0m`;
 export const BANNER_LINES = [' ╔═╗ ╔═╗ ╔═╗ ╔╗╔ ╔╦╗', ' ╠═╣ ║ ╦ ║╣  ║║║  ║ ', ' ╩ ╩ ╚═╝ ╚═╝ ╝╚╝  ╩ '] as const;
 export const BANNER_TAG = '===KEVIN=== 🍌';
 
-/** The tag for a named agent (IDENTITY.md's Name and Emoji); a missing emoji keeps the default one. */
-export const bannerTag = (name: string, emoji: string): string => `===${name.toUpperCase()}=== ${emoji || '🍌'}`;
+/** The tag for a named agent (IDENTITY.md's Name and Emoji); a missing or unfilled emoji keeps the default one. */
+export const bannerTag = (name: string, emoji: string): string =>
+  `===${name.toUpperCase()}=== ${emoji && !emoji.includes('{{') ? emoji : '🍌'}`;
 
 export const ANSI = {
   bold: `${ESC}1m`,

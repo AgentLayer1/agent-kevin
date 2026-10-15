@@ -547,6 +547,11 @@ describe('renderDashboardHtml', () => {
     expect(renamed).not.toContain('===KEVIN===');
     const noEmoji = renderDashboardHtml({ ...base, persona: { ...base.persona, name: 'Scout', emoji: '' } });
     expect(noEmoji).toContain('===SCOUT=== 🍌');
+    const unfilled = renderDashboardHtml({
+      ...base,
+      persona: { ...base.persona, name: 'Scout', emoji: '{{AGENT_EMOJI}}' }
+    });
+    expect(unfilled).toContain('===SCOUT=== 🍌');
   });
 
   test('persona page renders Kevin from IDENTITY/SOUL, not file names', () => {
