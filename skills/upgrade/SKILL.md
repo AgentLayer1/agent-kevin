@@ -281,7 +281,8 @@ safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
 The 0.8.0 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settings, secrets file and `.mcp.json`
-(names only in its report). Its `manual` list names legacy keys the user-level Claude settings still set, which reach
+(names only in its report), and removes the pre-0.7.0 `.kevin/` secrets guards and `.gitignore` lines, listed under
+`pruned`; a home that still has the folder keeps them (`legacyDirKept`). Its `manual` list names legacy keys the user-level Claude settings still set, which reach
 every home on the machine. Quote each as a `manual:` note: delete it there, and put a per-home value (a code path, a
 repo list, a DB connection) into each home's `.claude/settings.local.json` as `AGENT_*` instead. Only a value every home
 should share (a timezone, a log level) is renamed in place, and `AGENT_HOME` belongs there only with a single agent home.

@@ -19,6 +19,26 @@ import { secretsReadBlocked } from '../../../mcp-server/src/shared/sandbox-probe
 
 const SCRIPT = resolve(import.meta.dir, '0.8.0.ts');
 const LEGACY = legacyEnvPrefix();
+const LEGACY_DIR = `.${pluginName().replace(/^agent-/, '')}`;
+const GITIGNORE = [
+  '# local overrides',
+  '.claude/settings.local.json',
+  '',
+  '# runtime state (tokens, logs) — but TRACK the compile cursor: it is the only',
+  '# record of what has been ingested.',
+  `${LEGACY_DIR}/*`,
+  `!${LEGACY_DIR}/knowledge.json`,
+  `!${LEGACY_DIR}/version.json`,
+  '',
+  '# my own',
+  'scratch/',
+  '',
+  '# agent-kevin',
+  `${RUNTIME_DIR}/*`,
+  `!${RUNTIME_DIR}/knowledge.json`,
+  `!${RUNTIME_DIR}/version.json`,
+  ''
+].join('\n');
 // A sandbox that guards the secrets store can't read a temp home's either, so those cases skip there.
 const SECRETS_READABLE = !secretsReadBlocked();
 
@@ -56,9 +76,26 @@ const makeHome = (): { home: string; user: string } => {
     '.claude/settings.json',
     json({
       env: { [`${LEGACY}REPORTS`]: '/shared/reports', AGENT_TIMEZONE: 'Asia/Kuala_Lumpur' },
-      permissions: { allow: [`Bash(echo $${LEGACY}HOME)`, 'Read(//**/.kevin/secrets/**)'] }
+      permissions: {
+        allow: [`Bash(echo $${LEGACY}HOME)`],
+        deny: [
+          `Read(//**/${LEGACY_DIR}/secrets/**)`,
+          `Read(//**/${RUNTIME_DIR}/secrets/**)`,
+          `Read(//**/${LEGACY_DIR}/notes/**)`
+        ]
+      },
+      sandbox: {
+        filesystem: { denyRead: [`${LEGACY_DIR}/secrets`, `${RUNTIME_DIR}/secrets`] },
+        credentials: {
+          files: [
+            { path: `${LEGACY_DIR}/secrets`, mode: 'deny' },
+            { path: `${RUNTIME_DIR}/secrets`, mode: 'deny' }
+          ]
+        }
+      }
     })
   );
+  write(home, '.gitignore', GITIGNORE);
   write(
     home,
     '.claude/settings.local.json',
@@ -68,7 +105,8 @@ const makeHome = (): { home: string; user: string } => {
         AGENT_CODE_PATH: '/code/shadowed',
         AGENT_REPORTS: '/local/reports',
         CLAUDE_CODE_OAUTH_TOKEN: 'fixture-oauth'
-      }
+      },
+      permissions: { deny: [`Read(**/${LEGACY_DIR}/secrets/**)`] }
     })
   );
   if (SECRETS_READABLE) {
@@ -117,23 +155,75 @@ describe('0.8.0 AGENT_* rename', () => {
     const { home, user } = makeHome();
     const { status, report } = run(home, user);
     expect(status).toBe(0);
-    expect(report).toMatchObject({ ok: true, action: 'renamed' });
-    expect(readJson(home, '.claude/settings.json')).toEqual({
-      env: { AGENT_REPORTS: '/shared/reports', AGENT_TIMEZONE: 'Asia/Kuala_Lumpur' },
-      permissions: { allow: ['Bash(echo $AGENT_HOME)', 'Read(//**/.kevin/secrets/**)'] }
+    expect(report).toMatchObject({ ok: true, action: 'migrated' });
+    expect(readJson(home, '.claude/settings.json').env).toEqual({
+      AGENT_REPORTS: '/shared/reports',
+      AGENT_TIMEZONE: 'Asia/Kuala_Lumpur'
     });
+    expect(readJson(home, '.claude/settings.json').permissions.allow).toEqual(['Bash(echo $AGENT_HOME)']);
     expect(readJson(home, '.claude/settings.local.json').env).toEqual({
       AGENT_CODE_PATH: '/code/legacy',
       CLAUDE_CODE_OAUTH_TOKEN: 'fixture-oauth'
     });
     expect(report.settings).toEqual([
-      { file: join('.claude', 'settings.json'), renamed: [`${LEGACY}REPORTS`], replaced: [] },
-      {
+      expect.objectContaining({ file: join('.claude', 'settings.json'), renamed: [`${LEGACY}REPORTS`], replaced: [] }),
+      expect.objectContaining({
         file: join('.claude', 'settings.local.json'),
         renamed: [`${LEGACY}CODE_PATH`],
         replaced: ['AGENT_CODE_PATH', 'AGENT_REPORTS']
-      }
+      })
     ]);
+  });
+
+  test('drops the pre-0.7.0 secrets guards and ignore rules, keeping their .state twins and your own', () => {
+    const { home, user } = makeHome();
+    const { report } = run(home, user);
+    const shared = readJson(home, '.claude/settings.json');
+    expect(shared.permissions.deny).toEqual([
+      `Read(//**/${RUNTIME_DIR}/secrets/**)`,
+      `Read(//**/${LEGACY_DIR}/notes/**)`
+    ]);
+    expect(shared.sandbox).toEqual({
+      filesystem: { denyRead: [`${RUNTIME_DIR}/secrets`] },
+      credentials: { files: [{ path: `${RUNTIME_DIR}/secrets`, mode: 'deny' }] }
+    });
+    expect(readJson(home, '.claude/settings.local.json').permissions.deny).toEqual([]);
+    expect(report.settings.map((entry: { pruned: string[] }) => entry.pruned)).toEqual([
+      [
+        `Read(//**/${LEGACY_DIR}/secrets/**)`,
+        `${LEGACY_DIR}/secrets`,
+        JSON.stringify({ path: `${LEGACY_DIR}/secrets`, mode: 'deny' })
+      ],
+      [`Read(**/${LEGACY_DIR}/secrets/**)`]
+    ]);
+    expect(read(home, '.gitignore')).toBe(
+      [
+        '# local overrides',
+        '.claude/settings.local.json',
+        '',
+        '# my own',
+        'scratch/',
+        '',
+        '# agent-kevin',
+        `${RUNTIME_DIR}/*`,
+        `!${RUNTIME_DIR}/knowledge.json`,
+        `!${RUNTIME_DIR}/version.json`,
+        ''
+      ].join('\n')
+    );
+    expect(report.gitignore).toEqual({
+      file: '.gitignore',
+      pruned: [`${LEGACY_DIR}/*`, `!${LEGACY_DIR}/knowledge.json`, `!${LEGACY_DIR}/version.json`]
+    });
+  });
+
+  test('a home that still has the old folder keeps every guard over it', () => {
+    const { home, user } = makeHome();
+    mkdirSync(join(home, LEGACY_DIR));
+    const { report } = run(home, user);
+    expect(readJson(home, '.claude/settings.json').permissions.deny).toContain(`Read(//**/${LEGACY_DIR}/secrets/**)`);
+    expect(read(home, '.gitignore')).toBe(GITIGNORE);
+    expect(report).toMatchObject({ gitignore: null, legacyDirKept: LEGACY_DIR });
   });
 
   test.skipIf(!SECRETS_READABLE)(
@@ -233,11 +323,19 @@ describe('0.8.0 AGENT_* rename', () => {
       '.claude/settings.json',
       '.claude/settings.local.json',
       '.mcp.json',
+      '.gitignore',
       ...(SECRETS_READABLE ? [`${RUNTIME_DIR}/secrets/.env`] : [])
     ];
     const after = files.map((rel) => read(home, rel));
     const second = run(home, user);
-    expect(second.report).toMatchObject({ ok: true, action: 'none', settings: [], secrets: null, mcp: null });
+    expect(second.report).toMatchObject({
+      ok: true,
+      action: 'none',
+      settings: [],
+      secrets: null,
+      mcp: null,
+      gitignore: null
+    });
     expect(files.map((rel) => read(home, rel))).toEqual(after);
   });
 
