@@ -519,8 +519,16 @@ Then snapshot the templates this home now tracks, so the next upgrade has its ba
 
 ```bash
 DATA_DIR="$HOME_DIR/.state"
-rm -rf "$DATA_DIR/template-base" && cp -R "$PLUGIN_ROOT/templates" "$DATA_DIR/template-base"
+mkdir -p "$DATA_DIR/template-base"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete "$PLUGIN_ROOT/templates/" "$DATA_DIR/template-base/"
+else
+  cp -R "$PLUGIN_ROOT/templates/." "$DATA_DIR/template-base/"   # TODO(windows): Git Bash has no rsync, so a template removed upstream stays in the base
+fi
 ```
+
+The snapshot is mirrored, never deleted and recopied: a `rm -rf` on a built path is refused under
+auto mode in a home that keeps `rm -rf` in `permissions.ask`, which init does.
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
 writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` / `permissions.deny`

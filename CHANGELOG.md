@@ -108,6 +108,10 @@ and prompts per optional one. The new template files are the source of truth for
   settings already skipped keys named like a key, token, secret or password; it now also skips
   `AGENT_DB_*` connection strings and credential-, private- or DSN-shaped names, since that file is
   committed with the brain.
+- **The upgrade refreshes its template snapshot without `rm -rf`.** It deleted and recopied
+  `.state/template-base`, which auto mode refuses in a home that keeps `rm -rf` on its ask list (init's
+  default), so the last step of every upgrade needed improvising. It now mirrors the templates in
+  place with `rsync --delete` (a plain copy where there is no `rsync`).
 - **`google_auth` says where its tokens live:** the home's secrets store (`.state/secrets/google/`).
 
 ### Upgrade
