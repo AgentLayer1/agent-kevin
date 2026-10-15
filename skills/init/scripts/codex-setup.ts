@@ -88,7 +88,7 @@ const agent = pluginName.replace(/^agent-/, '');
 if (!agent) {
   throw new Error(`${manifestPath}: the plugin manifest names no agent`);
 }
-/** Keys under this prefix predate 0.7.4; nothing reads them, so regeneration drops the ones it once wrote. */
+/** Keys under this prefix predate 0.8.0; nothing reads them, so regeneration drops the ones it once wrote. */
 const legacyPrefix = `${agent.toUpperCase()}_`;
 const rulesPath = resolve(homeDir, '.codex', 'rules', `${agent}.rules`);
 

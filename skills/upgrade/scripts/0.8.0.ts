@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Upgrade migration for v0.7.4: env keys carry only the shared `AGENT_*` names.
+ * Upgrade migration for v0.8.0: env keys carry only the shared `AGENT_*` names.
  *
- * Before 0.7.4 a key under the plugin's own prefix (`KEVIN_*` for agent-kevin) outranked its
+ * Before 0.8.0 a key under the plugin's own prefix (`KEVIN_*` for agent-kevin) outranked its
  * `AGENT_*` twin. The plugin now reads `AGENT_*` alone, so the home's legacy keys are renamed
  * before they go dark:
  * - `.claude/settings.json` and `settings.local.json`: `env` keys, and `$KEVIN_X` references in any
@@ -38,7 +38,7 @@ import { homedir } from 'node:os';
 import { basename, join, relative, resolve } from 'node:path';
 import { RUNTIME_DIR, isOwnDataDir, legacyEnvPrefix } from '../../../mcp-server/src/shared/naming';
 
-const VERSION = '0.7.4';
+const VERSION = '0.8.0';
 
 const HOME = resolve(process.env.AGENT_HOME?.trim() || process.cwd());
 const DATA_DIR = resolve(HOME, RUNTIME_DIR);

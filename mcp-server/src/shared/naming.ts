@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
  * one code reads. Several homes can run one plugin, so a per-agent spelling could
  * never mean "this agent only"; per-home values live in the home's own settings.
  * The plugin's legacy prefix (`KEVIN_*`, from the manifest name) survives only to
- * recognise, mask, and migrate keys from homes set up before 0.7.4.
+ * recognise, mask, and migrate keys from homes set up before 0.8.0.
  *
  * Side-effect-free by contract, and it imports nothing beyond node builtins.
  * `shared/env.ts` sits directly on top and adds secrets loading — which reads a
@@ -65,7 +65,7 @@ const readPluginName = (): string => {
 };
 
 /**
- * The prefix keys carried before 0.7.4 (`KEVIN_` for `agent-kevin`), derived once from the
+ * The prefix keys carried before 0.8.0 (`KEVIN_` for `agent-kevin`), derived once from the
  * manifest name. Nothing resolves it; it only finds legacy keys to migrate, mask, or flag.
  */
 export const legacyEnvPrefix = (): string => {

@@ -38,7 +38,7 @@ mkdir -p "$HOME_DIR/.claude"
 
 - `$PROJECT_SETTINGS` → permission allow-list (so configured tools don't trigger a confirm prompt on each use). Committable, non-secret.
 - `$SECRETS_ENV` → **API keys + DB connection strings** (dotenv `KEY=value` lines), `.state/secrets/.env`. 0600, deny-gated, gitignored; Kevin's config loader surfaces these into `process.env` at boot. This is where every credential goes.
-- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Plant HOME-scoped keys under the shared `AGENT_*` names, the only ones the plugin reads (the 0.7.4 upgrade renamed any older `KEVIN_*` key). Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
+- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Plant HOME-scoped keys under the shared `AGENT_*` names, the only ones the plugin reads (the 0.8.0 upgrade renamed any older `KEVIN_*` key). Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
 - `$MCP_FILE` → `<HOME>/.mcp.json` at the project root (NOT inside `.claude/`). Claude Code reads project MCP servers from this exact location. A file at `.claude/mcp.json` is silently ignored.
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 

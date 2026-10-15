@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { RUNTIME_DIR, legacyEnvPrefix, pluginName } from '../../../mcp-server/src/shared/naming';
 import { secretsReadBlocked } from '../../../mcp-server/src/shared/sandbox-probe';
 
-const SCRIPT = resolve(import.meta.dir, '0.7.4.ts');
+const SCRIPT = resolve(import.meta.dir, '0.8.0.ts');
 const LEGACY = legacyEnvPrefix();
 // A sandbox that guards the secrets store can't read a temp home's either, so those cases skip there.
 const SECRETS_READABLE = !secretsReadBlocked();
@@ -47,8 +47,8 @@ const readJson = (root: string, rel: string): Record<string, any> => JSON.parse(
 
 /** A home holding legacy keys in every place the migration covers, plus a user dir with user-level ones. */
 const makeHome = (): { home: string; user: string } => {
-  const home = mkdtempSync(join(tmpdir(), 'migrate-074-'));
-  const user = mkdtempSync(join(tmpdir(), 'migrate-074-user-'));
+  const home = mkdtempSync(join(tmpdir(), 'migrate-080-'));
+  const user = mkdtempSync(join(tmpdir(), 'migrate-080-user-'));
   homes.push(home, user);
   write(home, `${RUNTIME_DIR}/version.json`, json({ plugin: pluginName() }));
   write(
@@ -112,7 +112,7 @@ const run = (home: string, user: string): { status: number | null; stdout: strin
 
 afterAll(() => homes.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-describe('0.7.4 AGENT_* rename', () => {
+describe('0.8.0 AGENT_* rename', () => {
   test('renames settings keys and references; a legacy value beats its twin in either file', () => {
     const { home, user } = makeHome();
     const { status, report } = run(home, user);
@@ -242,7 +242,7 @@ describe('0.7.4 AGENT_* rename', () => {
   });
 
   test('a folder that is not this agent home is left alone', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'migrate-074-bare-'));
+    const dir = mkdtempSync(join(tmpdir(), 'migrate-080-bare-'));
     homes.push(dir);
     write(dir, '.claude/settings.json', json({ env: { [`${LEGACY}HOME`]: '/x' } }));
     expect(run(dir, dir).report).toMatchObject({ ok: true, action: 'no-data-dir' });

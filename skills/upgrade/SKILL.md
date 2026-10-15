@@ -234,7 +234,7 @@ Upgrade vBASELINE → vINSTALLED (N releases)
   deps:      bun install (new: pg, foo)              [auto]
   settings:  +2 permissions                          [auto]
   files:     +1 new rule (.claude/rules/python.md)   [auto]
-  script:    run scripts/0.7.4.ts (env names)        [auto, required]
+  script:    run scripts/0.8.0.ts (env names)        [auto, required]
   AGENTS.md: 1 new section "Upgrades"                 [auto, mandatory]
   SOUL.md:   1 changed section "Writing Style"        [ask]
 ```
@@ -280,7 +280,7 @@ fix and re-run. Migrations are idempotent, so a re-run after a partial failure i
 safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
-The 0.7.4 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settings, secrets file and `.mcp.json`
+The 0.8.0 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settings, secrets file and `.mcp.json`
 (names only in its report). Its `manual` list names legacy keys the user-level Claude settings still set, which reach
 every home on the machine. Quote each as a `manual:` note: delete it there, and put a per-home value (a code path, a
 repo list, a DB connection) into each home's `.claude/settings.local.json` as `AGENT_*` instead. Only a value every home
