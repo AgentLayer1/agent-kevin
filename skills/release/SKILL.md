@@ -112,7 +112,7 @@ git -C "${CLAUDE_PLUGIN_ROOT}" diff --name-only --diff-filter=A <range> -- skill
 
 A new `skills/upgrade/scripts/<X.Y.Z>.ts` is a heavy one-time HOME migration. Emit
 `` `script: required` `` (or `optional`) naming the version, e.g.
-`` `script: required` — run skills/upgrade/scripts/0.3.0.ts (moves secrets to .kevin/secrets/). ``
+`` `script: required` — run skills/upgrade/scripts/0.7.4.ts (renames legacy env keys to `AGENT_*`). ``
 The script's filename **must** equal the version you bump to in Step 3 — that's the
 naming convention (filename = the release the migration is applied when upgrading to)
 and how `/agent-kevin:upgrade` finds it. So decide the bump (Step 3) and the filename
@@ -138,8 +138,8 @@ is **locked**; do **not** ask a three-way bump question. patch/major candidates 
 valid here — picking one would leave the script named for a version you didn't release, so
 upgrade would never run it. Instead:
 
-- State the determined version (e.g. "migration script `0.3.0.ts` is in the range → this
-  is the **v0.3.0** release") and proceed to Step 4 with it. A one-line confirm is fine; a
+- State the determined version (e.g. "migration script `0.7.4.ts` is in the range → this
+  is the **v0.7.4** release") and proceed to Step 4 with it. A one-line confirm is fine; a
   bump menu is not.
 - Sanity-check the magnitude against the rule below. A relocation/strip migration is
   breaking → pre-1.0 that's a **minor** (`0.x` → `0.(x+1).0`), post-1.0 a **major**. If the

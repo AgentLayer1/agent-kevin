@@ -237,7 +237,7 @@ Upgrade vBASELINE → vINSTALLED (N releases)
   deps:      bun install (new: pg, foo)              [auto]
   settings:  +2 permissions                          [auto]
   files:     +1 new rule (.claude/rules/python.md)   [auto]
-  script:    run scripts/0.3.0.ts (secrets move)     [auto, required]
+  script:    run scripts/0.7.4.ts (env names)        [auto, required]
   AGENTS.md: 1 new section "Upgrades"                 [auto, mandatory]
   SOUL.md:   1 changed section "Writing Style"        [ask]
 ```
@@ -283,8 +283,6 @@ fix and re-run. Migrations are idempotent, so a re-run after a partial failure i
 safe. (If `deps` ran or MCP-server code changed this session, the running server
 still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
-The 0.7.0 script moves `.kevin/` to `.state/`; its report names the deny rules it added and, under `repointed`,
-the machine-local config files (`.mcp.json`, `.claude/settings.local.json`) it rewrote to `.state/` paths. Every block after it resolves `$DATA_DIR` again (Step 0).
 The 0.7.4 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settings, secrets file and `.mcp.json`
 (names only in its report). Its `manual` list names legacy keys the user-level Claude settings still set, which reach
 every home on the machine. Quote each as a `manual:` note: delete it there, and put a per-home value (a code path, a
@@ -325,8 +323,7 @@ bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
 The generator also fills missing home-level `model` and `model_reasoning_effort` keys with
-`gpt-6.1-sol` and `high`. Each existing home-level value is preserved; the 0.6.4 migration
-script moves a home still on the old `gpt-6-astra` default to Sol, once. This applies to previously
+`gpt-6.1-sol` and `high`. Each existing home-level value is preserved. This applies to previously
 wired homes as well as new ones and takes precedence over the user's global Codex defaults;
 report the resulting pair in Step 6. The user-global paste note no longer recommends a reasoning
 effort derived from Claude. If Sol is unavailable to the operator, help them choose an available

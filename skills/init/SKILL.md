@@ -520,7 +520,7 @@ If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUs
 "sandbox": { "filesystem": { "allowWrite": ["<PATH>"] } }
 ```
 
-The two settings read a path differently (verified against the docs and a live probe on Claude Code 2.1.284): a permission rule reads a single leading slash as project-relative, so `<RULE_PATH>` is the absolute path with a second slash in front (`/Users/ada/notes` → `//Users/ada/notes`; a native Windows `C:\Users\ada\notes` → `//c/Users/ada/notes`), while `allowWrite` takes the plain absolute `<PATH>`. `toRulePath` in `mcp-server/src/home/settings-scope.ts` is the conversion. `Write(…)` path rules are never consulted, so none is written.
+The two settings read a path differently (verified against the docs and a live probe on Claude Code 2.1.284): a permission rule reads a single leading slash as project-relative, so `<RULE_PATH>` is the absolute path with a second slash in front (`/Users/ada/notes` → `//Users/ada/notes`; a native Windows `C:\Users\ada\notes` → `//c/Users/ada/notes`), while `allowWrite` takes the plain absolute `<PATH>`. `Write(…)` path rules are never consulted, so none is written.
 
 If all three paths are inside `<HOME>`, no extra grants needed (the home dir's `.` is already on the writable list).
 

@@ -1,155 +1,44 @@
-import { describe, expect, test } from 'bun:test';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
-import { LEGACY_RUNTIME_DIR } from '../shared/naming';
-import { secretsReadBlocked } from '../shared/sandbox-probe';
+import { join } from 'node:path';
+import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { tools } from '@/tools/upgrade';
 
-// The plugin root is derived from this file's location rather than from config, because the
-// migration runs in its own process (spawnSync) and needs a path it can pass across.
-const PLUGIN_ROOT = resolve(import.meta.dir, '..', '..', '..');
-const scriptPath = resolve(PLUGIN_ROOT, 'skills', 'upgrade', 'scripts', '0.3.0.ts');
+const runUpgrade = (version: string) => tools[0].handler({ version }) as Promise<Record<string, unknown>>;
 
-const seedHome = (): string => {
-  const home = mkdtempSync(resolve(tmpdir(), 'kevin-mig-'));
-  mkdirSync(resolve(home, '.claude'), { recursive: true });
-  mkdirSync(resolve(home, '.kevin', 'config'), { recursive: true });
-  writeFileSync(
-    resolve(home, '.claude', 'settings.local.json'),
-    JSON.stringify({
-      env: {
-        PERPLEXITY_API_KEY: 'pplx-secretvalue1234567890',
-        KEVIN_DB_MAIN: 'postgres://user:pass@host/db',
-        GSC_SITE_URL: 'https://example.com',
-        KEVIN_CODE_PATH: '/Users/x/code'
-      }
-    })
-  );
-  writeFileSync(resolve(home, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: [] } }));
-  writeFileSync(resolve(home, '.kevin', 'config', 'google-tokens.json'), '{"refresh_token":"x"}');
-  return home;
-};
-const run = (home: string) =>
-  spawnSync(process.execPath, [scriptPath], { env: { ...process.env, KEVIN_HOME: home }, encoding: 'utf-8' });
-const lastJson = (stdout: string) =>
-  JSON.parse(
-    stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .pop() ?? '{}'
-  );
+const home = mkdtempSync(join(tmpdir(), 'run-upgrade-'));
+const PRELOAD_HOME = process.env.AGENT_HOME;
 
-describe.skipIf(secretsReadBlocked(LEGACY_RUNTIME_DIR))('0.3.0 migration script (end-to-end on a temp HOME)', () => {
-  test('moves secrets, preserves non-secrets, relocates google, writes denies', () => {
-    const home = seedHome();
-    const proc = run(home);
-    expect(proc.status).toBe(0);
-    const report = lastJson(proc.stdout);
-    expect(report.ok).toBe(true);
-    expect(report.moved.sort()).toEqual(['KEVIN_DB_MAIN', 'PERPLEXITY_API_KEY']);
-    const secretsEnv = readFileSync(resolve(home, '.kevin', 'secrets', '.env'), 'utf-8');
-    expect(secretsEnv).toContain('PERPLEXITY_API_KEY=pplx-secretvalue1234567890');
-    expect(secretsEnv).toContain('KEVIN_DB_MAIN=postgres://user:pass@host/db');
-    const settings = JSON.parse(readFileSync(resolve(home, '.claude', 'settings.local.json'), 'utf-8'));
-    expect(settings.env.PERPLEXITY_API_KEY).toBeUndefined();
-    expect(settings.env.GSC_SITE_URL).toBe('https://example.com');
-    expect(settings.env.KEVIN_CODE_PATH).toBe('/Users/x/code');
-    expect(existsSync(resolve(home, '.kevin', 'secrets', 'google', 'google-tokens.json'))).toBe(true);
-    expect(existsSync(resolve(home, '.kevin', 'config', 'google-tokens.json'))).toBe(false);
-    const project = JSON.parse(readFileSync(resolve(home, '.claude', 'settings.json'), 'utf-8'));
-    // Both deny layers: Read tool (permissions.deny, // absolute-anchored so gitignore's
-    // `**` bites the .kevin dot-dir) + Bash cat/grep (sandbox read-deny, project-relative).
-    expect(project.permissions.deny).toContain('Read(//**/.kevin/secrets/**)');
-    expect(report.sandboxDenyAdded).toBe(true);
-    expect(project.sandbox.filesystem.read.denyOnly).toContain('.kevin/secrets/**');
-  });
-
-  test('purges the upgrade skill pre-strip settings.local.json backup, keeps non-secret ones', () => {
-    const home = seedHome();
-    // The upgrade skill's Step 3 snapshots settings.local.json (still with secrets)
-    // into the non-deny-gated .kevin/updates/ before this script runs.
-    const leakyDir = resolve(home, '.kevin', 'updates', '0.2.1-to-0.3.1-stamp', '.claude');
-    mkdirSync(leakyDir, { recursive: true });
-    const leaky = resolve(leakyDir, 'settings.local.json');
-    writeFileSync(leaky, readFileSync(resolve(home, '.claude', 'settings.local.json'), 'utf-8'));
-    // A backup with no secret keys (post-migration shape) must survive.
-    const cleanDir = resolve(home, '.kevin', 'updates', 'later-run', '.claude');
-    mkdirSync(cleanDir, { recursive: true });
-    const clean = resolve(cleanDir, 'settings.local.json');
-    writeFileSync(clean, JSON.stringify({ env: { KEVIN_CODE_PATH: '/Users/x/code' } }));
-
-    const report = lastJson(run(home).stdout);
-    expect(report.ok).toBe(true);
-    expect(report.leakedBackupsRemoved).toContain(leaky);
-    expect(existsSync(leaky)).toBe(false);
-    expect(existsSync(clean)).toBe(true);
-  });
-
-  test('is idempotent — re-run moves nothing and stays ok', () => {
-    const home = seedHome();
-    expect(run(home).status).toBe(0);
-    const report = lastJson(run(home).stdout);
-    expect(report.ok).toBe(true);
-    expect(report.moved).toEqual([]);
-    expect(report.denyAdded).toEqual([]);
-    expect(report.sandboxDenyAdded).toBe(false);
-  });
-
-  test('does not clobber an existing real key in secrets/.env', () => {
-    const home = seedHome();
-    mkdirSync(resolve(home, '.kevin', 'secrets'), { recursive: true });
-    writeFileSync(resolve(home, '.kevin', 'secrets', '.env'), 'PERPLEXITY_API_KEY=pplx-already-real-value-xyz\n');
-    const report = lastJson(run(home).stdout);
-    expect(report.skipped).toContain('PERPLEXITY_API_KEY');
-    expect(readFileSync(resolve(home, '.kevin', 'secrets', '.env'), 'utf-8')).toContain('pplx-already-real-value-xyz');
-  });
+afterAll(() => {
+  rmSync(home, { recursive: true, force: true });
+  if (PRELOAD_HOME === undefined) delete process.env.AGENT_HOME;
+  else process.env.AGENT_HOME = PRELOAD_HOME;
 });
 
-describe('0.3.3 migration script (fix sandbox secrets-deny key)', () => {
-  const script033 = resolve(PLUGIN_ROOT, 'skills', 'upgrade', 'scripts', '0.3.3.ts');
-  const run033 = (home: string) =>
-    spawnSync(process.execPath, [script033], { env: { ...process.env, KEVIN_HOME: home }, encoding: 'utf-8' });
-
-  const seedPost031 = (): string => {
-    const home = mkdtempSync(resolve(tmpdir(), 'kevin-mig33-'));
-    mkdirSync(resolve(home, '.claude'), { recursive: true });
-    writeFileSync(
-      resolve(home, '.claude', 'settings.json'),
-      JSON.stringify({
-        permissions: { deny: ['Read(//**/.kevin/secrets/**)'] },
-        sandbox: {
-          enabled: true,
-          filesystem: { read: { denyOnly: ['.kevin/secrets/**', '**/.env', '**/.env.*'] } },
-          network: { allowedDomains: ['github.com'] }
-        }
-      })
-    );
-    return home;
-  };
-
-  test('drops the dead read.denyOnly, adds denyRead + credentials.files, preserves the rest', () => {
-    const home = seedPost031();
-    const report = lastJson(run033(home).stdout);
-    expect(report.ok).toBe(true);
-    expect(report.deadKeyRemoved).toBe(true);
-    expect(report.denyReadAdded).toBe(true);
-    expect(report.credAdded).toBe(true);
-
-    const sandbox = JSON.parse(readFileSync(resolve(home, '.claude', 'settings.json'), 'utf-8')).sandbox;
-    expect(sandbox.filesystem.read).toBeUndefined();
-    expect(sandbox.filesystem.denyRead).toContain('.kevin/secrets');
-    expect(sandbox.credentials.files).toContainEqual({ path: '.kevin/secrets', mode: 'deny' });
-    expect(sandbox.enabled).toBe(true);
-    expect(sandbox.network.allowedDomains).toContain('github.com');
+describe('run_upgrade', () => {
+  test('refuses anything but MAJOR.MINOR.PATCH, so a version cannot name a path', async () => {
+    expect(await runUpgrade('../../etc/passwd')).toMatchObject({ ok: false, found: false });
   });
 
-  test('is idempotent — re-run touches nothing', () => {
-    const home = seedPost031();
-    expect(run033(home).status).toBe(0);
-    const report = lastJson(run033(home).stdout);
-    expect(report.ok).toBe(true);
-    expect(report.settingsTouched).toBe(false);
+  test('a pruned or never-shipped script is reported as already applied, not as an error', async () => {
+    expect(await runUpgrade('0.3.0')).toMatchObject({ ok: true, found: false });
+  });
+
+  test('runs a migration against this home and returns its report', async () => {
+    mkdirSync(join(home, RUNTIME_DIR), { recursive: true });
+    writeFileSync(join(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(
+      join(home, '.claude', 'settings.json'),
+      JSON.stringify({ permissions: { ask: ['mcp__xcode__RunCodeSnippet'] } })
+    );
+    process.env.AGENT_HOME = home;
+    expect(await runUpgrade('0.7.2')).toMatchObject({
+      ok: true,
+      found: true,
+      report: { ok: true, askDropped: ['mcp__xcode__RunCodeSnippet'] }
+    });
+    expect(JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf-8')).permissions.ask).toEqual([]);
   });
 });
