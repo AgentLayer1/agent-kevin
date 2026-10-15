@@ -241,11 +241,11 @@ describe('codex-setup mcp registration', () => {
     });
     expect(config.permissions[AGENT_SLUG].extends).toBe(':workspace');
     expect(config.permissions[AGENT_SLUG].filesystem[join(home, '.state', 'secrets')]).toBe('deny');
-    expect(config.permissions[AGENT_SLUG].filesystem[join(home, LEGACY_RUNTIME_DIR, 'secrets')]).toBe('deny');
+    // A bare home started on `.state`, so the legacy store gets no deny of its own.
+    expect(config.permissions[AGENT_SLUG].filesystem[join(home, LEGACY_RUNTIME_DIR, 'secrets')]).toBeUndefined();
     expect(config.permissions[AGENT_SLUG].filesystem[':workspace_roots']).toEqual({
       '.git': 'write',
       '**/.state/secrets/**': 'deny',
-      [`**/${LEGACY_RUNTIME_DIR}/secrets/**`]: 'deny',
       '**/*.env': 'deny',
       '**/.env.*': 'deny'
     });

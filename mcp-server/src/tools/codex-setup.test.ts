@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { AGENT_SLUG } from '@/config';
 
 /** Its own throwaway home, pinned before the tool resolves paths, so nothing lands in a real checkout. */
@@ -34,5 +34,22 @@ describe('codex_setup tool', () => {
     expect(result.report?.hooks.path).toBe(resolve(HOME, '.codex', 'hooks.json'));
     expect(existsSync(resolve(HOME, '.codex', 'rules', `${AGENT_SLUG}.rules`))).toBe(true);
     expect(readFileSync(resolve(HOME, '.codex', 'config.toml'), 'utf-8')).toContain(`AGENT_HOME = "${HOME}"`);
+  });
+
+  test('a home that started on the shared data dir gets no legacy secrets deny', async () => {
+    await tools[0].handler({});
+    const config = readFileSync(resolve(HOME, '.codex', 'config.toml'), 'utf-8');
+    expect(config).toContain(`${RUNTIME_DIR}/secrets`);
+    expect(config).not.toContain(`${LEGACY_RUNTIME_DIR}/secrets`);
+  });
+
+  test('a home whose Claude posture still guards the legacy store keeps that deny', async () => {
+    mkdirSync(resolve(HOME, '.claude'), { recursive: true });
+    writeFileSync(
+      resolve(HOME, '.claude', 'settings.json'),
+      JSON.stringify({ permissions: { deny: [`Read(//**/${LEGACY_RUNTIME_DIR}/secrets/**)`] } })
+    );
+    await tools[0].handler({});
+    expect(readFileSync(resolve(HOME, '.codex', 'config.toml'), 'utf-8')).toContain(`${LEGACY_RUNTIME_DIR}/secrets`);
   });
 });
