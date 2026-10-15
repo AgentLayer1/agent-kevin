@@ -15,7 +15,14 @@
  * (the store is ensured to exist; its contents are never read or written).
  */
 import { FOLDERS, operatingManualPath, PLUGIN_NAME } from '@/config';
-import { CREDENTIAL_KEY_RE, MANUAL_SEED_PATH, type SeedManifest, sha256, validateSeedPath } from '@/seed/format';
+import {
+  CREDENTIAL_KEY_RE,
+  MANUAL_SEED_PATH,
+  type SeedAudience,
+  type SeedManifest,
+  sha256,
+  validateSeedPath
+} from '@/seed/format';
 import { migrateGrants } from '@/shared/retired-skills';
 import { execFileSync } from 'node:child_process';
 import {
@@ -44,6 +51,8 @@ export interface SeedImportOptions {
 
 export interface SeedImportResult {
   agentName: string;
+  /** `teammate` when the bundle doesn't say: only an exporter's explicit `self` vouches for personal rules in the identity files. */
+  audience: SeedAudience;
   dryRun: boolean;
   written: string[];
   /** Existing files that differ from the bundle and were left untouched (re-run with overwrite after review). */
@@ -237,6 +246,7 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
 
     return {
       agentName: manifest.agentName,
+      audience: manifest.audience === 'self' ? 'self' : 'teammate',
       dryRun,
       written,
       conflicts,

@@ -13,6 +13,10 @@ with `test -f`). If they only said "import the seed", ask where the file landed.
 
 Call `seed_import` with `dryRun: true` and present the plan grouped:
 
+- **Who it's for** — the result's `audience`. `self` means the operator exported their own
+  agent for this home: personal rules in IDENTITY.md and SOUL.md (an address rule, faith,
+  family) are theirs and expected, never a leak. `teammate` (also what a bundle without the
+  field reads as) means another person's persona; point out anything personal to its sender.
 - **Files to write** — by category (identity / knowledge / projects / skills / rules / surfaces)
 - **AGENTS.md overlay section** — appended to this home's scaffolded manual (never a
   replacement); re-importing the same bundle is skipped when the section is already there
@@ -40,7 +44,13 @@ Re-run `seed_import` with the chosen `overwrite`. If the result lists `ask` entr
 `permissionsAdded` and this home is wired for Codex (`test -f <HOME>/.codex/hooks.json`),
 call `codex_setup` next: the Codex rules file is generated from that ask list, so without
 the rerun those commands run unprompted under Codex. Report what landed, then close with the
-operator's checklist:
+operator's checklist.
+
+Apply the imported files as they came: don't rewrite IDENTITY.md or SOUL.md afterwards on
+your own judgment (dropping a rule, changing the role, swapping the avatar). Suggest the
+edit and make it only on a yes.
+
+The checklist:
 
 ```
 ✅ Seed applied — this agent is now <agentName>.

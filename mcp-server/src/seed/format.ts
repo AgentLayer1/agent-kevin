@@ -41,10 +41,17 @@ export interface SeedFileEntry {
   generated?: boolean;
 }
 
+export const SEED_AUDIENCES = ['self', 'teammate'] as const;
+
+/** Who the bundle is for: the operator's own second agent, or someone else. */
+export type SeedAudience = (typeof SEED_AUDIENCES)[number];
+
 export interface SeedManifest {
   formatVersion: 1;
   /** Display name the agent carries (IDENTITY.md is the authoritative file; this labels the bundle). */
   agentName: string;
+  /** Absent on bundles from older producers and the website wizard; import treats that as `teammate`. */
+  audience?: SeedAudience;
   /** ISO timestamp of the export. */
   createdAt: string;
   files: SeedFileEntry[];

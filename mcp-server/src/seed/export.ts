@@ -13,6 +13,7 @@ import {
   CREDENTIAL_KEY_RE,
   isEnvFile,
   renameAgent,
+  type SeedAudience,
   type SeedFileEntry,
   type SeedManifest,
   sha256,
@@ -38,6 +39,7 @@ export interface SeedExportOptions {
   include: string[];
   /** Display name the bundle carries. When it differs from the home's own name, the identity files are renamed in the bundle. */
   agentName: string;
+  audience?: SeedAudience;
   /** Skill-authored content written into the bundle (e.g. the AGENTS.md overlay section). */
   extras?: { path: string; content: string }[];
   permissions?: { allow?: string[]; ask?: string[] };
@@ -138,6 +140,7 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
     const manifest: SeedManifest = {
       formatVersion: 1,
       agentName: options.agentName,
+      ...(options.audience ? { audience: options.audience } : {}),
       createdAt: new Date().toISOString(),
       files,
       ...(options.permissions ? { permissions: options.permissions } : {}),

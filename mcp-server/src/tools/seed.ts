@@ -8,6 +8,7 @@
  */
 import { defineTool, type ToolDef } from '@/shared/types';
 import { exportSeed } from '@/seed/export';
+import { SEED_AUDIENCES } from '@/seed/format';
 import { importSeed } from '@/seed/import';
 import { scanSeed } from '@/seed/scan';
 import { z } from 'zod';
@@ -29,6 +30,12 @@ export const tools: ToolDef[] = [
       agentName: z
         .string()
         .describe('Display name the bundle carries (e.g. "Scout"); a new name renames the bundled identity files.'),
+      audience: z
+        .enum(SEED_AUDIENCES)
+        .optional()
+        .describe(
+          '"self" for the operator\'s own second agent, "teammate" for anyone else (the export interview asks).'
+        ),
       extras: z
         .array(z.object({ path: z.string(), content: z.string() }))
         .optional()

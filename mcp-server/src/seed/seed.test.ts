@@ -293,6 +293,7 @@ describe('importSeed', () => {
 
     const result = inHome(recipient, () => importSeed({ bundlePath: bundle(), overwrite: true }));
     expect(result.agentName).toBe('Scout');
+    expect(result.audience).toBe('teammate');
     expect(result.conflicts).toEqual([]);
     expect(result.written).toContain('SOUL.md');
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('Scout');
@@ -476,5 +477,19 @@ describe('a bundle under a new name', () => {
     homes.push(recipient);
     inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('- **Name:** Ranger');
+  });
+});
+
+describe('the bundle audience', () => {
+  test('export records it and import passes it on', () => {
+    const result = asSource(() =>
+      exportSeed({ include: ['IDENTITY.md'], agentName: 'Scout', audience: 'self', out: join(sourceHome, 'self.zip') })
+    );
+    expect(result.manifest.audience).toBe('self');
+
+    const recipient = makeHome();
+    homes.push(recipient);
+    const plan = inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, dryRun: true }));
+    expect(plan.audience).toBe('self');
   });
 });

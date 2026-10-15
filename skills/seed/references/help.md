@@ -1,6 +1,6 @@
 ## 🌱 Seed: what I can do
 
-Fork this agent's persona and setup into a teammate's home, or take one on, without anything personal crossing over.
+Fork this agent's persona and setup into a teammate's home or a second agent of your own, or take one on, without anything personal crossing over to a teammate.
 
 | Ask | Playbook | You get |
 |---|---|---|

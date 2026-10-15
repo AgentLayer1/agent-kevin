@@ -26,6 +26,17 @@ names.
 
 Every question shows what the scan detected. Run the rounds via `AskUserQuestion`:
 
+### 0. Audience
+
+> **Who is this bundle for?**
+> - A teammate — someone else's agent
+> - Me — a second agent of my own (another home on this or another machine)
+
+It travels as the manifest's `audience` and changes two things. The review gate scrubs
+personal rules out of the identity files only for a teammate; for yourself they are the
+point. And the receiving agent reads `self` as "these personal rules are the operator's
+own", so it doesn't mistake them for a leak.
+
 ### 1. Scope
 
 > **What are you exporting?**
@@ -95,8 +106,10 @@ bridge, not the manual, and a home on another harness never reads it.)
 The interview decided WHAT; this gate verifies the CONTENT. For each selected file:
 show it (or a faithful summary for long files), flag anything that shouldn't travel —
 client names that need `acme`-ing, personal paths, private context — and let the operator
-**approve / edit / exclude**. Edits happen in the source file or via an `extras` override,
-never silently. No approval, no bundle.
+**approve / edit / exclude**. For `audience: self`, the operator's personal rules in
+IDENTITY.md and SOUL.md are expected and stay; flag only what belongs to someone else.
+Edits happen in the source file or via an `extras` override, never silently. No approval,
+no bundle.
 
 Then a final manifest summary (files by category, permission entries, key names, MCP
 servers) and one last confirm.
@@ -106,6 +119,7 @@ servers) and one last confirm.
 Call `seed_export` with the approved selection:
 - `include` — approved paths (directories like `.claude/skills/<name>` expand)
 - `agentName` — from the identity round
+- `audience` — from round 0
 - `extras` — the AGENTS.md overlay section, if approved
 - `permissions` / `secretKeys` / `settingsEnv` / `mcpServers` — the approved setup
 
