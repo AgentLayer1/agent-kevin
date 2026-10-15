@@ -47,27 +47,30 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Added
 - **A seed bundle can carry browser flows.** `.claude/browser-flows/` is a seed root like custom
-  skills: a flow's `.env.example` travels, while any other `.env*` file (any case, `.envrc`
-  included) is refused by path and skipped inside a folder, with the skipped names in the export
-  result. A flow may not take a built-in flow's name, and the import shows each flow's script in
-  full, since flows run outside the sandbox.
+  skills. No seed root carries a `.env*` file any more (any case, `.envrc` included; `.env.example`
+  still travels): one named outright is refused, and one inside a folder is skipped and listed in
+  the export result. A flow may not take a built-in flow's name, and the import shows each flow's
+  `index.ts` in full, since flows run outside the sandbox.
 - **A seed bundle records who it is for.** The export asks whether the bundle is for your own second
   agent or a teammate and writes `audience` to the manifest; an import without one reads as
-  `teammate`. A bundle for yourself keeps your personal rules once you confirm on import that you
-  sent it, and the import playbook never rewrites imported identity files without asking.
+  `teammate`. For yourself, the review gate leaves your personal rules in, and the import treats them
+  as yours once you confirm you sent it; it never rewrites imported identity files without asking.
 
 ### Changed
 - **Env keys use the shared `AGENT_*` names only.** A `KEVIN_*` key no longer overrides its `AGENT_*`
   twin, and the plugin no longer reads it at all. Several homes can run one plugin, so the agent's
   own spelling could never mean "this agent only", and one set machine-wide pointed every home at the
-  same brain. Skills, help text, error hints and the manual template name `AGENT_*` throughout, and
-  `kevin --home` sets `AGENT_HOME` only. The upgrade renames what your home holds (see Upgrade).
-- **Codex wiring writes `AGENT_HOME` only**, reads the home's `AGENT_*` settings only, and removes a
-  `KEVIN_HOME` an earlier version wrote.
-- **Codex runs the MCP servers Claude Code runs**, not only the pack servers: every stdio server in
-  `.mcp.json` that `enabledMcpjsonServers` (or `enableAllProjectMcpServers`) turns on, minus
-  `disabledMcpjsonServers`. A server you later disable or drop from approval leaves Codex too, and one
-  using `${VAR}` (which Codex would not fill in) stays out with a note.
+  same brain. Skills, help text, error hints and the manual template name `AGENT_*` throughout,
+  `kevin --home` sets `AGENT_HOME` only, and a browser flow's process gets `AGENT_HOME` only, so a
+  flow you wrote that reads `KEVIN_HOME` needs the new name. The upgrade renames what your home
+  holds (see Upgrade).
+- **Codex wiring writes `AGENT_HOME` only**, reads the home's `AGENT_*` settings only, and removes the
+  `KEVIN_*` entries an earlier version wrote.
+- **Codex runs the MCP servers Claude Code runs**, not only the pack servers (which, like `xcode`,
+  always mirror): every stdio server in `.mcp.json` that `enabledMcpjsonServers` (or
+  `enableAllProjectMcpServers`) turns on, minus `disabledMcpjsonServers`. Codex setup owns the table
+  of every stdio server named in `.mcp.json`, so one you later disable leaves Codex too, with a note;
+  one using `${VAR}` (which Codex would not fill in) stays out, also with a note.
 - **The banner shows the agent's own name and emoji** from `IDENTITY.md` instead of `KEVIN 🍌`, in
   the dashboard and init's opening and closing lines.
 - **Briefings add the Hijri date only when you keep that calendar.** A faith mention alone (a team
@@ -75,27 +78,29 @@ and prompts per optional one. The new template files are the source of truth for
 - **A seed bundle exported under a new name is renamed.** `IDENTITY.md` and `SOUL.md` carry the new
   name instead of the source agent's, and an `extras` override of a selected file now ships in its
   place instead of beside it.
-- **A seed bundle no longer carries the source home's path.** Carried MCP entries hold a `<HOME_DIR>`
-  placeholder that the import fills with the recipient's home.
-- **A seed export pre-ticks the packs** a project's README and tasks show it uses.
+- **Carried MCP entries no longer hold the source home's path.** A seed bundle's MCP entries hold a
+  `<HOME_DIR>` placeholder that the import fills with the recipient's home.
+- **A project-slice seed export pre-ticks the packs** the project's README and tasks show it uses.
 - **A blocked task can go back to open** once it's unblocked, and the scan clears a leftover
   `blocked_by` on an open task.
 
 ### Removed
 - **Support for homes that never ran the 0.7.0 upgrade.** The plugin reads only `.state/`; the
-  agent-named `.kevin/` folder and its fallbacks are gone, along with the migrations up to 0.7.0
-  (every home is past them; 0.5.3 stays for the roadmap skill), the settings split only 0.6.1
-  used, and the pre-0.4.0 root-manual handling. Init stops on a home still on `.kevin/` and points at v0.7.3's upgrade.
+  agent-named `.kevin/` folder and its fallbacks are gone, including Codex's `.kevin/secrets` deny
+  and the SessionStart "two data folders" warning, along with the migrations up to 0.7.0 (every
+  home is past them; 0.5.3 stays for the roadmap skill), the settings split only 0.6.1 used, and
+  the pre-0.4.0 root-manual handling with its "loads twice" banner line. Init, SessionStart and the
+  upgrade point a home still on `.kevin/` at v0.7.3's upgrade.
 
 ### Fixed
 - **A seed import's confirm is never answered for you.** It is asked on its own with all three
   choices; if the question can't be shown, the import asks in plain text and waits.
 - **The finished sync band wraps at whole pieces** in a narrow pane instead of breaking words.
-- **The manual template names the variables init writes** (`AGENT_GIT_REPOS`, `AGENT_CODE_PATH`).
 - **Home recovery advice names the file that matters.** A home is the one whose `.state/version.json`
   records this agent's plugin; SessionStart, tool errors, the CLI and upgrade said either marker file
   would do, so restoring only `knowledge.json` looked like a fix and wasn't. An empty `plugin` record
-  is now restamped by the upgrade instead of leaving the home unrecognised.
+  counts as missing, so the identity check (`home-baseline.ts`) restamps it instead of reporting
+  another plugin.
 - **Codex setup keeps credentials out of `.codex/config.toml`.** The shell env it copies from the home's
   settings already skipped keys named like a key, token, secret or password; it now also skips
   `AGENT_DB_*` connection strings and credential-, private- or DSN-shaped names, since that file is
@@ -103,11 +108,11 @@ and prompts per optional one. The new template files are the source of truth for
 - **`google_auth` says where its tokens live:** the home's secrets store (`.state/secrets/google/`).
 
 ### Upgrade
-- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames `KEVIN_*` keys and `$KEVIN_*` references to their `AGENT_*` names in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (each key exactly as the secrets loader reads it, so an `export` line, which it never read, stays as it is; values, order and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is dropped (the backup keeps it). A file that doesn't parse is named in the error, never quoted. Every file is read before any is written, so one that doesn't parse stops the run with nothing changed. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
+- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames `KEVIN_*` keys and `$KEVIN_*` references to their `AGENT_*` names in both `.claude/settings.json` and `.claude/settings.local.json` (env keys, and references in any string), `.state/secrets/.env` (key names, line by line, values, order and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set in the same store, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is dropped (the backup keeps it); an `export KEVIN_X=` line, which the plugin's loader never read, is renamed for the server wrappers that source the file but displaces nothing. A `KEVIN_*` setting whose `AGENT_*` twin sits in the secrets file gives way to the secrets value, as every secret does. A file that doesn't parse is named in the error, never quoted. Every file is read before any is written, so one that doesn't parse stops the run with nothing changed. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
 - `template/AGENTS.md: mandatory` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings, which nothing reads any more.
 - `manual: none` — only if `KEVIN_*` keys are set outside the home (`~/.claude/settings.json`, which the upgrade checks and lists, or a shell profile): nothing reads them any more. Delete each, and put a per-home value (code path, repo list, DB connection) into each home's `.claude/settings.local.json` as `AGENT_*`. Only a value every home should share (timezone, log level) is renamed in place. A `KEVIN_HOME` pin (sessions started outside the home) becomes `AGENT_HOME` there only on a machine with a single agent home; otherwise delete it.
 - `manual: none` — restart Claude Code (and Codex) after the upgrade: a running session keeps the old names until it relaunches.
-- `manual: none` — only for a home whose data is still in `.kevin/` (it never ran the 0.7.0 upgrade): this version no longer reads or moves that folder. Install v0.7.3, run `/agent-kevin:upgrade` there, then update to this version.
+- `manual: none` — only for a home whose data is still in `.kevin/` (it never ran the 0.7.0 upgrade): this version no longer reads or moves that folder. Install v0.7.3 (a local checkout at tag `v0.7.3`), run `/agent-kevin:upgrade` there, then update to this version.
 
 ## [0.7.3] - 2026-10-14
 

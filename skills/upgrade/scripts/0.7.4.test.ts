@@ -29,7 +29,7 @@ const SECRETS = [
   `${LEGACY}DB_MAIN=postgres://fixture-legacy@localhost/main`,
   'AGENT_DB_MAIN=postgres://fixture-shadowed@localhost/main',
   ` ${LEGACY}DB_SIDE = postgres://fixture-side@localhost/side`,
-  // The loader never read an `export` line, so its twin is the value in effect and stays.
+  // The loader never read an `export` line, so its twin stays; the line is renamed for a sourcing wrapper.
   `export ${LEGACY}DB_EXPORTED=postgres://fixture-inert@localhost/x`,
   'AGENT_DB_EXPORTED=postgres://fixture-live@localhost/x',
   'GITHUB_TOKEN=fixture-token',
@@ -146,7 +146,7 @@ describe('0.7.4 AGENT_* rename', () => {
           '# acme credentials',
           'AGENT_DB_MAIN=postgres://fixture-legacy@localhost/main',
           ' AGENT_DB_SIDE = postgres://fixture-side@localhost/side',
-          `export ${LEGACY}DB_EXPORTED=postgres://fixture-inert@localhost/x`,
+          'export AGENT_DB_EXPORTED=postgres://fixture-inert@localhost/x',
           'AGENT_DB_EXPORTED=postgres://fixture-live@localhost/x',
           'GITHUB_TOKEN=fixture-token',
           ''
@@ -158,7 +158,7 @@ describe('0.7.4 AGENT_* rename', () => {
       expect(read(home, `${RUNTIME_DIR}/secrets/${backups[0]}`)).toBe(SECRETS);
       expect(statSync(join(home, RUNTIME_DIR, 'secrets', backups[0])).mode & 0o777).toBe(0o600);
       expect(report.secrets).toEqual({
-        renamed: [`${LEGACY}DB_MAIN`, `${LEGACY}DB_SIDE`],
+        renamed: [`${LEGACY}DB_MAIN`, `${LEGACY}DB_SIDE`, `${LEGACY}DB_EXPORTED`],
         replaced: ['AGENT_DB_MAIN']
       });
     }

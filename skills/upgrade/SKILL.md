@@ -78,7 +78,7 @@ echo "installed=$INSTALLED baseline=${BASELINE:-<none>} available=${AVAILABLE:-<
 ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 ```
 
-Confirm `$HOME_DIR` is a real Kevin home (its data dir holds `version.json` or `knowledge.json`). If not, stop and tell
+Confirm `$HOME_DIR` is a real Kevin home (its `.state/version.json` records this plugin). If not, stop and tell
 the user to run this from their agent home (or set `AGENT_HOME`).
 
 **`GIT_CHECKOUT` → bring the plugin code current before reading versions.** Call

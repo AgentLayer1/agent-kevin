@@ -7,8 +7,7 @@
  * before they go dark:
  * - `.claude/settings.json` and `settings.local.json`: `env` keys, and `$KEVIN_X` references in any
  *   string (a permission rule, a hook);
- * - `<data dir>/secrets/.env`: key names as the secrets loader reads them, line by line, keeping values,
- *   comments, order and mode;
+ * - `<data dir>/secrets/.env`: key names, line by line, keeping values, comments, order and mode;
  * - `.mcp.json`: `$KEVIN_X`, `${KEVIN_X}` and `$env:KEVIN_X` references and server `env` keys, after
  *   which the configure-skills home fallback collapses to a single `AGENT_HOME` read.
  * When both spellings are set the legacy value wins, since it was the one in effect. Legacy keys in
@@ -201,9 +200,16 @@ const keyOf = (line: string): string | undefined => {
 const isLegacyKey = (key: string | undefined): key is string =>
   key !== undefined && /^[A-Za-z0-9_]+$/.test(key) && isLegacy(key);
 
+/** `export KEVIN_X=`: the plugin's loader skips it, but a server wrapper that sources the file reads it. */
+const exportedKey = (key: string | undefined): string | undefined => {
+  const name = key?.match(/^export\s+(\S+)$/)?.[1];
+  return isLegacyKey(name) ? name : undefined;
+};
+
 /**
  * The secrets file, renamed line by line. A shadowed `AGENT_*` line is dropped, since the legacy value
- * was the one in effect; the backup keeps it.
+ * was the one the loader used; the backup keeps it. An `export` line is renamed too, so a sourcing
+ * wrapper whose reference was renamed still finds it, but it shadows nothing the loader read.
  */
 const planSecrets = (): Rewrite<KeyRename> | null => {
   if (!existsSync(SECRETS)) {
@@ -211,16 +217,19 @@ const planSecrets = (): Rewrite<KeyRename> | null => {
   }
   const lines = readFileSync(SECRETS, 'utf-8').split('\n');
   const keys = lines.map(keyOf);
-  const renamed = [...new Set(keys.filter(isLegacyKey))];
+  const loaded = keys.filter(isLegacyKey);
+  const exported = keys.map(exportedKey).filter((name): name is string => name !== undefined);
+  const renamed = [...new Set([...loaded, ...exported])];
   if (renamed.length === 0) {
     return null;
   }
-  const shadowed = new Set(renamed.map(sharedName));
+  const shadowed = new Set(loaded.map(sharedName));
   const text = lines
     .flatMap((line, index) => {
       const key = keys[index];
-      if (isLegacyKey(key)) {
-        return [line.replace(key, () => sharedName(key))];
+      const name = isLegacyKey(key) ? key : exportedKey(key);
+      if (name !== undefined) {
+        return [line.replace(name, () => sharedName(name))];
       }
       return key !== undefined && shadowed.has(key) ? [] : [line];
     })
