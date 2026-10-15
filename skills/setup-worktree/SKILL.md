@@ -294,7 +294,7 @@ call again with `drop: true` + the same `cwd`/`repointEnv` (drops the DB and rem
 do this before `git worktree remove` so the
 fork isn't orphaned. Remote connections are refused; `database_fork` only acts on a local server.
 
-**Resolving the source connection (the generic seam):** the tool needs a `AGENT_DB_<NAME>`
+**Resolving the source connection (the generic seam):** the tool needs an `AGENT_DB_<NAME>`
 connection pointing at the repo's local Postgres server (e.g.
 `AGENT_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.state/secrets/.env`** — since
 v0.3.0 credential env vars live there, not in `.claude/settings.local.json`). It defaults to the

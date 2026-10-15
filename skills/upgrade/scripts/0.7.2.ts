@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 const VERSION = '0.7.2';
 const UNGATED = 'mcp__xcode__RunCodeSnippet';
 
-const HOME = resolve(process.env.KEVIN_HOME?.trim() || process.env.AGENT_HOME?.trim() || process.cwd());
+const HOME = resolve(process.env.AGENT_HOME?.trim() || process.cwd());
 const SETTINGS = resolve(HOME, '.claude', 'settings.json');
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

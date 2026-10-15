@@ -18,7 +18,7 @@ const makeHome = (settings?: unknown): string => {
 };
 const run = (home: string): { ok: boolean; askDropped: string[] } => {
   const result = spawnSync('bun', [SCRIPT], {
-    env: { ...process.env, KEVIN_HOME: home, AGENT_HOME: home },
+    env: { ...process.env, AGENT_HOME: home },
     encoding: 'utf-8'
   });
   expect(result.status).toBe(0);

@@ -231,7 +231,7 @@ After both pieces processed, print Browser pack summary.
 
 ### A.2c — Database pack walk
 
-Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`database_list`, `database_schema`, `database_query`) plus one write tool, `database_fork` (clones a database via `CREATE DATABASE ... TEMPLATE` so you can make risky schema changes off a scratch copy — local servers only, remote hosts refused), are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is a `AGENT_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.state/secrets/.env` (loaded into the environment at boot, where the db tools discover it); the walk only ensures that store exists, and the user adds the `AGENT_DB_<NAME>=<connection string>` line in their editor, never in chat.
+Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`database_list`, `database_schema`, `database_query`) plus one write tool, `database_fork` (clones a database via `CREATE DATABASE ... TEMPLATE` so you can make risky schema changes off a scratch copy — local servers only, remote hosts refused), are bundled with the plugin; this walk grants their permissions and sets up an **arbitrary number** of connections. Each connection is an `AGENT_DB_<NAME>` line whose value is a Postgres connection string. The connection string carries credentials, so it is **sensitive** — it lives in `.state/secrets/.env` (loaded into the environment at boot, where the db tools discover it); the walk only ensures that store exists, and the user adds the `AGENT_DB_<NAME>=<connection string>` line in their editor, never in chat.
 
 > **Never prompt for connection-string values in chat.** A Postgres URL embeds a password (`postgres://user:pass@host/db`). The walk collects connection *names* only and surfaces *which* `AGENT_DB_<NAME>` keys to fill in `<HOME>/.state/secrets/.env`. The session-capture redactor masks DB URLs (and exact-matches `.state/secrets/.env` values) as defense-in-depth, but the safe move is to keep the value off the wire entirely.
 
@@ -248,9 +248,9 @@ Connects Kevin to one or more Postgres databases. Three read-only MCP tools (`da
 
 For each name the user gives:
 - Normalize it the way the tool resolves connections: upper-case and replace every non-alphanumeric character with `_`, then prefix `AGENT_DB_`. So `analytics` → `AGENT_DB_ANALYTICS`, `read-replica` → `AGENT_DB_READ_REPLICA`. (This matches `envKeyFor` in the plugin's `mcp-server/src/tools/database.ts`; the tool lowercases the suffix back to the connection name.)
-- Ensure the secret store exists (§D.1) and tell the user to add a `AGENT_DB_<NAME>=<connection string>` line to `.state/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
+- Ensure the secret store exists (§D.1) and tell the user to add an `AGENT_DB_<NAME>=<connection string>` line to `.state/secrets/.env` in their editor. Claude doesn't read/write the gated file, so re-running to add a connection just surfaces the line(s) to add — it never clobbers existing ones.
 
-If the user adds zero connections, still grant the tool permissions and note that `database_list` will report none until they add a `AGENT_DB_<NAME>` env var.
+If the user adds zero connections, still grant the tool permissions and note that `database_list` will report none until they add an `AGENT_DB_<NAME>` env var.
 
 **(3) Summary:**
 
