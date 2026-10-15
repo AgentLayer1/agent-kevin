@@ -7,7 +7,8 @@
  * before they go dark:
  * - `.claude/settings.json` and `settings.local.json`: `env` keys, and `$KEVIN_X` references in any
  *   string (a permission rule, a hook);
- * - `<data dir>/secrets/.env`: key names, line by line, keeping values, comments, order and mode;
+ * - `<data dir>/secrets/.env`: key names as the secrets loader reads them, line by line, keeping values,
+ *   comments, order and mode;
  * - `.mcp.json`: `$KEVIN_X`, `${KEVIN_X}` and `$env:KEVIN_X` references and server `env` keys, after
  *   which the configure-skills home fallback collapses to a single `AGENT_HOME` read.
  * When both spellings are set the legacy value wins, since it was the one in effect. Legacy keys in
@@ -64,7 +65,7 @@ const writeAtomic = (file: string, text: string): void => {
   renameSync(temp, target);
 };
 
-const REFERENCE = new RegExp(`(\\$\\{|\\$env:|\\$)${PREFIX}([A-Za-z0-9_]+)`, 'g');
+const REFERENCE = new RegExp(`(\\$\\{env:|\\$\\{|\\$env:|\\$)${PREFIX}([A-Za-z0-9_]+)`, 'g');
 
 /** Renames legacy references in one string, then drops the home fallback the rename made redundant. */
 const renameReferences = (text: string): string =>
@@ -100,7 +101,7 @@ const renameKeys = (
   shadowedElsewhere: readonly string[] = []
 ): KeyRename & { env: Record<string, unknown> } => {
   const renamed = Object.keys(env).filter(isLegacy);
-  const replaced = [...renamed.map(sharedName), ...shadowedElsewhere].filter((key) => key in env);
+  const replaced = [...new Set([...renamed.map(sharedName), ...shadowedElsewhere])].filter((key) => key in env);
   return {
     env: Object.fromEntries(
       Object.entries(env)
@@ -113,7 +114,13 @@ const renameKeys = (
 };
 
 const readJsonObject = (file: string): Record<string, unknown> => {
-  const parsed: unknown = JSON.parse(readFileSync(file, 'utf-8'));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(file, 'utf-8'));
+  } catch {
+    // The parser's own message can quote the text it choked on, which may be a token.
+    throw new Error(`${file} is not valid JSON; fix it, then run the upgrade again`);
+  }
   if (!isRecord(parsed)) {
     throw new Error(`${file} is not a JSON object`);
   }
@@ -184,31 +191,38 @@ const planMcp = (): Rewrite<{ file: string; servers: string[] }> | null => {
   return jsonRewrite(file, config, { ...config, mcpServers: nextServers }, { file: '.mcp.json', servers: changed });
 };
 
-const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)(\s*=)/;
+/** A line's key exactly as the plugin's secrets loader reads it, so only a key it used is renamed. */
+const keyOf = (line: string): string | undefined => {
+  const trimmed = line.trim();
+  const eq = trimmed.indexOf('=');
+  return trimmed.startsWith('#') || eq <= 0 ? undefined : trimmed.slice(0, eq).trim();
+};
 
-/** The secrets file, renamed line by line; a shadowed `AGENT_*` line is commented out, not deleted. */
+const isLegacyKey = (key: string | undefined): key is string =>
+  key !== undefined && /^[A-Za-z0-9_]+$/.test(key) && isLegacy(key);
+
+/**
+ * The secrets file, renamed line by line. A shadowed `AGENT_*` line is dropped, since the legacy value
+ * was the one in effect; the backup keeps it.
+ */
 const planSecrets = (): Rewrite<KeyRename> | null => {
   if (!existsSync(SECRETS)) {
     return null;
   }
   const lines = readFileSync(SECRETS, 'utf-8').split('\n');
-  const keyOf = (line: string): string | undefined => line.match(ASSIGNMENT)?.[2];
   const keys = lines.map(keyOf);
-  const renamed = keys.filter((key): key is string => key !== undefined && isLegacy(key));
+  const renamed = [...new Set(keys.filter(isLegacyKey))];
   if (renamed.length === 0) {
     return null;
   }
   const shadowed = new Set(renamed.map(sharedName));
   const text = lines
-    .map((line, index) => {
+    .flatMap((line, index) => {
       const key = keys[index];
-      if (key !== undefined && isLegacy(key)) {
-        return line.replace(
-          ASSIGNMENT,
-          (_match, lead: string, _key: string, equals: string) => `${lead}${sharedName(key)}${equals}`
-        );
+      if (isLegacyKey(key)) {
+        return [line.replace(key, () => sharedName(key))];
       }
-      return key !== undefined && shadowed.has(key) ? `# ${line}` : line;
+      return key !== undefined && shadowed.has(key) ? [] : [line];
     })
     .join('\n');
   return { file: SECRETS, text, report: { renamed, replaced: [...shadowed].filter((key) => keys.includes(key)) } };
@@ -237,9 +251,12 @@ const migrate = () => {
   );
   const mcp = planMcp();
   const secrets = planSecrets();
+  const configRewrites = [...settings, ...(mcp ? [mcp] : [])];
   const backups = resolve(DATA_DIR, 'updates', `${VERSION}-${STAMP}`);
-  [...settings, ...(mcp ? [mcp] : [])].forEach(({ file, text }) => {
+  if (configRewrites.length > 0) {
     mkdirSync(backups, { recursive: true });
+  }
+  configRewrites.forEach(({ file, text }) => {
     copyFileSync(file, resolve(backups, basename(file)));
     writeAtomic(file, text);
   });

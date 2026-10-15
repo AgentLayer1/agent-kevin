@@ -28,7 +28,10 @@ const SECRETS = [
   '# acme credentials',
   `${LEGACY}DB_MAIN=postgres://fixture-legacy@localhost/main`,
   'AGENT_DB_MAIN=postgres://fixture-shadowed@localhost/main',
-  `export ${LEGACY}DB_SIDE = postgres://fixture-side@localhost/side`,
+  ` ${LEGACY}DB_SIDE = postgres://fixture-side@localhost/side`,
+  // The loader never read an `export` line, so its twin is the value in effect and stays.
+  `export ${LEGACY}DB_EXPORTED=postgres://fixture-inert@localhost/x`,
+  'AGENT_DB_EXPORTED=postgres://fixture-live@localhost/x',
   'GITHUB_TOKEN=fixture-token',
   ''
 ].join('\n');
@@ -134,7 +137,7 @@ describe('0.7.4 AGENT_* rename', () => {
   });
 
   test.skipIf(!SECRETS_READABLE)(
-    'renames secrets line by line, comments out a shadowed twin, keeps mode and backs up inside the store',
+    'renames the keys the loader reads, drops a shadowed twin, keeps mode and backs up inside the store',
     () => {
       const { home, user } = makeHome();
       const { report } = run(home, user);
@@ -142,8 +145,9 @@ describe('0.7.4 AGENT_* rename', () => {
         [
           '# acme credentials',
           'AGENT_DB_MAIN=postgres://fixture-legacy@localhost/main',
-          '# AGENT_DB_MAIN=postgres://fixture-shadowed@localhost/main',
-          'export AGENT_DB_SIDE = postgres://fixture-side@localhost/side',
+          ' AGENT_DB_SIDE = postgres://fixture-side@localhost/side',
+          `export ${LEGACY}DB_EXPORTED=postgres://fixture-inert@localhost/x`,
+          'AGENT_DB_EXPORTED=postgres://fixture-live@localhost/x',
           'GITHUB_TOKEN=fixture-token',
           ''
         ].join('\n')
@@ -195,6 +199,14 @@ describe('0.7.4 AGENT_* rename', () => {
     expect(read(home, '.claude/settings.json')).toBe(shared);
     expect(read(home, '.mcp.json')).toBe(mcp);
     expect(existsSync(join(home, RUNTIME_DIR, 'updates'))).toBe(false);
+  });
+
+  test('a parse failure names the file and never quotes its text', () => {
+    const { home, user } = makeHome();
+    write(home, '.claude/settings.local.json', '{ "env": { "AGENT_TOKEN": ghp_fixtureSecretValue } }\n');
+    const { stdout, report } = run(home, user);
+    expect(report.error).toContain('settings.local.json is not valid JSON');
+    expect(stdout).not.toContain('ghp_fixtureSecretValue');
   });
 
   test('writes through a symlinked settings file, keeping the link', () => {
