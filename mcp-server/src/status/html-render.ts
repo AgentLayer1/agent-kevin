@@ -30,7 +30,7 @@ import type { HistoryState } from '@/home/history';
 import { BANNER_LINES, bannerTag } from '@/shared/banner';
 import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
-import { RUNTIME_DIR, agentEnvPrefix, agentKeyName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 import { THEME_BLOCK } from '@/shared/theme';
 import type {
   ContextGroup,
@@ -1747,29 +1747,22 @@ const logTail = (tail: string): string => {
 };
 
 // Explanations for the agent's own env vars + the harness knobs init seeds —
-// shown as an info tooltip beside the key in the Environment table. Keyed by
-// the shared AGENT_* names; `envKeyTip` maps a per-agent override (KEVIN_*,
-// SCOUT_*, …) onto the same tip.
+// shown as an info tooltip beside the key in the Environment table.
 const ENV_KEY_TIPS: Record<string, string> = {
-  AGENT_HOME: `The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; if you ever start Claude from elsewhere, set this agent's own spelling (${agentKeyName('HOME')}) in \`~/.claude/settings.json\` — a machine-wide AGENT_HOME would point every agent at the same home.`,
+  AGENT_HOME: `The agent home directory — the root of the knowledge tree, projects, and reports. The MCP server resolves every path from here. Defaults to the directory you launch Claude from; set it in \`~/.claude/settings.json\` only on a machine with exactly one agent home, since a machine-wide value points every agent at the same home.`,
   CLAUDE_CODE_NO_FLICKER:
     'Renders the prompt without the flicker-prone redraw. Upside: you can click anywhere in the prompt input box to move the cursor. Trade-off: to highlight/select text in Claude’s responses you have to hold Shift while dragging.',
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
     'Turns off non-essential network traffic (telemetry, auto-update pings, etc.) — keeps Claude Code quiet on the wire.',
   ANTHROPIC_DEFAULT_HAIKU_MODEL:
     'Remaps the lightweight “Haiku” tier the harness uses for small background tasks to a more capable model, so quick auxiliary calls aren’t under-powered.',
-  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$${agentKeyName('CODE_PATH')}\`.`,
-  AGENT_GIT_REPOS: `Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to \`${agentKeyName('CODE_PATH')}\`; append more with \`,/path/to/other/repo\`.`,
+  AGENT_CODE_PATH: `Absolute path to your primary codebase. Used by the setup-worktree skill and exposed as \`$AGENT_CODE_PATH\`.`,
+  AGENT_GIT_REPOS: `Comma-separated repo paths whose recent git activity shows up in the SessionStart briefing. Defaults to \`AGENT_CODE_PATH\`; append more with \`,/path/to/other/repo\`.`,
   AGENT_KNOWLEDGE: 'Override for where the `knowledge/` tree lives, if you keep it outside the home directory.',
   AGENT_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'
 };
 
-/** Tip for an env key, matching this agent's override spelling to its `AGENT_*` tip. */
-const envKeyTip = (key: string): string | undefined => {
-  const prefix = agentEnvPrefix();
-  const canonical = prefix && key.startsWith(prefix) ? `AGENT_${key.slice(prefix.length)}` : key;
-  return ENV_KEY_TIPS[canonical];
-};
+const envKeyTip = (key: string): string | undefined => ENV_KEY_TIPS[key];
 
 const pageSystem = (snap: StatusSnapshot): string => {
   const { settings, logs } = snap;

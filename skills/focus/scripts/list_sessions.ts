@@ -11,7 +11,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 400;
@@ -222,8 +221,8 @@ const hours =
 // pre-filled --scope): cwd and env reach a native process in native form,
 // while a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows
 // and resolves against the wrong drive.
-const agentHome = process.env[agentKeyName('HOME')]?.trim() || process.env.AGENT_HOME?.trim();
-const codePath = process.env[agentKeyName('CODE_PATH')]?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const agentHome = process.env.AGENT_HOME?.trim();
+const codePath = process.env.AGENT_CODE_PATH?.trim();
 const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
   .filter((path): path is string => Boolean(path))
   .join(',');

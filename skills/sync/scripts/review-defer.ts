@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { todayDate } from '../../../mcp-server/src/shared/date';
 import { agentHomePath, isAgentHome } from '../../../mcp-server/src/shared/env';
-import { agentKeyName, dataDirOf } from '../../../mcp-server/src/shared/naming';
+import { dataDirOf } from '../../../mcp-server/src/shared/naming';
 import { writeFileAtomic } from '../../../mcp-server/src/shared/utils';
 
 /**
@@ -23,7 +23,7 @@ if ((choice !== 'tomorrow' && choice !== 'skip') || !/^\d{4}-\d{2}-\d{2}$/.test(
 
 const home = agentHomePath();
 if (!isAgentHome(home)) {
-  console.error(`not an agent home: ${home} — set ${agentKeyName('HOME')}`);
+  console.error(`not an agent home: ${home} — set AGENT_HOME`);
   process.exit(1);
 }
 

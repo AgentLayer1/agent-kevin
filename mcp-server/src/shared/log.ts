@@ -9,7 +9,7 @@
  *
  * No setStderrOnly() toggle. There is no path that writes to stdout — so the
  * logger is hook-safe by construction. Override the file path via
- * `AGENT_LOG_FILE` (or this agent's `<AGENT>_LOG_FILE`); disable file output
+ * `AGENT_LOG_FILE`; disable file output
  * entirely with `=off`. Its only import is `shared/naming.ts`, which is
  * side-effect-free — never `@/config` or `@/shared/env`, whose import loads the
  * home's secrets. Naming lookups are wrapped: a broken manifest degrades to the

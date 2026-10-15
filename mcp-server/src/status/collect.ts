@@ -30,7 +30,7 @@ import { type ChangelogEntry, getUpgradeStatus, parseChangelog, type UpgradeStat
 import { readCadence } from '@/shared/cadence';
 import { nowISO, nowTime, todayDate } from '@/shared/date';
 import { agentDisplayName } from '@/shared/agent-name';
-import { agentKeyName } from '@/shared/naming';
+import { legacyEnvPrefix } from '@/shared/naming';
 import { routerPlaybooks } from '@/shared/playbooks';
 import { env } from '@/shared/env';
 import {
@@ -497,7 +497,7 @@ export interface StatusSnapshot {
 
 const MARKDOWN_RE = /\.md$/;
 const SECRET_KEY_RE = new RegExp(
-  `(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|${agentKeyName('DB')}|AGENT_DB)`,
+  `(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CRED|PRIVATE|OAUTH|SESSION|DB_URL|DB_URI|DATABASE|DSN|CONN|MCP_DB|${legacyEnvPrefix()}DB|AGENT_DB)`,
   'i'
 );
 /** A connection string with embedded credentials — `scheme://user:pass@host`.
@@ -1071,9 +1071,7 @@ const collectSettings = (): StatusSnapshot['settings'] => {
 
   // Always surface AGENT_HOME so its meaning is discoverable even when unset
   // (it then falls back to the launch cwd). Empty value renders as "not set".
-  // Skipped when a home is already configured under this agent's own spelling.
-  const homeKey = agentKeyName('HOME');
-  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME' || entry.key === homeKey)) {
+  if (!redactedEnv.some((entry) => entry.key === 'AGENT_HOME')) {
     redactedEnv.unshift({ key: 'AGENT_HOME', value: '', scope: 'user' });
   }
 

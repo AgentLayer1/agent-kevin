@@ -2,23 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import {
-  LEGACY_RUNTIME_DIR,
-  RUNTIME_DIR,
-  agentEnvPrefix,
-  agentKeyName,
-  dataDirOf,
-  ownDataDir,
-  pluginName
-} from './naming';
+import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, dataDirOf, legacyEnvPrefix, ownDataDir, pluginName } from './naming';
 
-describe('agentEnvPrefix', () => {
-  // The fork seam, asserted in one place — every other test builds key names
+describe('legacyEnvPrefix', () => {
+  // The fork seam, asserted in one place — every other test builds legacy key names
   // from the prefix and the runtime dir from the constant, so a fork updates
   // these lines and nothing else.
   test('derives KEVIN_ from this plugin manifest (agent-kevin)', () => {
-    expect(agentEnvPrefix()).toBe('KEVIN_');
-    expect(agentKeyName('CODE_PATH')).toBe('KEVIN_CODE_PATH');
+    expect(legacyEnvPrefix()).toBe('KEVIN_');
   });
 
   test("this agent's data dir is .state, moved from .kevin", () => {

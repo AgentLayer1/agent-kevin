@@ -19,7 +19,6 @@
  */
 
 import { FOLDERS } from '@/config';
-import { agentEnvPrefix } from '@/shared/naming';
 import { readEnvFile } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -101,9 +100,7 @@ export const tools: ToolDef[] = [
           ...flowEnv,
           NODE_PATH: nodePath,
           PLAYWRIGHT_BROWSERS_PATH: '0',
-          // Both spellings: operator-authored flow scripts may read either.
-          AGENT_HOME: FOLDERS.HOME,
-          [`${agentEnvPrefix()}HOME`]: FOLDERS.HOME
+          AGENT_HOME: FOLDERS.HOME
         },
         stdout: 'pipe',
         stderr: 'pipe'

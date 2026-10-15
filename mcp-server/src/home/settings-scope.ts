@@ -7,7 +7,7 @@
  * A leaf on purpose (node builtins and the equally bare `shared/naming`), so skill scripts and
  * upgrade migrations can import it.
  */
-import { agentEnvPrefix } from '@/shared/naming';
+import { legacyEnvPrefix } from '@/shared/naming';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -114,7 +114,7 @@ export const legacyFolderRoots = (...envs: readonly Readonly<Record<string, unkn
     path === '~' ? homedir() : path.startsWith('~/') ? resolve(homedir(), path.slice(2)) : path;
   const roots = ['KNOWLEDGE', 'PROJECTS', 'REPORTS'].flatMap((suffix) =>
     envs.flatMap((env) =>
-      [`${agentEnvPrefix()}${suffix}`, `AGENT_${suffix}`]
+      [`${legacyEnvPrefix()}${suffix}`, `AGENT_${suffix}`]
         .map((key) => env[key])
         .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
         .map((path) => expand(path.trim()).replace(/[\\/]+$/, ''))

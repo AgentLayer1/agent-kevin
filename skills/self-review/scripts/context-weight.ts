@@ -11,13 +11,11 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
 const homeFlag = args.indexOf('--home') === -1 ? undefined : args[args.indexOf('--home') + 1];
-// The config module resolves the home from the agent's own variable, so an explicit --home is
-// exported under that name before the module loads; a fork with another prefix still works.
-if (homeFlag) process.env[agentKeyName('HOME')] = resolve(homeFlag);
+// The config module resolves the home from AGENT_HOME, so an explicit --home is exported before it loads.
+if (homeFlag) process.env.AGENT_HOME = resolve(homeFlag);
 const { FILES, FOLDERS, staticContextFiles } = await import('../../../mcp-server/src/config');
 const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/shared/env');
 

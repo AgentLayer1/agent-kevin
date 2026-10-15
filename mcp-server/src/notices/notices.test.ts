@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FILES, PLUGIN_VERSION } from '@/config';
 import { nowISO, todayDate } from '@/shared/date';
-import { RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { compareSemver, parseChangelog } from '@/version';
 import { readLedger, recordOutcome, stampRow } from './ledger';
 import type { Notice } from './notices';
@@ -15,11 +15,8 @@ const withHome = async <T>(files: Record<string, string>, fn: () => Promise<T>):
   const home = mkdtempSync(resolve(tmpdir(), 'notices-test-'));
   mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
   Object.entries(files).forEach(([rel, content]) => writeFileSync(resolve(home, RUNTIME_DIR, rel), content));
-  const ownKey = agentKeyName('HOME');
   const priorHome = process.env.AGENT_HOME;
-  const priorOwn = process.env[ownKey];
   process.env.AGENT_HOME = home;
-  delete process.env[ownKey];
   try {
     return await fn();
   } finally {
@@ -27,9 +24,6 @@ const withHome = async <T>(files: Record<string, string>, fn: () => Promise<T>):
       delete process.env.AGENT_HOME;
     } else {
       process.env.AGENT_HOME = priorHome;
-    }
-    if (priorOwn !== undefined) {
-      process.env[ownKey] = priorOwn;
     }
     rmSync(home, { recursive: true, force: true });
   }

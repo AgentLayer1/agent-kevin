@@ -3,13 +3,11 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 
 /**
  * Run `fn` against a throwaway home whose `IDENTITY.md` holds `body` (omit to
- * leave the file absent). `AGENT_HOME` is restored afterwards, and this agent's
- * own `KEVIN_HOME` is cleared for the duration: it outranks `AGENT_HOME`, so an
- * operator's shell export would otherwise silently point these at a real brain.
+ * leave the file absent). `AGENT_HOME` is restored afterwards.
  */
 const withIdentity = <T>(body: string | undefined, fn: () => T): T => {
   const home = mkdtempSync(resolve(tmpdir(), 'agent-name-test-'));
@@ -17,17 +15,13 @@ const withIdentity = <T>(body: string | undefined, fn: () => T): T => {
   if (body !== undefined) {
     writeFileSync(resolve(home, 'IDENTITY.md'), body);
   }
-  const ownKey = agentKeyName('HOME');
   const priorHome = process.env.AGENT_HOME;
-  const priorOwn = process.env[ownKey];
   process.env.AGENT_HOME = home;
-  delete process.env[ownKey];
   try {
     return fn();
   } finally {
     if (priorHome === undefined) delete process.env.AGENT_HOME;
     else process.env.AGENT_HOME = priorHome;
-    if (priorOwn !== undefined) process.env[ownKey] = priorOwn;
     rmSync(home, { recursive: true, force: true });
   }
 };
@@ -74,11 +68,8 @@ describe('agentDisplayName', () => {
   test('is read live, so a rename takes effect without a restart', () => {
     const home = mkdtempSync(resolve(tmpdir(), 'agent-name-live-'));
     mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
-    const ownKey = agentKeyName('HOME');
     const priorHome = process.env.AGENT_HOME;
-    const priorOwn = process.env[ownKey];
     process.env.AGENT_HOME = home;
-    delete process.env[ownKey];
     try {
       writeFileSync(resolve(home, 'IDENTITY.md'), identity('Kevin'));
       expect(agentDisplayName()).toBe('Kevin');
@@ -87,7 +78,6 @@ describe('agentDisplayName', () => {
     } finally {
       if (priorHome === undefined) delete process.env.AGENT_HOME;
       else process.env.AGENT_HOME = priorHome;
-      if (priorOwn !== undefined) process.env[ownKey] = priorOwn;
       rmSync(home, { recursive: true, force: true });
     }
   });

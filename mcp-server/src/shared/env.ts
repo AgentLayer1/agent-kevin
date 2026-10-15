@@ -1,4 +1,4 @@
-import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, ownDataDir, resolveEnv } from '@/shared/naming';
+import { LEGACY_RUNTIME_DIR, RUNTIME_DIR, ownDataDir, resolveEnv } from '@/shared/naming';
 import { expandTilde } from '@/shared/paths';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -31,8 +31,8 @@ import { dirname, resolve, sep } from 'node:path';
  */
 
 /**
- * Resolve the agent HOME: the per-agent override (e.g. `KEVIN_HOME`) or shared
- * `AGENT_HOME` when set, else the nearest ancestor of cwd (cwd included)
+ * Resolve the agent HOME: `AGENT_HOME` when set, else the nearest ancestor of
+ * cwd (cwd included)
  * carrying this agent's data dir (`ownDataDir`, created at init), else
  * the same walk from the host's project dir. A bare cwd fallback anchors to
  * wherever the process happened to launch; for a session launched inside a code
@@ -219,8 +219,7 @@ loadSecretsEnv();
 
 /**
  * Read one environment value through the gate. Trimmed, or `undefined` when
- * unset/blank. An `AGENT_*` key's per-agent override (e.g. `KEVIN_*`) wins
- * over the shared name.
+ * unset/blank.
  */
 export const env = (key: string): string | undefined => {
   loadSecretsEnv();
@@ -240,34 +239,17 @@ export interface DbConnection {
 
 const DB_ENV_PREFIX = 'AGENT_DB_';
 
-/**
- * Every DB connection configured in `secrets/.env` — the shared
- * `AGENT_DB_<NAME>` spelling and this agent's own (`KEVIN_DB_<NAME>`) — name
- * lowercased. When both spellings define one name, the per-agent one wins.
- */
+/** Every DB connection configured in `secrets/.env` as `AGENT_DB_<NAME>`, name lowercased. */
 export const dbConnections = (): DbConnection[] => {
   loadSecretsEnv();
-  const byName = new Map<string, string>();
-  for (const dbPrefix of new Set([DB_ENV_PREFIX, agentKeyName('DB_')])) {
-    Object.keys(process.env)
-      .filter((key) => key.startsWith(dbPrefix) && key.length > dbPrefix.length && process.env[key]?.trim())
-      .forEach((envKey) => byName.set(envKey.slice(dbPrefix.length).toLowerCase(), envKey));
-  }
-  return [...byName.entries()]
-    .map(([name, envKey]) => ({ name, envKey }))
+  return Object.keys(process.env)
+    .filter((key) => key.startsWith(DB_ENV_PREFIX) && key.length > DB_ENV_PREFIX.length && process.env[key]?.trim())
+    .map((envKey) => ({ name: envKey.slice(DB_ENV_PREFIX.length).toLowerCase(), envKey }))
     .sort((first, second) => first.name.localeCompare(second.name));
 };
 
-/**
- * Resolve a free-form connection name to its configured env key — this agent's
- * spelling (`KEVIN_DB_<NAME>`) when set, else the shared `AGENT_DB_<NAME>`.
- */
-export const dbEnvKeyFor = (name: string): string => {
-  loadSecretsEnv();
-  const suffix = `DB_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
-  const overrideKey = agentKeyName(suffix);
-  return process.env[overrideKey]?.trim() ? overrideKey : `AGENT_${suffix}`;
-};
+/** The env key a free-form connection name resolves to: `AGENT_DB_<NAME>`. */
+export const dbEnvKeyFor = (name: string): string => `${DB_ENV_PREFIX}${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 
 /**
  * Exact-match redaction. Replaces every value in `secrets/.env` (≥12 chars, to

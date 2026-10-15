@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { FILES, FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
-import { agentKeyName, dataDirOf } from "../../../mcp-server/src/shared/naming";
+import { dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
@@ -19,7 +19,7 @@ import { type ReviewWatermark, selfReviewDue } from "./self-review-due";
 
 const home = agentHomePath();
 if (!isAgentHome(home)) {
-  console.error(`not an agent home: ${home} — set ${agentKeyName("HOME")}`);
+  console.error(`not an agent home: ${home} — set AGENT_HOME`);
   process.exit(1);
 }
 

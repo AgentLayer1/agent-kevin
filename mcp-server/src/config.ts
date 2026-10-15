@@ -159,8 +159,8 @@ export const BROWSER = {
 } as const;
 
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
- * directory. Configure via `AGENT_GIT_REPOS` (or the per-agent spelling, e.g.
- * `KEVIN_GIT_REPOS`; comma-separated paths, `~` expanded). The basename of
+ * directory. Configure via `AGENT_GIT_REPOS` (comma-separated paths, `~`
+ * expanded). The basename of
  * each path is used as its section label. */
 export const extraGitRepos = (): readonly string[] =>
   (env('AGENT_GIT_REPOS') ?? '')

@@ -9,17 +9,16 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
-import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const homeFlag = flag('--home');
-// The config module resolves the home from the agent's own variable, so --home is exported first.
+// The config module resolves the home from AGENT_HOME, so --home is exported first.
 if (homeFlag) {
-  process.env[agentKeyName('HOME')] = resolve(homeFlag);
+  process.env.AGENT_HOME = resolve(homeFlag);
 }
 // Read-only means no log file either: a scanner warning would otherwise write into the home.
-process.env[agentKeyName('LOG_FILE')] = 'off';
+process.env.AGENT_LOG_FILE = 'off';
 const { FOLDERS } = await import('../../../mcp-server/src/config');
 const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/shared/env');
 const { daysBetween, todayDate } = await import('../../../mcp-server/src/shared/date');

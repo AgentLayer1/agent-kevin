@@ -19,7 +19,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined =>
@@ -1027,7 +1026,7 @@ write('.claude/rules/mobile.md', rule(['apps/mobile/**'], '# Mobile Rules\n\n- P
 writeAt(
   FAKE_HOME,
   '.claude/settings.json',
-  `${JSON.stringify({ env: { [agentKeyName('HOME')]: '~/agent-acme', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, enabledPlugins: { 'skill-creator@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }, null, 2)}\n`
+  `${JSON.stringify({ env: { AGENT_HOME: '~/agent-acme', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, enabledPlugins: { 'skill-creator@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }, null, 2)}\n`
 );
 
 // A host shim so the version check passes, and a git history so the brain shows commits.
@@ -1049,7 +1048,7 @@ const render = spawnSync(process.execPath, [join(REPO, 'bin', AGENT), 'dashboard
     HOME: FAKE_HOME,
     TMPDIR: process.env.TMPDIR ?? tmpdir(),
     AGENT_TIMEZONE: TZ,
-    [agentKeyName('HOME')]: HOME_DIR,
+    AGENT_HOME: HOME_DIR,
     AGENT_LOG_FILE: 'off'
   }
 });

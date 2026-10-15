@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { FILES, FOLDERS, PLUGIN_VERSION, staticContextFiles } from '@/config';
-import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { sessionStart, sessionStartCodex } from '@/knowledge/session-start';
 import { recordOutcome } from '@/notices/ledger';
 import { ANSI, stripAnsi } from '@/shared/banner';
@@ -13,24 +13,18 @@ import { nowISO, todayDate } from '@/shared/date';
 import { statusLineSetting } from '@/statusline/setting';
 
 /**
- * Run `fn` against a throwaway home built by `setup`. This agent's own
- * `<AGENT>_HOME` is cleared for the duration — it outranks `AGENT_HOME`, so an
- * operator's shell export would otherwise point these at a real brain.
+ * Run `fn` against a throwaway home built by `setup`, `AGENT_HOME` restored after.
  */
 const withHome = async <T>(setup: (home: string) => void, fn: () => Promise<T>): Promise<T> => {
   const home = mkdtempSync(resolve(tmpdir(), 'session-start-test-'));
   setup(home);
-  const ownKey = agentKeyName('HOME');
   const priorHome = process.env.AGENT_HOME;
-  const priorOwn = process.env[ownKey];
   process.env.AGENT_HOME = home;
-  delete process.env[ownKey];
   try {
     return await fn();
   } finally {
     if (priorHome === undefined) delete process.env.AGENT_HOME;
     else process.env.AGENT_HOME = priorHome;
-    if (priorOwn !== undefined) process.env[ownKey] = priorOwn;
     rmSync(home, { recursive: true, force: true });
   }
 };

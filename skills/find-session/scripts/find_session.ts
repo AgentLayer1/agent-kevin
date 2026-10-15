@@ -13,7 +13,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { agentKeyName } from '../../../mcp-server/src/shared/naming';
 
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 300;
@@ -214,8 +213,8 @@ const loweredTerms = [...new Set(terms.map((term) => term.toLowerCase()))];
 
 // Default roots mirror list_sessions.ts: cwd, the agent HOME, and the code tree, built
 // in-process because a shell-expanded $PWD arrives POSIX-form under Git Bash on Windows.
-const agentHome = process.env[agentKeyName('HOME')]?.trim() || process.env.AGENT_HOME?.trim();
-const codePath = process.env[agentKeyName('CODE_PATH')]?.trim() || process.env.AGENT_CODE_PATH?.trim();
+const agentHome = process.env.AGENT_HOME?.trim();
+const codePath = process.env.AGENT_CODE_PATH?.trim();
 const defaultScope = [process.cwd(), agentHome, codePath && dirname(codePath)]
   .filter((path): path is string => Boolean(path))
   .join(',');

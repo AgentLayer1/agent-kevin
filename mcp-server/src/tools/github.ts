@@ -20,7 +20,7 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths, PLUGIN_NAME } from '@/config';
-import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
@@ -118,7 +118,7 @@ const resolveDefaultRepo = async (): Promise<string> => {
     }
   }
   throw new Error(
-    `No repo given and none resolvable from ${agentKeyName('CODE_PATH')} / ${agentKeyName('GIT_REPOS')} (need a GitHub \`origin\` remote). Pass repo as "owner/repo".`
+    `No repo given and none resolvable from AGENT_CODE_PATH / AGENT_GIT_REPOS (need a GitHub \`origin\` remote). Pass repo as "owner/repo".`
   );
 };
 
@@ -829,7 +829,7 @@ export const tools: ToolDef[] = [
       if (paths.length === 0) {
         return report({
           repos: [],
-          detail: `No checkouts configured — set ${agentKeyName('CODE_PATH')} or ${agentKeyName('GIT_REPOS')}, or pass repos explicitly.`
+          detail: `No checkouts configured — set AGENT_CODE_PATH or AGENT_GIT_REPOS, or pass repos explicitly.`
         });
       }
       const token = env('GITHUB_TOKEN');

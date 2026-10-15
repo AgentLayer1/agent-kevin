@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { agentKeyName, dataDirOf } from "../../../mcp-server/src/shared/naming";
+import { dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
 import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 
@@ -21,7 +21,7 @@ if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) {
 
 const home = agentHomePath();
 if (!isAgentHome(home)) {
-  console.error(`not an agent home: ${home} — set ${agentKeyName("HOME")}`);
+  console.error(`not an agent home: ${home} — set AGENT_HOME`);
   process.exit(1);
 }
 

@@ -78,7 +78,7 @@ A skill that is part of Kevin's standing capability set lives here in plugin sou
 
 In the plugin's `.mcp.json`, `env` entries hold only host-owned interpolations (`${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`) or literal values. A server already inherits the session's environment, so never redeclare a user variable as `"X": "${X}"`.
 
-**Tests never touch a real agent home.** `mcp-server/bunfig.toml` preloads `src/test.ts` (and the root `bunfig.toml` preloads the same file, so a run from the repo root is covered too), which pins `AGENT_HOME` to a fresh throwaway tree for the whole run (and deletes any inherited per-agent override, which would beat it), so a suite that resolves a config path can't write into anyone's brain. A suite needing its own fixture home just sets `AGENT_HOME` (paths and secrets both resolve live, so import order doesn't matter) — save the preload's value and restore it afterwards rather than deleting the variable, or later suites fall back to resolving from cwd.
+**Tests never touch a real agent home.** `mcp-server/bunfig.toml` preloads `src/test.ts` (and the root `bunfig.toml` preloads the same file, so a run from the repo root is covered too), which pins `AGENT_HOME` to a fresh throwaway tree for the whole run, so a suite that resolves a config path can't write into anyone's brain. A suite needing its own fixture home just sets `AGENT_HOME` (paths and secrets both resolve live, so import order doesn't matter) — save the preload's value and restore it afterwards rather than deleting the variable, or later suites fall back to resolving from cwd.
 
 ## Refreshing the demo dashboard
 

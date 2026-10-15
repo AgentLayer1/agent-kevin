@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { assertDbName, discoverConnections, resolveConnectionString, safeConnectionInfo } from '@/tools/database';
-import { agentKeyName } from '@/shared/naming';
+import { legacyEnvPrefix } from '@/shared/naming';
 
 describe('discoverConnections', () => {
   const added: string[] = [];
@@ -16,27 +16,27 @@ describe('discoverConnections', () => {
     for (const key of added) delete process.env[key];
   });
 
-  test(`discovers ${agentKeyName('DB_')}* vars, lowercases the name, sorts by name`, () => {
-    setEnv(`${agentKeyName('DB_ZED')}`, 'postgres://u:p@h/z');
-    setEnv(`${agentKeyName('DB_ANALYTICS')}`, 'postgres://u:p@h/a');
+  test('discovers AGENT_DB_* vars, lowercases the name, sorts by name', () => {
+    setEnv('AGENT_DB_ZED', 'postgres://u:p@h/z');
+    setEnv('AGENT_DB_ANALYTICS', 'postgres://u:p@h/a');
     const names = discoverConnections().map((connection) => connection.name);
     expect(names).toContain('analytics');
     expect(names).toContain('zed');
     expect(names.indexOf('analytics')).toBeLessThan(names.indexOf('zed'));
   });
 
-  test(`discovers the shared AGENT_DB_* spelling too; a same-named ${agentKeyName('DB_')} wins`, () => {
-    setEnv('AGENT_DB_SHAREDONLY', 'postgres://u:p@h/base');
-    setEnv('AGENT_DB_BOTH', 'postgres://u:p@h/base');
-    setEnv(`${agentKeyName('DB_BOTH')}`, 'postgres://u:p@h/own');
+  test('ignores a legacy-prefixed DB_* spelling', () => {
+    setEnv('AGENT_DB_BOTH', 'postgres://u:p@h/shared');
+    setEnv(`${legacyEnvPrefix()}DB_BOTH`, 'postgres://u:p@h/legacy');
+    setEnv(`${legacyEnvPrefix()}DB_LEGACYONLY`, 'postgres://u:p@h/legacy');
     const connections = discoverConnections();
-    expect(connections.find((connection) => connection.name === 'sharedonly')?.envKey).toBe('AGENT_DB_SHAREDONLY');
-    expect(connections.find((connection) => connection.name === 'both')?.envKey).toBe(`${agentKeyName('DB_BOTH')}`);
+    expect(connections.find((connection) => connection.name === 'both')?.envKey).toBe('AGENT_DB_BOTH');
+    expect(connections.map((connection) => connection.name)).not.toContain('legacyonly');
   });
 
   test('ignores empty values and the bare prefix', () => {
-    setEnv(`${agentKeyName('DB_EMPTY')}`, '   ');
-    setEnv(`${agentKeyName('DB_')}`, 'postgres://u:p@h/x');
+    setEnv('AGENT_DB_EMPTY', '   ');
+    setEnv('AGENT_DB_', 'postgres://u:p@h/x');
     const names = discoverConnections().map((connection) => connection.name);
     expect(names).not.toContain('empty');
     expect(names).not.toContain('');

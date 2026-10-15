@@ -61,7 +61,7 @@ const run = (home: string): { status: number | null; report: Record<string, unkn
     string,
     string
   >;
-  const result = spawnSync('bun', [SCRIPT], { env: { ...env, KEVIN_HOME: home }, encoding: 'utf-8' });
+  const result = spawnSync('bun', [SCRIPT], { env: { ...env, AGENT_HOME: home, KEVIN_HOME: home }, encoding: 'utf-8' });
   return { status: result.status, report: JSON.parse(result.stdout.trim().split('\n').at(-1) ?? '{}') };
 };
 

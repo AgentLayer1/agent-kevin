@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RUNTIME_DIR, agentKeyName, pluginName } from '../../../mcp-server/src/shared/naming';
+import { RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const SCRIPT = join(import.meta.dir, 'context-weight.ts');
 const dirs: string[] = [];
@@ -58,12 +58,12 @@ describe('context-weight', () => {
     expect(run().status).toBe(0);
   });
 
-  test('--home wins over the cwd and the agent variable, whatever the prefix', () => {
+  test('--home wins over the cwd and AGENT_HOME', () => {
     const { root, run } = home();
     const other = home();
     const proc = spawnSync(process.execPath, [SCRIPT, '--home', root], {
       cwd: other.root,
-      env: { ...process.env, [agentKeyName('HOME')]: other.root }
+      env: { ...process.env, AGENT_HOME: other.root }
     });
     expect(JSON.parse(proc.stdout.toString()).home).toBe(root);
     expect(run().out.home).toBe(root);

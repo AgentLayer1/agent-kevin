@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from '@/shared/naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, pluginName } from '@/shared/naming';
 
 /**
  * The logger must never scaffold anything, and file output only engages for a
@@ -20,19 +20,15 @@ import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, plugi
 const withHome = async (setup: (home: string) => void, fn: (home: string) => Promise<void>): Promise<void> => {
   const home = mkdtempSync(resolve(tmpdir(), 'log-test-'));
   setup(home);
-  const ownKey = agentKeyName('HOME');
   const priorHome = process.env.AGENT_HOME;
-  const priorOwn = process.env[ownKey];
   const priorFile = process.env.AGENT_LOG_FILE;
   process.env.AGENT_HOME = home;
-  delete process.env[ownKey];
   delete process.env.AGENT_LOG_FILE;
   try {
     await fn(home);
   } finally {
     if (priorHome === undefined) delete process.env.AGENT_HOME;
     else process.env.AGENT_HOME = priorHome;
-    if (priorOwn !== undefined) process.env[ownKey] = priorOwn;
     if (priorFile !== undefined) process.env.AGENT_LOG_FILE = priorFile;
     rmSync(home, { recursive: true, force: true });
   }

@@ -50,8 +50,7 @@ process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 
 // Stage process.env for the whole CLI run: hydrate every .claude/settings*.json
 // `env` block on the ancestor path (nearest wins) so per-project paths
-// (AGENT_HOME, AGENT_KNOWLEDGE, ... — or this agent's override prefix, e.g.
-// KEVIN_*) apply without shell-rc duplication, then
+// (AGENT_HOME, AGENT_KNOWLEDGE, ...) apply without shell-rc duplication, then
 // anchor AGENT_HOME through the shared resolver. Order matches Claude Code:
 // settings.local.json (machine-specific) overrides settings.json (committed);
 // existing shell env always wins. Every mcp-server import in this file is dynamic
@@ -65,12 +64,7 @@ process.env.AGENT_PLUGIN_ROOT ??= PLUGIN_ROOT;
 // line has to parse under sh and PowerShell alike, and an env prefix does not.
 async function loadProjectEnv(): Promise<void> {
   const home = process.argv.find((arg) => arg.startsWith('--home='))?.slice('--home='.length);
-  if (home) {
-    // Both spellings, or a KEVIN_HOME from a settings env block would outrank the flag.
-    const { agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
-    process.env.AGENT_HOME = home;
-    process.env[agentKeyName('HOME')] = home;
-  }
+  if (home) process.env.AGENT_HOME = home;
   // Settings first, through the side-effect-free loader: importing shared/env resolves the
   // home and loads secrets on import, which would freeze a home a settings block meant to set.
   const { loadSettingsEnv } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/settings-env'));
@@ -130,11 +124,10 @@ function parseHookInput(raw: string): HookInput {
   }
 }
 
-const { agentEnvPrefix, pluginName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
+const { pluginName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
 const PLUGIN = pluginName();
 const CLI = PLUGIN.replace(/^agent-/, '');
 const PLUGIN_TITLE = `Agent-${CLI.replace(/^./, (first) => first.toUpperCase())}`;
-const ENV_PREFIX = agentEnvPrefix();
 
 const HELP = `\
 ${CLI} — ${PLUGIN_TITLE} CLI
@@ -158,7 +151,7 @@ Groups:
   dashboard                         Rebuild the Agent OS dashboard at <HOME>/dashboard.html + projects/TASKS.md (open in any browser)
   worktree                          Create a sibling git worktree of <repoPath> and bootstrap it (copy locals → install → build); \`worktree remove\` tears one down safely
   seed                              One-shot agent handoff: scan what this home could seed a teammate with, export a reviewed selection as a zip bundle, import a bundle into a fresh home
-  database                          Query/inspect/fork local Postgres via ${ENV_PREFIX}DB_<NAME> connections (real terminal — outside the Bash sandbox)
+  database                          Query/inspect/fork local Postgres via AGENT_DB_<NAME> connections (real terminal — outside the Bash sandbox)
 
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
@@ -227,7 +220,7 @@ Worktree commands:
                                     touching anything. Same sandbox note — use remove_worktree there.
 
 Database commands:
-  database list                     List configured ${ENV_PREFIX}DB_<NAME> connections (name + host/db, never credentials)
+  database list                     List configured AGENT_DB_<NAME> connections (name + host/db, never credentials)
   database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
                                     List user tables, or describe one table's columns (read-only)
   database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
@@ -237,7 +230,7 @@ Database commands:
                                     <source>_<git-branch> when --cwd is a repo, else <source>_fork. --repoint-env writes a
                                     .env.local override in --cwd; --drop tears the fork down. Remote hosts refused.
 
-Environment (shared AGENT_* names; this agent's spelling, e.g. ${ENV_PREFIX}HOME, overrides):
+Environment:
   AGENT_HOME=<path>                 Override agent home (default: cwd)
   AGENT_PROJECTS=<path>             Override projects/ location (default: <HOME>/projects)
   AGENT_KNOWLEDGE=<path>            Override knowledge/ location (default: <HOME>/knowledge)
@@ -325,13 +318,12 @@ async function run(): Promise<void> {
   // home state.
   const HOMELESS_OK = new Set(['session-start', 'session-capture', 'guard', 'worktree']);
   if (!isInitialized() && !HOMELESS_OK.has(group)) {
-    const { RUNTIME_DIR, agentKeyName } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
-    const homeKey = agentKeyName('HOME');
+    const { RUNTIME_DIR } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     console.error(
       `${group}: ${FOLDERS.HOME} is not this agent's home (no home marker in ${RUNTIME_DIR}/ there).\n` +
         `The home is resolved from the current directory, so this is what you get when\n` +
         `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
-        `  ${homeKey}=/path/to/home ${CLI} ${group}${command ? ` ${command}` : ''}`
+        `  AGENT_HOME=/path/to/home ${CLI} ${group}${command ? ` ${command}` : ''}`
     );
     process.exit(1);
   }

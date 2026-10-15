@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { agentKeyName, LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
+import { LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const PLUGIN_NAME = pluginName();
 const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
@@ -45,9 +45,7 @@ const claudeDirWith = (settings: object = {}): string => {
   return dir;
 };
 const run = (home: string, extra: string[] = [], reports?: string) => {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => key !== `${agentKeyName('REPORTS')}` && key !== 'AGENT_REPORTS')
-  );
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== 'AGENT_REPORTS'));
   const claudeDir = extra.includes('--claude-dir') ? [] : ['--claude-dir', claudeDirWith()];
   const proc = spawnSync(process.execPath, [SCRIPT, '--home', home, ...claudeDir, ...extra], {
     encoding: 'utf-8',

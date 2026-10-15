@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, agentKeyName, pluginName } from './naming';
+import { HOME_MARKER_FILES, LEGACY_RUNTIME_DIR, RUNTIME_DIR, legacyEnvPrefix, pluginName } from './naming';
 import { agentHomePath, env, isAgentHome, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
@@ -16,18 +16,18 @@ const scaffoldDataDir = (home: string): void => {
 // AGENT_HOME-dependent assertions run synchronously (no awaits) so the mutation
 // never interleaves with pipeline.test.ts, which shares process.env.
 
-const OWN_HOME_KEY = agentKeyName('HOME');
+const LEGACY_HOME_KEY = `${legacyEnvPrefix()}HOME`;
 
 /** Run `fn` with both home spellings restored after, `mutate` applied first. */
 const withHomeEnv = <T>(mutate: () => void, fn: () => T): T => {
-  const originalOwn = process.env[OWN_HOME_KEY];
+  const originalOwn = process.env[LEGACY_HOME_KEY];
   const originalShared = process.env.AGENT_HOME;
   mutate();
   try {
     return fn();
   } finally {
     for (const [key, original] of [
-      [OWN_HOME_KEY, originalOwn],
+      [LEGACY_HOME_KEY, originalOwn],
       ['AGENT_HOME', originalShared]
     ] as const) {
       if (original === undefined) {
@@ -48,7 +48,7 @@ describe('agentHomePath', () => {
     process.chdir(dir);
     try {
       return withHomeEnv(() => {
-        delete process.env[OWN_HOME_KEY];
+        delete process.env[LEGACY_HOME_KEY];
         delete process.env.AGENT_HOME;
         if (projectDir === undefined) {
           delete process.env.CLAUDE_PROJECT_DIR;
@@ -69,7 +69,7 @@ describe('agentHomePath', () => {
   test('the shared AGENT_HOME resolves when set', () => {
     withHomeEnv(
       () => {
-        delete process.env[OWN_HOME_KEY];
+        delete process.env[LEGACY_HOME_KEY];
         process.env.AGENT_HOME = '/some/agent/home';
       },
       () => {
@@ -78,14 +78,14 @@ describe('agentHomePath', () => {
     );
   });
 
-  test(`this agent's override (${OWN_HOME_KEY}) beats the shared AGENT_HOME`, () => {
+  test(`a legacy ${LEGACY_HOME_KEY} is ignored; AGENT_HOME decides`, () => {
     withHomeEnv(
       () => {
         process.env.AGENT_HOME = '/shared/base/home';
-        process.env[OWN_HOME_KEY] = '/agent/own/home';
+        process.env[LEGACY_HOME_KEY] = '/agent/legacy/home';
       },
       () => {
-        expect(agentHomePath()).toBe('/agent/own/home');
+        expect(agentHomePath()).toBe('/shared/base/home');
       }
     );
   });
@@ -208,29 +208,27 @@ describe('agentHomePath', () => {
   });
 });
 
-describe('env per-agent override', () => {
-  test("this agent's own spelling beats the shared AGENT_* name", () => {
+describe('env legacy prefix', () => {
+  test('a legacy-prefixed spelling never resolves for its AGENT_* name', () => {
     process.env.AGENT_PROBE_OVERRIDE = 'shared';
-    process.env[agentKeyName('PROBE_OVERRIDE')] = 'own';
+    process.env[`${legacyEnvPrefix()}PROBE_OVERRIDE`] = 'legacy';
     try {
-      expect(env('AGENT_PROBE_OVERRIDE')).toBe('own');
+      expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
+      delete process.env.AGENT_PROBE_OVERRIDE;
+      expect(env('AGENT_PROBE_OVERRIDE')).toBeUndefined();
     } finally {
       delete process.env.AGENT_PROBE_OVERRIDE;
-      delete process.env[agentKeyName('PROBE_OVERRIDE')];
+      delete process.env[`${legacyEnvPrefix()}PROBE_OVERRIDE`];
     }
   });
 
-  test('the shared AGENT_* name is used when no override is set', () => {
+  test('the shared AGENT_* name resolves', () => {
     process.env.AGENT_PROBE_OVERRIDE = 'shared';
     try {
       expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
     } finally {
       delete process.env.AGENT_PROBE_OVERRIDE;
     }
-  });
-
-  test('non-AGENT_ keys get no override resolution', () => {
-    expect(env('PROBE_OVERRIDE_UNSET_XYZ')).toBeUndefined();
   });
 });
 

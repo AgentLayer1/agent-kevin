@@ -12,8 +12,7 @@
  * Remote hosts are refused. This issues DDL (CREATE/DROP DATABASE), so it only
  * acts on a local server (localhost / 127.0.0.1 / ::1 / unix socket) — never a
  * remote/production one. The server is a configured DB connection (same
- * discovery as the read-only database_* tools — `KEVIN_DB_<NAME>` or the
- * shared `AGENT_DB_<NAME>`; secrets live in `<data-dir>/secrets/.env`, never
+ * discovery as the read-only database_* tools — `AGENT_DB_<NAME>`; secrets live in `<data-dir>/secrets/.env`, never
  * here), defaulting to the first configured. DDL can't run in a transaction,
  * so it uses a dedicated autocommit client. Like setup_worktree it runs
  * outside the Bash sandbox, so it can reach local Postgres and write the env
@@ -22,7 +21,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { RUNTIME_DIR, agentKeyName } from '@/shared/naming';
+import { RUNTIME_DIR } from '@/shared/naming';
 import { dbConnections, env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { assertDbName, decodeDbName, encodeConnectionCredentials, resolveConnectionString } from '@/tools/database';
@@ -45,7 +44,7 @@ const resolveConnection = (name?: string): { name: string; url: string } => {
   const connections = dbConnections();
   if (!connections.length) {
     throw new Error(
-      `No database connections configured. Add a ${agentKeyName('DB_')}<NAME> env var to ${RUNTIME_DIR}/secrets/.env.`
+      `No database connections configured. Add an AGENT_DB_<NAME> env var to ${RUNTIME_DIR}/secrets/.env.`
     );
   }
   const chosen = name ? connections.find((connection) => connection.name === name.toLowerCase()) : connections[0];
@@ -259,7 +258,7 @@ export const tools: ToolDef[] = [
       // connection's default and every other configured one.
       if (configuredDatabases().has(forkDb)) {
         throw new Error(
-          `Refusing to operate on "${forkDb}" — a ${agentKeyName('DB_')}* connection points at it. Forks must use a separate name.`
+          `Refusing to operate on "${forkDb}" — an AGENT_DB_* connection points at it. Forks must use a separate name.`
         );
       }
       if (repointEnv && (!cwd || !isAbsolute(cwd) || !existsSync(cwd))) {

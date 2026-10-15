@@ -8,7 +8,6 @@ import {
   removeEnvLine,
   upsertEnvLine
 } from '@/tools/database-fork';
-import { agentKeyName } from '@/shared/naming';
 
 describe('quoteIdent', () => {
   test('wraps a plain name in double quotes', () => {
@@ -105,16 +104,16 @@ describe('configuredDatabases', () => {
     for (const key of added) delete process.env[key];
   });
 
-  test('collects the pinned database of every configured connection, either spelling', () => {
+  test('collects the pinned database of every configured connection', () => {
     setEnv('AGENT_DB_APP', 'postgres://u:p@localhost:5432/app');
-    setEnv(`${agentKeyName('DB_ANALYTICS')}`, 'postgres://u:p@remote:5432/analytics');
+    setEnv('AGENT_DB_ANALYTICS', 'postgres://u:p@remote:5432/analytics');
     const dbs = configuredDatabases();
     expect(dbs.has('app')).toBe(true);
     expect(dbs.has('analytics')).toBe(true);
   });
 
   test('skips a connection that pins no database', () => {
-    setEnv(`${agentKeyName('DB_NODB')}`, 'postgres://u:p@localhost:5432');
+    setEnv('AGENT_DB_NODB', 'postgres://u:p@localhost:5432');
     expect(configuredDatabases().has('')).toBe(false);
   });
 });

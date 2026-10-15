@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { agentKeyName, LEGACY_RUNTIME_DIR, pluginName } from '../../../mcp-server/src/shared/naming';
+import { LEGACY_RUNTIME_DIR, legacyEnvPrefix, pluginName } from '../../../mcp-server/src/shared/naming';
 
 const PLUGIN_NAME = pluginName();
 const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
@@ -237,7 +237,7 @@ describe('codex-setup mcp registration', () => {
     expect(config.mcp_servers[AGENT_SLUG]).toEqual({
       command: 'bun',
       args: [resolve(PLUGIN, 'mcp-server', 'src', 'server.ts')],
-      env: { AGENT_HOME: home, [agentKeyName('HOME')]: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
+      env: { AGENT_HOME: home, [`${legacyEnvPrefix()}HOME`]: home, PLAYWRIGHT_BROWSERS_PATH: '0' }
     });
     expect(config.permissions[AGENT_SLUG].extends).toBe(':workspace');
     expect(config.permissions[AGENT_SLUG].filesystem[join(home, '.state', 'secrets')]).toBe('deny');
@@ -251,7 +251,7 @@ describe('codex-setup mcp registration', () => {
     });
     expect(config.permissions[AGENT_SLUG].workspace_roots).toBeUndefined();
     expect(config.permissions[AGENT_SLUG].network).toEqual({ enabled: true });
-    expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, [agentKeyName('HOME')]: home });
+    expect(config.shell_environment_policy.set).toEqual({ AGENT_HOME: home, [`${legacyEnvPrefix()}HOME`]: home });
     expect(config.tui).toEqual({
       status_line: ['model-with-reasoning', 'current-dir', 'git-branch', 'approval-mode', 'context-used'],
       status_line_use_colors: true
@@ -294,7 +294,7 @@ describe('codex-setup mcp registration', () => {
           AGENT_CODE_PATH: code,
           AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
           CLAUDE_CODE_OAUTH_TOKEN: 'sk-nope',
-          [agentKeyName('DB_KEY')]: 'nope'
+          [`${legacyEnvPrefix()}DB_KEY`]: 'nope'
         }
       })
     );
@@ -309,7 +309,7 @@ describe('codex-setup mcp registration', () => {
       AGENT_CODE_PATH: code,
       AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
       AGENT_HOME: home,
-      [agentKeyName('HOME')]: home
+      [`${legacyEnvPrefix()}HOME`]: home
     });
     expect(json.profile.rules).toEqual(['git push', 'gh pr create', 'rm -rf']);
     const rules = readFileSync(json.rules.path, 'utf-8');
@@ -369,7 +369,7 @@ describe('codex-setup mcp registration', () => {
     seed(
       home,
       'config.toml',
-      `[shell_environment_policy]\nset = { EDITOR = "vim", AGENT_CODE_PATH = "/gone", ${agentKeyName('GIT_REPOS')} = "/gone" }\n`
+      `[shell_environment_policy]\nset = { EDITOR = "vim", AGENT_CODE_PATH = "/gone", ${legacyEnvPrefix()}GIT_REPOS = "/gone" }\n`
     );
     const regen = Bun.TOML.parse(
       readFileSync(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.path, 'utf-8')
@@ -377,7 +377,7 @@ describe('codex-setup mcp registration', () => {
     expect(regen.shell_environment_policy.set).toEqual({
       EDITOR: 'vim',
       AGENT_HOME: home,
-      [agentKeyName('HOME')]: home
+      [`${legacyEnvPrefix()}HOME`]: home
     });
     expect(first.json.notes).toEqual([expect.stringContaining('approvals_reviewer is "auto_review"')]);
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
@@ -487,7 +487,7 @@ describe('codex-setup mcp registration', () => {
     expect(parsed.mcp_servers[AGENT_SLUG].startup_timeout_sec).toBe(60);
     expect(parsed.mcp_servers[AGENT_SLUG].env).toEqual({
       AGENT_HOME: home,
-      [agentKeyName('HOME')]: home,
+      [`${legacyEnvPrefix()}HOME`]: home,
       PLAYWRIGHT_BROWSERS_PATH: '0',
       SERPAPI_KEY: 'k'
     });
