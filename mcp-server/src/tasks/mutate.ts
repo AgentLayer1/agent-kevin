@@ -343,7 +343,7 @@ export const applyResolution = (
       stage: 'clearedBlocker',
       update: () => ({ blocked_by: '' }),
       message: (t) =>
-        `Auto: Status manually set to active but blocked_by was still set ("${t.frontmatter.blocked_by}"). Clearing blocked_by.`
+        `Auto: Status manually set to ${t.frontmatter.status} but blocked_by was still set ("${t.frontmatter.blocked_by}"). Clearing blocked_by.`
     });
 
     const assignedIds = assignPendingIds(result.pendingIds);

@@ -55,3 +55,20 @@ describe('resolveTasks dueSoon', () => {
     expect(ids(result.dueSoon)).toEqual(['ac-003']);
   });
 });
+
+describe('resolveTasks clearedBlockers', () => {
+  const withBlocker = (id: string, status: TaskStatus): TaskFile => {
+    const base = task(id, '', status);
+    return { ...base, frontmatter: { ...base.frontmatter, blocked_by: 'Waiting on the vendor' } };
+  };
+
+  test('clears a leftover blocker on a task moved back to open or active', () => {
+    const result = resolveTasks([withBlocker('ac-001', 'open'), withBlocker('ac-002', 'active')]);
+    expect(ids(result.clearedBlockers)).toEqual(['ac-001', 'ac-002']);
+  });
+
+  test('keeps the blocker on a task that is still blocked', () => {
+    const result = resolveTasks([withBlocker('ac-001', 'blocked')]);
+    expect(ids(result.clearedBlockers)).toEqual([]);
+  });
+});

@@ -8,6 +8,10 @@ describe('isValidTransition', () => {
     expect(isValidTransition('blocked', 'cancelled')).toBe(true);
   });
 
+  test('an unblocked task can go back to open when work never started', () => {
+    expect(isValidTransition('blocked', 'open')).toBe(true);
+  });
+
   test('blocked still cannot jump straight to done', () => {
     expect(isValidTransition('blocked', 'done')).toBe(false);
   });

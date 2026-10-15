@@ -101,15 +101,14 @@ export const resolveTasks = (tasks: TaskFile[], archived: TaskFile[] = []): Scan
 
     // Auto-block: open/active task with unresolved deps.
     // `open` is included so `depends_on` is enforced before the task is ever picked up.
-    // If only blocked_by is set (no dep issues) on an active task, user manually
-    // unblocked — clear it instead.
+    // If only blocked_by is set (no dep issues), user manually unblocked — clear it instead.
     if (fm.status === 'active' || fm.status === 'open') {
       const hasUnresolvedDeps = fm.depends_on.length > 0 && fm.depends_on.some((dep) => statusMap.get(dep) !== 'done');
       const hasExternalBlocker = !!fm.blocked_by;
 
       if (hasUnresolvedDeps && isValidTransition(fm.status, 'blocked')) {
         result.autoBlocked.push(task);
-      } else if (fm.status === 'active' && hasExternalBlocker) {
+      } else if (hasExternalBlocker) {
         result.clearedBlockers.push(task);
       }
     }
