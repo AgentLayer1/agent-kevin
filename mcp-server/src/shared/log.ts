@@ -72,8 +72,7 @@ function resolveLogFile(): string | null {
   if (configured) return resolve(configured);
   // Default: <HOME>/<data-dir>/logs/app.log — the same path @/config derives, so
   // the dashboard reads the file the logger writes. AGENT_HOME mirrors the MCP
-  // server's resolution (the env gate canonicalizes it even when a per-agent
-  // override supplied the home); cwd stands in when nothing set it.
+  // server's resolution; cwd stands in when nothing set it.
   //
   // Either way the home must ALREADY carry a HOME_MARKER_FILES state file —
   // the logger never scaffolds anything. The bare data dir is not enough: the

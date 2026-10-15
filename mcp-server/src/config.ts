@@ -14,7 +14,7 @@ const fromEnv = (key: string, fallback: string) => expandTilde(env(key) || fallb
 // `AGENT_HOME` afterwards (a hook, the CLI, a test) silently lost, and a test suite could
 // be pointed at the operator's real brain by an unrelated import elsewhere.
 //
-// `agentHomePath()` is `AGENT_HOME` (or its per-agent override) when set, else the nearest
+// `agentHomePath()` is `AGENT_HOME` when set, else the nearest
 // home above cwd carrying this agent's data dir, else cwd (pre-init). The walk-up means a
 // server or hook launched inside a code repo still resolves the operator's home instead of
 // anchoring data-dir state and session captures to the repo. It caches its walk into

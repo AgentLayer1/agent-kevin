@@ -88,7 +88,8 @@ const agent = pluginName.replace(/^agent-/, '');
 if (!agent) {
   throw new Error(`${manifestPath}: the plugin manifest names no agent`);
 }
-const envPrefix = `${agent.toUpperCase()}_`;
+/** Keys under this prefix predate 0.7.4; nothing reads them, so regeneration drops the ones it once wrote. */
+const legacyPrefix = `${agent.toUpperCase()}_`;
 const rulesPath = resolve(homeDir, '.codex', 'rules', `${agent}.rules`);
 
 // ── The home's Claude settings: the posture's source of truth ─────────────────
@@ -107,8 +108,7 @@ const settingsEnv: Record<string, string> = Object.fromEntries(
     Object.entries(settings.env ?? {}).filter((pair): pair is [string, string] => typeof pair[1] === 'string')
   )
 );
-const settingValue = (key: string): string | undefined =>
-  settingsEnv[`${envPrefix}${key}`] ?? settingsEnv[`AGENT_${key}`];
+const settingValue = (key: string): string | undefined => settingsEnv[`AGENT_${key}`];
 const settingList = (key: keyof NonNullable<ClaudeSettings['permissions']>): string[] =>
   claudeSettings.flatMap((settings) => {
     const list = settings.permissions?.[key];
@@ -388,15 +388,12 @@ const keptEntries = (path: string[], own: string[]): string[] =>
     .filter(([key]) => !own.includes(key))
     .map(([key, value]) => tomlScalar(key, value));
 
-/** The agent's own env for the model's shell: the two home spellings plus the home's `AGENT_*` / prefixed settings, never a credential. */
+/** The agent's own env for the model's shell: `AGENT_HOME` plus the home's `AGENT_*` settings, never a credential. */
 const shellEnv: Record<string, string> = {
   ...Object.fromEntries(
-    Object.entries(settingsEnv).filter(
-      ([key]) => (key.startsWith('AGENT_') || key.startsWith(envPrefix)) && !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)
-    )
+    Object.entries(settingsEnv).filter(([key]) => key.startsWith('AGENT_') && !/KEY|SECRET|TOKEN|PASSWORD/i.test(key))
   ),
-  AGENT_HOME: homeDir,
-  [`${envPrefix}HOME`]: homeDir
+  AGENT_HOME: homeDir
 };
 const existingSet =
   (lookup(existingTables, ['shell_environment_policy', 'set']) as Record<string, unknown> | undefined) ?? {};
@@ -404,7 +401,7 @@ const mergedSet: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(existingSet).filter(
       (pair): pair is [string, string] =>
-        typeof pair[1] === 'string' && !pair[0].startsWith('AGENT_') && !pair[0].startsWith(envPrefix)
+        typeof pair[1] === 'string' && !pair[0].startsWith('AGENT_') && !pair[0].startsWith(legacyPrefix)
     )
   ),
   ...shellEnv
@@ -438,9 +435,8 @@ const agentTables = [
   '',
   `[mcp_servers.${agent}.env]`,
   `AGENT_HOME = ${tomlString(homeDir)}`,
-  `${envPrefix}HOME = ${tomlString(homeDir)}`,
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
-  ...keptEntries(['mcp_servers', agent, 'env'], ['AGENT_HOME', `${envPrefix}HOME`, 'PLAYWRIGHT_BROWSERS_PATH']),
+  ...keptEntries(['mcp_servers', agent, 'env'], ['AGENT_HOME', `${legacyPrefix}HOME`, 'PLAYWRIGHT_BROWSERS_PATH']),
   '',
   ...serverTables,
   // The posture: write the home and its repos, commit in them, reach the network, never read the
