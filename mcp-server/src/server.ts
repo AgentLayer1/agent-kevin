@@ -63,14 +63,14 @@ for (const tool of TOOLS) {
                 // home, and init's re-run path offers to overwrite exactly those
                 // identity files. Same distinction SessionStart draws.
                 text: existsSync(FILES.SOUL)
-                  ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no home ` +
-                    `marker (${RUNTIME_DIR}/version.json or ${RUNTIME_DIR}/knowledge.json), so it ` +
+                  ? `Error: ${tool.name} needs an agent home. ${FOLDERS.HOME} has a SOUL.md but no ` +
+                    `${RUNTIME_DIR}/version.json recording ${PLUGIN_NAME}, so it ` +
                     `is either another agent's home or this one's data-dir state is missing after a restore. ` +
                     `Do NOT run init to repair it — that would offer to overwrite the identity files already ` +
                     `there. Restore those files from the backup or the brain repo (both are git-tracked), ` +
                     `or relaunch from the right home.`
                   : `Error: ${tool.name} needs an agent home, and ${FOLDERS.HOME} is not one ` +
-                    `(no home marker in ${RUNTIME_DIR}/ there). The home is resolved from the directory ` +
+                    `(no ${RUNTIME_DIR}/version.json recording ${PLUGIN_NAME} there). The home is resolved from the directory ` +
                     `this session was launched in, so start Claude Code from the agent home — or run ` +
                     `/${PLUGIN_NAME}:init there if it hasn't been set up yet.`
               }

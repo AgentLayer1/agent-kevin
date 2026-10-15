@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
@@ -102,8 +102,9 @@ export const resolveEnv = (key: string): string | undefined => process.env[key]?
 export const RUNTIME_DIR = '.state';
 
 /**
- * Files that mark a data dir as a scaffolded agent home: the upgrade baseline
+ * Files that mark a data dir as some agent's scaffolded home: the upgrade baseline
  * (`version.json`, written by init) and the compile cursor (`knowledge.json`).
+ * This agent's own home is narrower: its `version.json` records this plugin.
  * The bare directory is NOT the marker — best-effort runtime writers (the
  * logger) can create the dir itself as a side effect in a tree that is not a
  * home, and a marker that can be minted that way lets a hook firing in a
@@ -120,19 +121,15 @@ export const recordedPlugin = (dataDir: string): string | undefined => {
   try {
     const parsed: unknown = JSON.parse(readFileSync(resolve(dataDir, 'version.json'), 'utf-8'));
     return typeof parsed === 'object' && parsed !== null && 'plugin' in parsed && typeof parsed.plugin === 'string'
-      ? parsed.plugin
+      ? parsed.plugin || undefined
       : undefined;
   } catch {
     return undefined;
   }
 };
 
-/**
- * True when `dataDir` carries a home marker and was scaffolded by this plugin.
- * The shared `.state` name proves nothing, so it must record this plugin.
- */
-export const isOwnDataDir = (dataDir: string): boolean =>
-  HOME_MARKER_FILES.some((file) => existsSync(resolve(dataDir, file))) && recordedPlugin(dataDir) === pluginName();
+/** True when `dataDir`'s `version.json` records this plugin; the shared `.state` name proves nothing on its own. */
+export const isOwnDataDir = (dataDir: string): boolean => recordedPlugin(dataDir) === pluginName();
 
 /** `home`'s `.state` when it is this agent's data dir; undefined when `home` is not this agent's home. */
 export const ownDataDir = (home: string): string | undefined => {

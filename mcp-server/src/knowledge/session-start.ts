@@ -31,7 +31,7 @@ import { BANNER, BANNER_LINES, BANNER_TAG, stripAnsi } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { RUNTIME_DIR, resolveEnv } from '@/shared/naming';
 import { existsSync, readFileSync } from 'node:fs';
-import { relative, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 
 const log = baseLog.session.with('start');
 
@@ -66,15 +66,20 @@ const strandedHomeResult = (): SessionStartResult => {
       '',
       BANNER,
       '',
-      `→ ${FOLDERS.HOME} has a SOUL.md but no home marker in ${RUNTIME_DIR}/ — see the note below. Do NOT run init.`
+      `→ ${FOLDERS.HOME} has a SOUL.md but no ${RUNTIME_DIR}/version.json recording this agent — see the note below. Do NOT run init.`
     ].join('\n'),
     additionalContext: [
-      `The ${PLUGIN_NAME} plugin is loaded and \`${FOLDERS.HOME}\` looks like an agent home (it has a SOUL.md), but its \`${RUNTIME_DIR}/\` carries no home marker (\`version.json\` or \`knowledge.json\`), which is how this agent recognises its own home. Until that's resolved the agent's data is unreachable: sessions won't be captured and its tools will refuse to run.`,
+      `The ${PLUGIN_NAME} plugin is loaded and \`${FOLDERS.HOME}\` looks like an agent home (it has a SOUL.md), but no \`${RUNTIME_DIR}/version.json\` records \`${PLUGIN_NAME}\`, which is how this agent recognises its own home. Until that's resolved the agent's data is unreachable: sessions won't be captured and its tools will refuse to run.`,
       '',
-      'Two causes. Help the user work out which:',
+      'Help the user work out which cause applies:',
       '',
-      `1. **This is another agent's home.** Every agent's home has a SOUL.md, only this one's \`${RUNTIME_DIR}/\` carries the marker files. Launch that agent from here instead, and launch this one from its own home.`,
-      `2. **This home's \`${RUNTIME_DIR}/\` state didn't survive a restore, clone, or sync.** Restore \`${RUNTIME_DIR}/version.json\` (upgrade baseline) and \`${RUNTIME_DIR}/knowledge.json\` (compile cursor) from the backup or the brain repo — both are git-tracked and either one marks the home. Without the compile cursor the next compile re-ingests everything, and without the baseline upgrade tracking resets.`,
+      `1. **This is another agent's home.** Every agent's home has a SOUL.md, only this one's \`${RUNTIME_DIR}/version.json\` records \`${PLUGIN_NAME}\`. Launch that agent from here instead, and launch this one from its own home.`,
+      `2. **This home's \`${RUNTIME_DIR}/\` state didn't survive a restore, clone, or sync.** Restore \`${RUNTIME_DIR}/version.json\` (upgrade baseline, the file that marks the home) and \`${RUNTIME_DIR}/knowledge.json\` (compile cursor) from the backup or the brain repo; both are git-tracked. Without the compile cursor the next compile re-ingests everything.`,
+      ...(existsSync(resolve(FOLDERS.HOME, `.${AGENT_SLUG}`))
+        ? [
+            `3. **This home never ran the 0.7.0 upgrade.** Its data is still in \`.${AGENT_SLUG}/\`, which this version neither reads nor moves to \`${RUNTIME_DIR}/\`. Install ${PLUGIN_NAME} v0.7.3, run \`/${PLUGIN_NAME}:upgrade\` there, then update to this version.`
+          ]
+        : []),
       '',
       '**Do not suggest `init` to fix this.** Its re-run path offers to overwrite SOUL.md, IDENTITY.md, USER.md and the operating manual, which is the operator losing their agent, not repairing it.'
     ].join('\n'),

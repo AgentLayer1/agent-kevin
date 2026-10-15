@@ -320,7 +320,7 @@ async function run(): Promise<void> {
   if (!isInitialized() && !HOMELESS_OK.has(group)) {
     const { RUNTIME_DIR } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/shared/naming'));
     console.error(
-      `${group}: ${FOLDERS.HOME} is not this agent's home (no home marker in ${RUNTIME_DIR}/ there).\n` +
+      `${group}: ${FOLDERS.HOME} is not this agent's home (no ${RUNTIME_DIR}/version.json recording ${PLUGIN} there).\n` +
         `The home is resolved from the current directory, so this is what you get when\n` +
         `the CLI runs outside one. Run it from inside the home, or point it at one:\n` +
         `  AGENT_HOME=/path/to/home ${CLI} ${group}${command ? ` ${command}` : ''}`

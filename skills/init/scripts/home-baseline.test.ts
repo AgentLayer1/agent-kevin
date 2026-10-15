@@ -349,6 +349,12 @@ describe('home-baseline identity', () => {
     expect(readFileSync(file, 'utf-8')).toBe(before);
   });
 
+  test('stamps an empty plugin record instead of reporting it as another plugin', () => {
+    const { home, file } = withBaseline(JSON.stringify({ ...BASELINE, plugin: '' }));
+    expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });
+    expect(JSON.parse(readFileSync(file, 'utf-8')).plugin).toBe(`${PLUGIN_NAME}`);
+  });
+
   test('replaces a non-string plugin value', () => {
     const { home, file } = withBaseline(JSON.stringify({ ...BASELINE, plugin: 7 }));
     expect(run(home, ['--write']).identity).toEqual({ state: 'stamped' });

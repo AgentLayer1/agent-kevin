@@ -26,7 +26,8 @@ ask before anything optional.
 ```bash
 HOME_DIR="${AGENT_HOME:-$PWD}"
 DATA_DIR="$HOME_DIR/.state"
-[ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -f "$DATA_DIR/version.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
+[ -d "$HOME_DIR/.kevin" ] && [ ! -d "$HOME_DIR/.state" ] && echo "LEGACY_DATA_DIR: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
 [ -d "$PLUGIN_ROOT/.claude-plugin" ] || echo "SET PLUGIN_ROOT: $PLUGIN_ROOT is not the plugin checkout"
 
@@ -39,7 +40,9 @@ VERSION_FILE="$DATA_DIR/version.json"
 # NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no marked data
 # dir, so it isn't this agent's scaffolded home (likely a code repo or a
 # mislaunched session). Tell the operator to set AGENT_HOME or relaunch from
-# the agent home.
+# the agent home. With LEGACY_DATA_DIR too, the home never ran the 0.7.0
+# upgrade: this version can't move .kevin/ to .state/, so tell them to install
+# agent-kevin v0.7.3, run /agent-kevin:upgrade there, then update to this one.
 if [ -f "$VERSION_FILE" ]; then
   BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
 else

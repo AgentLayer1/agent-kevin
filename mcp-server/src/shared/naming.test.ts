@@ -11,10 +11,6 @@ describe('legacyEnvPrefix', () => {
   test('derives KEVIN_ from this plugin manifest (agent-kevin)', () => {
     expect(legacyEnvPrefix()).toBe('KEVIN_');
   });
-
-  test("this agent's data dir is .state", () => {
-    expect(RUNTIME_DIR).toBe('.state');
-  });
 });
 
 describe('ownDataDir', () => {
@@ -42,6 +38,15 @@ describe('ownDataDir', () => {
   test("an unrecorded or foreign .state is never this agent's", () => {
     expect(ownDataDir(homeWith({ [RUNTIME_DIR]: unrecorded }))).toBeUndefined();
     expect(ownDataDir(homeWith({ [RUNTIME_DIR]: other }))).toBeUndefined();
+  });
+
+  // A home that never ran the 0.7.0 upgrade is not recognised, even when its old folder records this plugin.
+  test('the pre-0.7.0 agent-named folder never counts', () => {
+    expect(ownDataDir(homeWith({ [`.${pluginName().replace(/^agent-/, '')}`]: ours }))).toBeUndefined();
+  });
+
+  test('an empty plugin record is no record', () => {
+    expect(ownDataDir(homeWith({ [RUNTIME_DIR]: JSON.stringify({ plugin: '' }) }))).toBeUndefined();
   });
 
   test('a home with no data dir yet writes to .state', () => {
