@@ -8,10 +8,10 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { renameAgent, validateSeedPath } from '@/seed/format';
+import { HOME_PLACEHOLDER, renameAgent, validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
 import { importSeed } from '@/seed/import';
@@ -491,5 +491,46 @@ describe('the bundle audience', () => {
     homes.push(recipient);
     const plan = inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, dryRun: true }));
     expect(plan.audience).toBe('self');
+  });
+});
+
+describe('home paths in carried MCP entries', () => {
+  const secretsFile = (home: string): string => `. "${home}/${RUNTIME_DIR}/secrets/.env"`;
+
+  test("export swaps this home's path for the placeholder and import fills in its own", () => {
+    const result = asSource(() =>
+      exportSeed({
+        include: ['IDENTITY.md'],
+        agentName: 'Scout',
+        mcpServers: { 'acme-logs': { command: 'sh', args: ['-c', secretsFile(sourceHome)] } },
+        out: join(sourceHome, 'retarget.zip')
+      })
+    );
+    expect(JSON.stringify(result.manifest.mcpServers)).not.toContain(sourceHome);
+    expect(JSON.stringify(result.manifest.mcpServers)).toContain(HOME_PLACEHOLDER);
+
+    const recipient = makeHome();
+    homes.push(recipient);
+    inHome(recipient, () => importSeed({ bundlePath: result.bundlePath }));
+    const mcp = JSON.parse(readFileSync(join(recipient, '.mcp.json'), 'utf-8'));
+    expect(mcp.mcpServers['acme-logs'].args[1]).toBe(secretsFile(recipient));
+  });
+
+  test('a $HOME-relative spelling of the home is swapped too', () => {
+    const previous = process.env.HOME;
+    process.env.HOME = dirname(sourceHome);
+    try {
+      const result = asSource(() =>
+        exportSeed({
+          include: ['IDENTITY.md'],
+          agentName: 'Scout',
+          mcpServers: { 'acme-logs': { command: 'sh', args: ['-c', `d="$HOME/${basename(sourceHome)}"`] } },
+          out: join(sourceHome, 'relative.zip')
+        })
+      );
+      expect(JSON.stringify(result.manifest.mcpServers)).toContain(`d=\\"${HOME_PLACEHOLDER}\\"`);
+    } finally {
+      process.env.HOME = previous;
+    }
   });
 });

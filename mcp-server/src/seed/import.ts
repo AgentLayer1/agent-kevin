@@ -17,6 +17,7 @@
 import { FOLDERS, operatingManualPath, PLUGIN_NAME } from '@/config';
 import {
   CREDENTIAL_KEY_RE,
+  HOME_PLACEHOLDER,
   MANUAL_SEED_PATH,
   type SeedAudience,
   type SeedManifest,
@@ -207,7 +208,9 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
         mcpServersSkipped.push(name);
         continue;
       }
-      servers[name] = entry;
+      // JSON-escape the path so it lands inside the entry's strings intact.
+      const homeInJson = JSON.stringify(home).slice(1, -1);
+      servers[name] = JSON.parse(JSON.stringify(entry).replaceAll(HOME_PLACEHOLDER, homeInJson)) as unknown;
       mcpServersAdded.push(name);
     }
     if (!dryRun && mcpServersAdded.length > 0) {

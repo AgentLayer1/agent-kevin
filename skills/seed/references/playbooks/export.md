@@ -78,7 +78,9 @@ Present each detected item by name, per-item tick:
 - **Custom browser flows** (`.claude/browser-flows/<name>`) — whole directories; a flow's
   `.env` is left out automatically and reported under `skippedEnvFiles`
 - **MCP servers** from `.mcp.json` — show each server's referenced env key names and say
-  the recipient gets the entry + empty key placeholders, never values
+  the recipient gets the entry + empty key placeholders, never values. Pass entries as they
+  are: export replaces this home's path inside them with a placeholder the recipient's
+  import fills with its own home, so never hand-edit a path for the recipient
 - **Diverged/custom rules** (template-identical ones default-unticked)
 - **Active packs** — carried as their permission grants + the key names the recipient
   must fill (the scan lists each pack's `secretKeys`/`settingsEnv` — forward the ticked

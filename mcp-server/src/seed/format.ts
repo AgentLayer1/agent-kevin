@@ -96,6 +96,12 @@ const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html)$/;
 export const isEnvFile = (path: string): boolean =>
   /(^|\/)\.env(\.[^/]*)?$/.test(path) && !path.endsWith('/.env.example');
 
+/**
+ * Stands in for the source home's path inside carried MCP entries; import writes the
+ * recipient's home in its place. Same token the configure-skills server template uses.
+ */
+export const HOME_PLACEHOLDER = '<HOME_DIR>';
+
 /** The display name an IDENTITY.md declares (`- **Name:** Scout`), or '' when it has none. */
 export const agentNameIn = (identity: string): string =>
   identity.match(/^\s*-\s*\*\*Name:\*\*\s*(.+?)\s*$/m)?.[1] ?? '';

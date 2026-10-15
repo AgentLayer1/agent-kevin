@@ -8,9 +8,11 @@
  * temp dir, and shells out to `zip`. Read-only against the home.
  */
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
+import { env } from '@/shared/env';
 import {
   agentNameIn,
   CREDENTIAL_KEY_RE,
+  HOME_PLACEHOLDER,
   isEnvFile,
   renameAgent,
   type SeedAudience,
@@ -31,8 +33,8 @@ import {
   statSync,
   writeFileSync
 } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 
 export interface SeedExportOptions {
   /** Home-relative paths to include — files, or directories expanded recursively (e.g. `.claude/skills/acme-logs`). */
@@ -82,6 +84,27 @@ const expandInclude = (home: string, path: string): string[] => {
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
 const IDENTITY_FILES = new Set(['IDENTITY.md', 'SOUL.md']);
+
+/** Every spelling of this home's path a server entry can carry. */
+const homeSpellings = (home: string): string[] => {
+  const underUserHome = relative(env('HOME') ?? homedir(), home);
+  const relativeForms =
+    underUserHome && !underUserHome.startsWith('..')
+      ? [`\${HOME}/${underUserHome}`, `$HOME/${underUserHome}`, `~/${underUserHome}`]
+      : [];
+  return [...relativeForms, home];
+};
+
+/** Server entries with this home's path replaced by the placeholder import fills in. */
+const retargetServers = (servers: Record<string, unknown>, home: string): Record<string, unknown> => {
+  const pattern = new RegExp(
+    `(${homeSpellings(home)
+      .map((spelling) => spelling.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('|')})(?![A-Za-z0-9._-])`,
+    'g'
+  );
+  return JSON.parse(JSON.stringify(servers).replace(pattern, HOME_PLACEHOLDER)) as Record<string, unknown>;
+};
 
 const ensureZipAvailable = (): void => {
   try {
@@ -146,7 +169,9 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
       ...(options.permissions ? { permissions: options.permissions } : {}),
       ...(options.secretKeys?.length ? { secretKeys: [...options.secretKeys].sort() } : {}),
       ...(options.settingsEnv?.length ? { settingsEnv: [...options.settingsEnv].sort() } : {}),
-      ...(options.mcpServers && Object.keys(options.mcpServers).length ? { mcpServers: options.mcpServers } : {})
+      ...(options.mcpServers && Object.keys(options.mcpServers).length
+        ? { mcpServers: retargetServers(options.mcpServers, home) }
+        : {})
     };
     writeFileSync(join(staging, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
