@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { readRoadmapHtml } from '../../../mcp-server/src/roadmap/data';
 import { getChromium } from '../../../mcp-server/src/shared/browser-deps';
+import { RUNTIME_DIR } from '../../../mcp-server/src/shared/naming';
 import { evaluateLiteral, findLiteral, migrateHome, migrateHtml } from './0.5.3';
 
 /** The roadmap template as it shipped before this release, still on a const ROADMAP literal. */
@@ -94,7 +95,7 @@ describe.skipIf(Boolean(chromiumBlocked))('migrating a home', () => {
   test('replaces a page only when it renders identically, and a second run skips everything', async () => {
     const home = tempHome();
     const projects = join(home, 'projects');
-    const data = join(home, '.kevin');
+    const data = join(home, RUNTIME_DIR);
     const write = (path: string, html: string): string => {
       mkdirSync(join(path, '..'), { recursive: true });
       writeFileSync(path, html);

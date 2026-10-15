@@ -440,11 +440,11 @@ const ensureIdentity = (home: string, name: string | undefined): void => {
  * whatever the operator's .gitignore negations say. Their contents are never read.
  */
 const exposedPrivatePaths = (home: string): string[] => {
-  const stores = [`${RUNTIME_DIR}/secrets/`];
+  const store = `${RUNTIME_DIR}/secrets/`;
   const untracked = gitRaw(home, ['ls-files', '-z', '--others', '--exclude-standard'])
     .split('\0')
-    .filter((path) => stores.some((store) => path.startsWith(store)));
-  const unignored = [...stores.map((store) => `${store}.env`), '.claude/settings.local.json'].filter(
+    .filter((path) => path.startsWith(store));
+  const unignored = [`${store}.env`, '.claude/settings.local.json'].filter(
     (path) => !gitSucceeds(home, ['check-ignore', '-q', path])
   );
   return [...new Set([...untracked, ...unignored])];

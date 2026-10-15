@@ -154,7 +154,7 @@ function serializeMeta(meta: unknown): string {
 
 // ── Emit ──────────────────────────────────────────────────────────────
 
-// Resolved per write, never cached: the 0.7.0 upgrade moves the data dir under a running server.
+// Resolved per write, never cached: the home a process resolves can change under it (a test, a CLI pin).
 function writeToFile(line: string): void {
   const logFile = resolveLogFile();
   if (logFile === null) return;

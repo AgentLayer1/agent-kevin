@@ -5,7 +5,6 @@ import { FILES, FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
 import { dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
-import { RETIRED_CADENCE_KEYS } from "../../../mcp-server/src/shared/retired-skills";
 import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
 import { type ReviewWatermark, selfReviewDue } from "./self-review-due";
 
@@ -32,12 +31,7 @@ const readJson = <T>(path: string): T | null => {
 };
 
 const dataDir = dataDirOf(home);
-const stamps = readJson<Record<string, string>>(join(dataDir, "cadence.json")) ?? {};
-// A home that hasn't run the 0.6.1 upgrade still holds the old keys; the later stamp wins either way.
-const cadence = Object.entries(RETIRED_CADENCE_KEYS).reduce<Record<string, string>>((acc, [old, key]) => {
-  const latest = [acc[key], stamps[old]].filter((value): value is string => typeof value === "string").sort().at(-1);
-  return latest ? { ...acc, [key]: latest } : acc;
-}, stamps);
+const cadence = readJson<Record<string, string>>(join(dataDir, "cadence.json")) ?? {};
 const selfReview = readJson<ReviewWatermark>(join(dataDir, "review.json")) ?? {};
 
 const now = new Date();

@@ -600,7 +600,8 @@ describe('codex-setup pack servers', () => {
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.profile.servers).toEqual(['logs']);
     approve({ enabledMcpjsonServers: ['logs'], disabledMcpjsonServers: ['logs'] });
     const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
-    expect(Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')).mcp_servers).not.toHaveProperty('logs');
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers).not.toHaveProperty('logs');
     expect(json.notes).toEqual([expect.stringContaining('[mcp_servers.logs] was removed')]);
   });
 

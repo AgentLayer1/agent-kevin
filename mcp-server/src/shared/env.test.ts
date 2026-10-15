@@ -216,15 +216,6 @@ describe('env legacy prefix', () => {
       delete process.env[`${legacyEnvPrefix()}PROBE_OVERRIDE`];
     }
   });
-
-  test('the shared AGENT_* name resolves', () => {
-    process.env.AGENT_PROBE_OVERRIDE = 'shared';
-    try {
-      expect(env('AGENT_PROBE_OVERRIDE')).toBe('shared');
-    } finally {
-      delete process.env.AGENT_PROBE_OVERRIDE;
-    }
-  });
 });
 
 describe('readEnvFile', () => {

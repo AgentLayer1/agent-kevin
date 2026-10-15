@@ -104,8 +104,8 @@ describe('skills', () => {
     .filter((skill) => existsSync(join(SKILLS, skill, 'references')))
     .flatMap((skill) => markdownFiles(join(SKILLS, skill, 'references')).map((file) => ({ skill, file })));
 
-  // The data dir moved to the shared `.state` in 0.7.0. The old name survives only beside the new one (the
-  // checks that keep a home working until its upgrade moves it) or beside the release it belongs to.
+  // The data dir moved to the shared `.state` in 0.7.0. The old name survives only beside the new one (init's
+  // stop for a home that never moved) or beside the release it belongs to.
   test('skill and template text names the old data dir only beside .state or a release', () => {
     const legacy = /\.kevin(?![\w.\]])/;
     const files = [

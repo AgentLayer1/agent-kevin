@@ -27,13 +27,6 @@ export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
   'archive-project': 'project archive'
 };
 
-/** Cadence watermark keys the goals skills stamped before they became one skill. */
-export const RETIRED_CADENCE_KEYS: Readonly<Record<string, string>> = {
-  'weekly-goals': 'goals-week',
-  'monthly-goals': 'goals-month',
-  'yearly-goals': 'goals-year'
-};
-
 /**
  * A `Skill(...)` rule's name as Claude Code matches it: a leading `/` is dropped, and a trailing ` *` or
  * `:*` makes it a prefix of the skill name (arguments never take part).

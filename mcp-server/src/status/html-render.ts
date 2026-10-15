@@ -1762,7 +1762,6 @@ const ENV_KEY_TIPS: Record<string, string> = {
   AGENT_PROJECTS: 'Override for where the `projects/` tree lives, if you keep it outside the home directory.'
 };
 
-const envKeyTip = (key: string): string | undefined => ENV_KEY_TIPS[key];
 
 const pageSystem = (snap: StatusSnapshot): string => {
   const { settings, logs } = snap;
@@ -1771,7 +1770,7 @@ const pageSystem = (snap: StatusSnapshot): string => {
   // secrets and plain values render as text; an empty value (e.g. AGENT_HOME
   // when unset) shows a dim "not set". Known keys carry an info tooltip.
   const envRows = settings.env.map((entry) => {
-    const tip = envKeyTip(entry.key);
+    const tip = ENV_KEY_TIPS[entry.key];
     return [
       `<span class="nowrap">${esc(entry.key)}</span>${tip ? infoTip(tip) : ''}`,
       entry.value === ''
