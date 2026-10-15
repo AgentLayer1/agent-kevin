@@ -36,8 +36,8 @@ by hand.
 A code-only release writes a single line: `None — code-only, no bun install or HOME changes.`
 
 `/agent-kevin:upgrade` collects every Upgrade block from a HOME's recorded baseline
-(`<HOME>/.kevin/version.json`) up to the installed version, coalesces them, backs up
-touched files to `.kevin/updates/`, auto-applies the mandatory/additive/deps actions,
+(`<HOME>/.state/version.json`) up to the installed version, coalesces them, backs up
+touched files to `.state/updates/`, auto-applies the mandatory/additive/deps actions,
 and prompts per optional one. The new template files are the source of truth for
 *content*; these tags only say *which* files changed and *how aggressively* to apply.
 
@@ -83,6 +83,12 @@ and prompts per optional one. The new template files are the source of truth for
 - **A blocked task can go back to open** once it's unblocked, and the scan clears a leftover
   `blocked_by` on an open task.
 
+### Removed
+- **Support for homes that never ran the 0.7.0 upgrade.** The plugin reads only `.state/`; the
+  agent-named `.kevin/` folder and its fallbacks are gone, along with the migrations up to 0.7.0
+  (every home is past them; 0.5.3 stays for the roadmap skill) and the settings split only 0.6.1
+  used. Init stops on a home still on `.kevin/` and points at v0.7.3's upgrade.
+
 ### Fixed
 - **A seed import's confirm is never answered for you.** It is asked on its own with all three
   choices; if the question can't be shown, the import asks in plain text and waits.
@@ -95,6 +101,7 @@ and prompts per optional one. The new template files are the source of truth for
 - `template/AGENTS.md: optional` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings.
 - `manual: none` — only if `KEVIN_*` keys are set outside the home (`~/.claude/settings.json`, which the upgrade checks and lists, or a shell profile): nothing reads them any more. Delete each, and put a per-home value (code path, repo list, DB connection) into each home's `.claude/settings.local.json` as `AGENT_*`. Only a value every home should share (timezone, log level) is renamed in place. A `KEVIN_HOME` pin (sessions started outside the home) becomes `AGENT_HOME` there only on a machine with a single agent home; otherwise delete it.
 - `manual: none` — restart Claude Code (and Codex) after the upgrade: a running session keeps the old names until it relaunches.
+- `manual: none` — only for a home whose data is still in `.kevin/` (it never ran the 0.7.0 upgrade): this version no longer reads or moves that folder. Install v0.7.3, run `/agent-kevin:upgrade` there, then update to this version.
 
 ## [0.7.3] - 2026-10-14
 
