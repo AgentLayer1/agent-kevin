@@ -193,14 +193,14 @@ gets settings and hooks the host cannot honour.
 
 ## Step 1 — Banner + intro
 
-Print the welcome banner inside a fenced code block (the fence preserves the ASCII art literally):
+Print the welcome banner inside a fenced code block (the fence preserves the ASCII art literally). Its last line is `===<NAME>=== <EMOJI>`: the home's own name in capitals and its emoji from IDENTITY.md on a re-run, `===KEVIN=== 🍌` on a fresh home:
 
 ````
 ```
  ╔═╗ ╔═╗ ╔═╗ ╔╗╔ ╔╦╗
  ╠═╣ ║ ╦ ║╣  ║║║  ║ 
  ╩ ╩ ╚═╝ ╚═╝ ╝╚╝  ╩ 
-===KEVIN=== 🍌
+===<NAME>=== <EMOJI>
 ```
 ````
 
@@ -1660,14 +1660,14 @@ For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUG
 
 ## Step 9 — Confirmation
 
-Print the same banner as Step 1 for visual continuity, with `===KEVIN=== 🍌` standing alone on its line (no trailing word). The "Ready" line follows below, separated by a blank line.
+Print the same banner as Step 1 for visual continuity, with `===<NAME>=== <EMOJI>` standing alone on its line (no trailing word): the name this run settled on, in capitals, and its emoji (`KEVIN` and 🍌 when the defaults were kept). The "Ready" line follows below, separated by a blank line.
 
 ````
 ```
  ╔═╗ ╔═╗ ╔═╗ ╔╗╔ ╔╦╗
  ╠═╣ ║ ╦ ║╣  ║║║  ║ 
  ╩ ╩ ╚═╝ ╚═╝ ╝╚╝  ╩ 
-===KEVIN=== 🍌
+===<NAME>=== <EMOJI>
 ```
 ````
 

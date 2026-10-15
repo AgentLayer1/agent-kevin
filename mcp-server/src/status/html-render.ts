@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { ManifestEntry } from '@/context';
 import type { HistoryState } from '@/home/history';
-import { BANNER_LINES, BANNER_TAG } from '@/shared/banner';
+import { BANNER_LINES, bannerTag } from '@/shared/banner';
 import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
 import { RUNTIME_DIR, agentEnvPrefix, agentKeyName } from '@/shared/naming';
@@ -2051,7 +2051,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
 const sidebarBanner = (snap: StatusSnapshot): string =>
   [
     `<pre class="wordmark">${esc(BANNER_LINES.join('\n'))}</pre>`,
-    `<div class="tagline">${esc(BANNER_TAG)} <span class="ver">v${esc(snap.runtime.version)}</span></div>`,
+    `<div class="tagline">${esc(bannerTag(snap.persona.name, snap.persona.emoji))} <span class="ver">v${esc(snap.runtime.version)}</span></div>`,
     `<div class="dateline">${pathLink(snap.runtime.home)}</div>`
   ].join('\n');
 

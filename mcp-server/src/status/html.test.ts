@@ -540,6 +540,15 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('ab-016 decided; spec reworked.');
   });
 
+  test("the sidebar banner carries the agent's own name and emoji", () => {
+    const base = makeSnapshot();
+    const renamed = renderDashboardHtml({ ...base, persona: { ...base.persona, name: 'Scout', emoji: '🦉' } });
+    expect(renamed).toContain('===SCOUT=== 🦉');
+    expect(renamed).not.toContain('===KEVIN===');
+    const noEmoji = renderDashboardHtml({ ...base, persona: { ...base.persona, name: 'Scout', emoji: '' } });
+    expect(noEmoji).toContain('===SCOUT=== 🍌');
+  });
+
   test('persona page renders Kevin from IDENTITY/SOUL, not file names', () => {
     const html = renderDashboardHtml(makeSnapshot());
     expect(html).toContain('src=".claude/assets/kevin-avatar.jpg"');
