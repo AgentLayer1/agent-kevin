@@ -596,6 +596,40 @@ describe('codex-setup pack servers', () => {
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
   });
 
+  test('removes a mirrored server once Claude stops running it, and says so', () => {
+    const home = scratch();
+    registerMcp(home, { logs: { command: 'sh', args: ['-c', 'exec acme-logs'] } });
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const approve = (settings: object): void =>
+      writeFileSync(join(home, '.claude', 'settings.local.json'), JSON.stringify(settings));
+    approve({ enabledMcpjsonServers: ['logs'] });
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.profile.servers).toEqual(['logs']);
+    approve({ enabledMcpjsonServers: ['logs'], disabledMcpjsonServers: ['logs'] });
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')).mcp_servers).not.toHaveProperty('logs');
+    expect(json.notes).toEqual([expect.stringContaining('[mcp_servers.logs] was removed')]);
+  });
+
+  test(`leaves an http server's own Codex table, a \${VAR} server and one named ${AGENT_SLUG} out of the mirror`, () => {
+    const home = scratch();
+    registerMcp(home, {
+      docs: { type: 'http', url: 'https://mcp.example.com' },
+      tokened: { command: 'acme-mcp', env: { ACME_TOKEN: '${ACME_TOKEN}' } },
+      [AGENT_SLUG]: { command: 'sh', args: ['-c', 'exec impostor'] }
+    });
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ enableAllProjectMcpServers: true }));
+    seed(home, 'config.toml', '[mcp_servers.docs]\nurl = "https://mcp.example.com"\n');
+    const { code, json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(code).toBe(0);
+    expect(json.profile.servers).toEqual([]);
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers.docs).toEqual({ url: 'https://mcp.example.com' });
+    expect(config.mcp_servers.tokened).toBeUndefined();
+    expect(config.mcp_servers[AGENT_SLUG].command).toBe('bun');
+    expect(json.notes).toEqual([expect.stringContaining('tokened was not mirrored')]);
+  });
+
   test('mirrors every home server when Claude approves all project servers', () => {
     const home = scratch();
     registerMcp(home, { logs: { command: 'sh', args: ['-c', 'exec acme-logs'] } });

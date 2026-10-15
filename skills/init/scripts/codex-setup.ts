@@ -182,16 +182,34 @@ interface McpRegistration {
 }
 const registered = readJson(resolve(homeDir, '.mcp.json')).mcpServers;
 const mcpRegistrations = isRecord(registered) ? registered : {};
-const MIRRORED_SERVERS = [
+const isStdio = (server: unknown): server is Record<string, unknown> & { command: string } =>
+  isRecord(server) && typeof server.command === 'string';
+/**
+ * Every stdio server the home registers in `.mcp.json`, approved or not, so a server Claude stops
+ * running loses its Codex table too. An http server's own hand-written table is left alone.
+ */
+const OWNED_SERVERS = [
   ...new Set([
     ...PACK_SERVERS,
-    ...Object.keys(mcpRegistrations).filter((name) => /^[A-Za-z0-9_-]+$/.test(name) && approvedByClaude(name))
+    ...Object.keys(mcpRegistrations).filter(
+      (name) => /^[A-Za-z0-9_-]+$/.test(name) && name !== agent && isStdio(mcpRegistrations[name])
+    )
   ])
 ];
+/** Claude fills `${VAR}` into `.mcp.json` entries; Codex would pass the text through, so such a server stays out. */
+const interpolatingServers = OWNED_SERVERS.filter((name) =>
+  JSON.stringify(mcpRegistrations[name] ?? {}).includes('${')
+);
 const mirroredServers = Object.fromEntries(
-  MIRRORED_SERVERS.flatMap((name): [string, McpRegistration][] => {
+  OWNED_SERVERS.flatMap((name): [string, McpRegistration][] => {
     const server = mcpRegistrations[name];
-    if (!isRecord(server) || typeof server.command !== 'string') return [];
+    if (
+      !isStdio(server) ||
+      interpolatingServers.includes(name) ||
+      !(PACK_SERVERS.includes(name) || approvedByClaude(name))
+    ) {
+      return [];
+    }
     const args = Array.isArray(server.args)
       ? server.args.filter((item): item is string => typeof item === 'string')
       : [];
@@ -286,7 +304,7 @@ const headerPath = (line: string): string[] | undefined => {
 /** The tables this script owns outright; everything under them is regenerated. */
 const OWNED_TABLES: string[][] = [
   ['mcp_servers', agent],
-  ...MIRRORED_SERVERS.map((name) => ['mcp_servers', name]),
+  ...OWNED_SERVERS.map((name) => ['mcp_servers', name]),
   ['permissions', agent],
   ['shell_environment_policy']
 ];
@@ -551,11 +569,15 @@ const notes = [
       ([key, value]) =>
         `${key} is ${JSON.stringify(existingTables[key])} in ${configPath}; the recommended value is "${value}" and yours was kept`
     ),
-  ...PACK_SERVERS.filter(
+  ...OWNED_SERVERS.filter(
     (name) => !(name in mirroredServers) && lookup(existingTables, ['mcp_servers', name]) !== undefined
   ).map(
     (name) =>
-      `[mcp_servers.${name}] was removed from ${configPath}: the pack that owns it no longer registers ${name} in the home's .mcp.json`
+      `[mcp_servers.${name}] was removed from ${configPath}: the home's .mcp.json no longer registers ${name}, or Claude Code doesn't run it`
+  ),
+  ...interpolatingServers.map(
+    (name) =>
+      `${name} was not mirrored into ${configPath}: its .mcp.json entry uses \${VAR}, which Claude Code fills in and Codex does not`
   )
 ];
 
