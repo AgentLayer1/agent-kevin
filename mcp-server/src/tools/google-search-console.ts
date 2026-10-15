@@ -23,7 +23,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'google_auth',
     description:
-      'One-time Google OAuth2 consent flow. Opens browser. Persists tokens under ${CLAUDE_PLUGIN_DATA}/google-auth/. Required before gsc_* and page_speed_* tools work.',
+      'One-time Google OAuth2 consent flow. Opens browser. Persists tokens in the secrets store of this home (`.state/secrets/google/`). Required before gsc_* and page_speed_* tools work.',
     inputSchema: {},
     handler: async () => runAuthFlow()
   }),
