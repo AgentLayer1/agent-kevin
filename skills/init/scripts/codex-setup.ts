@@ -402,7 +402,9 @@ const keptEntries = (path: string[], own: string[]): string[] =>
 /** The agent's own env for the model's shell: `AGENT_HOME` plus the home's `AGENT_*` settings, never a credential. */
 const shellEnv: Record<string, string> = {
   ...Object.fromEntries(
-    Object.entries(settingsEnv).filter(([key]) => key.startsWith('AGENT_') && !/KEY|SECRET|TOKEN|PASSWORD/i.test(key))
+    Object.entries(settingsEnv).filter(
+      ([key]) => key.startsWith('AGENT_') && !/KEY|SECRET|TOKEN|PASSWORD|CRED|PRIVATE|DSN|^AGENT_DB_/i.test(key)
+    )
   ),
   AGENT_HOME: homeDir
 };

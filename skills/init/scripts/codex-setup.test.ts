@@ -288,6 +288,7 @@ describe('codex-setup mcp registration', () => {
           AGENT_HOME_TIMEZONE: 'Asia/Kuala_Lumpur',
           CLAUDE_CODE_OAUTH_TOKEN: 'sk-nope',
           [`${legacyEnvPrefix()}DB_KEY`]: 'nope',
+          AGENT_DB_APP: 'postgres://user:pass@localhost/app',
           [`${legacyEnvPrefix()}REPORTS`]: '/legacy/reports'
         }
       })
