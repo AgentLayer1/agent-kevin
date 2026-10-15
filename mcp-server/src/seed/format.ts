@@ -78,11 +78,16 @@ export const ALLOWED_ROOTS = [
   'projects/',
   '.claude/skills/',
   '.claude/rules/',
-  '.claude/assets/'
+  '.claude/assets/',
+  '.claude/browser-flows/'
 ] as const;
 
 /** Within `projects/`, only READMEs and roadmaps travel — never tasks (clean slate). */
 const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html)$/;
+
+/** A browser flow keeps its credentials in its own `.env`; no root may carry one. `.env.example` is a key template, as in `.gitignore`. */
+export const isEnvFile = (path: string): boolean =>
+  /(^|\/)\.env(\.[^/]*)?$/.test(path) && !path.endsWith('/.env.example');
 
 /**
  * Validate one manifest/include path: relative, normalized, no traversal, and
@@ -98,6 +103,7 @@ export const validateSeedPath = (path: string): string | null => {
   }
   const inRoot = ALLOWED_ROOTS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root));
   if (!inRoot) return `outside allowed seed roots: ${path}`;
+  if (isEnvFile(path)) return `credential file never travels: ${path}`;
   if (path.startsWith('projects/') && !PROJECT_FILE_RE.test(path)) {
     return `only projects/<slug>/README.md and roadmap.html may travel (never tasks): ${path}`;
   }

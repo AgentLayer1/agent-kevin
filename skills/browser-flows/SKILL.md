@@ -81,7 +81,7 @@ Flows resolve from two roots; a HOME flow **shadows** a built-in of the same nam
 | Root | Path | For |
 |---|---|---|
 | Built-in | `skills/browser-flows/flows/<name>/` (this repo) | shipped, generic flows (e.g. `hacker-news`) |
-| HOME-local | `<HOME>/.claude/browser-flows/<name>/` | private, per-operator flows — anything that drives a **specific or client app**; never distributed |
+| HOME-local | `<HOME>/.claude/browser-flows/<name>/` | private, per-operator flows — anything that drives a **specific or client app**; never shipped (a seed bundle may carry one, never its `.env`) |
 
 Put app-specific / client flows in **HOME**, not here — same principle as HOME skills and the memory tree. The only code difference: a HOME flow imports the shared harness as a **bare specifier** (the dispatcher puts `skills/browser-flows` on `NODE_PATH`):
 

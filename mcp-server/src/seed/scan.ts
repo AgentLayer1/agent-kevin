@@ -54,6 +54,8 @@ export interface SeedScanResult {
   customSkills: string[];
   /** Symlinked skill installs (skills.sh) — not exportable; the recipient reinstalls from the registry. */
   thirdPartySkills: string[];
+  /** The home's own browser flows (`.claude/browser-flows/<name>`); their `.env` never travels. */
+  customFlows: string[];
   rules: FileCandidate[];
   mcpServers: McpServerCandidate[];
   /** Packs whose full grant set is present in permissions.allow, with the key names they carry. */
@@ -140,6 +142,14 @@ export const scanSeed = (): SeedScanResult => {
     }
   }
 
+  const flowsDir = resolve(home, '.claude', 'browser-flows');
+  const customFlows = existsSync(flowsDir)
+    ? readdirSync(flowsDir, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory() && !dirent.name.startsWith('.'))
+        .map((dirent) => dirent.name)
+        .sort()
+    : [];
+
   const rulesDir = resolve(home, '.claude', 'rules');
   const rules: FileCandidate[] = listMarkdown(rulesDir).map((name) => ({
     path: `.claude/rules/${name}`,
@@ -181,6 +191,7 @@ export const scanSeed = (): SeedScanResult => {
     rootRoadmap: existsSync(FILES.ROADMAP),
     customSkills,
     thirdPartySkills,
+    customFlows,
     rules,
     mcpServers,
     activePacks,

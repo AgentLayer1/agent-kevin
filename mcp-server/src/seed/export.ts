@@ -8,7 +8,14 @@
  * temp dir, and shells out to `zip`. Read-only against the home.
  */
 import { FOLDERS, KNOWLEDGE } from '@/config';
-import { CREDENTIAL_KEY_RE, type SeedFileEntry, type SeedManifest, sha256, validateSeedPath } from '@/seed/format';
+import {
+  CREDENTIAL_KEY_RE,
+  isEnvFile,
+  type SeedFileEntry,
+  type SeedManifest,
+  sha256,
+  validateSeedPath
+} from '@/seed/format';
 import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -42,6 +49,8 @@ export interface SeedExportOptions {
 export interface SeedExportResult {
   bundlePath: string;
   manifest: SeedManifest;
+  /** `.env` files found inside an included folder and left out of the bundle. */
+  skippedEnvFiles: string[];
 }
 
 const slugify = (value: string): string =>
@@ -78,7 +87,10 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
   const home = FOLDERS.HOME;
   ensureZipAvailable();
 
-  const paths = [...new Set(options.include.flatMap((entry) => expandInclude(home, entry)))];
+  const expanded = [...new Set(options.include.flatMap((entry) => expandInclude(home, entry)))];
+  const explicit = new Set(options.include);
+  const skippedEnvFiles = expanded.filter((path) => isEnvFile(path) && !explicit.has(path));
+  const paths = expanded.filter((path) => !skippedEnvFiles.includes(path));
   const extras = options.extras ?? [];
   const errors = [...paths, ...extras.map((extra) => extra.path)]
     .map((path) => validateSeedPath(path))
@@ -130,7 +142,7 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
     rmSync(bundlePath, { force: true });
     execFileSync('zip', ['-r', '-q', bundlePath, 'manifest.json', 'files'], { cwd: staging });
 
-    return { bundlePath, manifest };
+    return { bundlePath, manifest, skippedEnvFiles };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }

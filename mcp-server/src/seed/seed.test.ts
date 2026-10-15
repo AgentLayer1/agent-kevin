@@ -57,6 +57,9 @@ beforeAll(() => {
   write(sourceHome, '.claude/skills/acme-logs/SKILL.md', '---\nname: acme-logs\n---\n# Acme logs\n');
   write(sourceHome, '.claude/rules/acme.md', '# Acme rule\n');
   write(sourceHome, '.claude/assets/avatar.jpg', 'jpegbytes');
+  write(sourceHome, '.claude/browser-flows/acme-login/index.ts', 'export {};\n');
+  write(sourceHome, '.claude/browser-flows/acme-login/.env', 'ACME_PASSWORD=hunter2\n');
+  write(sourceHome, '.claude/browser-flows/acme-login/.env.example', 'ACME_PASSWORD=\n');
   write(
     sourceHome,
     '.mcp.json',
@@ -141,6 +144,12 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('knowledge/concepts/x.md')).toBeNull();
     expect(validateSeedPath('projects/acme/README.md')).toBeNull();
     expect(validateSeedPath('.claude/skills/acme-logs/SKILL.md')).toBeNull();
+    expect(validateSeedPath('.claude/browser-flows/acme-login/index.ts')).toBeNull();
+  });
+
+  test('refuses a credential file under any root', () => {
+    expect(validateSeedPath('.claude/browser-flows/acme-login/.env')).toMatch(/credential file/);
+    expect(validateSeedPath('.claude/skills/acme-logs/.env.local')).toMatch(/credential file/);
   });
 
   test('refuses traversal, absolutes, and private material', () => {
@@ -174,6 +183,7 @@ describe('scanSeed', () => {
     expect(scan.projects).toEqual([{ slug: 'acme', readme: true, roadmap: true }]);
     expect(scan.rootRoadmap).toBe(true);
     expect(scan.customSkills).toEqual(['acme-logs']);
+    expect(scan.customFlows).toEqual(['acme-login']);
     expect(scan.rules.map((r) => r.path)).toContain('.claude/rules/acme.md');
     expect(scan.mcpServers).toHaveLength(1);
     expect(scan.mcpServers[0]?.name).toBe('acme-telemetry');
@@ -422,5 +432,28 @@ describe('manual overlay on a home not yet migrated', () => {
     expect(result.appended).toEqual(['CLAUDE.md']);
     expect(readFileSync(join(recipient, 'CLAUDE.md'), 'utf-8')).toContain('Ship > start.');
     expect(existsSync(join(recipient, 'AGENTS.md'))).toBe(false);
+  });
+});
+
+describe('browser flows in a bundle', () => {
+  test("a flow's .env stays behind and its .env.example travels", () => {
+    const result = asSource(() =>
+      exportSeed({
+        include: ['.claude/browser-flows/acme-login'],
+        agentName: 'Scout',
+        out: join(sourceHome, 'flows.zip')
+      })
+    );
+    const paths = result.manifest.files.map((file) => file.path);
+    expect(result.skippedEnvFiles).toEqual(['.claude/browser-flows/acme-login/.env']);
+    expect(paths).toContain('.claude/browser-flows/acme-login/index.ts');
+    expect(paths).toContain('.claude/browser-flows/acme-login/.env.example');
+    expect(paths).not.toContain('.claude/browser-flows/acme-login/.env');
+  });
+
+  test('refuses a credential file named outright', () => {
+    expect(() =>
+      asSource(() => exportSeed({ include: ['.claude/browser-flows/acme-login/.env'], agentName: 'Scout' }))
+    ).toThrow(/credential file never travels/);
   });
 });

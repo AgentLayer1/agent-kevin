@@ -5,9 +5,10 @@ Build a seed bundle: a plain zip the recipient imports after their own `/agent-k
 recipient's own, freely editable. Nothing leaves this machine without the operator
 approving the exact contents.
 
-**Never in a bundle, no exceptions:** secret values, `.state/` state, USER.md,
-`knowledge/{user,memory,raw}`, tasks, session transcripts, the scaffolded AGENTS.md
-(curated sections travel as an AGENTS.md overlay section instead), machine-specific paths.
+**Never in a bundle, no exceptions:** secret values, any `.env` file (a browser flow's
+credentials included), `.state/` state, USER.md, `knowledge/{user,memory,raw}`, tasks,
+session transcripts, the scaffolded AGENTS.md (curated sections travel as an AGENTS.md
+overlay section instead), machine-specific paths.
 The `seed_export` tool enforces the structural excludes; this skill enforces judgment —
 client names, personal context, and operator-specific material must be caught in review.
 
@@ -17,8 +18,9 @@ Call `seed_scan`. It returns everything the interview needs: agent name (vs temp
 identity divergence, concepts (template-identical ones flagged — the recipient's own init
 seeds those), projects with README/roadmap, custom skills (symlinked skills.sh installs
 listed separately — they are NOT exportable; the recipient reinstalls from the registry),
-rules, HOME `.mcp.json` servers with the env key names they reference, active packs,
-classified permission entries, and settings.local.json env key names.
+custom browser flows, rules, HOME `.mcp.json` servers with the env key names they
+reference, active packs, classified permission entries, and settings.local.json env key
+names.
 
 ## Stage 1 — Interview (builds the manifest)
 
@@ -33,11 +35,11 @@ Every question shows what the scan detected. Run the rounds via `AskUserQuestion
 
 For a **project slice**: `Read` the chosen `projects/<slug>/README.md` (and roadmap if
 present), follow its `[[concepts/...]]` wikilinks into `knowledge/concepts/`, and present
-that concept set pre-ticked; the operator adds/removes. Also pre-tick the custom skills
-and MCP servers plausibly tied to the project (name/content match — e.g. an `acme-logs`
-skill for the acme project), and the packs the project's files show it uses (`grep` its
-README and tasks for a pack's tools or keys: PRs and CI → github, a database → database,
-browser captures or web research → browser); the operator confirms.
+that concept set pre-ticked; the operator adds/removes. Also pre-tick the custom skills,
+browser flows and MCP servers plausibly tied to the project (name/content match — e.g. an
+`acme-logs` skill for the acme project), and the packs the project's files show it uses
+(`grep` its README and tasks for a pack's tools or keys: PRs and CI → github, a database
+→ database, browser captures or web research → browser); the operator confirms.
 
 ### 2. Identity
 
@@ -57,6 +59,8 @@ Multi-select from the scan: concepts (template-identical ones default-unticked, 
 
 Present each detected item by name, per-item tick:
 - **Custom skills** (`.claude/skills/<name>`) — whole directories
+- **Custom browser flows** (`.claude/browser-flows/<name>`) — whole directories; a flow's
+  `.env` is left out automatically and reported under `skippedEnvFiles`
 - **MCP servers** from `.mcp.json` — show each server's referenced env key names and say
   the recipient gets the entry + empty key placeholders, never values
 - **Diverged/custom rules** (template-identical ones default-unticked)
@@ -100,7 +104,8 @@ Call `seed_export` with the approved selection:
 - `extras` — the AGENTS.md overlay section, if approved
 - `permissions` / `secretKeys` / `settingsEnv` / `mcpServers` — the approved setup
 
-Report the bundle path and hand the operator the recipient instructions:
+Report the bundle path, any `skippedEnvFiles` entries, and hand the operator
+the recipient instructions:
 
 ```
 Seed bundle: <path>

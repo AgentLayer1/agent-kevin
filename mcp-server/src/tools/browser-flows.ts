@@ -5,7 +5,7 @@
  * discovers flows by listing folders and passes `params` through as `--key value`.
  *
  * Flows resolve from two roots: the plugin's built-in `flows/` (shipped, e.g. `hacker-news`) and the
- * operator's HOME `.claude/browser-flows/` (private, per-operator, never distributed — the place for
+ * operator's HOME `.claude/browser-flows/` (private, per-operator, never shipped; a reviewed seed bundle may carry one, never its `.env` — the place for
  * flows that drive a specific/local app). A HOME flow shadows a built-in of the same name. HOME
  * flows import the harness as a bare specifier (`import { runFlow } from 'lib/flow'`) — the plugin's
  * `browser-flows` dir is added to NODE_PATH so that resolves wherever the flow lives.
