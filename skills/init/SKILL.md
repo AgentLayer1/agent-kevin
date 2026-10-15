@@ -321,7 +321,8 @@ init is about to create).
 After Step 9's confirmation, finish by delegating to the seed import flow: read
 `${CLAUDE_PLUGIN_ROOT}/skills/seed/references/playbooks/import.md` and follow it against the noted
 bundle path (dry-run plan → confirm → apply → credential checklist). Don't reimplement
-its steps here.
+its steps here, and don't answer its confirm for the operator: when that question can't be
+asked, ask it in plain text and wait.
 
 ---
 

@@ -24,12 +24,15 @@ Call `seed_import` with `dryRun: true` and present the plan grouped:
   are never clobbered), env placeholders to plant
 - **Credentials** — the secret key NAMES the operator will fill afterward
 
-Then `AskUserQuestion`:
+Then ask this question on its own, in a call with no other question, with all three options:
 
 > **Apply the seed?**
 > - Apply, overwrite the <n> conflicting file(s) — inherit the persona fully
 > - Apply without overwriting — keep my existing versions, add everything else
 > - Cancel
+
+If the call fails, ask the same question in plain text and wait for the answer. Never pick
+an option yourself: the operator's answer is the only thing that applies a seed.
 
 ## Step 3 — Apply
 
