@@ -62,9 +62,11 @@ If the scan shows a custom name (differs from the template's), lead with it:
 > - Skip — recipient names their own agent at init
 
 When the bundle carries a name other than the home's own, export renames the agent in the
-bundled IDENTITY.md and SOUL.md (whole-word swap) and reports them under `renamed`. The
-home's own files are untouched. Show the renamed text at the review gate: lines like
-"inspired by <old name>" usually need rewording, not just a swap.
+bundled IDENTITY.md and SOUL.md (whole-word, case-sensitive swap) and reports them under
+`renamed`. The home's own files are untouched. The swap happens inside `seed_export`, after the
+review gate, so the gate shows every line of those two files that holds the old name, as it will
+read after the swap. A line where the old name means something else (a common word, a product),
+or one like "inspired by <old name>" that needs rewording, goes in as an `extras` override.
 
 ### 3. Knowledge + surfaces
 

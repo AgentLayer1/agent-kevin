@@ -122,10 +122,13 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
   const expanded = [...new Set(options.include.flatMap((entry) => expandInclude(home, entry)))];
   const explicit = new Set(options.include);
   const skippedEnvFiles = expanded.filter((path) => isEnvFile(path) && !explicit.has(path));
-  const paths = expanded.filter((path) => !skippedEnvFiles.includes(path));
+  const extras = options.extras ?? [];
+  // An extra overrides the home's copy of the same path, so the reviewed text is the one that ships.
+  const paths = expanded.filter(
+    (path) => !skippedEnvFiles.includes(path) && !extras.some((extra) => extra.path === path)
+  );
   const sourceName = existsSync(FILES.IDENTITY) ? agentNameIn(readFileSync(FILES.IDENTITY, 'utf-8')) : '';
   const renameFrom = sourceName !== options.agentName && NAME_RE.test(sourceName) ? sourceName : null;
-  const extras = options.extras ?? [];
   const errors = [...paths, ...extras.map((extra) => extra.path)]
     .map((path) => validateSeedPath(path))
     .filter((error): error is string => error !== null);

@@ -26,8 +26,10 @@
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
  * anything else in the home.
  */
-import { AGENT_SLUG, PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, FOLDERS, PLUGIN_NAME } from '@/config';
 import { createHash } from 'node:crypto';
+import { existsSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /** Hash used for `SeedFileEntry.hash` — one definition for producer and consumer. */
 export const sha256 = (bytes: Buffer): string => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -92,9 +94,22 @@ export const ALLOWED_ROOTS = [
 /** Within `projects/`, only READMEs and roadmaps travel — never tasks (clean slate). */
 const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html)$/;
 
-/** A browser flow keeps its credentials in its own `.env`; no root may carry one. `.env.example` is a key template, as in `.gitignore`. */
+/**
+ * A browser flow keeps its credentials in its own `.env`; no root may carry one, in any case or
+ * variant (`.ENV`, `.envrc`, `.env.local`). `.env.example` is a key template, as in `.gitignore`.
+ */
 export const isEnvFile = (path: string): boolean =>
-  /(^|\/)\.env(\.[^/]*)?$/.test(path) && !path.endsWith('/.env.example');
+  /(^|\/)\.env[^/]*$/i.test(path) && !/(^|\/)\.env\.example$/i.test(path);
+
+/** The plugin's own flows; the browser_flows tool runs a home flow of the same name in their place. */
+const builtinFlows = (): string[] => {
+  const dir = resolve(FOLDERS.ROOT, 'skills', 'browser-flows', 'flows');
+  return existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+    : [];
+};
 
 /**
  * Stands in for the source home's path inside carried MCP entries; import writes the
@@ -108,7 +123,7 @@ export const agentNameIn = (identity: string): string =>
 
 /** Swap one agent name for another as a whole word; init's name allowlist (`[A-Za-z0-9 -]`) has no regex metacharacters. */
 export const renameAgent = (text: string, from: string, to: string): string =>
-  text.replace(new RegExp(`(?<![A-Za-z0-9-])${from}(?![A-Za-z0-9-])`, 'g'), to);
+  text.replace(new RegExp(`(?<![A-Za-z0-9-])${from}(?![A-Za-z0-9-])`, 'g'), () => to);
 
 /**
  * Validate one manifest/include path: relative, normalized, no traversal, and
@@ -125,6 +140,10 @@ export const validateSeedPath = (path: string): string | null => {
   const inRoot = ALLOWED_ROOTS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root));
   if (!inRoot) return `outside allowed seed roots: ${path}`;
   if (isEnvFile(path)) return `credential file never travels: ${path}`;
+  const flow = /^\.claude\/browser-flows\/([^/]+)\//.exec(path)?.[1];
+  if (flow && builtinFlows().includes(flow)) {
+    return `a bundled flow may not take a built-in flow's name, since it would run in its place: ${path}`;
+  }
   if (path.startsWith('projects/') && !PROJECT_FILE_RE.test(path)) {
     return `only projects/<slug>/README.md and roadmap.html may travel (never tasks): ${path}`;
   }

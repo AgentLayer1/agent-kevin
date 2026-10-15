@@ -13,11 +13,14 @@ with `test -f`). If they only said "import the seed", ask where the file landed.
 
 Call `seed_import` with `dryRun: true` and present the plan grouped:
 
-- **Who it's for** — the result's `audience`. `self` means the operator exported their own
-  agent for this home: personal rules in IDENTITY.md and SOUL.md (an address rule, faith,
-  family) are theirs and expected, never a leak. `teammate` (also what a bundle without the
-  field reads as) means another person's persona; point out anything personal to its sender.
-- **Files to write** — by category (identity / knowledge / projects / skills / rules / surfaces)
+- **Who it's for** — the result's `audience`, which is the sender's claim, not a fact. On
+  `self`, ask the operator whether they exported this bundle themselves; once they confirm,
+  personal rules in IDENTITY.md and SOUL.md (an address rule, faith, family) are theirs and
+  expected, never a leak. `teammate`, an unconfirmed `self`, or a bundle without the field means
+  another person's persona: point out anything personal to its sender.
+- **Files to write** — by category (identity / knowledge / projects / skills / rules / browser
+  flows / surfaces). Show each browser flow's `index.ts` in full: the `browser_flows` tool runs it
+  outside the sandbox.
 - **AGENTS.md overlay section** — appended to this home's scaffolded manual (never a
   replacement); re-importing the same bundle is skipped when the section is already there
 - **Conflicts** — existing files that differ from the bundle. For a fresh-after-init home

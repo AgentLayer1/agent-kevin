@@ -150,6 +150,13 @@ describe('validateSeedPath', () => {
   test('refuses a credential file under any root', () => {
     expect(validateSeedPath('.claude/browser-flows/acme-login/.env')).toMatch(/credential file/);
     expect(validateSeedPath('.claude/skills/acme-logs/.env.local')).toMatch(/credential file/);
+    expect(validateSeedPath('.claude/browser-flows/acme-login/.ENV')).toMatch(/credential file/);
+    expect(validateSeedPath('.claude/browser-flows/acme-login/.envrc')).toMatch(/credential file/);
+    expect(validateSeedPath('.claude/browser-flows/acme-login/.env.example')).toBeNull();
+  });
+
+  test("refuses a flow under a built-in flow's name", () => {
+    expect(validateSeedPath('.claude/browser-flows/hacker-news/index.ts')).toMatch(/built-in flow/);
   });
 
   test('refuses traversal, absolutes, and private material', () => {
@@ -464,6 +471,23 @@ describe('a bundle under a new name', () => {
     expect(renameAgent("Scout's notes. Scouting is not Scout-Bot.", 'Scout', 'Ranger')).toBe(
       "Ranger's notes. Scouting is not Scout-Bot."
     );
+    expect(renameAgent('Scout here', 'Scout', "$&$'")).toBe("$&$' here");
+  });
+
+  test('an extras override ships in place of the home copy of the same path', () => {
+    const result = asSource(() =>
+      exportSeed({
+        include: ['IDENTITY.md'],
+        agentName: 'Ranger',
+        extras: [{ path: 'IDENTITY.md', content: '- **Name:** Ranger\n' }],
+        out: join(sourceHome, 'override.zip')
+      })
+    );
+    expect(result.manifest.files.map((file) => file.path)).toEqual(['IDENTITY.md']);
+    const recipient = makeHome();
+    homes.push(recipient);
+    inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
+    expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toBe('- **Name:** Ranger\n');
   });
 
   test("renames the bundled identity and leaves the home's copy alone", () => {
