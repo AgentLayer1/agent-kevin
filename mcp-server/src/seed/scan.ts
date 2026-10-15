@@ -8,7 +8,7 @@
  * ever surfaces key NAMES from non-secret files.
  */
 import { FILES, FOLDERS } from '@/config';
-import { classifyGrant, CREDENTIAL_KEY_RE, type GrantClass, PACKS, sha256 } from '@/seed/format';
+import { agentNameIn, classifyGrant, CREDENTIAL_KEY_RE, type GrantClass, PACKS, sha256 } from '@/seed/format';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -72,11 +72,8 @@ const sameAsTemplate = (homePath: string, templatePath: string): boolean => {
   return home !== null && home === fileHash(templatePath);
 };
 
-const parseAgentName = (identityPath: string): string => {
-  if (!existsSync(identityPath)) return '';
-  const match = readFileSync(identityPath, 'utf-8').match(/^\s*-\s*\*\*Name:\*\*\s*(.+?)\s*$/m);
-  return match?.[1] ?? '';
-};
+const parseAgentName = (identityPath: string): string =>
+  existsSync(identityPath) ? agentNameIn(readFileSync(identityPath, 'utf-8')) : '';
 
 const readJson = (path: string): Record<string, unknown> | null => {
   try {

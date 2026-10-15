@@ -23,10 +23,12 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'seed_export',
     description:
-      'Build a seed bundle zip from an APPROVED selection — call only after the seed export interview + per-file review gate. Validates every path against the seed format allowed roots (IDENTITY.md, SOUL.md, AGENTS.md — append-only on import, roadmap.html, knowledge/concepts/, projects/<slug>/{README.md,roadmap.html}, .claude/{skills,rules,assets,browser-flows}/), stages files + manifest.json, zips. Directories in `include` expand recursively; a `.env` inside one is left out and reported. `extras` carries skill-authored content (the manual overlay). Setup travels as manifest fields: permission entries, secret key NAMES, settings env key NAMES, MCP server entries — never values. Read-only against the home; the zip lands under reports/seeds/ unless `out` is given.',
+      "Build a seed bundle zip from an APPROVED selection — call only after the seed export interview + per-file review gate. Validates every path against the seed format allowed roots (IDENTITY.md, SOUL.md, AGENTS.md — append-only on import, roadmap.html, knowledge/concepts/, projects/<slug>/{README.md,roadmap.html}, .claude/{skills,rules,assets,browser-flows}/), stages files + manifest.json, zips. Directories in `include` expand recursively; a `.env` inside one is left out and reported. When `agentName` differs from the home's own name, the bundled IDENTITY.md and SOUL.md say the new name (reported as `renamed`). `extras` carries skill-authored content (the manual overlay). Setup travels as manifest fields: permission entries, secret key NAMES, settings env key NAMES, MCP server entries — never values. Read-only against the home; the zip lands under reports/seeds/ unless `out` is given.",
     inputSchema: {
       include: z.array(z.string()).describe('Home-relative paths (files or directories) approved for export.'),
-      agentName: z.string().describe('Display name the bundle carries (from IDENTITY.md, e.g. "Scout").'),
+      agentName: z
+        .string()
+        .describe('Display name the bundle carries (e.g. "Scout"); a new name renames the bundled identity files.'),
       extras: z
         .array(z.object({ path: z.string(), content: z.string() }))
         .optional()

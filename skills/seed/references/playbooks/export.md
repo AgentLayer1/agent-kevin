@@ -50,6 +50,11 @@ If the scan shows a custom name (differs from the template's), lead with it:
 > - Name + avatar only (recipient keeps stock SOUL)
 > - Skip — recipient names their own agent at init
 
+When the bundle carries a name other than the home's own, export renames the agent in the
+bundled IDENTITY.md and SOUL.md (whole-word swap) and reports them under `renamed`. The
+home's own files are untouched. Show the renamed text at the review gate: lines like
+"inspired by <old name>" usually need rewording, not just a swap.
+
 ### 3. Knowledge + surfaces
 
 Multi-select from the scan: concepts (template-identical ones default-unticked, marked
@@ -104,7 +109,7 @@ Call `seed_export` with the approved selection:
 - `extras` — the AGENTS.md overlay section, if approved
 - `permissions` / `secretKeys` / `settingsEnv` / `mcpServers` — the approved setup
 
-Report the bundle path, any `skippedEnvFiles` entries, and hand the operator
+Report the bundle path, any `renamed` and `skippedEnvFiles` entries, and hand the operator
 the recipient instructions:
 
 ```

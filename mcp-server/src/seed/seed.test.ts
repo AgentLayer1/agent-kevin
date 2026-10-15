@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { LEGACY_RUNTIME_DIR, pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { validateSeedPath } from '@/seed/format';
+import { renameAgent, validateSeedPath } from '@/seed/format';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
 import { importSeed } from '@/seed/import';
@@ -455,5 +455,26 @@ describe('browser flows in a bundle', () => {
     expect(() =>
       asSource(() => exportSeed({ include: ['.claude/browser-flows/acme-login/.env'], agentName: 'Scout' }))
     ).toThrow(/credential file never travels/);
+  });
+});
+
+describe('a bundle under a new name', () => {
+  test('swaps whole words only', () => {
+    expect(renameAgent("Scout's notes. Scouting is not Scout-Bot.", 'Scout', 'Ranger')).toBe(
+      "Ranger's notes. Scouting is not Scout-Bot."
+    );
+  });
+
+  test("renames the bundled identity and leaves the home's copy alone", () => {
+    const result = asSource(() =>
+      exportSeed({ include: ['IDENTITY.md', 'SOUL.md'], agentName: 'Ranger', out: join(sourceHome, 'renamed.zip') })
+    );
+    expect(result.renamed).toEqual(['IDENTITY.md']);
+    expect(readFileSync(join(sourceHome, 'IDENTITY.md'), 'utf-8')).toContain('- **Name:** Scout');
+
+    const recipient = makeHome();
+    homes.push(recipient);
+    inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
+    expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('- **Name:** Ranger');
   });
 });

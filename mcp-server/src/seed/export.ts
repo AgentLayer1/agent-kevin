@@ -7,10 +7,12 @@
  * fails loud, it is never silently dropped), stages payload + manifest into a
  * temp dir, and shells out to `zip`. Read-only against the home.
  */
-import { FOLDERS, KNOWLEDGE } from '@/config';
+import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import {
+  agentNameIn,
   CREDENTIAL_KEY_RE,
   isEnvFile,
+  renameAgent,
   type SeedFileEntry,
   type SeedManifest,
   sha256,
@@ -34,7 +36,7 @@ import { dirname, join, resolve } from 'node:path';
 export interface SeedExportOptions {
   /** Home-relative paths to include — files, or directories expanded recursively (e.g. `.claude/skills/acme-logs`). */
   include: string[];
-  /** Display name the bundle carries — the skill reads it off IDENTITY.md during the interview. */
+  /** Display name the bundle carries. When it differs from the home's own name, the identity files are renamed in the bundle. */
   agentName: string;
   /** Skill-authored content written into the bundle (e.g. the AGENTS.md overlay section). */
   extras?: { path: string; content: string }[];
@@ -49,6 +51,8 @@ export interface SeedExportOptions {
 export interface SeedExportResult {
   bundlePath: string;
   manifest: SeedManifest;
+  /** Identity files whose agent name was swapped for `agentName` in the bundle (the home's copies are untouched). */
+  renamed: string[];
   /** `.env` files found inside an included folder and left out of the bundle. */
   skippedEnvFiles: string[];
 }
@@ -74,6 +78,9 @@ const expandInclude = (home: string, path: string): string[] => {
     .sort();
 };
 
+const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
+const IDENTITY_FILES = new Set(['IDENTITY.md', 'SOUL.md']);
+
 const ensureZipAvailable = (): void => {
   try {
     execFileSync('zip', ['-v'], { stdio: 'ignore' });
@@ -91,6 +98,8 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
   const explicit = new Set(options.include);
   const skippedEnvFiles = expanded.filter((path) => isEnvFile(path) && !explicit.has(path));
   const paths = expanded.filter((path) => !skippedEnvFiles.includes(path));
+  const sourceName = existsSync(FILES.IDENTITY) ? agentNameIn(readFileSync(FILES.IDENTITY, 'utf-8')) : '';
+  const renameFrom = sourceName !== options.agentName && NAME_RE.test(sourceName) ? sourceName : null;
   const extras = options.extras ?? [];
   const errors = [...paths, ...extras.map((extra) => extra.path)]
     .map((path) => validateSeedPath(path))
@@ -105,10 +114,18 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
   const staging = mkdtempSync(join(tmpdir(), 'seed-export-'));
   try {
     const files: SeedFileEntry[] = [];
+    const renamed: string[] = [];
     for (const path of paths) {
       const destination = join(staging, 'files', path);
       mkdirSync(dirname(destination), { recursive: true });
-      copyFileSync(resolve(home, path), destination);
+      if (renameFrom && IDENTITY_FILES.has(path)) {
+        const original = readFileSync(resolve(home, path), 'utf-8');
+        const content = renameAgent(original, renameFrom, options.agentName);
+        writeFileSync(destination, content);
+        if (content !== original) renamed.push(path);
+      } else {
+        copyFileSync(resolve(home, path), destination);
+      }
       files.push({ path, hash: sha256(readFileSync(destination)) });
     }
     for (const extra of extras) {
@@ -142,7 +159,7 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
     rmSync(bundlePath, { force: true });
     execFileSync('zip', ['-r', '-q', bundlePath, 'manifest.json', 'files'], { cwd: staging });
 
-    return { bundlePath, manifest, skippedEnvFiles };
+    return { bundlePath, manifest, renamed, skippedEnvFiles };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }

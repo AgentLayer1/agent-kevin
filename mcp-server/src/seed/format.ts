@@ -89,6 +89,14 @@ const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html)$/;
 export const isEnvFile = (path: string): boolean =>
   /(^|\/)\.env(\.[^/]*)?$/.test(path) && !path.endsWith('/.env.example');
 
+/** The display name an IDENTITY.md declares (`- **Name:** Scout`), or '' when it has none. */
+export const agentNameIn = (identity: string): string =>
+  identity.match(/^\s*-\s*\*\*Name:\*\*\s*(.+?)\s*$/m)?.[1] ?? '';
+
+/** Swap one agent name for another as a whole word; init's name allowlist (`[A-Za-z0-9 -]`) has no regex metacharacters. */
+export const renameAgent = (text: string, from: string, to: string): string =>
+  text.replace(new RegExp(`(?<![A-Za-z0-9-])${from}(?![A-Za-z0-9-])`, 'g'), to);
+
 /**
  * Validate one manifest/include path: relative, normalized, no traversal, and
  * inside an allowed root. Returns an error string, or null when valid.
