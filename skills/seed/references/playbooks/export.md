@@ -35,7 +35,9 @@ For a **project slice**: `Read` the chosen `projects/<slug>/README.md` (and road
 present), follow its `[[concepts/...]]` wikilinks into `knowledge/concepts/`, and present
 that concept set pre-ticked; the operator adds/removes. Also pre-tick the custom skills
 and MCP servers plausibly tied to the project (name/content match — e.g. an `acme-logs`
-skill for the acme project); the operator confirms.
+skill for the acme project), and the packs the project's files show it uses (`grep` its
+README and tasks for a pack's tools or keys: PRs and CI → github, a database → database,
+browser captures or web research → browser); the operator confirms.
 
 ### 2. Identity
 
