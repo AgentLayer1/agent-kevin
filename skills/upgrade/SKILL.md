@@ -170,7 +170,8 @@ with an `### Upgrade` block (format documented at the top of the CHANGELOG).
   Tell the user there's nothing to apply; stop.
 - **`BASELINE` present and `BASELINE == INSTALLED`** → "Already up to date (vX)." Two checks
   still run before stopping: the **codex wiring** paragraph and the **Re-point the status line**
-  paragraph, both in Step 4. Neither is a migration or has a version (an existing, current home
+  paragraph, both in Step 4. When `bun "$PLUGIN_ROOT/bin/kevin" notices` lists `legacy-env`, also run
+  `run_upgrade` with `{ version: "0.7.4" }` first (idempotent) and report it as Step 4's **script** paragraph says. Neither is a migration or has a version (an existing, current home
   run from Codex for the first time has no `.codex/` yet; switching marketplaces or checkouts at
   the same version leaves the footer pinned to the old path, and the SessionStart banner sends the
   operator here for exactly that), so they must not hide behind the release range. Print the
@@ -285,6 +286,9 @@ still holds old code — see Step 7's restart ordering; `run_upgrade` is part
 of the server, so a deps/code change means restart **before** the script can run.)
 The 0.7.0 script moves `.kevin/` to `.state/`; its report names the deny rules it added and, under `repointed`,
 the machine-local config files (`.mcp.json`, `.claude/settings.local.json`) it rewrote to `.state/` paths. Every block after it resolves `$DATA_DIR` again (Step 0).
+The 0.7.4 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settings, secrets file and `.mcp.json`
+(names only in its report). Each entry in its `manual` list is a file outside the home (user-level settings, a shell
+profile) still setting a legacy key: quote it as a `manual:` note naming the file and keys, to be renamed by hand.
 
 **settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
 an entry naming a path on this machine (an absolute folder, as an older release's code-root action
