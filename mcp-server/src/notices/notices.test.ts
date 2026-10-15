@@ -2,10 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { FILES, PLUGIN_VERSION } from '@/config';
 import { nowISO, todayDate } from '@/shared/date';
-import { RUNTIME_DIR, legacyEnvPrefix, pluginName } from '@/shared/naming';
+import { RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { compareSemver, parseChangelog } from '@/version';
 import { readLedger, recordOutcome, stampRow } from './ledger';
 import type { Notice } from './notices';
@@ -16,10 +16,7 @@ const withHome = async <T>(files: Record<string, string>, fn: () => Promise<T>):
   mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
   Object.entries(files).forEach(([rel, content]) => writeFileSync(resolve(home, RUNTIME_DIR, rel), content));
   const priorHome = process.env.AGENT_HOME;
-  const priorUserDir = process.env.CLAUDE_CONFIG_DIR;
   process.env.AGENT_HOME = home;
-  // The operator's own user-level settings stay out of every case.
-  process.env.CLAUDE_CONFIG_DIR = resolve(home, 'user-claude');
   try {
     return await fn();
   } finally {
@@ -28,20 +25,8 @@ const withHome = async <T>(files: Record<string, string>, fn: () => Promise<T>):
     } else {
       process.env.AGENT_HOME = priorHome;
     }
-    if (priorUserDir === undefined) {
-      delete process.env.CLAUDE_CONFIG_DIR;
-    } else {
-      process.env.CLAUDE_CONFIG_DIR = priorUserDir;
-    }
     rmSync(home, { recursive: true, force: true });
   }
-};
-
-/** Writes `text` at a path relative to the current fixture home, folders included. */
-const writeInHome = (rel: string, text: string): void => {
-  const file = resolve(process.env.AGENT_HOME ?? '', rel);
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, text);
 };
 
 const versionAt = (version: string) => ({
@@ -127,59 +112,6 @@ describe('upgrade escalation', () => {
       ['upgrade', 'nudge'],
       ['sync', 'alert']
     ]);
-  });
-});
-
-describe('legacy env keys', () => {
-  const LEGACY = legacyEnvPrefix();
-  const current = () => ({ ...versionAt(PLUGIN_VERSION), ...syncedDaysAgo(0) });
-
-  test('names the legacy keys a home still holds and sends them to the upgrade', async () => {
-    const notices = await withHome(current(), () => {
-      writeInHome(
-        '.claude/settings.local.json',
-        JSON.stringify({ env: { [`${LEGACY}CODE_PATH`]: '/code', AGENT_X: '1' } })
-      );
-      writeInHome(
-        '.mcp.json',
-        JSON.stringify({ mcpServers: { acme: { command: 'sh', args: ['-c', `d="$${LEGACY}HOME"`] } } })
-      );
-      return collectNotices();
-    });
-    expect(notices.map((notice) => notice.id)).toEqual(['legacy-env']);
-    expect(notices[0]).toMatchObject({
-      level: 'nudge',
-      pinned: true,
-      title: `2 ${LEGACY}* keys to rename`,
-      facts: [
-        { text: `${LEGACY}CODE_PATH`, tone: 'warn' },
-        { text: `${LEGACY}HOME`, tone: 'warn' }
-      ],
-      command: `${pluginName()}:upgrade`
-    });
-  });
-
-  test('flags legacy keys in the user-level settings too', async () => {
-    const [notice] = await withHome(current(), () => {
-      writeInHome(
-        'user-claude/settings.json',
-        JSON.stringify({ env: { [`${LEGACY}HOME`]: '/x', AGENT_TIMEZONE: 'UTC' } })
-      );
-      return collectNotices();
-    });
-    expect(notice?.facts).toEqual([{ text: `${LEGACY}HOME`, tone: 'warn' }, { text: 'in user settings' }]);
-  });
-
-  test('a home on AGENT_* names raises nothing', async () => {
-    const notices = await withHome(current(), () => {
-      writeInHome('.claude/settings.json', JSON.stringify({ env: { AGENT_CODE_PATH: '/code' } }));
-      writeInHome(
-        '.mcp.json',
-        JSON.stringify({ mcpServers: { acme: { command: 'sh', args: ['-c', 'd="$AGENT_HOME"'] } } })
-      );
-      return collectNotices();
-    });
-    expect(notices).toEqual([]);
   });
 });
 

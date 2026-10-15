@@ -1,11 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { FOLDERS, PLUGIN_NAME, PLUGIN_VERSION } from '@/config';
+import { PLUGIN_NAME, PLUGIN_VERSION } from '@/config';
 import { getStatus } from '@/knowledge/compile';
 import { readCadence } from '@/shared/cadence';
 import { daysBetween, todayDate } from '@/shared/date';
-import { legacyEnvPrefix, resolveEnv } from '@/shared/naming';
 import { countOf } from '@/shared/utils';
 import { getUpgradeStatus } from '@/version';
 import type { NoticeLedger } from './ledger';
@@ -130,68 +126,8 @@ const syncNotice: NoticeSource = async () => {
   };
 };
 
-const readText = (file: string): string => {
-  try {
-    return existsSync(file) ? readFileSync(file, 'utf-8') : '';
-  } catch {
-    return '';
-  }
-};
-
-const settingsEnvKeys = (file: string): string[] => {
-  try {
-    const env: unknown = JSON.parse(readText(file) || '{}').env;
-    return typeof env === 'object' && env !== null ? Object.keys(env) : [];
-  } catch {
-    return [];
-  }
-};
-
-/**
- * Pre-0.7.4 key names (`KEVIN_*`) nothing reads any more: in this home's settings, secrets or
- * `.mcp.json`, which the 0.7.4 migration renames, or in the user-level settings, which its report
- * lists for the operator. Names only; a value is never read into a notice.
- */
-const legacyEnvNotice: NoticeSource = async () => {
-  const prefix = legacyEnvPrefix();
-  const isLegacy = (key: string): boolean => key.startsWith(prefix) && key.length > prefix.length;
-  const mentioned = (text: string, pattern: RegExp): string[] => [...text.matchAll(pattern)].map((match) => match[1]);
-  const inHome = [
-    ...['settings.json', 'settings.local.json'].flatMap((name) =>
-      settingsEnvKeys(join(FOLDERS.HOME, '.claude', name)).filter(isLegacy)
-    ),
-    ...mentioned(
-      readText(join(FOLDERS.SECRETS, '.env')),
-      new RegExp(`^\\s*(?:export\\s+)?(${prefix}[A-Za-z0-9_]+)\\s*=`, 'gm')
-    ),
-    ...mentioned(readText(join(FOLDERS.HOME, '.mcp.json')), new RegExp(`\\b(${prefix}[A-Za-z0-9_]+)`, 'g'))
-  ];
-  const userDir = resolveEnv('CLAUDE_CONFIG_DIR') ?? join(homedir(), '.claude');
-  const userWide = settingsEnvKeys(join(userDir, 'settings.json')).filter(isLegacy);
-  const keys = [...new Set([...inHome, ...userWide])];
-  if (keys.length === 0) {
-    return null;
-  }
-  return {
-    id: 'legacy-env',
-    level: 'nudge',
-    pinned: true,
-    icon: '⚑',
-    label: 'Env names',
-    title: `${countOf(keys.length, `${prefix}* key`)} to rename`,
-    facts: [
-      ...keys.slice(0, 3).map((text) => ({ text, tone: 'warn' as const })),
-      ...(keys.length > 3 ? [{ text: `+${keys.length - 3} more` }] : []),
-      ...(userWide.length > 0 ? [{ text: 'in user settings' }] : [])
-    ],
-    command: `${PLUGIN_NAME}:upgrade`,
-    actionLabel: 'Rename now'
-  };
-};
-
-// The order is the priority. Upgrade leads because it ends in a sync, or asks for one after a restart;
-// it also runs the rename the legacy-env notice asks for.
-const SOURCES: readonly NoticeSource[] = [upgradeNotice, legacyEnvNotice, syncNotice];
+// The order is the priority. Upgrade leads because it ends in a sync, or asks for one after a restart.
+const SOURCES: readonly NoticeSource[] = [upgradeNotice, syncNotice];
 
 /**
  * Hides a notice snoozed through today and drops an unpinned one a level once it has been

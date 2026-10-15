@@ -53,9 +53,6 @@ and prompts per optional one. The new template files are the source of truth for
   agent or a teammate and writes `audience` to the manifest; an import without one reads as
   `teammate`. A bundle for yourself keeps your personal rules, and the import playbook never rewrites
   imported identity files without asking.
-- **A notice for legacy `KEVIN_*` keys.** While this home's settings, secrets file or `.mcp.json`, or
-  your user-level Claude settings, still set a `KEVIN_*` key, a pinned nudge names it and points at
-  the upgrade, which renames the home's keys.
 
 ### Changed
 - **Env keys use the shared `AGENT_*` names only.** A `KEVIN_*` key no longer overrides its `AGENT_*`
@@ -90,9 +87,9 @@ and prompts per optional one. The new template files are the source of truth for
 - **`google_auth` says where its tokens live:** the home's secrets store (`.state/secrets/google/`).
 
 ### Upgrade
-- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames every `KEVIN_*` key to its `AGENT_*` name in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (line by line, values and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is commented out. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
+- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames `KEVIN_*` keys and `$KEVIN_*` references to their `AGENT_*` names in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (line by line, values and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is commented out. Every file is read before any is written, so one that doesn't parse stops the run with nothing changed. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
 - `template/AGENTS.md: optional` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings.
-- `manual: none` — only if `KEVIN_*` keys are set outside this home (`~/.claude/settings.json`, a shell profile): rename each to its `AGENT_*` name by hand. The upgrade lists the files and keys it found. A machine-wide `AGENT_HOME` points every agent home on the machine at one home, so set it there only if you run a single agent.
+- `manual: none` — only if `KEVIN_*` keys are set outside the home (`~/.claude/settings.json`, which the upgrade checks and lists, or a shell profile): nothing reads them any more. Delete each, and put a per-home value (code path, repo list, DB connection) into each home's `.claude/settings.local.json` as `AGENT_*`. Only a value every home should share (timezone, log level) is renamed in place. A `KEVIN_HOME` pin (sessions started outside the home) becomes `AGENT_HOME` there only on a machine with a single agent home; otherwise delete it.
 - `manual: none` — restart Claude Code (and Codex) after the upgrade: a running session keeps the old names until it relaunches.
 
 ## [0.7.3] - 2026-10-14

@@ -2,12 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,7 +42,7 @@ const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 const read = (root: string, rel: string): string => readFileSync(join(root, rel), 'utf-8');
 const readJson = (root: string, rel: string): Record<string, any> => JSON.parse(read(root, rel));
 
-/** A home holding legacy keys in every place the migration covers, plus a user dir with machine-wide ones. */
+/** A home holding legacy keys in every place the migration covers, plus a user dir with user-level ones. */
 const makeHome = (): { home: string; user: string } => {
   const home = mkdtempSync(join(tmpdir(), 'migrate-074-'));
   const user = mkdtempSync(join(tmpdir(), 'migrate-074-user-'));
@@ -87,7 +89,6 @@ const makeHome = (): { home: string; user: string } => {
     })
   );
   write(user, '.claude/settings.json', json({ env: { [`${LEGACY}HOME`]: '/somewhere', AGENT_TIMEZONE: 'UTC' } }));
-  write(user, '.zshrc', `export PATH=/opt/bin:$PATH\nexport ${LEGACY}CODE_PATH=/code\n${LEGACY}GIT_REPOS=/a,/b\n`);
   return { home, user };
 };
 
@@ -175,17 +176,36 @@ describe('0.7.4 AGENT_* rename', () => {
     expect(read(home, '.mcp.json')).not.toContain(LEGACY);
   });
 
-  test('lists machine-wide keys for the operator and edits none of them', () => {
+  test('lists user-level keys for the operator and never edits that file', () => {
     const { home, user } = makeHome();
     const userSettings = read(user, '.claude/settings.json');
-    const zshrc = read(user, '.zshrc');
     const { report } = run(home, user);
-    expect(report.manual).toEqual([
-      { file: join(user, '.claude', 'settings.json').replace(user, '~'), keys: [`${LEGACY}HOME`] },
-      { file: '~/.zshrc', keys: [`${LEGACY}CODE_PATH`, `${LEGACY}GIT_REPOS`] }
-    ]);
+    expect(report.manual).toEqual([{ file: join(user, '.claude', 'settings.json'), keys: [`${LEGACY}HOME`] }]);
     expect(read(user, '.claude/settings.json')).toBe(userSettings);
-    expect(read(user, '.zshrc')).toBe(zshrc);
+  });
+
+  test('a file that does not parse stops the run before anything is written', () => {
+    const { home, user } = makeHome();
+    write(home, '.claude/settings.local.json', '{ "env": { // not JSON\n');
+    const shared = read(home, '.claude/settings.json');
+    const mcp = read(home, '.mcp.json');
+    const { status, report } = run(home, user);
+    expect(status).toBe(1);
+    expect(report.ok).toBe(false);
+    expect(read(home, '.claude/settings.json')).toBe(shared);
+    expect(read(home, '.mcp.json')).toBe(mcp);
+    expect(existsSync(join(home, RUNTIME_DIR, 'updates'))).toBe(false);
+  });
+
+  test('writes through a symlinked settings file, keeping the link', () => {
+    const { home, user } = makeHome();
+    const real = join(user, 'dotfiles-settings.local.json');
+    write(user, 'dotfiles-settings.local.json', read(home, '.claude/settings.local.json'));
+    rmSync(join(home, '.claude', 'settings.local.json'));
+    symlinkSync(real, join(home, '.claude', 'settings.local.json'));
+    run(home, user);
+    expect(lstatSync(join(home, '.claude', 'settings.local.json')).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(readFileSync(real, 'utf-8')).env.AGENT_CODE_PATH).toBe('/code/legacy');
   });
 
   test('reports names only, backs up config first, and a re-run is a no-op', () => {
