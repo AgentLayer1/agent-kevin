@@ -13,16 +13,16 @@
  * drift: the runtime secrets store is denied, the code path and additional directories
  * become workspace roots with `.git` writable, and every `permissions.ask` shell pattern
  * becomes a rule that prompts. An MCP server a pack registered in the home's `.mcp.json`
- * (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table, owned
- * the same way, so a pack activated before Codex was wired still reaches it and a
- * deconfigured one leaves. The config also carries the footer status line a Codex
- * session shows from the home (model, directory, branch, approval mode, context used),
- * set when absent. Only the agent's own entries and tables are replaced: the
- * operator's other hooks, MCP servers, rules files, and settings survive; a file that does
- * not parse, or one whose other settings would not survive the rewrite in meaning, is left
- * alone. The hook commands carry the home as a `--home=` argument rather than an env
- * prefix, double-quoted, so the same line parses under sh and under the PowerShell Codex
- * uses on Windows.
+ * (the Xcode pack's `xcode`), or one Claude has approved there, is mirrored into its own
+ * `[mcp_servers.<name>]` table, owned the same way, so a server set up before Codex was
+ * wired still reaches it and a deconfigured pack's leaves. The config also carries the
+ * footer status line a Codex session shows from the home (model, directory, branch,
+ * approval mode, context used), set when absent. Only the agent's own entries and tables
+ * are replaced: the operator's other hooks, MCP servers, rules files, and settings
+ * survive; a file that does not parse, or one whose other settings would not survive the
+ * rewrite in meaning, is left alone. The hook commands carry the home as a `--home=`
+ * argument rather than an env prefix, double-quoted, so the same line parses under sh
+ * and under the PowerShell Codex uses on Windows.
  *
  * Usage: codex-setup.ts --home <dir> [--plugin-root <dir>] [--write] [--claude-user-settings <file>] [--codex-user-config <file>]
  *   Prints the merged hooks document. With --write it writes the files whose content
@@ -95,6 +95,9 @@ const rulesPath = resolve(homeDir, '.codex', 'rules', `${agent}.rules`);
 interface ClaudeSettings {
   env?: Record<string, unknown>;
   permissions?: { ask?: unknown; deny?: unknown; additionalDirectories?: unknown };
+  enabledMcpjsonServers?: unknown;
+  disabledMcpjsonServers?: unknown;
+  enableAllProjectMcpServers?: unknown;
 }
 const claudeSettings = ['settings.json', 'settings.local.json'].map(
   (file) => readJson(resolve(homeDir, '.claude', file)) as ClaudeSettings
@@ -159,9 +162,19 @@ const askPrefixes = [
   )
 ];
 
-// ── Pack servers: what configure-skills registered in the home's .mcp.json ───
+// ── MCP servers: what the home registered in .mcp.json ─────────────────────────
 /** The MCP servers the plugin's packs register in `<home>/.mcp.json`; Codex gets a copy of each, owned like the agent's own. */
 const PACK_SERVERS = ['xcode'];
+const serverList = (key: 'enabledMcpjsonServers' | 'disabledMcpjsonServers'): string[] =>
+  claudeSettings.flatMap((settings) => {
+    const list = settings[key];
+    return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
+  });
+const approvesAll = claudeSettings.some((settings) => settings.enableAllProjectMcpServers === true);
+/** A home's own server reaches Codex once Claude has approved it, so both hosts run the same set. */
+const approvedByClaude = (name: string): boolean =>
+  (approvesAll || serverList('enabledMcpjsonServers').includes(name)) &&
+  !serverList('disabledMcpjsonServers').includes(name);
 interface McpRegistration {
   command: string;
   args: string[];
@@ -169,8 +182,14 @@ interface McpRegistration {
 }
 const registered = readJson(resolve(homeDir, '.mcp.json')).mcpServers;
 const mcpRegistrations = isRecord(registered) ? registered : {};
-const packServers = Object.fromEntries(
-  PACK_SERVERS.flatMap((name): [string, McpRegistration][] => {
+const MIRRORED_SERVERS = [
+  ...new Set([
+    ...PACK_SERVERS,
+    ...Object.keys(mcpRegistrations).filter((name) => /^[A-Za-z0-9_-]+$/.test(name) && approvedByClaude(name))
+  ])
+];
+const mirroredServers = Object.fromEntries(
+  MIRRORED_SERVERS.flatMap((name): [string, McpRegistration][] => {
     const server = mcpRegistrations[name];
     if (!isRecord(server) || typeof server.command !== 'string') return [];
     const args = Array.isArray(server.args)
@@ -267,7 +286,7 @@ const headerPath = (line: string): string[] | undefined => {
 /** The tables this script owns outright; everything under them is regenerated. */
 const OWNED_TABLES: string[][] = [
   ['mcp_servers', agent],
-  ...PACK_SERVERS.map((name) => ['mcp_servers', name]),
+  ...MIRRORED_SERVERS.map((name) => ['mcp_servers', name]),
   ['permissions', agent],
   ['shell_environment_policy']
 ];
@@ -395,16 +414,16 @@ const inlineTable = (entries: Record<string, string>): string =>
     .map(([key, value]) => `${/^[A-Za-z0-9_-]+$/.test(key) ? key : tomlString(key)} = ${tomlString(value)}`)
     .join(', ')} }`;
 
-/** A pack's server as Codex registers it; the operator's own keys in its table (a startup timeout, an env var) survive. */
-const packTables = Object.entries(packServers).flatMap(([name, { command: packCommand, args: packArgs, env }]) => {
+/** A mirrored server as Codex registers it; the operator's own keys in its table (a startup timeout, an env var) survive. */
+const serverTables = Object.entries(mirroredServers).flatMap(([name, server]) => {
   const envLines = [
-    ...Object.entries(env).map(([key, value]) => tomlScalar(key, value)),
-    ...keptEntries(['mcp_servers', name, 'env'], Object.keys(env))
+    ...Object.entries(server.env).map(([key, value]) => tomlScalar(key, value)),
+    ...keptEntries(['mcp_servers', name, 'env'], Object.keys(server.env))
   ];
   return [
     `[mcp_servers.${name}]`,
-    `command = ${tomlString(packCommand)}`,
-    `args = [${packArgs.map(tomlString).join(', ')}]`,
+    `command = ${tomlString(server.command)}`,
+    `args = [${server.args.map(tomlString).join(', ')}]`,
     ...keptEntries(['mcp_servers', name], ['command', 'args', 'env']),
     ...(envLines.length > 0 ? ['', `[mcp_servers.${name}.env]`, ...envLines] : []),
     ''
@@ -423,7 +442,7 @@ const agentTables = [
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
   ...keptEntries(['mcp_servers', agent, 'env'], ['AGENT_HOME', `${envPrefix}HOME`, 'PLAYWRIGHT_BROWSERS_PATH']),
   '',
-  ...packTables,
+  ...serverTables,
   // The posture: write the home and its repos, commit in them, reach the network, never read the
   // secrets store. An approved escalation does not lift a profile (verified on 0.153), so every
   // writable root and the network have to be granted here or they are unreachable.
@@ -537,7 +556,7 @@ const notes = [
         `${key} is ${JSON.stringify(existingTables[key])} in ${configPath}; the recommended value is "${value}" and yours was kept`
     ),
   ...PACK_SERVERS.filter(
-    (name) => !(name in packServers) && lookup(existingTables, ['mcp_servers', name]) !== undefined
+    (name) => !(name in mirroredServers) && lookup(existingTables, ['mcp_servers', name]) !== undefined
   ).map(
     (name) =>
       `[mcp_servers.${name}] was removed from ${configPath}: the pack that owns it no longer registers ${name} in the home's .mcp.json`
@@ -577,6 +596,6 @@ if (!args.includes('--write')) {
   const mcp = writeIfChanged(configPath, configText);
   const rules = writeIfChanged(rulesPath, rulesText);
   const hooks = writeIfChanged(hooksPath, hooksText);
-  const profile = { name: agent, workspaceRoots, rules: askPrefixes, servers: Object.keys(packServers) };
+  const profile = { name: agent, workspaceRoots, rules: askPrefixes, servers: Object.keys(mirroredServers) };
   process.stdout.write(`${JSON.stringify({ hooks, mcp, rules, entries: 4, profile, notes })}\n`);
 }

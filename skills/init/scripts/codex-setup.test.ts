@@ -581,6 +581,31 @@ describe('codex-setup pack servers', () => {
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
   });
 
+  test("mirrors a home's own server once Claude approved it, never a disabled one, and is idempotent", () => {
+    const home = scratch();
+    const logs = { command: 'sh', args: ['-c', 'exec acme-logs'], env: { ACME_REGION: 'eu' } };
+    registerMcp(home, { logs, metrics: { command: 'sh', args: ['-c', 'exec acme-metrics'] } });
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(
+      join(home, '.claude', 'settings.local.json'),
+      JSON.stringify({ enabledMcpjsonServers: ['logs', 'metrics'], disabledMcpjsonServers: ['metrics'] })
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    expect(json.profile.servers).toEqual(['logs']);
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers.logs).toEqual(logs);
+    expect(config.mcp_servers.metrics).toBeUndefined();
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+  });
+
+  test('mirrors every home server when Claude approves all project servers', () => {
+    const home = scratch();
+    registerMcp(home, { logs: { command: 'sh', args: ['-c', 'exec acme-logs'] } });
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ enableAllProjectMcpServers: true }));
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.profile.servers).toEqual(['logs']);
+  });
+
   test(`replaces a hand-written xcode table ahead of ${AGENT_SLUG}'s, keeps the operator's own keys in it, carries the pack's env, and is idempotent`, () => {
     const home = scratch();
     registerMcp(home, { xcode: { ...xcode, env: { XCODE_MCP_LOG: '1' } } });
