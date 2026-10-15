@@ -27,7 +27,7 @@ The identity stack (SOUL, IDENTITY, USER), the compiled wiki index, active memor
 1. Today's date in your timezone
 2. Last session tail (most recent block of the latest session log)
 3. Today's reports and the reports pinned in `reports/pinned.md`
-4. Recent git activity across the knowledge directory and any configured code repos (`KEVIN_GIT_REPOS`)
+4. Recent git activity across the knowledge directory and any configured code repos (`AGENT_GIT_REPOS`)
 
 ## Memory Routing
 
@@ -154,7 +154,7 @@ When writing or editing code in this project (MCP server, hooks, CLI, skills):
 
 ## Where Your Code Lives
 
-If you've set a primary codebase (`$KEVIN_CODE_PATH` — captured during `/agent-kevin:init` or set in `.claude/settings.local.json` → `env`), that's the default target whenever a task touches code: a bug fix, a feature, a review, a walkthrough, or a second model's pass on your own work (the `engineer` skill's PR playbooks and the `adversarial-review` skill), or tracing how something works. Prefix file reads, searches, and shell commands with it rather than assuming the agent home. Its recent git activity is injected into every session (via `KEVIN_GIT_REPOS`, which init points at the same path). If no codebase is set, this doesn't apply — ignore it.
+If you've set a primary codebase (`$AGENT_CODE_PATH` — captured during `/agent-kevin:init` or set in `.claude/settings.local.json` → `env`), that's the default target whenever a task touches code: a bug fix, a feature, a review, a walkthrough, or a second model's pass on your own work (the `engineer` skill's PR playbooks and the `adversarial-review` skill), or tracing how something works. Prefix file reads, searches, and shell commands with it rather than assuming the agent home. Its recent git activity is injected into every session (via `AGENT_GIT_REPOS`, which init points at the same path). If no codebase is set, this doesn't apply — ignore it.
 
 ## Git Worktrees
 
