@@ -68,8 +68,6 @@ and prompts per optional one. The new template files are the source of truth for
   `.mcp.json` that `enabledMcpjsonServers` (or `enableAllProjectMcpServers`) turns on, minus
   `disabledMcpjsonServers`. A server you later disable or drop from approval leaves Codex too, and one
   using `${VAR}` (which Codex would not fill in) stays out with a note.
-- **Codex denies the legacy `.kevin/secrets` folder only where the home still has one** or its Claude
-  settings guard it; a home that started on `.state` gets the `.state` rule alone.
 - **The banner shows the agent's own name and emoji** from `IDENTITY.md` instead of `KEVIN 🍌`, in
   the dashboard and init's opening and closing lines.
 - **Briefings add the Hijri date only when you keep that calendar.** A faith mention alone (a team
@@ -86,19 +84,27 @@ and prompts per optional one. The new template files are the source of truth for
 ### Removed
 - **Support for homes that never ran the 0.7.0 upgrade.** The plugin reads only `.state/`; the
   agent-named `.kevin/` folder and its fallbacks are gone, along with the migrations up to 0.7.0
-  (every home is past them; 0.5.3 stays for the roadmap skill) and the settings split only 0.6.1
-  used. Init stops on a home still on `.kevin/` and points at v0.7.3's upgrade.
+  (every home is past them; 0.5.3 stays for the roadmap skill), the settings split only 0.6.1
+  used, and the pre-0.4.0 root-manual handling. Init stops on a home still on `.kevin/` and points at v0.7.3's upgrade.
 
 ### Fixed
 - **A seed import's confirm is never answered for you.** It is asked on its own with all three
   choices; if the question can't be shown, the import asks in plain text and waits.
 - **The finished sync band wraps at whole pieces** in a narrow pane instead of breaking words.
 - **The manual template names the variables init writes** (`AGENT_GIT_REPOS`, `AGENT_CODE_PATH`).
+- **Home recovery advice names the file that matters.** A home is the one whose `.state/version.json`
+  records this agent's plugin; SessionStart, tool errors, the CLI and upgrade said either marker file
+  would do, so restoring only `knowledge.json` looked like a fix and wasn't. An empty `plugin` record
+  is now restamped by the upgrade instead of leaving the home unrecognised.
+- **Codex setup keeps credentials out of `.codex/config.toml`.** The shell env it copies from the home's
+  settings already skipped keys named like a key, token, secret or password; it now also skips
+  `AGENT_DB_*` connection strings and credential-, private- or DSN-shaped names, since that file is
+  committed with the brain.
 - **`google_auth` says where its tokens live:** the home's secrets store (`.state/secrets/google/`).
 
 ### Upgrade
-- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames `KEVIN_*` keys and `$KEVIN_*` references to their `AGENT_*` names in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (line by line, values and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is commented out. Every file is read before any is written, so one that doesn't parse stops the run with nothing changed. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
-- `template/AGENTS.md: optional` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings.
+- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames `KEVIN_*` keys and `$KEVIN_*` references to their `AGENT_*` names in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (each key exactly as the secrets loader reads it, so an `export` line, which it never read, stays as it is; values, order and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is dropped (the backup keeps it). A file that doesn't parse is named in the error, never quoted. Every file is read before any is written, so one that doesn't parse stops the run with nothing changed. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
+- `template/AGENTS.md: mandatory` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings, which nothing reads any more.
 - `manual: none` — only if `KEVIN_*` keys are set outside the home (`~/.claude/settings.json`, which the upgrade checks and lists, or a shell profile): nothing reads them any more. Delete each, and put a per-home value (code path, repo list, DB connection) into each home's `.claude/settings.local.json` as `AGENT_*`. Only a value every home should share (timezone, log level) is renamed in place. A `KEVIN_HOME` pin (sessions started outside the home) becomes `AGENT_HOME` there only on a machine with a single agent home; otherwise delete it.
 - `manual: none` — restart Claude Code (and Codex) after the upgrade: a running session keeps the old names until it relaunches.
 - `manual: none` — only for a home whose data is still in `.kevin/` (it never ran the 0.7.0 upgrade): this version no longer reads or moves that folder. Install v0.7.3, run `/agent-kevin:upgrade` there, then update to this version.
