@@ -43,7 +43,7 @@ Every candidate for `🌐 Signals` / `📰 News` must clear **both** gates. If n
 
 Base header is plain Gregorian: `🌅 Morning Brief · <weekday> <Mon DD>`.
 
-**Append the Hijri date only when the operator follows the Islamic calendar — don't add it blindly for everyone.** Check for a faith/observance signal in `USER.md` (already in context) and `knowledge/user/profile.md` (the Faith field — read it once): Muslim, Islam, halal, Ramadan, prayer times, mosque, Hijri, and the like. If a signal is present, extend the header to `🌅 Morning Brief · <weekday> <Mon DD> · <D> <Hijri month> <YYYY>`. If there's no signal, ship the plain Gregorian header and skip the rest of this section.
+**Append the Hijri date only when the operator follows the Islamic (Hijri) calendar: a personal calendar choice, not a faith signal.** Look in `USER.md` (already in context) and `knowledge/user/profile.md` (the Faith field — read it once) for the calendar itself: "Hijri", "Islamic calendar", or Hijri months named as how they keep time. Faith alone (Muslim, halal, prayer times, a Muslim team) doesn't turn it on, and a learned rule against it in memory wins. If the calendar is named, extend the header to `🌅 Morning Brief · <weekday> <Mon DD> · <D> <Hijri month> <YYYY>`. If there's no signal, ship the plain Gregorian header and skip the rest of this section.
 
 When including it, compute the Hijri date with this one-shot TypeScript conversion. Bun's bundled ICU provides the Umm al-Qura calendar (`islamic-umalqura`) directly — no dependency, no Python:
 
