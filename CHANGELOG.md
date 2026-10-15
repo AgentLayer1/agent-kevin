@@ -43,6 +43,58 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.7.4] - 2026-10-15
+
+### Added
+- **A seed bundle can carry browser flows.** `.claude/browser-flows/` is a seed root like custom
+  skills: a flow's `.env.example` travels, and any `.env` is refused by path and skipped inside a
+  folder, with the skipped names in the export result.
+- **A seed bundle records who it is for.** The export asks whether the bundle is for your own second
+  agent or a teammate and writes `audience` to the manifest; an import without one reads as
+  `teammate`. A bundle for yourself keeps your personal rules, and the import playbook never rewrites
+  imported identity files without asking.
+- **A notice for legacy `KEVIN_*` keys.** While this home's settings, secrets file or `.mcp.json`, or
+  your user-level Claude settings, still set a `KEVIN_*` key, a pinned nudge names it and points at
+  the upgrade, which renames the home's keys.
+
+### Changed
+- **Env keys use the shared `AGENT_*` names only.** A `KEVIN_*` key no longer overrides its `AGENT_*`
+  twin, and the plugin no longer reads it at all. Several homes can run one plugin, so the agent's
+  own spelling could never mean "this agent only", and one set machine-wide pointed every home at the
+  same brain. Skills, help text, error hints and the manual template name `AGENT_*` throughout, and
+  `kevin --home` sets `AGENT_HOME` only. The upgrade renames what your home holds (see Upgrade).
+- **Codex wiring writes `AGENT_HOME` only**, reads the home's `AGENT_*` settings only, and removes a
+  `KEVIN_HOME` an earlier version wrote.
+- **Codex mirrors the MCP servers you approved in Claude Code**, not only the pack servers: every
+  `.mcp.json` server that `enabledMcpjsonServers` (or `enableAllProjectMcpServers`) turns on, minus
+  `disabledMcpjsonServers`.
+- **Codex denies the legacy `.kevin/secrets` folder only where the home still has one** or its Claude
+  settings guard it; a home that started on `.state` gets the `.state` rule alone.
+- **The banner shows the agent's own name and emoji** from `IDENTITY.md` instead of `KEVIN 🍌`, in
+  the dashboard and init's opening and closing lines.
+- **Briefings add the Hijri date only when you keep that calendar.** A faith mention alone (a team
+  that is Muslim, say) no longer turns it on, and a learned rule against it wins.
+- **A seed bundle exported under a new name is renamed.** `IDENTITY.md` and `SOUL.md` carry the new
+  name instead of the source agent's.
+- **A seed bundle no longer carries the source home's path.** Carried MCP entries hold a `<HOME_DIR>`
+  placeholder that the import fills with the recipient's home.
+- **A seed export pre-ticks the packs** a project's README and tasks show it uses.
+- **A blocked task can go back to open** once it's unblocked, and the scan clears a leftover
+  `blocked_by` on an open task.
+
+### Fixed
+- **A seed import's confirm is never answered for you.** It is asked on its own with all three
+  choices; if the question can't be shown, the import asks in plain text and waits.
+- **The finished sync band wraps at whole pieces** in a narrow pane instead of breaking words.
+- **The manual template names the variables init writes** (`AGENT_GIT_REPOS`, `AGENT_CODE_PATH`).
+- **`google_auth` says where its tokens live:** the home's secrets store (`.state/secrets/google/`).
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.7.4.ts. It renames every `KEVIN_*` key to its `AGENT_*` name in `.claude/settings.json`, `.claude/settings.local.json` (env keys and `$KEVIN_*` references), `.state/secrets/.env` (line by line, values and mode kept) and `.mcp.json` (references and server env keys; the configure-skills home fallback collapses to one `AGENT_HOME` read). Where both spellings are set, the `KEVIN_*` value wins, since it was the one in effect, and a shadowed secrets line is commented out. Config backups go under `.state/updates/`, the secrets backup stays in `.state/secrets/`. The report names keys, never values.
+- `template/AGENTS.md: optional` — the manual names `AGENT_GIT_REPOS` and `$AGENT_CODE_PATH` instead of their `KEVIN_*` spellings.
+- `manual: none` — only if `KEVIN_*` keys are set outside this home (`~/.claude/settings.json`, a shell profile): rename each to its `AGENT_*` name by hand. The upgrade lists the files and keys it found. A machine-wide `AGENT_HOME` points every agent home on the machine at one home, so set it there only if you run a single agent.
+- `manual: none` — restart Claude Code (and Codex) after the upgrade: a running session keeps the old names until it relaunches.
+
 ## [0.7.3] - 2026-10-14
 
 ### Added
