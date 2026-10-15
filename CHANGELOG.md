@@ -47,12 +47,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Added
 - **A seed bundle can carry browser flows.** `.claude/browser-flows/` is a seed root like custom
-  skills: a flow's `.env.example` travels, and any `.env` is refused by path and skipped inside a
-  folder, with the skipped names in the export result.
+  skills: a flow's `.env.example` travels, while any other `.env*` file (any case, `.envrc`
+  included) is refused by path and skipped inside a folder, with the skipped names in the export
+  result. A flow may not take a built-in flow's name, and the import shows each flow's script in
+  full, since flows run outside the sandbox.
 - **A seed bundle records who it is for.** The export asks whether the bundle is for your own second
   agent or a teammate and writes `audience` to the manifest; an import without one reads as
-  `teammate`. A bundle for yourself keeps your personal rules, and the import playbook never rewrites
-  imported identity files without asking.
+  `teammate`. A bundle for yourself keeps your personal rules once you confirm on import that you
+  sent it, and the import playbook never rewrites imported identity files without asking.
 
 ### Changed
 - **Env keys use the shared `AGENT_*` names only.** A `KEVIN_*` key no longer overrides its `AGENT_*`
@@ -62,9 +64,10 @@ and prompts per optional one. The new template files are the source of truth for
   `kevin --home` sets `AGENT_HOME` only. The upgrade renames what your home holds (see Upgrade).
 - **Codex wiring writes `AGENT_HOME` only**, reads the home's `AGENT_*` settings only, and removes a
   `KEVIN_HOME` an earlier version wrote.
-- **Codex mirrors the MCP servers you approved in Claude Code**, not only the pack servers: every
-  `.mcp.json` server that `enabledMcpjsonServers` (or `enableAllProjectMcpServers`) turns on, minus
-  `disabledMcpjsonServers`.
+- **Codex runs the MCP servers Claude Code runs**, not only the pack servers: every stdio server in
+  `.mcp.json` that `enabledMcpjsonServers` (or `enableAllProjectMcpServers`) turns on, minus
+  `disabledMcpjsonServers`. A server you later disable or drop from approval leaves Codex too, and one
+  using `${VAR}` (which Codex would not fill in) stays out with a note.
 - **Codex denies the legacy `.kevin/secrets` folder only where the home still has one** or its Claude
   settings guard it; a home that started on `.state` gets the `.state` rule alone.
 - **The banner shows the agent's own name and emoji** from `IDENTITY.md` instead of `KEVIN 🍌`, in
@@ -72,7 +75,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **Briefings add the Hijri date only when you keep that calendar.** A faith mention alone (a team
   that is Muslim, say) no longer turns it on, and a learned rule against it wins.
 - **A seed bundle exported under a new name is renamed.** `IDENTITY.md` and `SOUL.md` carry the new
-  name instead of the source agent's.
+  name instead of the source agent's, and an `extras` override of a selected file now ships in its
+  place instead of beside it.
 - **A seed bundle no longer carries the source home's path.** Carried MCP entries hold a `<HOME_DIR>`
   placeholder that the import fills with the recipient's home.
 - **A seed export pre-ticks the packs** a project's README and tasks show it uses.
