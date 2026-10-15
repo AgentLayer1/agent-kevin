@@ -18,7 +18,6 @@ import {
   FILES,
   FOLDERS,
   HOME_TIMEZONE,
-  operatingManualPath,
   PLUGIN_NAME,
   PLUGIN_VERSION,
   TIMEZONE
@@ -495,7 +494,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
  * a token added later is caught without anyone remembering to update this.
  */
 const unresolvedPlaceholders = (): string[] => {
-  const files = [operatingManualPath(), FILES.CLAUDE, FILES.SOUL, FILES.IDENTITY, FILES.USER];
+  const files = [FILES.AGENTS, FILES.CLAUDE, FILES.SOUL, FILES.IDENTITY, FILES.USER];
   return files.flatMap((file) => {
     try {
       const found = [...readFileSync(file, 'utf-8').matchAll(/\{\{[A-Z][A-Z0-9_]*\}\}/g)].map((match) => match[0]);
@@ -507,29 +506,15 @@ const unresolvedPlaceholders = (): string[] => {
 };
 
 /**
- * Layout states the 0.4.0 manual migration can leave behind when interrupted, or an
- * operator can create by hand — each one means Claude Code loads the wrong thing at
- * session start, so it is worth a line in the banner every session until fixed.
+ * A missing Claude Code bridge means Claude Code loads neither the manual nor the identity
+ * stack, so it is worth a line in the banner every session until fixed.
  */
-const manualLayoutIssues = (): string[] => {
-  if (!existsSync(FILES.AGENTS)) return [];
-  const issues: string[] = [];
-  if (!existsSync(FILES.CLAUDE)) {
-    issues.push(
-      `\`.claude/CLAUDE.md\` is missing, so Claude Code loads neither the manual nor the identity stack — run \`/${PLUGIN_NAME}:upgrade\` to write the bridge`
-    );
-  }
-  try {
-    if (/^## Memory Routing\s*$/m.test(readFileSync(FILES.CLAUDE_ROOT, 'utf-8'))) {
-      issues.push(
-        `the root \`CLAUDE.md\` is still the pre-0.4.0 operating manual, so the manual loads twice — run \`/${PLUGIN_NAME}:upgrade\` to move it aside`
-      );
-    }
-  } catch {
-    // no root CLAUDE.md — the normal state
-  }
-  return issues;
-};
+const manualLayoutIssues = (): string[] =>
+  existsSync(FILES.AGENTS) && !existsSync(FILES.CLAUDE)
+    ? [
+        `\`.claude/CLAUDE.md\` is missing, so Claude Code loads neither the manual nor the identity stack — run \`/${PLUGIN_NAME}:upgrade\` to write the bridge`
+      ]
+    : [];
 
 /**
  * `promptRow: true` when a prompt row draws nudges and alerts, so the banner keeps only hints.

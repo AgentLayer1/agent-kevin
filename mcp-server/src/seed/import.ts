@@ -14,7 +14,7 @@
  * settings.local.json, and secret key NAMES come back as a fill-this checklist
  * (the store is ensured to exist; its contents are never read or written).
  */
-import { FOLDERS, operatingManualPath, PLUGIN_NAME } from '@/config';
+import { FOLDERS, PLUGIN_NAME } from '@/config';
 import {
   CREDENTIAL_KEY_RE,
   HOME_PLACEHOLDER,
@@ -140,10 +140,9 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
       // The manual overlay composes with what the recipient's init wrote — append, never
       // replace. Upgrade's template reconciliation preserves operator additions, so the
       // appended section rides along like any hand-written customization. A re-import of
-      // the same bundle is a no-op: the section is already in the file. It lands on the
-      // manual the home actually has, including one not yet moved to AGENTS.md.
+      // the same bundle is a no-op: the section is already in the file.
       if (file.path === MANUAL_SEED_PATH) {
-        const manual = operatingManualPath();
+        const manual = resolve(home, MANUAL_SEED_PATH);
         const manualRel = relative(home, manual).split(/[\\/]/).join('/');
         const section = readFileSync(source, 'utf-8');
         if (existsSync(manual)) {

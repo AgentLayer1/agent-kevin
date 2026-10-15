@@ -1708,8 +1708,6 @@ For the operating-manual row:
 - No collision: `<MANUAL_PATH>` = `AGENTS.md`
 - Collision detected (pre-existing project AGENTS.md): `<MANUAL_PATH>` = `AGENTS.md (appended)` — also append a callout line:
   > ℹ️ Existing `AGENTS.md` detected at home — Kevin's operating manual was appended below your content, and `.claude/CLAUDE.md` bridges it for Claude Code. Review the combined file once; your prior text is untouched.
-- Re-init of a home still on the pre-0.4.0 layout (`$HOME_DIR/CLAUDE.md` exists and `grep -q '^## Memory Routing'` matches it): the old manual is still there and Claude Code will load it alongside the new files — append a callout line:
-  > ℹ️ Your previous operating manual is still at `CLAUDE.md`. Run `/agent-kevin:upgrade` to move it aside (it backs up, then removes the duplicate) so the manual isn't loaded twice.
 
 Blank line, then the **Next** heading (same style as Ready), then the relaunch prose. **Important: the user must exit and relaunch** so the new `.claude/settings.json` and `.claude/settings.local.json` are picked up by Claude Code:
 

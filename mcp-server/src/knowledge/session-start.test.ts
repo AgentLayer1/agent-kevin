@@ -81,19 +81,6 @@ describe('sessionStart', () => {
     expect(result.additionalContext).toContain('is missing, so Claude Code loads neither');
   });
 
-  test('a pre-0.4.0 root CLAUDE.md beside AGENTS.md is flagged as a double load', async () => {
-    const result = await withHome(
-      (home) =>
-        markedHome(home, {
-          'AGENTS.md': '# AGENTS.md\n\n## Memory Routing\n',
-          '.claude/CLAUDE.md': '@../AGENTS.md\n',
-          'CLAUDE.md': '@SOUL.md\n\n# CLAUDE.md\n\n## Memory Routing\n'
-        }),
-      () => sessionStart()
-    );
-    expect(result.additionalContext).toContain('loads twice');
-  });
-
   test("a project's own root CLAUDE.md beside AGENTS.md is not a double load", async () => {
     const result = await withHome(
       (home) =>

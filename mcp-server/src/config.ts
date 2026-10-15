@@ -235,14 +235,11 @@ export const FILES = {
   get CLAUDE() {
     return resolve(homeRoot(), '.claude', 'CLAUDE.md');
   },
-  /** Pre-0.4.0 manual location (root CLAUDE.md), still read until the home's
-   *  upgrade migrates it. After that, a root CLAUDE.md here is the operator's
-   *  own project file, never the agent's. */
+  /** A root CLAUDE.md is the operator's own project file, never the agent's; the dashboard lists it. */
   get CLAUDE_ROOT() {
     return resolve(homeRoot(), 'CLAUDE.md');
   },
-  /** Pre-0.4.0 alternate manual location — init wrote here when a root
-   *  CLAUDE.md already existed. Read with priority until migrated. */
+  /** The operator's own local Claude instructions, listed on the dashboard. */
   get CLAUDE_LOCAL() {
     return resolve(homeRoot(), 'CLAUDE.local.md');
   },
@@ -280,16 +277,6 @@ export const staticContextFiles = (): string[] => [
   FILES.MEMORY,
   resolve(FOLDERS.PROJECTS, 'TASKS.md')
 ];
-
-/**
- * Where the operating manual is right now. `AGENTS.md` once the home is on the
- * 0.4.0 layout; before that the legacy locations, local first (in the init
- * collision case the local file was the agent's and the root one the user's).
- * Falls back to the AGENTS path when nothing exists, so writers land on the
- * current layout.
- */
-export const operatingManualPath = (): string =>
-  [FILES.AGENTS, FILES.CLAUDE_LOCAL, FILES.CLAUDE_ROOT].find((path) => existsSync(path)) ?? FILES.AGENTS;
 
 export const KNOWLEDGE = {
   MEMORY_PRUNE_DAYS: 14,

@@ -300,13 +300,10 @@ Write back valid JSON. Idempotent:
 re-running adds nothing. Never add a `Skill(agent-kevin:<name>)` grant whose name is retired (the
 map in `mcp-server/src/shared/retired-skills.ts`), whatever an older release's action names.
 
-**codex wiring (always, when applicable)** — this home runs Codex when any of these holds:
-`$HOME_DIR/.codex/hooks.json` exists; this session itself runs under Codex (the `<skill>`
-block wrapper; no Kevin context or tools yet is the symptom of an unwired home); or the
-release range includes **0.4.1**, the release that added Codex, and `$HOME_DIR/.codex/` is
-absent — then ask the operator once (`AskUserQuestion` under Claude Code): "Do you also run
-Codex from this home?" A yes wires it now; a no writes nothing, and a later `$upgrade` run
-from a Codex session wires it then. When it holds, generate or regenerate the hooks and the
+**codex wiring (always, when applicable)** — this home runs Codex when either holds:
+`$HOME_DIR/.codex/hooks.json` exists, or this session itself runs under Codex (the `<skill>`
+block wrapper; no Kevin context or tools yet is the symptom of an unwired home), so a home
+first run from Codex is wired then. When it holds, generate or regenerate the hooks and the
 `[mcp_servers.kevin]` registration in `$HOME_DIR/.codex/config.toml` so both point at the
 checkout that just loaded (a version-pinned plugin cache moves on every release; under
 Claude Code that is Claude's copy of the plugin, which Codex runs the hooks and the server
@@ -381,10 +378,8 @@ Never overwrite an existing file in this step (additive = new files only).
 | `templates/rules/<x>.md` | `.claude/rules/<x>.md` |
 | `templates/knowledge/concepts/<x>.md` | `knowledge/concepts/<x>.md` |
 
-Both manual files exist only on the 0.4.0 layout. A home still carrying its manual as a root
-`CLAUDE.md` (or `CLAUDE.local.md`) is moved by the `0.4.0` `script:` action, which runs
-earlier in this step; if `AGENTS.md` is still missing when you reach a template merge, stop
-and surface it rather than merging into the legacy file.
+If `AGENTS.md` is missing when you reach a template merge, stop and surface it rather than
+merging into another file.
 
 **Before the first merge into `AGENTS.md`, run the stale auto-mode check** (the built-in
 invariant at the end of this step). If it reports `stale`, say so now and offer to pause: under auto

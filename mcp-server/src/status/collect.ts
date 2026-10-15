@@ -913,10 +913,9 @@ const classifyImport = (label: string): ContextGroup => {
 };
 
 const collectContext = async (): Promise<StatusSnapshot['context']> => {
-  // The file carrying the @-import chain: the bridge on the 0.4.0 layout, else the
-  // pre-migration manual. Imports resolve relative to the importing file, so labels are
-  // re-expressed HOME-relative for display (`../SOUL.md` → `SOUL.md`).
-  const source = [FILES.CLAUDE, FILES.CLAUDE_ROOT, FILES.CLAUDE_LOCAL].find((path) => existsSync(path));
+  // The bridge carries the @-import chain. Imports resolve relative to the importing file, so
+  // labels are re-expressed HOME-relative for display (`../SOUL.md` → `SOUL.md`).
+  const source = existsSync(FILES.CLAUDE) ? FILES.CLAUDE : undefined;
   let labels: string[] = [];
   try {
     labels = source

@@ -43,9 +43,8 @@ mkdir -p "$HOME_DIR/.claude"
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 
 The `NOT_AN_AGENT_HOME` probe above is the only setup check — don't add a second one keyed
-on the manual's filename. The manual is `AGENTS.md` since 0.4.0 and was `CLAUDE.md` (or
-`CLAUDE.local.md`) before, so an initialized home can legitimately lack any one of them, and telling
-that operator to run init would offer to overwrite the identity files they already have.
+on the manual's filename: a missing manual doesn't make a home uninitialized, and telling that
+operator to run init would offer to overwrite the identity files they already have.
 The data dir is the marker; it is the same one the resolver and every runtime guard use.
 
 ---

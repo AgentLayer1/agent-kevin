@@ -430,16 +430,15 @@ describe('importSeed', () => {
   });
 });
 
-describe('manual overlay on a home not yet migrated', () => {
-  test('a home not yet on the 0.4.0 layout receives the overlay on its legacy manual', () => {
+describe('manual overlay', () => {
+  test("lands in AGENTS.md and never in the operator's own root CLAUDE.md", () => {
     const recipient = makeHome();
     homes.push(recipient);
-    write(recipient, 'CLAUDE.md', '# Legacy manual\n');
+    write(recipient, 'CLAUDE.md', '# My project notes\n');
 
-    const result = inHome(recipient, () => importSeed({ bundlePath: join(sourceHome, 'bundle.zip'), overwrite: true }));
-    expect(result.appended).toEqual(['CLAUDE.md']);
-    expect(readFileSync(join(recipient, 'CLAUDE.md'), 'utf-8')).toContain('Ship > start.');
-    expect(existsSync(join(recipient, 'AGENTS.md'))).toBe(false);
+    inHome(recipient, () => importSeed({ bundlePath: join(sourceHome, 'bundle.zip'), overwrite: true }));
+    expect(readFileSync(join(recipient, 'AGENTS.md'), 'utf-8')).toContain('Ship > start.');
+    expect(readFileSync(join(recipient, 'CLAUDE.md'), 'utf-8')).toBe('# My project notes\n');
   });
 });
 
