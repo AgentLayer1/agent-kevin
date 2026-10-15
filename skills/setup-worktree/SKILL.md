@@ -6,7 +6,7 @@ description: >
   checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a
   worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a
   worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the
-  `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` default when they assume you know, or by asking when
+  `$AGENT_CODE_PATH` default when they assume you know, or by asking when
   neither resolves), then creates the worktree as a sibling of that repo, never nested inside it,
   and offers to add it to a sibling `*.code-workspace` if one exists. Also covers the audit: when
   the user asks "which worktrees do I have", "which of these are merged/stale", or "what worktrees
@@ -34,15 +34,15 @@ which one before doing anything:
 
 1. **The user named it** ("a worktree for acme-mono", "for the agent repo", "of this repo") —
    use that repo. An explicit name always wins over the default below.
-2. **The user assumes you know the repo + `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set** ("make me a worktree for
-   the dark-mode work", no repo named) — use `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` as the default repo. That env var
+2. **The user assumes you know the repo + `$AGENT_CODE_PATH` is set** ("make me a worktree for
+   the dark-mode work", no repo named) — use `$AGENT_CODE_PATH` as the default repo. That env var
    is the operator's primary codebase (captured at init), so it's the repo they mean when they
    don't say which. State which repo you picked so a wrong default gets caught before the cleanup.
-3. **Otherwise, ask. Always.** This covers an unset/empty `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}`. Do not infer the
+3. **Otherwise, ask. Always.** This covers an unset/empty `$AGENT_CODE_PATH`. Do not infer the
    repo from cwd. The agent HOME is itself almost always a git repo (it versions `knowledge/` and
    `projects/`), so cwd being inside a git repo does NOT make it the intended code repo. List the
    candidate code repos (the main-checkout git repos under the code root — the parent of
-   `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` — or the `${KEVIN_GIT_REPOS:-$AGENT_GIT_REPOS}` entries) and let the user pick. The wrong repo
+   `$AGENT_CODE_PATH` — or the `$AGENT_GIT_REPOS` entries) and let the user pick. The wrong repo
    is an annoying cleanup.
 
 Resolve the chosen repo to the **absolute path of its main checkout**. (If you're standing in a
@@ -282,7 +282,7 @@ For the worktree case, call it after Step 1 with:
   If `.env.local` already sets the var (a value the dev put there), the tool leaves it untouched
   and returns `envInstruction` telling you to point it at the fork by hand; pass `force: true` to
   overwrite instead. Relay that instruction to the user verbatim when it comes back.
-- `connection` (optional) — the `KEVIN_DB_<NAME>` connection for the repo's local server; omit to
+- `connection` (optional) — the `AGENT_DB_<NAME>` connection for the repo's local server; omit to
   use the first configured connection (see below).
 - `terminateSource` (optional) — disconnect live sessions on the shared DB so the clone can proceed
   (a running dev server holds connections; the tool errors with this hint if blocked).
@@ -294,19 +294,19 @@ call again with `drop: true` + the same `cwd`/`repointEnv` (drops the DB and rem
 do this before `git worktree remove` so the
 fork isn't orphaned. Remote connections are refused; `database_fork` only acts on a local server.
 
-**Resolving the source connection (the generic seam):** the tool needs a `KEVIN_DB_<NAME>`
+**Resolving the source connection (the generic seam):** the tool needs a `AGENT_DB_<NAME>`
 connection pointing at the repo's local Postgres server (e.g.
-`KEVIN_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.state/secrets/.env`** — since
+`AGENT_DB_ACME=postgresql://postgres:@localhost:5432/acme` in **`.state/secrets/.env`** — since
 v0.3.0 credential env vars live there, not in `.claude/settings.local.json`). It defaults to the
 first configured connection; when a repo has several, pick the right one in this order:
 
 1. A declaration in the **repo's `AGENTS.md`** (or its `CLAUDE.md`, root or `.claude/`) — a line of the form
    `Worktree DB connection: <kevin-db-name>` (e.g. `acme`).
-2. If the repo doesn't declare one and **`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` is set**, check that repo's `AGENTS.md` / `CLAUDE.md`
+2. If the repo doesn't declare one and **`$AGENT_CODE_PATH` is set**, check that repo's `AGENTS.md` / `CLAUDE.md`
    for the same line.
 3. Otherwise run `database_list` and, if exactly one connection matches the repo's local server, use it;
    if it's ambiguous or none is configured, **ask the operator** (and have them add the
-   `KEVIN_DB_<NAME>` env var to `.state/secrets/.env`) — don't guess.
+   `AGENT_DB_<NAME>` env var to `.state/secrets/.env`) — don't guess.
 
 ## Notes
 

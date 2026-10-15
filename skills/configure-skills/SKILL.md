@@ -20,12 +20,12 @@ This skill manages Kevin's optional capabilities. Use it to:
 ## Step 0 — Resolve paths
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
+HOME_DIR="${AGENT_HOME:-$PWD}"
 [ -f "$HOME_DIR/.state/version.json" ] || [ -f "$HOME_DIR/.state/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 # NOT_AN_AGENT_HOME → STOP before any write: no marked .state/ data dir means
 # this isn't this agent's scaffolded home. A $HOME_DIR/.kevin/ means a pre-0.7.0
 # home: tell the operator to run /agent-kevin:upgrade first, which moves it to
-# .state/. Otherwise tell them to set KEVIN_HOME or relaunch from the
+# .state/. Otherwise tell them to set AGENT_HOME or relaunch from the
 # agent home (or run /agent-kevin:init first on a fresh machine).
 SKILLS_DIR="$HOME_DIR/.claude/skills"
 PROJECT_SETTINGS="$HOME_DIR/.claude/settings.json"
@@ -40,7 +40,7 @@ mkdir -p "$HOME_DIR/.claude"
 
 - `$PROJECT_SETTINGS` → permission allow-list (so configured tools don't trigger a confirm prompt on each use). Committable, non-secret.
 - `$SECRETS_ENV` → **API keys + DB connection strings** (dotenv `KEY=value` lines), `.state/secrets/.env`. 0600, deny-gated, gitignored; Kevin's config loader surfaces these into `process.env` at boot. This is where every credential goes.
-- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Plant HOME-scoped keys under the shared `AGENT_*` spelling; the agent's own prefix (`KEVIN_*`) is a valid override the operator may already be using — never rewrite an existing prefixed key. Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
+- `$SETTINGS_FILE` → **private** runtime config in an `env` block (`AGENT_CODE_PATH`, `AGENT_GIT_REPOS`, `GSC_SITE_URL`, `MARKDOWN_URL`, tunables). Plant HOME-scoped keys under the shared `AGENT_*` names, the only ones the plugin reads (the 0.7.4 upgrade renamed any older `KEVIN_*` key). Gitignored because it's machine-local, **not** because it's a secrets store — credentials never go here. `GSC_SITE_URL` lives here because it's a site URL (not a credential) that Bash-based SEO skills read from the environment.
 - `$MCP_FILE` → `<HOME>/.mcp.json` at the project root (NOT inside `.claude/`). Claude Code reads project MCP servers from this exact location. A file at `.claude/mcp.json` is silently ignored.
 - `$SKILLS_DIR` → where third-party skill libraries (Section F) land. Pack skills do NOT live here, they live in the plugin source.
 
@@ -83,7 +83,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
-**Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$KEVIN_OS` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
+**Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$AGENT_PLATFORM` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
 
 If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Third-party (Section F).
 
@@ -581,7 +581,7 @@ For third-party **remote** MCP servers (an `https://…` endpoint authenticated 
   "command": "sh",
   "args": [
     "-c",
-    "set -a; d=\"$KEVIN_HOME\"; [ -z \"$d\" ] && d=\"$AGENT_HOME\"; [ -z \"$d\" ] && d=\"<HOME_DIR>\"; f=\"$d/.state/secrets/.env\"; [ -f \"$f\" ] && . \"$f\"; set +a; [ -z \"$<TOKEN_KEY>\" ] && { echo \"<server-name>: <TOKEN_KEY> empty (secrets not loaded from $f) — refusing to start so mcp-remote can't open browser OAuth\" >&2; exit 1; }; exec npx -y mcp-remote@0.1.37 <REMOTE_URL> --header \"Authorization: Bearer $<TOKEN_KEY>\""
+    "set -a; d=\"$AGENT_HOME\"; [ -z \"$d\" ] && d=\"<HOME_DIR>\"; f=\"$d/.state/secrets/.env\"; [ -f \"$f\" ] && . \"$f\"; set +a; [ -z \"$<TOKEN_KEY>\" ] && { echo \"<server-name>: <TOKEN_KEY> empty (secrets not loaded from $f) — refusing to start so mcp-remote can't open browser OAuth\" >&2; exit 1; }; exec npx -y mcp-remote@0.1.37 <REMOTE_URL> --header \"Authorization: Bearer $<TOKEN_KEY>\""
   ]
 }
 ```
@@ -594,7 +594,7 @@ For third-party **remote** MCP servers (an `https://…` endpoint authenticated 
   "args": [
     "-NoProfile",
     "-Command",
-    "$d = $env:KEVIN_HOME; if (-not $d) { $d = $env:AGENT_HOME }; if (-not $d) { $d = '<HOME_DIR>' }; $f = Join-Path $d '.state/secrets/.env'; if (Test-Path $f) { Get-Content $f | ForEach-Object { if ($_ -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { Set-Item ('Env:' + $Matches[1]) $Matches[2] } } }; if (-not $env:<TOKEN_KEY>) { [Console]::Error.WriteLine('<server-name>: <TOKEN_KEY> empty (secrets not loaded from ' + $f + ') - refusing to start so mcp-remote cannot open browser OAuth'); exit 1 }; npx -y mcp-remote@0.1.37 <REMOTE_URL> --header ('Authorization: Bearer ' + $env:<TOKEN_KEY>)"
+    "$d = $env:AGENT_HOME; if (-not $d) { $d = '<HOME_DIR>' }; $f = Join-Path $d '.state/secrets/.env'; if (Test-Path $f) { Get-Content $f | ForEach-Object { if ($_ -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { Set-Item ('Env:' + $Matches[1]) $Matches[2] } } }; if (-not $env:<TOKEN_KEY>) { [Console]::Error.WriteLine('<server-name>: <TOKEN_KEY> empty (secrets not loaded from ' + $f + ') - refusing to start so mcp-remote cannot open browser OAuth'); exit 1 }; npx -y mcp-remote@0.1.37 <REMOTE_URL> --header ('Authorization: Bearer ' + $env:<TOKEN_KEY>)"
   ]
 }
 ```

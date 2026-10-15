@@ -29,7 +29,7 @@ question answered. Git cannot see any of it. Only the session transcripts can.
 ## Step 1 — fix the window
 
 ```bash
-find "${KEVIN_HOME:-$AGENT_HOME}/reports/briefings" -name '*-standup.md' 2>/dev/null | sort | tail -1
+find "${AGENT_HOME:-$PWD}/reports/briefings" -name '*-standup.md' 2>/dev/null | sort | tail -1
 ```
 
 (`find` with a quoted pattern, not a shell glob — zsh aborts the command outright when a bare
@@ -75,8 +75,8 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours <N>
 ```
 
 The script derives the roots itself: the launch cwd, the agent HOME
-(`${KEVIN_HOME:-$AGENT_HOME}`), and the code tree (the parent of
-`${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}`). Don't rebuild them in the shell.
+(`$AGENT_HOME`), and the code tree (the parent of
+`$AGENT_CODE_PATH`). Don't rebuild them in the shell.
 
 Two things about this JSON that will mislead you if you don't know them:
 
@@ -95,7 +95,7 @@ spending another 80KB.
 **2. What landed on main** (theirs and everyone's — you need both to tell them apart):
 
 ```bash
-REPO="${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}"
+REPO="$AGENT_CODE_PATH"
 ME=$(git -C "$REPO" config user.email)
 git -C "$REPO" log main --since='<ISO>' --pretty='%h|%an|%ai|%s'
 git -C "$REPO" log --all --author="$ME" --since='<ISO>' --pretty='%h|%ai|%d %s'
@@ -112,7 +112,7 @@ attributes the main-branch commit to whoever pressed the button.
 **4. Uncommitted work**, the thing most likely to get over-claimed out loud:
 
 ```bash
-REPO="${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}"
+REPO="$AGENT_CODE_PATH"
 for W in $(git -C "$REPO" worktree list --porcelain | awk '/^worktree /{print $2}'); do
   printf '%s: ' "$W"; git -C "$W" status --porcelain | wc -l
 done
@@ -131,7 +131,7 @@ arguments: its Today, carried-over and week lanes are what the operator already 
 created or touched inside the window are output too:
 
 ```bash
-find "${KEVIN_HOME:-$AGENT_HOME}/projects" -path '*/tasks/*' -name '*.md' -newermt '<ISO>'
+find "${AGENT_HOME:-$PWD}/projects" -path '*/tasks/*' -name '*.md' -newermt '<ISO>'
 ```
 
 **6. Reports written in the window** — `Glob` `<HOME>/reports/*/` for **both dates the window
@@ -141,7 +141,7 @@ health sweep). A report *is* an accomplishment, and it's where the evidence for 
 **7. The HOME repo**, for brain-side work:
 
 ```bash
-git -C "${KEVIN_HOME:-$AGENT_HOME}" log --since='<ISO>' --oneline
+git -C "${AGENT_HOME:-$PWD}" log --since='<ISO>' --oneline
 ```
 
 This one can fail (the HOME git dir is split and lives outside the sandbox on some setups).

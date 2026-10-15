@@ -20,7 +20,7 @@ that name in this file, and they are not treated the same:
   `AGENTS.md`, uses `<AGENT_NAME>` from Step 1b. Where the prose below says "Kevin" in
   a sentence addressed to the operator, substitute it. Before Step 1b the name isn't
   known yet, so say "your agent" rather than guessing.
-- **The plugin.** `agent-kevin`, `/agent-kevin:*`, `KEVIN_*`, `.state/`,
+- **The plugin.** `agent-kevin`, `/agent-kevin:*`, `.state/`,
   `kevin-avatar.jpg`, `bin/kevin`. These are the product and its namespace, not the
   persona. They stay exactly as written no matter what the operator picks.
 
@@ -28,10 +28,10 @@ that name in this file, and they are not treated the same:
 
 ## Step 0 — Resolve HOME and check idempotency
 
-Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (`KEVIN_HOME` overrides it; set it only on a machine with exactly one home, see Step 9). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
+Kevin's home is **the current working directory** — whatever directory the user launched `claude` from (`AGENT_HOME` overrides it; set it only on a machine with exactly one agent home, see Step 9). The convention for a fresh home is **`~/Documents/Agents/<AgentName>`**: the brain lives in Documents as a browsable vault, and code repos live flat in a separate tree (e.g. `~/Developer/<Org>/<repo>`) — never inside the home. Init scaffolds into cwd only, so when cwd isn't where the home should live, the fix is to relaunch from the right directory, not to scaffold remotely.
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-${AGENT_HOME:-$PWD}}"
+HOME_DIR="${AGENT_HOME:-$PWD}"
 if [ -f "$HOME_DIR/SOUL.md" ]; then
   echo "ALREADY_INITIALIZED at $HOME_DIR"
 elif git -C "$HOME_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -67,22 +67,22 @@ Act on the probes before anything else:
 
 ```bash
 case "$(uname -s)" in
-  Darwin)               KEVIN_OS="macos";   PLATFORM_LABEL="macOS" ;;
-  MINGW*|MSYS*|CYGWIN*) KEVIN_OS="windows"; PLATFORM_LABEL="Windows" ;;
+  Darwin)               AGENT_PLATFORM="macos";   PLATFORM_LABEL="macOS" ;;
+  MINGW*|MSYS*|CYGWIN*) AGENT_PLATFORM="windows"; PLATFORM_LABEL="Windows" ;;
   Linux)
     if grep -qiE "microsoft|wsl" /proc/version 2>/dev/null; then
-      KEVIN_OS="wsl";   PLATFORM_LABEL="Windows (WSL2)"
+      AGENT_PLATFORM="wsl";   PLATFORM_LABEL="Windows (WSL2)"
     else
-      KEVIN_OS="linux"; PLATFORM_LABEL="Linux"
+      AGENT_PLATFORM="linux"; PLATFORM_LABEL="Linux"
     fi ;;
-  *)                    KEVIN_OS="unknown"; PLATFORM_LABEL="$(uname -s)" ;;
+  *)                    AGENT_PLATFORM="unknown"; PLATFORM_LABEL="$(uname -s)" ;;
 esac
-echo "KEVIN_OS=$KEVIN_OS"
+echo "AGENT_PLATFORM=$AGENT_PLATFORM"
 ```
 
-Carry `$KEVIN_OS` and `$PLATFORM_LABEL` through the rest of the walk.
+Carry `$AGENT_PLATFORM` and `$PLATFORM_LABEL` through the rest of the walk.
 
-**Detect the harness.** Kevin runs under Claude Code or OpenAI Codex, and a few later steps differ by host. Codex wraps this skill's text in a `<skill>` block with a `<path>`, invokes skills as `$name`, and delivers Kevin's identity stack as a `developer` message whose first line reads `<!-- kevin static context · harness: codex …`; Claude Code prefixes the skill with `Base directory for this skill:` and loads the stack through the `.claude/CLAUDE.md` `@-imports`. Set `KEVIN_HARNESS` to `codex` or `claude` and carry it through the walk.
+**Detect the harness.** Kevin runs under Claude Code or OpenAI Codex, and a few later steps differ by host. Codex wraps this skill's text in a `<skill>` block with a `<path>`, invokes skills as `$name`, and delivers Kevin's identity stack as a `developer` message whose first line reads `<!-- kevin static context · harness: codex …`; Claude Code prefixes the skill with `Base directory for this skill:` and loads the stack through the `.claude/CLAUDE.md` `@-imports`. Set `AGENT_HARNESS` to `codex` or `claude` and carry it through the walk.
 
 **Resolve the plugin checkout.** `$PLUGIN_ROOT` is the directory this skill loaded from: two levels above the skill's base directory (the `Base directory for this skill:` line under Claude Code, the `<skill>` block's `<path>` under Codex). Under Claude Code that is the same path as `${CLAUDE_PLUGIN_ROOT}`; wherever a later step says `${CLAUDE_PLUGIN_ROOT}`, use `$PLUGIN_ROOT`.
 
@@ -107,14 +107,14 @@ command -v gh >/dev/null 2>&1 || echo "NOTE: gh not found (needed ONLY if you ac
 # macOS only: name the RIGHT remedy. A failing git on a Mac is almost never a
 # missing git download — it's absent Command Line Tools, and the fix is
 # `xcode-select --install`, not a trip to git-scm.com.
-if [ "$KEVIN_OS" = "macos" ] && ! xcode-select -p >/dev/null 2>&1; then
+if [ "$AGENT_PLATFORM" = "macos" ] && ! xcode-select -p >/dev/null 2>&1; then
   echo "XCODE_CLT_MISSING"
 fi
 
 # Homebrew is NOT a Kevin dependency — nothing here ever calls it. It's only the
 # install path for gh/poppler on macOS, so it's worth a line just when one of
 # those is actually missing and the operator would otherwise hit a second wall.
-if [ "$KEVIN_OS" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
+if [ "$AGENT_PLATFORM" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
   echo "NOTE: Homebrew not found — needed only to install gh/poppler if you want them (https://brew.sh)."
 fi
 # Init itself calls the plugin's server (dashboard, history, Codex wiring), and only
@@ -126,7 +126,7 @@ printf 'MISSING: %s\n' "${MISSING[@]}"
 
 Act on the result **before** anything else:
 
-- **Native Windows (`$KEVIN_OS` = `windows`)** — supported; do **not** stop. Surface a one-line FYI and continue: *"Running on native Windows via Git Bash — the supported Windows path. (Prefer a full Linux userland? WSL2 works too.)"* The OS-specific steps below (timezone probe, external-storage suggestion, security deny-list, the `{{PLATFORM}}` label) already branch on `windows`, so the scaffold is shaped correctly. Heads-up worth surfacing once: a few pack-gated skills assume tools Git Bash lacks (e.g. `jq`), and the OS sandbox is unavailable on Windows — neither blocks the core setup.
+- **Native Windows (`$AGENT_PLATFORM` = `windows`)** — supported; do **not** stop. Surface a one-line FYI and continue: *"Running on native Windows via Git Bash — the supported Windows path. (Prefer a full Linux userland? WSL2 works too.)"* The OS-specific steps below (timezone probe, external-storage suggestion, security deny-list, the `{{PLATFORM}}` label) already branch on `windows`, so the scaffold is shaped correctly. Heads-up worth surfacing once: a few pack-gated skills assume tools Git Bash lacks (e.g. `jq`), and the OS sandbox is unavailable on Windows — neither blocks the core setup.
 
 - **`XCODE_CLT_MISSING`** — the Xcode Command Line Tools aren't installed, which on a Mac is the usual root cause behind a failing `git` (and `python3`). Surface this **instead of** the generic git line when both fired, since `xcode-select --install` fixes it and a git-scm.com download is the wrong advice:
 
@@ -233,7 +233,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 The plugin is called `agent-kevin`, but the agent it scaffolds does not have to be
 called Kevin. The **display name** (what it calls itself, what the dashboard renders,
 how you address it) is pure data in `IDENTITY.md`. The **namespace** (`/agent-kevin:`
-commands, `KEVIN_*` env vars, the `.state/` data dir, MCP tool names) comes from the
+commands, the `.state/` data dir, MCP tool names) comes from the
 plugin manifest and stays put either way. Renaming costs nothing and breaks nothing.
 
 **On a re-init, the current name is the default, not `Kevin`.** Step 0's re-run path
@@ -384,7 +384,7 @@ NAME_DEFAULT=$(git config user.name 2>/dev/null || echo "${USER:-friend}")
 # Timezone probe is OS-specific. macOS/Linux/WSL symlink /etc/localtime into the
 # zoneinfo db, so the IANA name falls right out. Windows has no IANA tz database
 # (tzutil returns Windows-style names), so skip the probe and let the user type one.
-case "$KEVIN_OS" in
+case "$AGENT_PLATFORM" in
   macos|linux|wsl) TZ_IANA=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||') ;;
   *)               TZ_IANA="" ;;
 esac
@@ -507,7 +507,7 @@ Stage `Avatar: knowledge/user/assets/avatar.<ext>` into the eventual `knowledge/
 > - Default: inside `<HOME>` (recommended)
 > - Specify custom paths
 
-Fill `<CLOUD_EXAMPLE>` from `$KEVIN_OS`: iCloud Drive on `macos`, OneDrive (`~/OneDrive`) on `windows`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a Windows/WSL/Linux home.
+Fill `<CLOUD_EXAMPLE>` from `$AGENT_PLATFORM`: iCloud Drive on `macos`, OneDrive (`~/OneDrive`) on `windows`, OneDrive (via `/mnt/c/Users/<you>/OneDrive`) on `wsl`, Dropbox or Nextcloud on `linux`. Don't suggest iCloud on a Windows/WSL/Linux home.
 
 If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
 
@@ -621,7 +621,7 @@ Kevin's project settings pin which Claude model powers this home. `AskUserQuesti
 > - **Opus (Recommended)** — strong judgment for an agent trusted with your knowledge base, and stretches a usage-limited plan further.
 > - **Fable** — Anthropic's most capable tier, one step up; spends plan usage faster.
 
-Stage the answer as `KEVIN_MODEL` — the literal string `opus` or `fable` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
+Stage the answer as `AGENT_MODEL` — the literal string `opus` or `fable` — for the settings scaffold in Step 7. If the operator picks "Other" and types a model string, stage that verbatim.
 
 ---
 
@@ -630,7 +630,7 @@ Stage the answer as `KEVIN_MODEL` — the literal string `opus` or `fable` — f
 Ask the offer from step 2 of `${CLAUDE_PLUGIN_ROOT}/skills/history/SKILL.md` (read it now), worded
 exactly as there. The synced-folder sentence can't be judged yet (the tool that checks runs once
 the home exists), so leave it out here; Step 7d says it if it applies. Stage the answer as
-`KEVIN_HISTORY` (`on` or `off`). Nothing is written until Step 7d.
+`AGENT_HISTORY` (`on` or `off`). Nothing is written until Step 7d.
 
 ---
 
@@ -640,9 +640,9 @@ Create the directory tree:
 
 ```bash
 # Resolve knowledge + projects + reports paths from Step 5c. Default = under $HOME_DIR.
-KNOWLEDGE_ROOT="${KEVIN_KNOWLEDGE:-${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}}"
-PROJECTS_ROOT="${KEVIN_PROJECTS:-${AGENT_PROJECTS:-$HOME_DIR/projects}}"
-REPORTS_ROOT="${KEVIN_REPORTS:-${AGENT_REPORTS:-$HOME_DIR/reports}}"
+KNOWLEDGE_ROOT="${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}"
+PROJECTS_ROOT="${AGENT_PROJECTS:-$HOME_DIR/projects}"
+REPORTS_ROOT="${AGENT_REPORTS:-$HOME_DIR/reports}"
 
 mkdir -p "$HOME_DIR"/.state/{config,logs} "$HOME_DIR"/.claude/assets
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
@@ -743,7 +743,7 @@ PROJECTS_IMPORT="$(importpath "$PROJECTS_REL")"
 AGENT_NAME="<the name staged in Step 1b — literal, e.g. Kevin>"
 # {{SHELL}} fills the Toolchain "Shell:" line per OS. On Windows, Claude Code's Bash tool runs under
 # Git Bash (POSIX), not PowerShell, so Kevin's commands assume bash everywhere.
-case "$KEVIN_OS" in
+case "$AGENT_PLATFORM" in
   macos)   SHELL_NOTE='zsh, Homebrew at `/opt/homebrew`' ;;
   windows) SHELL_NOTE='Git Bash (the POSIX shell Claude Code uses for its Bash tool on Windows)' ;;
   wsl)     SHELL_NOTE='bash (WSL2)' ;;
@@ -853,7 +853,7 @@ Set when absent from both home files: an operator's own `statusLine` in either i
 
 **⚠ The traffic kill suppresses auto mode's built-in default.** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` disables feature-flag fetching, and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the traffic kill: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
 
-Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$KEVIN_OS` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$KEVIN_OS` is `windows` and the Windows `~/AppData/...` tail below applies.)
+Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$AGENT_PLATFORM` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$AGENT_PLATFORM` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
 Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resolve correctly on Windows too, since Git Bash maps `~` to `%USERPROFILE%`:
 
@@ -903,7 +903,7 @@ Cross-platform core (always written). The `~/.ssh`, `~/.aws`, etc. entries resol
 ]
 ```
 
-OS-specific tail — append the block matching `$KEVIN_OS`:
+OS-specific tail — append the block matching `$AGENT_PLATFORM`:
 
 `macos`:
 
@@ -1382,7 +1382,7 @@ Lists union with what the file already holds, deduped; existing scalars win exce
 
 **Secrets live in `.state/secrets/.env`, not here.** Credential pack keys (`PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `OPENPAGERANK_API_KEY`, every `AGENT_DB_*`) go in the deny-gated `.state/secrets/.env` — `/agent-kevin:configure-skills` ensures that file exists and tells the user which `KEY=value` lines to add (the file is deny-gated, so Claude can't write its contents; the user edits it). Kevin's config loader surfaces it into `process.env` at boot; the settings `env` block is no longer a secrets store. `GSC_SITE_URL` is the one pack key that **stays** in `settings.local.json` `env` — it's not a credential and two skills (`wordpress-rest`, and the `seo` skill's audit) read it straight from the Bash environment, which only the settings `env` block reaches. Google OAuth client JSON + tokens live in `.state/secrets/google/`. This keeps `settings.local.json` non-secret and an accurate audit trail of what the operator opted into.
 
-Env spelling: HOME-scoped keys are written under their shared, agent-neutral `AGENT_*` names — the file's location already scopes them to this agent, and the HOME stays portable. The agent's own prefix (`KEVIN_*`) is a valid override everywhere and always wins; it's required only in machine-wide `~/.claude/settings.json`, where the prefix is what keeps one agent's value from reaching every agent on the box (which is why `KEVIN_HOME` keeps it).
+Env spelling: keys are written under their shared, agent-neutral `AGENT_*` names, the only names the plugin reads. The file's location already scopes them to this agent, and the HOME stays portable. A value in machine-wide `~/.claude/settings.json` reaches every agent home on the box, so per-home config always belongs in the home's own settings.
 
 The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `AGENT_HOME_TIMEZONE` and the optional codebase pair, so:
 
@@ -1610,7 +1610,7 @@ Codex reads `AGENTS.md` natively but has no `@-import`, and as of Codex 0.153 a 
 bun "$PLUGIN_ROOT/skills/init/scripts/codex-setup.ts" --home "$HOME_DIR" --write
 ```
 
-If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. The report is `{ hooks, mcp, rules, entries, profile, notes }`, each file as `{ path, changed }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), a `SessionEnd` and a `PreCompact` entry capture the session (the second one before Codex compacts a long thread, as on Claude Code), a `PreToolUse` entry runs the cwd-drift guard (below), the `[mcp_servers.kevin]` table launches the server with both home variables set, any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table so a pack activated in Step 8 reaches Codex whether it was wired before or after, and a `[tui]` table sets the footer status line (model with reasoning, directory, branch, approval mode, context used) unless the home already has one, and a `[skills]` table sets `max_context_tokens = 10000`, the most Codex allows for its per-turn skills catalog (the default is 2% of the model window, which trims the plugin's descriptions), unless the home already sets one. The posture is read from this home's Claude settings so the hosts never drift: a `[permissions.kevin]` profile denies the model every read of `.state/secrets/` and of any `.env` (the MCP server still reads them itself), makes `.git` writable so commits stay routine, and lists the code path and any `additionalDirectories` as workspace roots; every `Bash(…)` pattern in `permissions.ask` becomes a `prefix_rule` that prompts the operator, the same gate Claude Code applies; `approvals_reviewer` stays `user` (a reviewer model denied named pushes and local commits on this plugin's tests, so it is opt-in). Other hooks, other MCP servers, other rules files, and other settings are preserved; `notes` names a policy key the operator set differently, which is kept. Under Codex (`KEVIN_HARNESS=codex`) run it without asking. Under Claude Code, ask once, always, with `AskUserQuestion`: "Do you also run OpenAI Codex from this home?" (options: "Yes, wire it now" / "No, Claude Code only"). A yes runs the generator now and carries the Codex lines of the relaunch block into Step 9; a no writes nothing, and `$upgrade` run from a Codex session wires the home later. Never skip the question silently: a home that is never asked never gets wired, and the only other route is a manual generator run. On native Windows (`$KEVIN_OS=windows`) it runs the same way (the hook commands carry the home as a double-quoted `--home=` argument, shaped to parse under sh and PowerShell alike), but say once that Codex on Windows is unverified: no Windows box has exercised the wiring, and Kevin's skills are bash while Codex runs its shell through PowerShell there.
+If the operator once registered Kevin's server globally (`codex mcp add kevin …`), remove that copy with `codex mcp remove kevin` so the per-home registration is the only `kevin`. The report is `{ hooks, mcp, rules, entries, profile, notes }`, each file as `{ path, changed }`: one `SessionStart` entry delivers the static context (registered with `additionalContextLimit: 0`, since Codex otherwise truncates a hook's context at about 2,500 tokens), a `SessionEnd` and a `PreCompact` entry capture the session (the second one before Codex compacts a long thread, as on Claude Code), a `PreToolUse` entry runs the cwd-drift guard (below), the `[mcp_servers.kevin]` table launches the server with both home variables set, any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`) is mirrored into its own `[mcp_servers.<name>]` table so a pack activated in Step 8 reaches Codex whether it was wired before or after, and a `[tui]` table sets the footer status line (model with reasoning, directory, branch, approval mode, context used) unless the home already has one, and a `[skills]` table sets `max_context_tokens = 10000`, the most Codex allows for its per-turn skills catalog (the default is 2% of the model window, which trims the plugin's descriptions), unless the home already sets one. The posture is read from this home's Claude settings so the hosts never drift: a `[permissions.kevin]` profile denies the model every read of `.state/secrets/` and of any `.env` (the MCP server still reads them itself), makes `.git` writable so commits stay routine, and lists the code path and any `additionalDirectories` as workspace roots; every `Bash(…)` pattern in `permissions.ask` becomes a `prefix_rule` that prompts the operator, the same gate Claude Code applies; `approvals_reviewer` stays `user` (a reviewer model denied named pushes and local commits on this plugin's tests, so it is opt-in). Other hooks, other MCP servers, other rules files, and other settings are preserved; `notes` names a policy key the operator set differently, which is kept. Under Codex (`AGENT_HARNESS=codex`) run it without asking. Under Claude Code, ask once, always, with `AskUserQuestion`: "Do you also run OpenAI Codex from this home?" (options: "Yes, wire it now" / "No, Claude Code only"). A yes runs the generator now and carries the Codex lines of the relaunch block into Step 9; a no writes nothing, and `$upgrade` run from a Codex session wires the home later. Never skip the question silently: a home that is never asked never gets wired, and the only other route is a manual generator run. On native Windows (`$AGENT_PLATFORM=windows`) it runs the same way (the hook commands carry the home as a double-quoted `--home=` argument, shaped to parse under sh and PowerShell alike), but say once that Codex on Windows is unverified: no Windows box has exercised the wiring, and Kevin's skills are bash while Codex runs its shell through PowerShell there.
 
 Then print the user-level note: Codex ignores telemetry and provider keys in a project config, the analytics, feedback, animation, and update-check keys are the operator's own rather than the home's, the context window is a cost choice for every session on the machine (the note asks for the cap Codex's model catalog serves, since a larger request is clamped to it), and the plugin never writes a user-global file, so generate the paste-ready block and quote it in Step 9 verbatim:
 
@@ -1626,7 +1626,7 @@ The home exists now, so the history flow can run. Follow `skills/history/SKILL.m
 with the offer already answered: skip its step 2 question, then run its steps 3 and 4. Its single
 source is the skill; don't restate it here. When
 `homeSyncedBy` is set, add the skill's synced-folder sentence to the confirmation line. Record the
-outcome for the `<HISTORY_ROW>` in Step 9. `KEVIN_HISTORY=off` writes nothing.
+outcome for the `<HISTORY_ROW>` in Step 9. `AGENT_HISTORY=off` writes nothing.
 
 ## Step 8 — Optional: configure skill packs
 
@@ -1646,7 +1646,7 @@ The scaffold is done. Before showing the final confirmation, offer to wire up AP
 
 Default-select **Browser** (recommended — Playwright's capture tools work immediately with no key, and Perplexity is optional: briefings use the built-in web search until a key is added). Leave the others unticked; the user ticks any they want.
 
-**Never show the Xcode row on Windows, WSL2 or Linux** — render it only when `$KEVIN_OS` = `macos`. Apple's toolchain doesn't exist on those hosts, so drop the row entirely rather than offering a pack that can only fail; a Windows operator should never see it as a choice. Leave it unticked even on macOS: plenty of Mac operators never open Xcode, and the pack asks for two manual steps (a sandbox exclusion and a sudo enablement) that are wasted on them.
+**Never show the Xcode row on Windows, WSL2 or Linux** — render it only when `$AGENT_PLATFORM` = `macos`. Apple's toolchain doesn't exist on those hosts, so drop the row entirely rather than offering a pack that can only fail; a Windows operator should never see it as a choice. Leave it unticked even on macOS: plenty of Mac operators never open Xcode, and the pack asks for two manual steps (a sandbox exclusion and a sudo enablement) that are wasted on them.
 
 **Also default-tick GitHub when Step 4b captured a real code path.** `github_fast_forward` is what keeps those checkouts current during `/agent-kevin:sync`, and it needs `GITHUB_TOKEN`; without the pack it returns `NOT_CONFIGURED` and the operator's code silently never refreshes — the one failure mode that degrades *answers* rather than surfacing an error, since Kevin keeps grounding confidently against a frozen checkout. An operator who just told init where their code lives has effectively asked for this. Leave it unticked when Step 4b returned `skip` (no checkout, nothing to fast-forward — the common case for a Kevin home). Either way it stays a tick the operator can clear.
 
@@ -1731,10 +1731,10 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 > **Optional pin — only if you run exactly one home.** If you also want sessions started *outside* any home (a bare repo, the user-level session-capture hook from the README) to route here, add this to your **user-level** settings at `~/.claude/settings.json` under `env`:
 >
 > ```json
-> { "env": { "KEVIN_HOME": "<HOME_DIR>" } }
+> { "env": { "AGENT_HOME": "<HOME_DIR>" } }
 > ```
 >
-> **Do not set this if you have, or might later have, more than one agent-kevin home** (say a work agent and a personal one). It's machine-wide and it wins outright over launch-directory resolution, so it captures *every* session for one home and makes the others unreachable. With multiple homes, isolation comes from where you launch, and the pin actively breaks it. Same rule for any other `KEVIN_*` var in user-level settings: one value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names. (Whatever you choose is visible on the dashboard's System → Environment page, with a tooltip explaining it.)
+> **Do not set this if you have, or might later have, more than one agent home on this machine** (a work agent and a personal one, or another agent plugin's home). It's machine-wide and it wins outright over launch-directory resolution, so it captures *every* session for one home and makes the others unreachable. With multiple homes, isolation comes from where you launch, and the pin actively breaks it. Same rule for any other `AGENT_*` var in user-level settings: one value, every home. Per-home config belongs in `<HOME>/.claude/settings.local.json` under the neutral `AGENT_*` names. (Whatever you choose is visible on the dashboard's System → Environment page, with a tooltip explaining it.)
 >
 > **Then relaunch.** The plugin registration in `.claude/settings.local.json` only takes effect on a fresh session. Exit now (`/exit` or Ctrl+D) and relaunch:
 >

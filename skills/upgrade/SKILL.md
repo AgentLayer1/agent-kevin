@@ -24,7 +24,7 @@ ask before anything optional.
 ## Step 0 — Resolve paths + versions
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${AGENT_HOME:-$PWD}"
 DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
 [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
@@ -38,7 +38,7 @@ INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.c
 VERSION_FILE="$DATA_DIR/version.json"
 # NOT_AN_AGENT_HOME → STOP before any write: $HOME_DIR has no marked data
 # dir, so it isn't this agent's scaffolded home (likely a code repo or a
-# mislaunched session). Tell the operator to set KEVIN_HOME or relaunch from
+# mislaunched session). Tell the operator to set AGENT_HOME or relaunch from
 # the agent home.
 if [ -f "$VERSION_FILE" ]; then
   BASELINE=$(grep -o '"templateVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
@@ -76,7 +76,7 @@ ls "$PLUGIN_ROOT/CHANGELOG.md" >/dev/null 2>&1 || echo "NO CHANGELOG"
 ```
 
 Confirm `$HOME_DIR` is a real Kevin home (its data dir holds `version.json` or `knowledge.json`). If not, stop and tell
-the user to run this from their agent home (or set `KEVIN_HOME`).
+the user to run this from their agent home (or set `AGENT_HOME`).
 
 **`$DATA_DIR` is resolved in every block, never carried over.** In 0.7.0 the data dir moved from `.kevin/`
 to `.state/`, and this skill runs on both sides of that move: the 0.7.0 script in Step 4

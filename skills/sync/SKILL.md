@@ -37,7 +37,7 @@ Fast-forward the default branches of every repo Kevin grounds against, so the re
 mcp__plugin_agent-kevin_kevin__github_fast_forward
 ```
 
-No arguments: repos default to `AGENT_CODE_PATH` plus `AGENT_GIT_REPOS` (per-agent spellings like `KEVIN_CODE_PATH` override). Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `💻 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `💻 Code` line.
+No arguments: repos default to `AGENT_CODE_PATH` plus `AGENT_GIT_REPOS`. Both are optional — many operators run Kevin with no codebase at all, and the tool then reports an empty list, which reads as `💻 Code — none configured` and is skipped silently. It returns per-repo and per-branch status; read them into the `💻 Code` line.
 
 **Why an MCP tool and not Bash here.** The Claude Code seatbelt gives non-proxied clients no DNS at all, so a `git fetch` over an SSH remote dies at hostname resolution — under a sandboxed session the Bash version of this step was a guaranteed no-op for any repo with a `git@github.com:` remote, which is most of them. The MCP server runs outside that sandbox, the same reason the rest of the `github_*` family lives there. It authenticates with the fine-grained read-only PAT (`GITHUB_TOKEN`) over HTTPS rather than the operator's SSH key: a scoped, rotatable, fetch-only credential instead of one that can also push and force-push everywhere. The checkout's own remote is left exactly as it is, so the operator's pushes keep using their key.
 
@@ -130,12 +130,12 @@ Returns `{ unblocked, autoBlocked, autoClosed, overdue, dueSoon, stale, priority
 **Also check for a pending plugin upgrade.** Drift between the installed plugin code and this home's migrated baseline is exactly a "needs attention" item: `/plugin update` refreshes code but never the home's scaffolded files (`AGENTS.md`, `SOUL.md`, settings, rules), so a stale baseline means migrations are waiting. This is a read-only comparison only — **sync never runs `/upgrade`.** `/upgrade` backs up and mutates HOME files; that's a deliberate, operator-gated beat (and if it pulled new deps/MCP code it needs a Claude Code restart first). Sync's job is to raise the flag, same as the dashboard staleness warning.
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${AGENT_HOME:-$PWD}"
 DATA_DIR="$HOME_DIR/.state"; [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || DATA_DIR="$HOME_DIR/.kevin"
 [ -f "$DATA_DIR/version.json" ] || [ -f "$DATA_DIR/knowledge.json" ] || echo "NOT_AN_AGENT_HOME: $HOME_DIR"
 # NOT_AN_AGENT_HOME → STOP the whole sync: no marked data dir means $HOME_DIR
 # isn't this agent's scaffolded home, so every downstream read/write would hit
-# the wrong tree. Tell the operator to set KEVIN_HOME or relaunch from the
+# the wrong tree. Tell the operator to set AGENT_HOME or relaunch from the
 # agent home.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
 INSTALLED=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_ROOT/.claude-plugin/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')

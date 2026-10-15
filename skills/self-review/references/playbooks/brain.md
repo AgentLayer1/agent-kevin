@@ -5,7 +5,7 @@ The agent's data, not its rules: tasks nobody touches, projects gone quiet, memo
 ## Step 1 — Inventory
 
 ```bash
-HOME_DIR="${KEVIN_HOME:-$PWD}"
+HOME_DIR="${AGENT_HOME:-$PWD}"
 PLUGIN_ROOT="<plugin root>"
 bun "$PLUGIN_ROOT/skills/self-review/scripts/brain-audit.ts" --home "$HOME_DIR"
 ```

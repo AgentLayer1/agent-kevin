@@ -35,7 +35,7 @@ allowed-tools:
 
 # Adversarial Review
 
-> **Paths.** The absolute repo path is `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` (AGENTS.md → "Where Your Code Lives") unless the operator names one or more repos or artifacts. Prefix it on every Read/Grep/Bash call. `<HOME>` is the directory the agent was launched from, never the code repo.
+> **Paths.** The absolute repo path is `$AGENT_CODE_PATH` (AGENTS.md → "Where Your Code Lives") unless the operator names one or more repos or artifacts. Prefix it on every Read/Grep/Bash call. `<HOME>` is the directory the agent was launched from, never the code repo.
 
 A second model reading your work cold finds what the model that wrote it cannot: the assumptions baked into the commit messages, the plan, or the prose. But a second model's edits are not yet something the operator ships, so this skill splits the work by trust. The **reviewer** documents: it reads the brief, hunts, and writes findings. The **implementer** verifies each finding against the work, fixes what is real, commits where the target is committed code, and records what it did. Both are this same agent, launched from the same home on different models or hosts, so the dossier names the two sides by role and never by agent or model; the reviewer states which model and host it ran on at the top of its findings. Both write into one file, the dossier, round after round, so the conversation never scatters across reports and a settled finding is never raised twice.
 

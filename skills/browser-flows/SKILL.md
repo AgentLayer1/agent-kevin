@@ -33,7 +33,7 @@ browser_flows  flow=hacker-news  params={ count: 10 }
 The window opens, the flow runs (pausing for a manual login only if its target has `auth`), then the tool returns the output tail + the flow's `index.md` as `guidance` — read it. Screenshots land in `reports/captures/browser/<env>/<flow>/<run>/`. Relay the `▸` lines and the final `✅`/`✗`.
 
 If the headed browser ever fails to launch even from the server, fall back to a real terminal:
-`NODE_PATH="$PWD/mcp-server/node_modules" PLAYWRIGHT_BROWSERS_PATH=0 KEVIN_HOME=<home> bun run skills/browser-flows/flows/<flow>/index.ts …`
+`NODE_PATH="$PWD/mcp-server/node_modules" PLAYWRIGHT_BROWSERS_PATH=0 AGENT_HOME=<home> bun run skills/browser-flows/flows/<flow>/index.ts …`
 
 ### Flow params
 

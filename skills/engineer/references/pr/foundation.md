@@ -2,7 +2,7 @@
 
 The steps every PR playbook runs first ([pr review](../playbooks/pr-review.md), [pr replies](../playbooks/pr-replies.md), [pr walkthrough](../playbooks/pr-walkthrough.md)). Each playbook says where it adds to them; none reimplements or skips them.
 
-> **Paths.** Bare `apps/...`, `packages/...` references are repo-relative. The absolute repo path is `${KEVIN_CODE_PATH:-$AGENT_CODE_PATH}` (AGENTS.md → "Where Your Code Lives"); when the PR belongs to another configured repo, the operator names it or `--repo` does. Prefix it on every Read/Grep/Bash call. `<HOME>` is the directory the agent was launched from, never the code repo.
+> **Paths.** Bare `apps/...`, `packages/...` references are repo-relative. The absolute repo path is `$AGENT_CODE_PATH` (AGENTS.md → "Where Your Code Lives"); when the PR belongs to another configured repo, the operator names it or `--repo` does. Prefix it on every Read/Grep/Bash call. `<HOME>` is the directory the agent was launched from, never the code repo.
 
 Code review is where a human gates what agents write. Most PRs now arrive faster than anyone can read them, often from an author who cannot fully explain the diff. The PR playbooks exist so the operator walks into that conversation understanding the change better than anyone else in it, holding verified defects rather than impressions, and with the words already written.
 

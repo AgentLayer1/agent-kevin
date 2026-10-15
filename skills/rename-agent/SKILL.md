@@ -24,7 +24,7 @@ Two gates, both intentional: don't "fix" either by adding a grant.
 |---|---|
 | `IDENTITY.md` → `Name`, `Emoji`, `Avatar` | `/agent-kevin:*` slash commands |
 | The avatar image file | `mcp__plugin_agent-kevin_kevin__*` tool names |
-| Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `KEVIN_*` / `AGENT_*` env vars |
+| Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `AGENT_*` env vars |
 | Prose in `knowledge/`, `projects/`, reports | |
 | | `enabledPlugins` in `.claude/settings.local.json` |
 
@@ -128,7 +128,7 @@ rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l \
 Three properties do the work, and all three are required:
 
 - **Exact case.** Every plumbing token is lowercase (`agent-kevin`,
-  `kevin-avatar`, `bin/kevin`) or uppercase (`KEVIN_HOME`), so `Kevin` cannot reach
+  `kevin-avatar`, `bin/kevin`) or uppercase (a legacy `KEVIN_*` key), so `Kevin` cannot reach
   them. **Never add `-i`.**
 - **`\b` word boundary.** Catches `Kevin's` (the boundary sits before the apostrophe)
   without matching inside a longer word.
@@ -158,7 +158,7 @@ Then verify. Two checks, and the second one matters more:
 rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' . .claude/CLAUDE.md || echo "clean"
 
 # 2. Home paths survived intact — this must still return hits, not zero.
-rg -n 'Agents/Kevin|agent-kevin|KEVIN_' --glob '!knowledge/raw/sessions/**' | head -20
+rg -n 'Agents/Kevin|agent-kevin' --glob '!knowledge/raw/sessions/**' | head -20
 ```
 
 If check 2 comes back empty on a home that had path references before the sweep,
@@ -174,8 +174,8 @@ real false-positive class. Scan for them rather than trusting the count.
 Do not commit. The HOME is the operator's, and some homes have a separated git dir the
 agent can't write to anyway. Print what changed and let them commit.
 
-Close with what did NOT change and why, in two lines: the slash commands, tool names
-and env prefix still say kevin because they come from the plugin
+Close with what did NOT change and why, in two lines: the slash commands and tool
+names still say kevin because they come from the plugin
 manifest, and that's what keeps `/plugin update` working. Nobody sees them but you.
 
 ## Notes
@@ -186,9 +186,9 @@ manifest, and that's what keeps `/plugin update` working. Nobody sees them but y
   Step 3 must land even if the operator only cares about the prose.
 - **Multiple homes from one plugin** are a supported setup (a work agent and a personal
   one, same `agent-kevin` install). They stay isolated by location, not by name, so
-  renaming one has no effect on the other. Two same-plugin homes must not set
-  `KEVIN_HOME` machine-wide, since one value would capture both.
+  renaming one has no effect on the other. Neither sets `AGENT_HOME`
+  machine-wide, since one value would capture every home on the box.
 - **This is not a fork.** If the operator actually wants their own slash-command
-  namespace and env prefix, that's a plugin fork: change `name` in
-  `.claude-plugin/plugin.json` and the prefix follows automatically. Tell them the cost
+  namespace, that's a plugin fork: change `name` in
+  `.claude-plugin/plugin.json` and the namespace follows automatically. Tell them the cost
   honestly — a merge from upstream on every release, forever — before they choose it.
