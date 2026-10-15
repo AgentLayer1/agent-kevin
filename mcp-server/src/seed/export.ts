@@ -21,6 +21,7 @@ import {
   sha256,
   validateSeedPath
 } from '@/seed/format';
+import { withoutPins } from '@/status/surfaces';
 import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -84,6 +85,7 @@ const expandInclude = (home: string, path: string): string[] => {
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
 const IDENTITY_FILES = new Set(['IDENTITY.md', 'SOUL.md']);
+const PROJECT_README_RE = /^projects\/[^/]+\/README\.md$/;
 
 /** Every spelling of this home's path a server entry can carry. */
 const homeSpellings = (home: string): string[] => {
@@ -151,6 +153,9 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
         const content = renameAgent(original, renameFrom, options.agentName);
         writeFileSync(destination, content);
         if (content !== original) renamed.push(path);
+      } else if (PROJECT_README_RE.test(path)) {
+        // Pins point at reports and project files a seed never carries.
+        writeFileSync(destination, withoutPins(readFileSync(resolve(home, path), 'utf-8')));
       } else {
         copyFileSync(resolve(home, path), destination);
       }

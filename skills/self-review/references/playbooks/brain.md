@@ -22,8 +22,8 @@ It prints JSON, writes nothing, and counts only. Every bucket is a date comparis
 | `memory.openQuestions` | the `[stale]` gaps compile's gap pass flagged |
 | `decisions` | archived decisions from the last 45 days that no pass has settled; any `asked` answer settles one. Most are already held by an article and are recorded silently |
 | `articles` | concepts and user facets untouched for 60 days and unmentioned for 60 |
-| `surfaces.broken` | pins in `reports/pinned.md` that no longer point at a file (moved, deleted, or a folder); the dashboard drops them without a word, so every one is asked |
-| `surfaces.stale` | the roadmap, each project's `dashboard.html`, and every pinned report, unchanged on disk for 60 days (`kind`: `roadmap`, `dashboard` or `pin`) |
+| `surfaces.broken` | pins in `reports/pinned.md` or a project README's `## Pinned` section (`pinnedIn`) that no longer point at a file (moved, deleted, or a folder); the dashboard drops them without a word, so every one is asked |
+| `surfaces.stale` | the roadmap, each project's `dashboard.html`, and every pinned file, unchanged on disk for 60 days (`kind`: `roadmap`, `dashboard` or `pin`; a pin names its `pinnedIn`) |
 | `storage.captures` | captures older than 30 days (a folder by its newest file), one group per month with its exact `files` and `folders` |
 
 "Operator mention" counts only `**User:**` turns, matched on whole words: the agent names overdue ids in its own output every day. A pasted report inside a user turn still counts, so treat a mention as a reason to look, never as proof of activity. Every keepable row carries a `key` and a `hash`; items kept within the last 90 days are already filtered out while their hash is unchanged.
@@ -69,8 +69,8 @@ Ask 4 questions per call (`AskUserQuestion` under Claude Code; a numbered list p
 | Open Question | **Answer** → apply the answer to the question's source; the next sync's gap pass drops the question · **No longer relevant** → correct or remove the stale fact at its source · **Keep** |
 | Decision | **Promote** → write it into the named article, with the date · **Leave it archived** |
 | Article | **Rewrite** → apply your draft built from the contradictions · **Still accurate** · **Delete the section** (or the article, updating `knowledge/index.md`) |
-| Broken pin | **Fix the link** → rewrite its line in `reports/pinned.md` to the found path · **Unpin** → delete its line |
-| Stale surface | **Refresh** → a pin: rewrite it from the contradictions, with the operator; the roadmap: the roadmap skill's update; a project dashboard: rerun the skill or script that renders it, else rewrite it · **Still accurate** · **Unpin** (pins only) → delete its line · **Promote** (pins only) → `capture` it into `raw/inbox/` for compile, since a pin already says it is durable |
+| Broken pin | **Fix the link** → rewrite its line in its `pinnedIn` file to the found path · **Unpin** → delete its line there |
+| Stale surface | **Refresh** → a pin: rewrite it from the contradictions, with the operator; the roadmap: the roadmap skill's update; a project dashboard: rerun the skill or script that renders it, else rewrite it · **Still accurate** · **Unpin** (pins only) → delete its line in `pinnedIn` · **Promote** (pins only) → `capture` it into `raw/inbox/` for compile, since a pin already says it is durable |
 | Capture month | **Keep** · **Delete** → the question states how many files and folders (a folder goes with everything in it). Remove exactly what the inventory listed, each absolute path written out in full: `rm -- '<file>' …` for `files`, `rm -r -- '<folder>' …` for `folders`. Never a glob or a built path. A folder belonging to another agent's home is deleted like any other, never moved |
 
 A typed answer ("Other") is applied as stated, when it maps to an effect above. Otherwise, ask once to clarify. Never edit `## Learnings` or `## Open Questions` directly: a fix lands on the source, and compile does the rest. Quote every line you delete or rewrite, as it read before, for the report.

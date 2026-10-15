@@ -186,8 +186,8 @@ describe('brain-audit', () => {
     );
     const audit = run();
     expect(audit.surfaces.broken).toEqual([
-      { key: 'pin:plans/gone.html', title: 'Gone', href: 'plans/gone.html' },
-      { key: 'pin:plans', title: 'Folder', href: 'plans' }
+      { key: 'pin:reports/pinned.md#plans/gone.html', title: 'Gone', href: 'plans/gone.html', pinnedIn: 'reports/pinned.md' },
+      { key: 'pin:reports/pinned.md#plans', title: 'Folder', href: 'plans', pinnedIn: 'reports/pinned.md' }
     ]);
     expect(audit.surfaces.stale.map((row: { key: string; kind: string }) => [row.key, row.kind])).toEqual([
       ['surface:roadmap.html', 'roadmap'],
@@ -199,5 +199,28 @@ describe('brain-audit', () => {
     write('reports/plans/kept.md', 'kept pin, rewritten');
     age('reports/plans/kept.md', 61);
     expect(run().surfaces.stale.map((row: { key: string }) => row.key)).toContain('surface:reports/plans/kept.md');
+  });
+
+  test("a project README's pins are audited too, and a file pinned twice is asked about once", () => {
+    const { write, run, age } = home();
+    write('projects/acme/tasks/.keep', '');
+    write('projects/acme/research.md', 'research');
+    write('reports/plans/old.md', 'old pin');
+    ['projects/acme/research.md', 'reports/plans/old.md'].forEach((rel) => age(rel, 61));
+    write('reports/pinned.md', '# Pinned\n\n- [Old](plans/old.md)\n');
+    write(
+      'projects/acme/README.md',
+      '# Acme\n\n## Pinned\n\n- [Old](../../reports/plans/old.md)\n- [Research](research.md)\n- [Gone](gone.md)\n'
+    );
+    const audit = run();
+    expect(audit.surfaces.broken).toEqual([
+      { key: 'pin:projects/acme/README.md#gone.md', title: 'Gone', href: 'gone.md', pinnedIn: 'projects/acme/README.md' }
+    ]);
+    expect(
+      audit.surfaces.stale.map((row: { key: string; pinnedIn: string }) => [row.key, row.pinnedIn])
+    ).toEqual([
+      ['surface:reports/plans/old.md', 'reports/pinned.md'],
+      ['surface:projects/acme/research.md', 'projects/acme/README.md']
+    ]);
   });
 });

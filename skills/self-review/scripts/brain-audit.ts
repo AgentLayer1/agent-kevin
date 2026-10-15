@@ -24,7 +24,7 @@ const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/sha
 const { daysBetween, todayDate } = await import('../../../mcp-server/src/shared/date');
 const { hashBuffer, splitFrontmatter } = await import('../../../mcp-server/src/knowledge/utils');
 const { discoverProjects, scanAllTasks, scanArchivedTasks } = await import('../../../mcp-server/src/tasks/scan');
-const { readPins, surfaceFiles } = await import('../../../mcp-server/src/status/surfaces');
+const { projectPins, readPins, surfaceFiles } = await import('../../../mcp-server/src/status/surfaces');
 
 if (!isAgentHome(agentHomePath())) {
   console.error(`not an agent home: ${agentHomePath()}`);
@@ -291,30 +291,35 @@ const captures = [...new Set(oldCaptures.map((capture) => capture.modified.slice
   })
   .filter((group) => !keptQuiet(group.key));
 
-// What the operator keeps in view: the roadmap, project dashboards and pinned reports. A broken pin
-// silently drops off the sidebar, so it is always reported. The rest go stale by mtime: pinned
-// filenames are dated slugs no operator turn names.
-const pins = readPins();
+// What the operator keeps in view: the roadmap, project dashboards, and pins in reports/pinned.md or a
+// project README. A broken pin silently drops off the dashboard, so it is always reported. The rest go
+// stale by mtime: pinned filenames are dated slugs no operator turn names.
+const pins = [...readPins(), ...discoverProjects().flatMap(projectPins)];
 const brokenPins = pins
   .filter((pin) => !pin.exists)
-  .map((pin) => ({ key: `pin:${pin.href}`, title: pin.title, href: pin.href }));
+  .map((pin) => ({
+    key: `pin:${homeRelative(pin.source)}#${pin.href}`,
+    title: pin.title,
+    href: pin.href,
+    pinnedIn: homeRelative(pin.source)
+  }));
 const surfaces = surfaceFiles();
 // A pin to the roadmap or a dashboard is asked about once, under that kind: the kind says how to refresh it.
+// A file pinned in two places is asked about once, under its first pin.
 const surfacePaths = new Set(surfaces.map((surface) => surface.path));
 const staleSurfaces = [
   ...surfaces,
   ...pins
+    .filter((pin, index) => pins.findIndex((other) => other.path === pin.path) === index)
     .filter((pin) => pin.exists && !surfacePaths.has(pin.path))
-    .map((pin) => ({ kind: 'pin' as const, title: pin.title, path: pin.path }))
+    .map((pin) => ({ kind: 'pin' as const, title: pin.title, path: pin.path, pinnedIn: homeRelative(pin.source) }))
 ]
   .map((surface) => ({ ...surface, modified: todayDate(statSync(surface.path).mtime) }))
   .filter((surface) => (age(surface.modified) ?? 0) >= DORMANT_DAYS)
-  .map(({ kind, title, path, modified }) => ({
+  .map(({ path, ...surface }) => ({
     key: `surface:${homeRelative(path)}`,
-    kind,
-    title,
+    ...surface,
     path: homeRelative(path),
-    modified,
     hash: hash(read(path))
   }))
   .filter((row) => !keptQuiet(row.key, row.hash))

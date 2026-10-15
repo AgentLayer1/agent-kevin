@@ -98,6 +98,9 @@ const projectColor = (name: string, hues: Readonly<Record<string, number>> = {})
 const projChip = (name: string, hues: Readonly<Record<string, number>> = {}): string =>
   `<span class="chip proj"><i style="background:${projectColor(name, hues)}"></i>${esc(name)}</span>`;
 
+const pinRow = (icon: string, link: string, chip = ''): string =>
+  `<div class="row" data-row data-cat="pinned"><span style="flex:none">${esc(icon)}</span><span class="grow">${link}</span>${chip}</div>`;
+
 /** Layer badge for instruction/rule sources — user (~/.claude), project (HOME),
  *  or local. Colored so the two scopes read apart at a glance. */
 const LEVEL_COLOR: Record<NonNullable<StaticImport['level']>, string> = {
@@ -576,11 +579,19 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
   const pageLink = (path: string, icon: string, label: string): string =>
     path ? `<span class="proj-link">${icon} ${mdLink(snap, path, label)}</span>` : '';
   const pageLinks = pageLink(load.roadmap, '🗺️', 'Roadmap') + pageLink(load.focus, '🎯', 'Focus');
+  const pinCount = load.pins.length
+    ? `<span class="proj-link dim" title="Pinned in the README">📌 ${load.pins.length}</span>`
+    : '';
+  const pinRows = load.pins.length
+    ? `<h3 class="group">📌 Pinned · ${load.pins.length}</h3>${load.pins
+        .map((pin) => pinRow(pin.icon, mdLink(snap, pin.path, pin.title)))
+        .join('')}`
+    : '';
   return `<details class="projcard" data-row><summary>
-<div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span>${pageLinks}<span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
+<div class="proj-head"><span class="proj-dot" style="background:${color}"></span><span class="proj-name">${esc(load.project)}</span><span class="proj-counts">${counts || '<span class="dim">quiet</span>'}</span>${pageLinks}${pinCount}<span class="dim proj-meta">updated ${esc(relTime(load.updatedAt ? `${load.updatedAt}T00:00:00` : null))}</span></div>
 ${load.description ? `<div class="proj-desc">${esc(truncate(load.description, 160))}</div>` : ''}
 <div class="proj-progress"><span class="dim nowrap">☑ ${finished} / ${denominator}</span><div class="track"><span style="width:${pct}%;background:${color}"></span></div><span class="dim nowrap">${pct}%</span></div>
-</summary><div class="proj-tasks">${taskRows}</div></details>`;
+</summary><div class="proj-tasks">${pinRows}${taskRows}</div></details>`;
 };
 
 const pageTasks = (snap: StatusSnapshot): string => {
@@ -1058,14 +1069,13 @@ const pageReports = (snap: StatusSnapshot): string => {
     )
     .join('');
   // Pins lead the page as their own group, so the Pinned chip shows every pin, not only those in the latest reports.
-  const pinned = snap.pinned.length
-    ? `<h3 class="group">📌 Pinned</h3>${snap.pinned
-        .map(
-          (pin) =>
-            `<div class="row" data-row data-cat="pinned"><span style="flex:none">${esc(pin.icon)}</span><span class="grow">${mdLinkAbs(snap, pin.href, pin.title)}</span></div>`
-        )
-        .join('')}`
-    : '';
+  const pinRows = [
+    ...snap.pinned.map((pin) => pinRow(pin.icon, mdLinkAbs(snap, pin.href, pin.title))),
+    ...snap.tasks.byProject.flatMap((load) =>
+      load.pins.map((pin) => pinRow(pin.icon, mdLink(snap, pin.path, pin.title), projChip(load.project, snap.projectHues)))
+    )
+  ];
+  const pinned = pinRows.length ? `<h3 class="group">📌 Pinned</h3>${pinRows.join('')}` : '';
   const note =
     snap.reportsTotal > snap.reports.length
       ? `<div class="dim" style="margin-top:10px">Showing latest ${snap.reports.length} of ${snap.reportsTotal} — full log in ${mdLink(snap, 'reports/index.md', 'reports/index.md')}</div>`
@@ -1074,8 +1084,8 @@ const pageReports = (snap: StatusSnapshot): string => {
     'reports',
     'Reports',
     `Briefings, plans, and audits ${snap.persona.name} has produced. Click any title to open it.`,
-    snap.reports.length || snap.pinned.length
-      ? `<div data-filterbox>${filterInput('filter reports…')}${reportChips(snap.reports, snap.pinned.length)}${pinned}${groups}</div>${note}`
+    snap.reports.length || pinRows.length
+      ? `<div data-filterbox>${filterInput('filter reports…')}${reportChips(snap.reports, pinRows.length)}${pinned}${groups}</div>${note}`
       : hint('No reports yet — briefings, plans, and radars will land here.')
   );
 };

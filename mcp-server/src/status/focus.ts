@@ -27,7 +27,7 @@ import {
   type FocusView
 } from './focus-data';
 import { renderFocusHtml } from './focus-render';
-import { projectHues } from './surfaces';
+import { projectHues, projectPinLinks, type PinLink } from './surfaces';
 import { titleize } from './format';
 
 const log = createLogger('status.focus');
@@ -49,6 +49,8 @@ export interface FocusInputs {
   tasks: TaskFile[];
   goals: { daily: string[]; weekly: string[]; monthly: string[] };
   roadmaps: FocusRoadmapSource[];
+  /** The project README's live pins; none on the home page, whose pins are the sidebar's. */
+  pins: PinLink[];
   snapshot: FocusSnapshot | null;
   /** Lowercased assignee names that mean "the operator". */
   self: Set<string>;
@@ -238,6 +240,7 @@ export const buildFocusView = (inputs: FocusInputs): FocusView => {
     unplanned: unplanned.filter((task) => !isDue(task)).sort(byUrgency),
     dueUnplanned,
     roadmap: buildRoadmap(inputs),
+    pins: inputs.pins,
     snapshot: inputs.snapshot,
     markdownUrl: inputs.markdownUrl,
     projectHues: inputs.projectHues,
@@ -311,6 +314,7 @@ export const collectFocusView = (project = ''): FocusView => {
     tasks: [...scanAllTasks(), ...scanArchivedTasks()],
     goals: { daily: goals.daily, weekly: goals.weekly, monthly: goals.monthly },
     roadmaps: roadmapSources(project),
+    pins: project ? projectPinLinks(project) : [],
     snapshot: readFocusQueue(project),
     self: selfNames(operator, boldField(FILES.USER, 'GitHub login')),
     operator,

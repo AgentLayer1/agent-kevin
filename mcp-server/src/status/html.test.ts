@@ -13,6 +13,7 @@ const emptyFocus = buildFocusView({
   tasks: [],
   goals: { daily: [], weekly: [], monthly: [] },
   roadmaps: [],
+  pins: [],
   snapshot: null,
   self: new Set(['user']),
   operator: 'Alex',
@@ -241,7 +242,8 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         updatedAt: '2026-06-10',
         description: 'Agentic personal AI operating system.',
         roadmap: '',
-        focus: ''
+        focus: '',
+        pins: []
       }
     ],
     overdueList: [],
@@ -422,6 +424,7 @@ describe('renderDashboardHtml', () => {
       ],
       goals: { daily: [], weekly: ['Ship the radar'], monthly: [] },
       roadmaps: [],
+      pins: [],
       snapshot: {
         fetchedAt: '2026-06-15T08:30:00Z',
         groups: [
@@ -678,6 +681,18 @@ describe('renderDashboardHtml', () => {
     );
     expect(html).toContain(
       `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/focus.html')}">Focus</a>`
+    );
+  });
+
+  test("a project card counts its pins when collapsed and lists them above its tasks when open", () => {
+    const base = makeSnapshot();
+    const pin = { title: 'Migration plan', icon: '📐', path: 'reports/plans/migration.md' };
+    const html = renderDashboardHtml(
+      makeSnapshot({ tasks: { ...base.tasks, byProject: [{ ...base.tasks.byProject[0], pins: [pin] }] } })
+    );
+    expect(html).toMatch(/<summary>[\s\S]*?📌 1<\/span>[\s\S]*?<\/summary>/);
+    expect(html).toContain(
+      `<div class="proj-tasks"><h3 class="group">📌 Pinned · 1</h3><div class="row" data-row data-cat="pinned"><span style="flex:none">📐</span><span class="grow"><a href="obsidian://open?path=${encodeURIComponent('/tmp/home/reports/plans/migration.md')}">Migration plan</a></span></div><h3 class="group">▶ Active`
     );
   });
 
@@ -991,6 +1006,23 @@ describe('surfaces', () => {
     expect(html).toContain('data-catfilter="pinned"');
     expect(html).toContain('<h3 class="group">📌 Pinned</h3><div class="row" data-row data-cat="pinned">');
     expect(html).not.toContain('No reports yet');
+  });
+
+  test("the Reports page's Pinned group lists project pins after the global ones, each with its project", () => {
+    const base = makeSnapshot();
+    const global = { title: 'Security plan', href: '/home/kevin/reports/security/plan.html', icon: '🛡️', appTab: true };
+    const projectPin = { title: 'Migration plan', icon: '📐', path: 'reports/plans/migration.md' };
+    const html = renderDashboardHtml(
+      makeSnapshot({
+        pinned: [global],
+        reports: [],
+        tasks: { ...base.tasks, byProject: [{ ...base.tasks.byProject[0], pins: [projectPin] }] }
+      })
+    );
+    const reports = html.slice(html.indexOf('<h3 class="group">📌 Pinned</h3>'));
+    expect(reports.indexOf('Security plan')).toBeLessThan(reports.indexOf('Migration plan'));
+    expect(reports).toMatch(/Migration plan<\/a><\/span><span class="chip proj"><i [^>]+><\/i>life-os<\/span>/);
+    expect(html).toContain('📌 Pinned <span class="dim">2</span>');
   });
 
   test('title and href are escaped', () => {

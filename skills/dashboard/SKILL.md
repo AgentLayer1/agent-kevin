@@ -79,6 +79,16 @@ Then refresh. Every session's context lists the pins, and the self-review brain
 pass asks about one whose file is gone or unchanged for 60 days. The Reports
 page lists them first, with a Pinned filter.
 
+A pin that belongs to one project goes in that project instead: "pin this to
+acme" adds the same line under a `## Pinned` heading in
+`projects/acme/README.md` (created at the end of the README when missing), the
+link relative to the README (`../../reports/plans/x.md`, `research/notes.md`).
+The project's card shows a 📌 count and lists its pins above its tasks, its
+focus page gets a Pinned lane, and the Reports page lists them after the global
+ones, each with its project. Project pins stay out of the session context: the
+README is read whenever the project is in play. "Pin this" with no project named
+stays global.
+
 ## Project colors
 
 Each project's color comes from its name. To pick one ("make acme green"),

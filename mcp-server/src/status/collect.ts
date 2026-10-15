@@ -51,7 +51,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
 import { collectFocusView } from './focus';
 import type { FocusView } from './focus-data';
-import { livePins, projectHues, surfaceFiles } from './surfaces';
+import { livePins, projectHues, projectPinLinks, surfaceFiles, type PinLink } from './surfaces';
 
 export interface SettingsLayer {
   label: string;
@@ -311,6 +311,8 @@ export interface ProjectLoad {
   roadmap: string;
   /** HOME-relative path to the project's own focus.html; '' when it has none. */
   focus: string;
+  /** The live pins in the README's `## Pinned` section. */
+  pins: PinLink[];
 }
 
 export interface TaskRef {
@@ -839,7 +841,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     updatedAt: '',
     description: '',
     roadmap: '',
-    focus: ''
+    focus: '',
+    pins: []
   });
 
   // Seed every discovered project so those with no live tasks still render as
@@ -865,7 +868,8 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
         load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
       description: projectDescription(load.project),
       roadmap: projectPage(load.project, 'roadmap.html'),
-      focus: projectPage(load.project, 'focus.html')
+      focus: projectPage(load.project, 'focus.html'),
+      pins: projectPinLinks(load.project)
     }))
     // Most recently touched project first (by latest live-task `updated:`),
     // then by open-task count, then alphabetically. Quiet projects (no live

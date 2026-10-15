@@ -2,7 +2,7 @@ import { FOLDERS } from '@/config';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { livePins, projectHues, readPins } from './surfaces';
+import { livePins, projectHues, projectPinLinks, projectPins, readPins, withoutPins } from './surfaces';
 
 describe('readPins', () => {
   test('reads the link forms a markdown editor writes, each file once, and only inside the home', () => {
@@ -33,6 +33,57 @@ describe('readPins', () => {
     ]);
     expect(livePins().map((pin) => pin.title)).toEqual(['Encoded', 'Anchor', 'Parens']);
     [pinned, plans].forEach((path) => rmSync(path, { recursive: true, force: true }));
+  });
+});
+
+describe('projectPins', () => {
+  const readme = [
+    '# Acme',
+    '',
+    '- [Not a pin](notes.md)',
+    '',
+    '## Pinned',
+    '',
+    '- 📐 [Plan](../../reports/plans/plan.md)',
+    '- [Notes](notes.md)',
+    '- [Gone](gone.md)',
+    '',
+    '## Code',
+    '',
+    '- [After the section](notes.md#code)',
+    ''
+  ].join('\n');
+
+  test("reads only the README's Pinned section, links relative to the README", () => {
+    const project = join(FOLDERS.PROJECTS, 'acme');
+    const plans = join(FOLDERS.REPORTS, 'plans');
+    [project, plans].forEach((path) => mkdirSync(path, { recursive: true }));
+    writeFileSync(join(project, 'README.md'), readme);
+    writeFileSync(join(project, 'notes.md'), 'x');
+    writeFileSync(join(plans, 'plan.md'), 'x');
+
+    expect(projectPins('acme').map(({ title, exists }) => ({ title, exists }))).toEqual([
+      { title: 'Plan', exists: true },
+      { title: 'Notes', exists: true },
+      { title: 'Gone', exists: false }
+    ]);
+    expect(projectPinLinks('acme')).toEqual([
+      { title: 'Plan', icon: '📐', path: join('reports', 'plans', 'plan.md') },
+      { title: 'Notes', icon: '📌', path: join('projects', 'acme', 'notes.md') }
+    ]);
+    expect(projectPins('missing')).toEqual([]);
+    [project, plans].forEach((path) => rmSync(path, { recursive: true, force: true }));
+  });
+
+  test('a section running to the end of the file is read, and withoutPins drops only the section', () => {
+    const project = join(FOLDERS.PROJECTS, 'acme');
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(project, 'README.md'), '# Acme\n\n## Pinned\n\n- [Notes](notes.md)\n');
+    writeFileSync(join(project, 'notes.md'), 'x');
+    expect(projectPins('acme').map((pin) => pin.title)).toEqual(['Notes']);
+    rmSync(project, { recursive: true, force: true });
+
+    expect(withoutPins(readme)).toBe('# Acme\n\n- [Not a pin](notes.md)\n\n## Code\n\n- [After the section](notes.md#code)\n');
   });
 });
 

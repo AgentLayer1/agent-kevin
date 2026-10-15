@@ -27,8 +27,10 @@ export const FOCUS_CSS = readFileSync(new URL('focus-lanes.css', import.meta.url
 const fill = (slots: Record<string, string>): string =>
   TEMPLATE.replace(/\{\{(\w+)\}\}/g, (_match, token: string) => slots[token] ?? '');
 
-const taskLink = (view: FocusView, task: FocusTask): string =>
-  `<a href="${esc(view.markdownUrl.replace('{path}', encodeURIComponent(resolve(view.home, task.path))))}">${esc(task.id)}</a>`;
+const homeLink = (view: FocusView, path: string, text: string): string =>
+  `<a href="${esc(view.markdownUrl.replace('{path}', encodeURIComponent(resolve(view.home, path))))}">${esc(text)}</a>`;
+
+const taskLink = (view: FocusView, task: FocusTask): string => homeLink(view, task.path, task.id);
 
 interface RowOptions {
   mark: string;
@@ -201,7 +203,23 @@ const queueSection = (view: FocusView): string => {
     : '';
 };
 
-/** The lanes on their timeline: Today, Roadmap, the week and month, the queue, then Later and Not planned. */
+const pinsSection = (view: FocusView): string =>
+  view.pins.length
+    ? section(
+        5,
+        'focus-pins',
+        'pins',
+        laneHead('Pinned', view.pins.length),
+        `<ul>${view.pins
+          .map(
+            (pin) =>
+              `<li class="row" data-row data-cat="*"><span class="mark">${esc(pin.icon)}</span><span class="title">${homeLink(view, pin.path, pin.title)}</span></li>`
+          )
+          .join('')}</ul>`
+      )
+    : '';
+
+/** The lanes on their timeline: Today, Roadmap, the week and month, the queue, the project's pins, then Later and Not planned. */
 export const renderFocusLanes = (view: FocusView): string => {
   const monthName = formatDate(view.today, { month: 'long' });
   return [
@@ -228,11 +246,12 @@ export const renderFocusLanes = (view: FocusView): string => {
       view.planned.month
     ),
     queueSection(view),
+    pinsSection(view),
     view.lanes.later.length
-      ? collapsible(5, 'Later', view.lanes.later.length, taskList(view, view.lanes.later, []))
+      ? collapsible(6, 'Later', view.lanes.later.length, taskList(view, view.lanes.later, []))
       : '',
     view.unplanned.length
-      ? collapsible(6, 'Not planned', view.unplanned.length, taskList(view, view.unplanned, []))
+      ? collapsible(7, 'Not planned', view.unplanned.length, taskList(view, view.unplanned, []))
       : ''
   ].join('\n');
 };

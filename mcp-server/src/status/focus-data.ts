@@ -91,6 +91,8 @@ export const FocusDataSchema = z.object({
   dueUnplanned: Tasks,
   /** Roadmap milestones in flight, slipped first, plus a line for each roadmap this page couldn't use fully. */
   roadmap: z.object({ milestones: z.array(FocusMilestoneSchema), notices: z.array(z.string()) }),
+  /** A project page's pins, HOME-relative; pages written before project pins carry none. */
+  pins: z.array(z.object({ title: z.string(), icon: z.string(), path: z.string() })).default([]),
   snapshot: FocusSnapshotSchema.nullable()
 });
 

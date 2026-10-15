@@ -1,16 +1,18 @@
 import { FILES, FOLDERS } from '@/config';
 import { isInside } from '@/shared/paths';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { titleize } from './format';
 
 export interface Pin {
   icon: string | undefined;
   title: string;
-  /** As written in pinned.md, relative to reports/. */
+  /** As written in the pin line, relative to the file that holds it. */
   href: string;
   path: string;
   exists: boolean;
+  /** The file the pin line lives in: reports/pinned.md or a project README. */
+  source: string;
 }
 
 export interface SurfaceFile {
@@ -33,17 +35,46 @@ const targetPath = (href: string): string => {
   }
 };
 
-/** The pin lines in reports/pinned.md, in file order, each file once. A pin that no longer points
- *  at a file in the home stays in the list with `exists: false`. */
-export const readPins = (): Pin[] => {
-  const body = existsSync(FILES.REPORTS_PINNED) ? readFileSync(FILES.REPORTS_PINNED, 'utf-8') : '';
+// A project README's `## Pinned` section, up to the next `## ` heading or the end of the file.
+const PINNED_SECTION = /^## Pinned[ \t]*$([\s\S]*?)(?=^## |(?![\s\S]))/m;
+
+const readText = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
+
+/** The pin lines in `body`, in file order, each file once, links resolved against `source`'s folder.
+ *  A pin that no longer points at a file in the home stays in the list with `exists: false`. */
+const pinsIn = (source: string, body: string): Pin[] => {
   const pins = [...body.matchAll(PIN_LINE)].map(([, icon, title, href]) => {
-    const path = resolve(FOLDERS.REPORTS, targetPath(href));
+    const path = resolve(dirname(source), targetPath(href));
     const exists = isInside(path, FOLDERS.HOME) && (statSync(path, { throwIfNoEntry: false })?.isFile() ?? false);
-    return { icon, title, href, path, exists };
+    return { icon, title, href, path, exists, source };
   });
   return pins.filter((pin, index) => pins.findIndex((other) => other.path === pin.path) === index);
 };
+
+/** The pins in reports/pinned.md. */
+export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readText(FILES.REPORTS_PINNED));
+
+/** The pins in a project README's `## Pinned` section, which its card and focus page show. */
+export const projectPins = (project: string): Pin[] => {
+  const readme = resolve(FOLDERS.PROJECTS, project, 'README.md');
+  return pinsIn(readme, PINNED_SECTION.exec(readText(readme))?.[1] ?? '');
+};
+
+/** A project README without its `## Pinned` section. */
+export const withoutPins = (readme: string): string => readme.replace(PINNED_SECTION, '');
+
+export interface PinLink {
+  title: string;
+  icon: string;
+  /** HOME-relative. */
+  path: string;
+}
+
+/** A project's pins whose file is there; a broken one is the brain audit's to flag. */
+export const projectPinLinks = (project: string): PinLink[] =>
+  projectPins(project)
+    .filter((pin) => pin.exists)
+    .map((pin) => ({ title: pin.title, icon: pin.icon ?? '📌', path: relative(FOLDERS.HOME, pin.path) }));
 
 /** The pins whose file is there, which the sidebar and the session context show. */
 export const livePins = (): Pin[] => readPins().filter((pin) => pin.exists);

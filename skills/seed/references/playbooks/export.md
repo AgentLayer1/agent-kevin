@@ -113,7 +113,8 @@ client names that need `acme`-ing, personal paths, private context — and let t
 **approve / edit / exclude**. For `audience: self`, the operator's personal rules in
 IDENTITY.md and SOUL.md are expected and stay; flag only what belongs to someone else.
 Edits happen in the source file or via an `extras` override, never silently. No approval,
-no bundle.
+no bundle. A project README always ships without its `## Pinned` section, since the reports
+and files it pins don't travel; say so when showing the README.
 
 Then a final manifest summary (files by category, permission entries, key names, MCP
 servers) and one last confirm.

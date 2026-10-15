@@ -46,6 +46,7 @@ const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusI
   tasks,
   goals: { daily: [], weekly: ['Ship the invoice export'], monthly: [] },
   roadmaps: [],
+  pins: [],
   snapshot: null,
   self: new Set(['user', 'alex']),
   operator: 'Alex Chen',
@@ -146,6 +147,16 @@ describe('renderFocusHtml', () => {
     expect(today).toContain('<ul class="goals"><li>The invoice export is on staging</li></ul>');
     const project = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })], { goals, project: 'acme' })));
     expect(project).not.toContain('The invoice export is on staging');
+  });
+
+  test("a project page lists its README's pins in their own lane", () => {
+    const pins = [{ title: 'Migration plan', icon: '📐', path: 'reports/plans/migration.md' }];
+    const project = renderFocusHtml(buildFocusView(inputs([], { pins, project: 'acme' })));
+    expect(project).toContain(
+      `<span class="mark">📐</span><span class="title"><a href="obsidian://open?path=${encodeURIComponent('/home/alex/reports/plans/migration.md')}">Migration plan</a></span>`
+    );
+    expect(readFocusData(project)?.pins).toEqual(pins);
+    expect(renderFocusHtml(buildFocusView(inputs([], { project: 'acme' })))).not.toContain('id="focus-pins"');
   });
 
   test('today reads as a numbered list with the date as the headline', () => {

@@ -503,6 +503,20 @@ describe('a bundle under a new name', () => {
   });
 });
 
+describe('project pins in a bundle', () => {
+  test("a project README travels without its Pinned section, since what it pins doesn't", () => {
+    write(sourceHome, 'projects/beta/README.md', '# Beta\n\n## Pinned\n\n- [Plan](../../reports/plan.md)\n\n## Code\n\nrepo\n');
+    const result = asSource(() =>
+      exportSeed({ include: ['projects/beta/README.md'], agentName: 'Scout', out: join(sourceHome, 'pins.zip') })
+    );
+    const recipient = makeHome();
+    homes.push(recipient);
+    inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
+    expect(readFileSync(join(recipient, 'projects/beta/README.md'), 'utf-8')).toBe('# Beta\n\n## Code\n\nrepo\n');
+    expect(readFileSync(join(sourceHome, 'projects/beta/README.md'), 'utf-8')).toContain('## Pinned');
+  });
+});
+
 describe('the bundle audience', () => {
   test('export records it and import passes it on', () => {
     const result = asSource(() =>
