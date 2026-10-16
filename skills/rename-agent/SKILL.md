@@ -1,6 +1,6 @@
 ---
 name: rename-agent
-description: Rename this agent's display name across an existing HOME — IDENTITY.md fields, avatar, and every prose mention in SOUL/AGENTS/USER, the .claude/CLAUDE.md bridge, knowledge, and projects — without forking the plugin or touching the `/agent-kevin:` namespace. Also the repair path when a half-finished rename left mixed names behind. Only runs when explicitly invoked via /rename-agent, and is deliberately left ungranted so it asks for permission every time.
+description: Rename this agent's display name across an existing HOME — the Name in IDENTITY.md, the emoji and avatar, and every mention in the markdown the agent reads now (SOUL, AGENTS, USER, the .claude/CLAUDE.md bridge, rules, knowledge, projects), with the old name recorded so history still makes sense. Never renames the home folder, the plugin namespace or dated records. Also the repair path when a half-finished rename left mixed names behind. Only runs when explicitly invoked via /rename-agent, and is deliberately left ungranted so it asks for permission every time.
 disable-model-invocation: true
 ---
 
@@ -12,6 +12,11 @@ Change what this agent calls itself. The display name is data in `IDENTITY.md`; 
 namespace is code in the plugin manifest. This skill moves the first and never the
 second.
 
+> **The home folder keeps its name.** A home at `~/Documents/Agents/Kevin` stays there:
+> session history, the brain's version history and the home's settings are all keyed to
+> that path, and moving it is a separate manual job this skill never does. Tell the
+> operator this before Step 2.
+
 **Slash-only, and unpermissioned on purpose.** It rewrites files across the whole brain
 in one pass, so it never fires on its own — not from a passing "maybe call it something
 else", not via the Skill tool from another skill. It is also deliberately absent from the
@@ -22,172 +27,123 @@ Two gates, both intentional: don't "fix" either by adding a grant.
 
 | Changes | Stays |
 |---|---|
-| `IDENTITY.md` → `Name`, `Emoji`, `Avatar` | `/agent-kevin:*` slash commands |
-| The avatar image file | `mcp__plugin_agent-kevin_kevin__*` tool names |
-| Prose in `SOUL.md`, `AGENTS.md`, `USER.md` | `AGENT_*` env vars |
-| Prose in `knowledge/`, `projects/`, reports | |
-| | `enabledPlugins` in `.claude/settings.local.json` |
+| `IDENTITY.md` → `Name` (old name added to `Formerly`), `Emoji`, avatar | The home folder and every path that contains it |
+| Markdown in `SOUL.md`, `AGENTS.md`, `USER.md`, `.claude/CLAUDE.md`, `.claude/rules/` | Dated records: `reports/`, `knowledge/raw/` (sessions, feedback, inbox), and every `archive/` folder |
+| Markdown in `knowledge/` and `projects/` | Anything that isn't markdown: code, HTML (a roadmap, an issued letter), JSON |
+| `projects/TASKS.md` and `dashboard.html`, regenerated | Custom skills in `.claude/skills/`: listed for the operator, never written |
+| | `/agent-kevin:*` slash commands and `mcp__plugin_agent-kevin_kevin__*` tool names |
 
-The right-hand column is plumbing. None of it surfaces in conversation, and changing
-any of it means forking the plugin and giving up clean updates. Say this out loud if
-the operator asks why their slash commands still say `agent-kevin`.
+Dated records keep the name they were written under. The `- **Formerly:**` line in
+`IDENTITY.md`, loaded every session and read by the compile prompts, is what tells the
+agent that the old name in them means itself.
+
+The slash commands and tool names are plumbing from the plugin manifest; changing them
+means forking the plugin and giving up clean updates. Say so if the operator asks why
+their slash commands still say `agent-kevin`.
+
+## How the rename decides
+
+`scripts/rename-agent.ts` does all the reading and writing with the rule seed export
+uses (`renameAgent` in `mcp-server/src/shared/agent-name.ts`): exact case, whole word, and
+never a name touching a letter, digit, `-`, `/` or `\`. So `Kevin's`, `_Kevin_` and `Kevin.`
+rename, while `~/Documents/Agents/Kevin/`, `Documents-Agents-Kevin.git`, `X-Kevin-Test` and a
+mention already inside the new name (`Kevin Prime`) stay. It reads only `.md` files, skips
+hidden folders other than the bridge and rules, symlinks, and any file that isn't clean
+UTF-8 (a rewrite would mangle it). Don't reproduce it with `sed`, `perl` or `rg`.
+
+```bash
+HOME_DIR="${AGENT_HOME:-$PWD}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory (the <skill> block's <path>) before running
+RENAME="$PLUGIN_ROOT/skills/rename-agent/scripts/rename-agent.ts"
+```
 
 ## Step 1 — Establish both names
 
-The current name is `IDENTITY.md`'s `- **Name:**` field. That is the canonical source
-(the dashboard reads exactly this line), so read it rather than assuming "Kevin":
+The old name is `IDENTITY.md`'s `- **Name:**` field; the script reads it. Ask for the new
+name with `AskUserQuestion` if the operator didn't give one. **It must match
+`^[A-Za-z0-9][A-Za-z0-9 -]*$`**, init's allowlist (the name sits inside markdown link
+text and line parsers read it back), and the script refuses anything else. Offer the
+closest clean form.
+
+Pass `--from <old name>` only to repair: when `IDENTITY.md` already shows the new name
+(a half-finished rename), when it holds a literal `{{AGENT_NAME}}`, or when the prose
+uses a different old name than the field. Without it, a Name equal to the new one stops
+the run and says so.
+
+## Step 2 — Dry run, then review every line
 
 ```bash
-grep -m1 '^- \*\*Name:\*\*' "$HOME_DIR/IDENTITY.md"
+DRY=$(mktemp "${TMPDIR:-/tmp}/rename-dry-XXXXXX")
+bun "$RENAME" --home "$HOME_DIR" --to "<New>" > "$DRY"
 ```
 
-If the file has no `Name` field, the home predates it: fall back to `Kevin` and note
-that Step 3 will add the field. If the field holds a literal `{{AGENT_NAME}}`, an init
-run failed to substitute it — say so, treat `Kevin` as the old name for the sweep, and
-let Step 3 write the real one.
+It writes nothing. The JSON in `$DRY` can run to hundreds of KB on a lived-in home, so read
+it in parts until you've seen all of it:
 
-Ask for the new name with `AskUserQuestion` if the operator didn't already give one.
-**It must match `^[A-Za-z0-9][A-Za-z0-9 -]*$`** — same allowlist `/agent-kevin:init`
-enforces, for the same reason: the value is rendered inside markdown link syntax and
-read back out by the dashboard's line parser. Offer the closest clean form rather than
-accepting anything else.
+- `hits`: every line it would change (`path`, `line`, and `text`, the words around the
+  first mention), with `totals`.
+- `guarded`: lines where the old name sits in a path or identifier and stays.
+- `manual`: hits in custom skills, which the operator edits by hand.
 
-Refuse the no-op: if old and new match, say so and stop.
+Read every `hits` line, not the count. The one false-positive class is the old name
+meaning something other than this agent: a person, a character the agent was named
+after ("Inspired by the minion Kevin"), a product or repo that shares the name, a quoted
+upstream doc. Show the operator the totals and each line you'd keep as-is, and agree on
+the keep list before writing.
 
-## Step 2 — Show the blast radius before touching anything
-
-Count first, edit second. The operator should see the scale before approving:
+## Step 3 — Apply
 
 ```bash
-cd "$HOME_DIR"
-rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -c --no-filename | wc -l
-rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l | head -40
+bun "$RENAME" --home "$HOME_DIR" --to "<New>" --keep "<path>:<line>" --keep "<path>:<line>" --apply
 ```
 
-(Substitute the actual current name for `Kevin`.)
+Keep line numbers come from the dry run. A `--keep` that matches no renameable line stops
+the run before anything is written: rerun the dry run and copy the numbers again.
 
-**Three exclusions, each load-bearing.**
+`--apply` rewrites the hit lines, sets `- **Name:**` to the new name, and adds the old one to
+`- **Formerly:**` (creating it under the Name line; a name renamed back to comes off the
+list). It prints the dry-run report plus `changed`, the files it wrote. Running the same
+command again stops at "already says <New>"; a `--from` rerun changes nothing.
 
-- **`knowledge/raw/sessions/`** — captured historical transcripts, an append-only record
-  of what was actually said. Rewriting them fabricates history, costs a large diff, and
-  buys nothing. If the operator insists, say why not once, then do as they ask.
-- **Anything under a dot-directory** — `.git/`, `.state/`, `.claude/`, `.mcp.json`.
-  ripgrep skips hidden paths by default, so this is free, and **you must not pass
-  `--hidden` to get around it.** `.state/` is runtime state (compile cursor, logs,
-  config) and `.claude/settings*.json` plus `.mcp.json` are harness config holding
-  absolute paths and permission rules. A stray edit there breaks the session rather
-  than mislabeling a document. **One exception, swept explicitly in Step 4:**
-  `.claude/CLAUDE.md`, the Claude Code bridge — it is prose (its title reads
-  `# CLAUDE.md — Claude Code bridge for Kevin`), not config.
-- **Path segments** — see the lookarounds in the pattern below.
+## Step 4 — Emoji and avatar
 
-**The home directory is not renamed and must not be.** By convention it's
-`~/Documents/Agents/Kevin`, so the old name is embedded in absolute paths all over the
-brain: `settings.local.json` env values, `.mcp.json`, and prose lines like
-``Agent home at `~/Documents/Agents/Kevin/` ``. Rewriting those points every path at a
-directory that doesn't exist. The regex below refuses to touch `Kevin` when it sits
-directly against a `/` or `\`, which is what makes the sweep safe to run on a home named
-after the agent. If the operator also wants the folder moved, that's a separate manual
-job (move it, then repoint `AGENT_CODE_PATH`/`AGENT_REPORTS`/`.mcp.json` and any
-separated git dir) — offer it, don't fold it in here.
+Edit these in `IDENTITY.md` with `Edit`, not the script. The dashboard takes its persona
+header from the `Name`, `Kind`, `Vibe` (or `Register`) and `Emoji` fields and the first
+image in the file; the session banner shows the `Name`, the status line and `/today` the `Emoji`.
 
-## Step 3 — IDENTITY.md, the load-bearing edit
-
-Everything the dashboard renders comes from four lines here (`Name`, `Kind`, `Vibe` or
-`Register`, `Emoji`), plus the first markdown image in the file as the avatar. Use
-`Edit`, not the sweep, so these are exact:
-
-- `- **Name:** <new>`
-- `- **Emoji:** <new>` if they want a different one
-- The `![...](path)` image line and the `- **Avatar:**` line
-
-Avatar handling:
-
-- **Keeping the old image** — fine, but if the filename carries the old name
-  (`kevin-avatar.jpg`), `git mv` it to match the new one and repoint both lines.
-- **New image** — copy it to `.claude/assets/<newname-lowercased>-avatar.<ext>`,
-  repoint both lines, delete the old file.
-- **None** — delete the image line and the `- **Avatar:**` line outright. Do not leave
-  an empty link; the dashboard takes the first image in the file and a dangling one
+- `- **Emoji:** <new>` if they want a different one.
+- **Keeping the old image:** if its filename carries the old name (`kevin-avatar.jpg`),
+  rename the file with plain `mv` (never `git mv`, which stages in the operator's repo) to
+  `.claude/assets/<newname-lowercased>-avatar.<ext>` and repoint both the `![...](path)`
+  line and the `- **Avatar:**` line.
+- **New image:** copy it to `.claude/assets/<newname-lowercased>-avatar.<ext>`, repoint
+  both lines, and delete the old file only once the new one is in place.
+- **None:** delete the image line and the `- **Avatar:**` line outright; an empty link
   renders broken.
 
-## Step 4 — Sweep the prose
+## Step 5 — Regenerate, review, hand back
 
-Case-sensitive, word-boundary, and path-guarded.
+Run the `dashboard` MCP tool: it regenerates `dashboard.html` and `projects/TASKS.md` from
+current state, so neither is hand-edited.
 
-```bash
-cd "$HOME_DIR"
-rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' -l \
-  | while IFS= read -r file; do
-      perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vega}g' "$file"
-    done
-# The bridge is prose too, but it lives under .claude/ where rg does not look.
-[ -f .claude/CLAUDE.md ] && perl -pi -e 's{(?<![/\\])\bKevin\b(?![/\\])}{Vega}g' .claude/CLAUDE.md
-```
+Show `git -C "$HOME_DIR" diff --stat` (or the `changed` list when the home isn't a git
+repo). Do not commit: the home is the operator's, and some homes keep their git dir where
+the agent can't write. Then hand back, in a few lines:
 
-Three properties do the work, and all three are required:
-
-- **Exact case.** Every plumbing token is lowercase (`agent-kevin`,
-  `kevin-avatar`, `bin/kevin`) or uppercase (a legacy `KEVIN_*` key), so `Kevin` cannot reach
-  them. **Never add `-i`.**
-- **`\b` word boundary.** Catches `Kevin's` (the boundary sits before the apostrophe)
-  without matching inside a longer word.
-- **The `/` and `\` lookarounds.** These are what stop the sweep from rewriting the home
-  path. Without them, ``~/Documents/Agents/Kevin/`` becomes
-  ``~/Documents/Agents/Vega/`` and every documented path in the brain points nowhere.
-  Both sides are needed: the home appears with a trailing slash, without one at end of
-  line, and backslash-separated on Windows.
-
-**Use `perl`, not `sed`.** BSD `sed` on macOS does not support `\b`, and
-`sed -i '' 's/\bKevin\b/.../'` silently matches nothing — it exits 0 and changes zero
-files, which reads exactly like success. `perl -pi -e` behaves identically on macOS and
-Linux.
-
-**Use the `while read` loop, not `xargs`.** It does the right thing on zero matches
-(the loop body never runs, where bare `xargs` on GNU would invoke `perl` with no file
-arguments and hang reading stdin) and on paths containing spaces, which agent homes
-under `~/Documents/Agents/<Name>` can easily have.
-
-Possessives (`Kevin's`) are handled: `\b` sits before the apostrophe.
-
-Then verify. Two checks, and the second one matters more:
-
-```bash
-# 1. Nothing renameable left (path hits are expected and correct). The bridge is named
-#    explicitly because it is hidden from rg's default walk.
-rg -P '(?<![/\\])\bKevin\b(?![/\\])' --glob '!knowledge/raw/sessions/**' . .claude/CLAUDE.md || echo "clean"
-
-# 2. Home paths survived intact — this must still return hits, not zero.
-rg -n 'Agents/Kevin|agent-kevin' --glob '!knowledge/raw/sessions/**' | head -20
-```
-
-If check 2 comes back empty on a home that had path references before the sweep,
-something rewrote the paths: stop and restore from git rather than continuing.
-
-## Step 5 — Review, then hand back
-
-Show `git diff --stat` (or the file list when the home isn't a git repo) and call out
-anything the sweep touched that looks like it shouldn't have changed. Names embedded in
-prose about *other* things (a person called Kevin, a quoted upstream doc) are the one
-real false-positive class. Scan for them rather than trusting the count.
-
-Do not commit. The HOME is the operator's, and some homes have a separated git dir the
-agent can't write to anyway. Print what changed and let them commit.
-
-Close with what did NOT change and why, in two lines: the slash commands and tool
-names still say kevin because they come from the plugin
-manifest, and that's what keeps `/plugin update` working. Nobody sees them but you.
+- the counts, and the lines kept as-is;
+- any `manual` hits in custom skills, for the operator to edit;
+- that the folder, the dated records and the slash commands kept the old name, and why
+  (the paths would break, history stays as written, `/plugin update` needs the namespace);
+- that the new name shows in the session banner from the next session.
 
 ## Notes
 
 - **Future upgrades respect this.** `/agent-kevin:upgrade` resolves `{{AGENT_NAME}}` in
   the shipped templates from this home's `IDENTITY.md` before diffing, so template
-  changes arrive phrased in the new name and never propose reverting it. That is why
-  Step 3 must land even if the operator only cares about the prose.
+  changes arrive phrased in the new name and never propose reverting it.
 - **Multiple homes from one plugin** are a supported setup (a work agent and a personal
   one, same `agent-kevin` install). They stay isolated by location, not by name, so
-  renaming one has no effect on the other. Neither sets `AGENT_HOME`
-  machine-wide, since one value would capture every home on the box.
+  renaming one has no effect on the other.
 - **This is not a fork.** If the operator actually wants their own slash-command
   namespace, that's a plugin fork: change `name` in
   `.claude-plugin/plugin.json` and the namespace follows automatically. Tell them the cost

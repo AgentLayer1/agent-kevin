@@ -1,0 +1,181 @@
+#!/usr/bin/env bun
+/**
+ * Rename the agent across the markdown it reads now, with the rule seed export uses
+ * (`shared/agent-name`). A dry run by default: it lists every line it would change, the
+ * mentions the rule leaves alone, and custom-skill hits the operator edits by hand.
+ * `--apply` writes those lines, sets IDENTITY.md's Name and records the old one in `Formerly`.
+ * Dated records (reports, archives, raw inputs) keep the old name.
+ *
+ * Usage: rename-agent.ts --to <Name> [--from <Name>] [--keep <path>:<line> ...] [--apply] [--home <dir>]
+ */
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
+
+const args = process.argv.slice(2);
+const flag = (name: string): string | undefined => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+const homeFlag = flag('--home');
+// The config module resolves the home from AGENT_HOME, so --home is exported first.
+if (homeFlag) {
+  process.env.AGENT_HOME = resolve(homeFlag);
+}
+process.env.AGENT_LOG_FILE = 'off';
+const { FILES, FOLDERS } = await import('../../../mcp-server/src/config');
+const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/shared/env');
+const { agentNameIn, FORMERLY_FIELD, formerNamesIn, NAME_FIELD, NAME_RE, renameAgent } =
+  await import('../../../mcp-server/src/shared/agent-name');
+
+const fail = (message: string): never => {
+  console.error(message);
+  process.exit(2);
+};
+
+if (!isAgentHome(agentHomePath())) {
+  fail(`not an agent home: ${agentHomePath()}`);
+}
+
+const IDENTITY_REL = 'IDENTITY.md';
+const ROOT_FILES = ['SOUL.md', IDENTITY_REL, 'AGENTS.md', 'USER.md', join('.claude', 'CLAUDE.md')];
+const TREES = [join('.claude', 'rules'), 'knowledge', 'projects'];
+const SKIPPED = new Set([join('knowledge', 'raw'), join('projects', 'TASKS.md')]);
+const MANUAL_TREE = join('.claude', 'skills');
+
+const identity = existsSync(FILES.IDENTITY) ? readFileSync(FILES.IDENTITY, 'utf-8') : '';
+if (!NAME_FIELD.test(identity)) {
+  fail('IDENTITY.md has no `**Name:**` line; add one under ## Who, then rerun');
+}
+const to = flag('--to') ?? fail('--to <name> is required');
+if (!NAME_RE.test(to)) {
+  fail(`--to "${to}" must match ${NAME_RE} (letters, digits, spaces, hyphens)`);
+}
+const from = flag('--from') ?? agentNameIn(identity);
+if (!NAME_RE.test(from)) {
+  fail(`IDENTITY.md's Name "${from}" must match ${NAME_RE}; pass --from <old name>`);
+}
+if (from === to) {
+  fail(`IDENTITY.md already says ${to}; to finish a half-done rename, pass --from <old name>`);
+}
+const apply = args.includes('--apply');
+const kept = new Set(args.flatMap((arg, i) => (arg === '--keep' ? [args[i + 1]] : [])));
+
+interface Hit {
+  path: string;
+  line: number;
+  text: string;
+}
+
+/** Every markdown file under `rel`, skipping dot-entries, symlinks and archive folders. */
+const walk = (rel: string): string[] => {
+  const abs = join(FOLDERS.HOME, rel);
+  if (SKIPPED.has(rel) || !existsSync(abs)) {
+    return [];
+  }
+  // Sorted, so the report reads the same on every filesystem.
+  return readdirSync(abs, { withFileTypes: true })
+    .filter((entry) => !entry.name.startsWith('.'))
+    .sort((left, right) => (left.name < right.name ? -1 : 1))
+    .flatMap((entry) => {
+      const child = join(rel, entry.name);
+      if (entry.isDirectory()) {
+        return entry.name === 'archive' ? [] : walk(child);
+      }
+      return entry.isFile() && entry.name.endsWith('.md') && !SKIPPED.has(child) ? [child] : [];
+    });
+};
+
+/** The file's text, or null when it isn't clean UTF-8 and a rewrite would mangle it. */
+const textOf = (rel: string): string | null => {
+  const buf = readFileSync(join(FOLDERS.HOME, rel));
+  const text = buf.toString('utf-8');
+  return Buffer.from(text, 'utf-8').equals(buf) ? text : null;
+};
+
+// The text around the first mention, so a long line still shows what the name refers to.
+const excerpt = (line: string): string => {
+  const at = line.indexOf(from);
+  return line.slice(Math.max(0, at - 80), at + from.length + 120).trim();
+};
+
+const scan = (rels: string[]): (Hit & { renameable: boolean })[] =>
+  rels.flatMap((rel) => {
+    // Forward slashes on every OS, so `--keep` paths read the same everywhere.
+    const path = rel.split(sep).join('/');
+    return (textOf(rel) ?? '')
+      .split('\n')
+      .flatMap((line, i) =>
+        line.includes(from) && !(path === IDENTITY_REL && FORMERLY_FIELD.test(line))
+          ? [{ path, line: i + 1, text: excerpt(line), renameable: renameAgent(line, from, to) !== line }]
+          : []
+      );
+  });
+
+const found = scan([...ROOT_FILES.filter((rel) => existsSync(join(FOLDERS.HOME, rel))), ...TREES.flatMap(walk)]);
+const key = (hit: Hit): string => `${hit.path}:${hit.line}`;
+const strip = ({ path, line, text }: Hit): Hit => ({ path, line, text });
+const hits = found.filter((hit) => hit.renameable && !kept.has(key(hit))).map(strip);
+const report = {
+  mode: apply ? 'applied' : 'dry-run',
+  from,
+  to,
+  totals: { files: new Set(hits.map((hit) => hit.path)).size, lines: hits.length },
+  hits,
+  kept: found.filter((hit) => hit.renameable && kept.has(key(hit))).map(strip),
+  // Mentions inside a path, identifier or longer word: the rule leaves them, the review should see them.
+  guarded: found.filter((hit) => !hit.renameable).map(strip),
+  // Custom skills are the operator's code; list them, never write them.
+  manual: scan(walk(MANUAL_TREE)).map(strip),
+  unknownKeeps: [...kept].filter((entry) => !found.some((hit) => hit.renameable && key(hit) === entry))
+};
+
+if (!apply) {
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
+}
+if (report.unknownKeeps.length > 0) {
+  fail(
+    `--keep matched no renameable line: ${report.unknownKeeps.join(', ')}; rerun the dry run for current line numbers`
+  );
+}
+
+/** Write `path` only when `edit` changes it; true when it did. */
+const rewrite = (path: string, edit: (text: string) => string): boolean => {
+  const abs = join(FOLDERS.HOME, path);
+  const original = readFileSync(abs, 'utf-8');
+  const next = edit(original);
+  if (next !== original) {
+    writeFileSync(abs, next);
+  }
+  return next !== original;
+};
+
+const hitLines = new Set(hits.map(key));
+const sweptChanged = [...new Set(hits.map((hit) => hit.path))].filter((path) =>
+  rewrite(path, (text) =>
+    text
+      .split('\n')
+      .map((line, i) => (hitLines.has(`${path}:${i + 1}`) ? renameAgent(line, from, to) : line))
+      .join('\n')
+  )
+);
+
+// Oldest first; renaming back to an old name takes it off the list.
+const formerly = [...formerNamesIn(identity).filter((name) => name !== from && name !== to), from];
+// The Name is set outright, so one the sweep can't reach (a leftover `{{AGENT_NAME}}`) still lands.
+const identityChanged = rewrite(IDENTITY_REL, (text) => {
+  const withName = text.replace(NAME_FIELD, `$1 ${to}`);
+  const formerlyLine = `- **Formerly:** ${formerly.join(', ')}`;
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  return FORMERLY_FIELD.test(withName)
+    ? withName.replace(FORMERLY_FIELD, formerlyLine)
+    : withName.replace(NAME_FIELD, `$&${eol}${formerlyLine}`);
+});
+
+console.log(
+  JSON.stringify(
+    {
+      ...report,
+      changed: [...new Set([...sweptChanged, ...(identityChanged ? [IDENTITY_REL] : [])])]
+    },
+    null,
+    2
+  )
+);
