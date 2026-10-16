@@ -88,4 +88,19 @@ describe('capture modes', () => {
     expect(block).toMatch(/\n\`\`\`\n\[… \d+ chars truncated\]/);
     expect((block.match(/^\s*\`\`\`/gm) ?? []).length % 2).toBe(0);
   });
+
+  test('copies of messages in api-request records are not captured as turns', async () => {
+    const lines = [
+      { type: 'user', message: { role: 'user', content: 'the real prompt' } },
+      { type: 'api-request-blob', hash: 'h1', message: { role: 'user', content: [{ type: 'text', text: 'a copy' }] } },
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'the real reply' }] } }
+    ];
+    writeFileSync(transcriptPath, lines.map((line) => JSON.stringify(line)).join('\n'), 'utf-8');
+    const result = await capture('session-end', 'apirequest');
+    expect(result.saved).toBe(true);
+    const written = readFileSync(resolve(SESSIONS, `${result.saved && result.filename}`), 'utf-8');
+    const block = written.slice(written.indexOf('[apirequest]'));
+    expect(block).toContain('turns 1–2');
+    expect(block).not.toContain('a copy');
+  });
 });

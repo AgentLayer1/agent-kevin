@@ -87,6 +87,8 @@ const claudeExtractor: Extractor = (transcriptPath) => {
     }
 
     if (!isRecord(entry)) continue;
+    // Since 2.1.300, api-request records carry copies of the conversation's messages.
+    if (typeof entry.type === 'string' && entry.type !== 'user' && entry.type !== 'assistant') continue;
     const msg = isRecord(entry.message) ? entry.message : entry;
     const role = typeof msg.role === 'string' ? msg.role : undefined;
     if (role !== 'user' && role !== 'assistant') continue;
