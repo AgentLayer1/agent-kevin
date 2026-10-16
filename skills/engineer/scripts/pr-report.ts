@@ -23,10 +23,15 @@ const RISKS = ['S', 'M', 'L', 'XL'];
 const CLASSES = ['risk', 'logic', 'mechanical'];
 const SEVERITIES = ['blocker', 'fix-before-merge', 'nit', 'question'];
 const INTRODUCED = ['yes', 'made-worse', 'pre-existing'];
-const LANES = ['correctness', 'invariants', 'security', 'regressions', 'conventions', 'tests', 'hygiene', 'generated-code', 'performance', 'case-against', 'gate'];
+const LANES = ['correctness', 'invariants', 'security', 'regressions', 'conventions', 'tests', 'hygiene', 'generated-code', 'performance', 'architecture', 'case-against', 'gate'];
 const CRITICAL_LANES = ['invariants', 'security'];
 const ASKED = ['met', 'not-met', 'untested'];
-const DISPOSITIONS = ['confirmed', 'question', 'false-positive', 'already-fixed', 'out-of-scope'];
+const CLAIMS = ['matches', 'partly', 'wrong', 'missing'];
+const PRIOR_STATUSES = ['fixed', 'changed', 'open', 'moot'];
+const THREAD_KINDS = ['person', 'bot'];
+const THREAD_STATES = ['open', 'partly', 'fixed', 'answered', 'unanswered', 'wrong', 'outdated'];
+const TONES = ['ok', 'warn', 'bad', 'cool'];
+const TOPICS = ['tests', 'lint'];
 const RESULTS = ['pass', 'fail', 'not-run', 'partial', 'info'];
 const WHERE = ['inline', 'conversation', 'review'];
 const STATUSES = ['to-post', 'follow-up', 'posted'];
@@ -35,11 +40,16 @@ const LINES = /^([1-9]\d*)(?:-([1-9]\d*))?$/;
 const REPO = /^[\w.-]+\/[\w.-]+$/;
 const COMMENT_ID = /^(discussion_r|issuecomment-|pullrequestreview-)\d+$/;
 const LOOK_LIMIT = 5;
+const SCENARIO_STEPS = [3, 5];
+const GLANCE_WORDS = 14;
 
 const KEYS = {
-  common: ['kind', 'pr', 'stack', 'summary', 'checks', 'sinceLast', 'prior', 'draft'],
-  review: ['verdict', 'risk', 'riskWhy', 'executed', 'lookAt', 'skim', 'decisions', 'asked', 'explanation', 'flows', 'areas', 'behavior', 'holdQuestions', 'caseAgainst', 'findings', 'files', 'bots', 'verifiedClean', 'summaryComment', 'noticed', 'dropped', 'notChecked'],
-  replies: ['threads', 'ownFindings', 'commits', 'resolveOnly', 'stillOpen'],
+  common: ['kind', 'pr', 'stack', 'summary', 'checks', 'prior', 'draft'],
+  review: [
+    'verdict', 'risk', 'riskWhy', 'executed', 'sinceReview', 'description', 'lookAt', 'skim', 'decisions', 'asked', 'callTree', 'explanation', 'flows', 'walkTree',
+    'behavior', 'holdQuestions', 'architecture', 'caseAgainst', 'findings', 'files', 'conversation', 'verifiedClean', 'summaryComment', 'noticed', 'dropped', 'notChecked'
+  ],
+  replies: ['sinceLast', 'threads', 'ownFindings', 'commits', 'resolveOnly', 'stillOpen'],
   pr: ['number', 'title', 'author', 'repo', 'head', 'base', 'adds', 'dels'],
   stack: ['number', 'title', 'current'],
   check: ['check', 'result', 'notes'],
@@ -48,13 +58,29 @@ const KEYS = {
   asked: ['criterion', 'status', 'anchor'],
   flow: ['title', 'diagram', 'steps'],
   step: ['anchor', 'text'],
-  area: ['area', 'what', 'why'],
-  behavior: ['case', 'before', 'after'],
+  textView: ['title', 'sub', 'text'],
+  behavior: ['case', 'before', 'after', 'bad', 'diff'],
+  description: ['picture', 'claims', 'proposed'],
+  claim: ['claim', 'code', 'anchor', 'status'],
+  sinceReview: ['prior', 'sub', 'findings', 'commits', 'conversation'],
+  priorFinding: ['id', 'title', 'status', 'anchor', 'now'],
+  priorCommit: ['sha', 'subject'],
+  architecture: ['sub', 'decision', 'components', 'stats', 'today', 'concerns', 'target', 'mapping', 'comparisons', 'debt', 'path'],
+  comparison: ['title', 'sub', 'today', 'target'],
+  archDiagram: ['title', 'diagram', 'caption'],
+  archStat: ['value', 'label', 'tone'],
+  concern: ['concern', 'ok', 'state', 'today', 'anchor', 'recommended', 'reuses'],
+  debt: ['adds', 'paysDown'],
+  pathStep: ['step', 'what'],
   caseAgainst: ['strongest', 'threeMonths', 'cut'],
-  finding: ['id', 'severity', 'title', 'anchor', 'lanes', 'principle', 'introduced', 'failure', 'evidence', 'comment'],
+  finding: [
+    'id', 'priorId', 'severity', 'topic', 'title', 'anchor', 'lanes', 'principle', 'introduced', 'raisedBy', 'scenario', 'failure', 'diagram', 'snippet', 'proof', 'evidence', 'comment'
+  ],
+  proof: ['anchor', 'source', 'fact'],
+  raisedBy: ['who', 'url'],
   file: ['path', 'class', 'concern', 'summary', 'adds', 'dels', 'hunks'],
   hunk: ['lines', 'text'],
-  bot: ['bot', 'anchor', 'claim', 'disposition', 'finding', 'reason', 'reply'],
+  conversation: ['who', 'kind', 'url', 'anchor', 'point', 'state', 'finding', 'note', 'reply'],
   noticed: ['anchor', 'text'],
   dropped: ['anchor', 'lanes', 'claim', 'reason'],
   thread: ['id', 'url', 'where', 'anchor', 'reviewer', 'bot', 'outdated', 'pr', 'point', 'quote', 'status', 'reply'],
@@ -76,7 +102,7 @@ const STATUS_LABEL: Record<string, string> = { 'to-post': 'To post', 'follow-up'
 interface ReportCheck {
   errors: string[];
   warnings: string[];
-  diagrams: { flow: string; source: string }[];
+  diagrams: { label: string; source: string }[];
 }
 
 type Row = Record<string, unknown>;
@@ -193,21 +219,122 @@ const commonErrors = (data: Row): string[] => {
       ...oneLineErrors(row, ['title'], at)
     ]),
     ...rowErrors(data.checks, 'checks', KEYS.check, (row, at) => [...textErrors(row, ['check'], at), ...enumErrors(row.result, RESULTS, `${at}.result`)]),
-    ...textListErrors(data.sinceLast, 'sinceLast'),
     ...textListErrors(data.prior, 'prior')
   ];
 };
 
+const objectErrors = (value: unknown, path: string, keys: string[], check: (record: Row) => string[], required = false): string[] =>
+  value === undefined ? (required ? [`${path} is required`] : []) : isRecord(value) ? [...check(value), ...keyErrors(value, keys, path)] : [`${path} must be an object`];
+
+const viewErrors = (value: unknown, path: string): string[] =>
+  objectErrors(value, path, KEYS.textView, (view) => [...textErrors(view, ['text'], path), ...optionalTextErrors(view, ['title', 'sub'], path)]);
+
+const diagramViewErrors = (value: unknown, path: string, required: boolean): string[] =>
+  objectErrors(value, path, KEYS.archDiagram, (view) => [...textErrors(view, ['title', 'diagram'], path), ...optionalTextErrors(view, ['caption'], path)], required);
+
+const booleanErrors = (record: Row, keys: string[], path: string): string[] =>
+  keys.filter((key) => record[key] !== undefined && typeof record[key] !== 'boolean').map((key) => `${path}.${key} must be true or false`);
+
+const isThreadUrl = (pr: Row, value: unknown, numbers: unknown[] = [pr.number]): boolean =>
+  numbers.some((number) => {
+    const prefix = `https://github.com/${text(pr.repo)}/pull/${String(number)}#`;
+    return isText(value) && value.startsWith(prefix) && COMMENT_ID.test(value.slice(prefix.length));
+  });
+
+const mermaidBlocks = (value: unknown): string[] => [...text(value).matchAll(/```mermaid\n([\s\S]*?)```/g)].map((match) => match[1]);
+
+const descriptionErrors = (data: Row): string[] =>
+  objectErrors(
+    data.description,
+    'description',
+    KEYS.description,
+    (desc) => [
+      ...viewErrors(desc.picture, 'description.picture'),
+      ...(list(desc.claims).length ? [] : ['description.claims needs every claim the body makes, plus what it leaves out']),
+      ...rowErrors(desc.claims, 'description.claims', KEYS.claim, (row, at) => [
+        ...textErrors(row, ['claim', 'code'], at),
+        ...enumErrors(row.status, CLAIMS, `${at}.status`),
+        ...optionalAnchor(row.anchor, `${at}.anchor`)
+      ]),
+      ...optionalTextErrors(desc, ['proposed'], 'description'),
+      ...(rows(desc.claims).some((claim) => claim.status !== 'matches') && !isText(desc.proposed)
+        ? ['description.proposed must give the author an accurate description to paste when any claim does not match']
+        : [])
+    ],
+    true
+  );
+
+const sinceReviewErrors = (data: Row): string[] =>
+  objectErrors(data.sinceReview, 'sinceReview', KEYS.sinceReview, (since) => [
+    ...textErrors(since, ['prior'], 'sinceReview'),
+    ...optionalTextErrors(since, ['sub'], 'sinceReview'),
+    ...rowErrors(since.findings, 'sinceReview.findings', KEYS.priorFinding, (row, at) => [
+      ...(Number.isInteger(row.id) ? [] : [`${at}.id must be the integer id the last review gave it`]),
+      ...textErrors(row, ['title', 'now'], at),
+      ...oneLineErrors(row, ['title'], at),
+      ...enumErrors(row.status, PRIOR_STATUSES, `${at}.status`),
+      ...optionalAnchor(row.anchor, `${at}.anchor`)
+    ]),
+    ...rowErrors(since.commits, 'sinceReview.commits', KEYS.priorCommit, (row, at) => [...textErrors(row, ['sha', 'subject'], at), ...oneLineErrors(row, ['subject'], at)]),
+    ...textListErrors(since.conversation, 'sinceReview.conversation')
+  ]);
+
+const architectureErrors = (data: Row): string[] =>
+  objectErrors(data.architecture, 'architecture', KEYS.architecture, (arch) => [
+    ...optionalTextErrors(arch, ['sub', 'decision'], 'architecture'),
+    ...diagramViewErrors(arch.components, 'architecture.components', false),
+    ...diagramViewErrors(arch.today, 'architecture.today', true),
+    ...diagramViewErrors(arch.target, 'architecture.target', true),
+    ...viewErrors(arch.mapping, 'architecture.mapping'),
+    ...rowErrors(arch.comparisons, 'architecture.comparisons', KEYS.comparison, (row, at) => [
+      ...textErrors(row, ['title'], at),
+      ...optionalTextErrors(row, ['sub'], at),
+      ...viewErrors(row.today, `${at}.today`),
+      ...viewErrors(row.target, `${at}.target`),
+      ...(row.today === undefined || row.target === undefined ? [`${at} needs both today and target`] : [])
+    ]),
+    ...rowErrors(arch.stats, 'architecture.stats', KEYS.archStat, (row, at) => [
+      ...(isText(row.value) || Number.isFinite(row.value) ? [] : [`${at}.value must be a number or short text`]),
+      ...textErrors(row, ['label'], at),
+      ...optionalEnum(row.tone, TONES, `${at}.tone`)
+    ]),
+    ...(list(arch.concerns).length ? [] : ['architecture.concerns needs a row per concern the feature has']),
+    ...rowErrors(arch.concerns, 'architecture.concerns', KEYS.concern, (row, at) => [
+      ...textErrors(row, ['concern', 'state', 'today', 'recommended', 'reuses'], at),
+      ...booleanErrors(row, ['ok'], at),
+      ...optionalAnchor(row.anchor, `${at}.anchor`)
+    ]),
+    ...objectErrors(
+      arch.debt,
+      'architecture.debt',
+      KEYS.debt,
+      (debt) => [...textListErrors(debt.adds, 'architecture.debt.adds'), ...textListErrors(debt.paysDown, 'architecture.debt.paysDown')],
+      true
+    ),
+    ...(list(arch.path).length ? [] : ['architecture.path needs the steps from today to the recommended shape']),
+    ...rowErrors(arch.path, 'architecture.path', KEYS.pathStep, (row, at) => textErrors(row, ['step', 'what'], at))
+  ]);
+
 const reviewErrors = (data: Row): string[] => {
+  const pr = prOf(data);
   const findings = rows(data.findings);
   const findingIds = findings.map((finding) => finding.id);
+  const threadUrls = rows(data.conversation).map((thread) => thread.url).filter(isText);
+  const priorIds = rows(isRecord(data.sinceReview) ? data.sinceReview.findings : undefined).map((row) => row.id);
   const filePaths = rows(data.files).map((file) => text(file.path));
   const inFiles = (anchor: unknown, at: string): string[] => (isText(anchor) && !filePaths.includes(anchorPath(anchor)) ? [`${at}.anchor names a file missing from files`] : []);
+  const stackNumbers = [pr.number, ...rows(data.stack).map((layer) => layer.number)];
+  const urlErrors = (value: unknown, at: string): string[] =>
+    value === undefined || isThreadUrl(pr, value, stackNumbers)
+      ? []
+      : [`${at} must be a comment on this PR or a PR in its stack, https://github.com/${text(pr.repo)}/pull/<n>#<discussion_r…, issuecomment-… or pullrequestreview-…>, got ${JSON.stringify(value)}`];
   return [
     ...enumErrors(data.verdict, VERDICTS, 'verdict'),
     ...verdictErrors(data),
     ...enumErrors(data.risk, RISKS, 'risk'),
     ...optionalTextErrors(data, ['riskWhy', 'executed', 'skim', 'explanation', 'summaryComment'], ''),
+    ...sinceReviewErrors(data),
+    ...descriptionErrors(data),
     ...(list(data.lookAt).length ? [] : ['lookAt needs at least one hunk to read']),
     ...rowErrors(data.lookAt, 'lookAt', KEYS.look, (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at), ...textErrors(row, ['why'], at)]),
     ...rowErrors(data.decisions, 'decisions', KEYS.decision, (row, at) => [...textErrors(row, ['decision', 'picks'], at), ...anchorErrors(row.anchor, `${at}.anchor`), ...inFiles(row.anchor, at)]),
@@ -216,14 +343,20 @@ const reviewErrors = (data: Row): string[] => {
       ...enumErrors(row.status, ASKED, `${at}.status`),
       ...optionalAnchor(row.anchor, `${at}.anchor`)
     ]),
-    ...(isText(data.explanation) || list(data.flows).length ? [] : ['How it works needs an explanation or at least one flow']),
+    ...(data.callTree !== undefined || isText(data.explanation) || list(data.flows).length ? [] : ['How it works needs a callTree, an explanation or at least one flow']),
+    ...viewErrors(data.callTree, 'callTree'),
+    ...viewErrors(data.walkTree, 'walkTree'),
     ...rowErrors(data.flows, 'flows', KEYS.flow, (row, at) => [
       ...textErrors(row, ['title', 'diagram'], at),
       ...rowErrors(row.steps, `${at}.steps`, KEYS.step, (step, stepAt) => [...textErrors(step, ['text'], stepAt), ...optionalAnchor(step.anchor, `${stepAt}.anchor`)])
     ]),
-    ...rowErrors(data.areas, 'areas', KEYS.area, (row, at) => textErrors(row, KEYS.area, at)),
-    ...rowErrors(data.behavior, 'behavior', KEYS.behavior, (row, at) => textErrors(row, KEYS.behavior, at)),
+    ...rowErrors(data.behavior, 'behavior', KEYS.behavior, (row, at) => [
+      ...textErrors(row, ['case', 'after'], at),
+      ...optionalTextErrors(row, ['before', 'diff'], at),
+      ...booleanErrors(row, ['bad'], at)
+    ]),
     ...textListErrors(data.holdQuestions, 'holdQuestions'),
+    ...architectureErrors(data),
     ...(data.caseAgainst === undefined
       ? []
       : isRecord(data.caseAgainst)
@@ -234,11 +367,36 @@ const reviewErrors = (data: Row): string[] => {
       ...enumErrors(row.severity, SEVERITIES, `${at}.severity`),
       ...textErrors(row, ['title', 'comment'], at),
       ...oneLineErrors(row, ['title'], at),
+      ...optionalTextErrors(row, ['failure', 'evidence', 'snippet', 'diagram'], at),
       ...anchorErrors(row.anchor, `${at}.anchor`, row.severity === 'nit'),
       ...inFiles(row.anchor, at),
       ...(row.lanes === undefined ? [`${at}.lanes must list every source that raised it`] : lanesErrors(row.lanes, `${at}.lanes`)),
       ...optionalEnum(row.introduced, INTRODUCED, `${at}.introduced`),
-      ...(row.severity === 'blocker' || row.severity === 'fix-before-merge' ? textErrors(row, ['failure', 'evidence'], at) : [])
+      ...optionalEnum(row.topic, TOPICS, `${at}.topic`),
+      ...(row.severity === 'blocker' || row.severity === 'fix-before-merge'
+        ? [
+            ...(list(row.scenario).length || isText(row.failure) ? [] : [`${at} needs a scenario (or failure) saying what goes wrong`]),
+            ...(list(row.proof).length || isText(row.evidence) ? [] : [`${at} needs proof (or evidence) saying what was read or run`])
+          ]
+        : []),
+      ...(row.scenario === undefined
+        ? []
+        : [
+            ...textListErrors(row.scenario, `${at}.scenario`),
+            ...(list(row.scenario).length >= SCENARIO_STEPS[0] && list(row.scenario).length <= SCENARIO_STEPS[1]
+              ? []
+              : [`${at}.scenario must be ${SCENARIO_STEPS[0]} to ${SCENARIO_STEPS[1]} steps, the last one the wrong outcome`])
+          ]),
+      ...rowErrors(row.proof, `${at}.proof`, KEYS.proof, (proof, proofAt) => [
+        ...textErrors(proof, ['fact'], proofAt),
+        ...(isText(proof.anchor) === isText(proof.source) ? [`${proofAt} needs exactly one of anchor or source`] : []),
+        ...optionalAnchor(proof.anchor, `${proofAt}.anchor`)
+      ]),
+      ...objectErrors(row.raisedBy, `${at}.raisedBy`, KEYS.raisedBy, (raised) => [
+        ...textErrors(raised, ['who', 'url'], `${at}.raisedBy`),
+        ...(isText(raised.url) && !threadUrls.includes(raised.url) ? [`${at}.raisedBy.url must be a thread in conversation`] : [])
+      ]),
+      ...(row.priorId === undefined || (Number.isInteger(row.priorId) && priorIds.includes(row.priorId)) ? [] : [`${at}.priorId must be an id in sinceReview.findings`])
     ]),
     ...(new Set(findingIds).size === findingIds.length ? [] : ['findings ids must be unique']),
     ...(list(data.files).length ? [] : ['files needs every file on the coverage checklist']),
@@ -252,15 +410,20 @@ const reviewErrors = (data: Row): string[] => {
         ...(isText(hunk.lines) && !linesOk(hunk.lines) ? [`${hunkAt}.lines must be "line" or "start-end" with start ≤ end, got ${JSON.stringify(hunk.lines)}`] : [])
       ])
     ]),
-    ...rowErrors(data.bots, 'bots', KEYS.bot, (row, at) => [
-      ...textErrors(row, ['bot', 'claim'], at),
-      ...oneLineErrors(row, ['bot', 'claim'], at),
-      ...enumErrors(row.disposition, DISPOSITIONS, `${at}.disposition`),
+    ...rowErrors(data.conversation, 'conversation', KEYS.conversation, (row, at) => [
+      ...textErrors(row, ['who', 'point'], at),
+      ...oneLineErrors(row, ['who', 'point'], at),
+      ...enumErrors(row.kind, THREAD_KINDS, `${at}.kind`),
+      ...enumErrors(row.state, THREAD_STATES, `${at}.state`),
       ...optionalAnchor(row.anchor, `${at}.anchor`),
+      ...urlErrors(row.url, `${at}.url`),
+      ...optionalTextErrors(row, ['note', 'reply'], at),
       ...(row.finding === undefined || findingIds.includes(row.finding) ? [] : [`${at}.finding points at no finding id`]),
-      ...(row.disposition === 'confirmed' && row.finding === undefined ? [`${at}.finding must name the finding a confirmed bot comment became`] : []),
-      ...(row.disposition === 'false-positive' && !isText(row.reason) ? [`${at}.reason must say why it is a false positive`] : []),
-      ...(row.disposition === 'false-positive' && !isText(row.reply) ? [`${at}.reply must give the operator a reply to paste on the bot's thread`] : [])
+      ...(row.kind === 'bot' && ['open', 'partly'].includes(text(row.state)) && row.finding === undefined
+        ? [`${at}.finding must name the finding or question a bot point that still holds became`]
+        : []),
+      ...(row.state === 'wrong' && !isText(row.note) ? [`${at}.note must say why the point does not hold`] : []),
+      ...(row.state === 'wrong' && !isText(row.reply) ? [`${at}.reply must give the operator a reply to paste on the thread`] : [])
     ]),
     ...textListErrors(data.verifiedClean, 'verifiedClean'),
     ...rowErrors(data.noticed, 'noticed', KEYS.noticed, (row, at) => [...anchorErrors(row.anchor, `${at}.anchor`), ...textErrors(row, ['text'], at)]),
@@ -298,12 +461,63 @@ const repliesErrors = (data: Row): string[] => {
     ]),
     ...rowErrors(data.commits, 'commits', KEYS.commit, (row, at) => [...textErrors(row, ['subject'], at), ...oneLineErrors(row, ['subject'], at)]),
     ...rowErrors(data.resolveOnly, 'resolveOnly', KEYS.resolveOnly, (row, at) => [...textErrors(row, ['topic', 'why'], at), ...optionalAnchor(row.anchor, `${at}.anchor`)]),
-    ...textListErrors(data.stillOpen, 'stillOpen')
+    ...textListErrors(data.stillOpen, 'stillOpen'),
+    ...textListErrors(data.sinceLast, 'sinceLast')
   ];
 };
 
+const words = (value: unknown): number => text(value).split(/\s+/).filter(Boolean).length;
+
+const glance = (value: unknown, path: string, limit: number): string[] =>
+  words(value) > limit ? [`${path} has ${words(value)} words; ${limit} at most keeps it readable at a glance`] : [];
+
+const glanceWarnings = (data: Row): string[] => [
+  ...rows(data.findings).flatMap((finding, index) => [
+    ...list(finding.scenario).flatMap((step, stepIndex) => glance(step, `findings[${index}].scenario[${stepIndex}]`, GLANCE_WORDS)),
+    ...rows(finding.proof).flatMap((proof, proofIndex) => glance(proof.fact, `findings[${index}].proof[${proofIndex}].fact`, GLANCE_WORDS))
+  ]),
+  ...rows(data.behavior).flatMap((row, index) => [...glance(row.before, `behavior[${index}].before`, GLANCE_WORDS), ...glance(row.after, `behavior[${index}].after`, GLANCE_WORDS)])
+];
+
+const diagramsOf = (data: Row): ReportCheck['diagrams'] => {
+  const arch = isRecord(data.architecture) ? data.architecture : {};
+  const description = isRecord(data.description) ? data.description : {};
+  return [
+    ...rows(data.flows).map((flow) => ({ label: `flow "${text(flow.title)}"`, source: flow.diagram })),
+    ...rows(data.findings).map((finding) => ({ label: `finding ${String(finding.id)}`, source: finding.diagram })),
+    ...['components', 'today', 'target'].map((key) => ({ label: `architecture.${key}`, source: isRecord(arch[key]) ? arch[key].diagram : undefined })),
+    ...mermaidBlocks(description.proposed).map((source, index) => ({ label: `description.proposed diagram ${index + 1}`, source }))
+  ]
+    .filter((diagram) => isText(diagram.source))
+    .map((diagram) => ({ label: diagram.label, source: text(diagram.source) }));
+};
+
+/** True when the finding's point is already on the PR and the thread still stands, so the comment only adds to it. */
+const isReplied = (finding: Row, data: Row): boolean => {
+  const url = isRecord(finding.raisedBy) ? finding.raisedBy.url : undefined;
+  const thread = rows(data.conversation).find((row) => row.url === url);
+  return url !== undefined && !['partly', 'wrong'].includes(text(thread?.state));
+};
+
+/**
+ * Where a finding sits on the page: signal first; a point already raised (thread still standing) and test or lint findings
+ * lower; then nits; questions after, the already-raised and test ones last. A blocker never moves. The template sorts the same way.
+ */
+export const tierOf = (finding: Row, data: Row): number => {
+  if (finding.severity === 'question') {
+    return isReplied(finding, data) || finding.topic !== undefined ? 5 : 4;
+  }
+  if (finding.severity === 'blocker') {
+    return 0;
+  }
+  if (finding.severity === 'nit') {
+    return 3;
+  }
+  return isReplied(finding, data) ? 1 : finding.topic !== undefined ? 2 : 0;
+};
+
 const pageOrderIds = (data: Row): unknown[] =>
-  SEVERITIES.flatMap((severity) => rows(data.findings).filter((finding) => finding.severity === severity)).map((finding) => finding.id);
+  [...rows(data.findings)].sort((a, b) => tierOf(a, data) - tierOf(b, data) || Number(a.id) - Number(b.id)).map((finding) => finding.id);
 
 /**
  * Shape and safety checks for either kind; diagrams are returned for the caller to parse.
@@ -323,11 +537,15 @@ export const validate = (data: unknown): ReportCheck => {
     warnings: [
       ...(looks > LOOK_LIMIT ? [`lookAt has ${looks} hunks; ${LOOK_LIMIT} at most keeps it a reading guide`] : []),
       ...(data.verdict === 'approve' && !list(data.verifiedClean).length ? ['an approve needs a verifiedClean list saying what was checked'] : []),
-      ...(pageOrderIds(data).every((id, index) => id === index + 1) ? [] : ['findings ids should run 1, 2, 3… in page order: blockers, fix-before-merge, nits, then questions'])
+      ...(pageOrderIds(data).every((id, index) => id === index + 1)
+        ? []
+        : ['findings ids should run 1, 2, 3… in page order: blockers and the rest of the signal, then already-raised, tests and lint, nits, then questions']),
+      ...glanceWarnings(data),
+      ...rows(data.conversation)
+        .filter((thread) => thread.finding !== undefined && !rows(data.findings).some((finding) => finding.id === thread.finding && isRecord(finding.raisedBy)))
+        .map((thread) => `finding ${String(thread.finding)} answers @${text(thread.who)}'s thread but has no raisedBy, so its paste starts a second comment on the same point`)
     ],
-    diagrams: rows(data.flows)
-      .filter((flow) => isText(flow.diagram))
-      .map((flow) => ({ flow: text(flow.title), source: text(flow.diagram) }))
+    diagrams: diagramsOf(data)
   };
 };
 
@@ -363,15 +581,38 @@ const reviewCard = (data: Row): string[] => {
   const bySeverity = (severities: string[]) =>
     findings
       .filter((finding) => severities.includes(text(finding.severity)))
-      .map((finding) => `- ${SEVERITY_ICON[text(finding.severity)]} #${String(finding.id)} ${md(finding.title)} · ${code(finding.anchor)}`);
+      .sort((a, b) => tierOf(a, data) - tierOf(b, data) || Number(a.id) - Number(b.id))
+      .map((finding) => {
+        const tag = finding.severity === 'blocker' ? '' : isReplied(finding, data) ? ' · replied' : finding.topic !== undefined ? ` · ${text(finding.topic)}` : '';
+        return `- ${SEVERITY_ICON[text(finding.severity)]} #${String(finding.id)} ${md(finding.title)} · ${code(finding.anchor)}${tag}`;
+      });
+  const since = isRecord(data.sinceReview) ? data.sinceReview : null;
+  const priorRows = rows(since?.findings);
+  const priorCount = (status: string) => priorRows.filter((row) => row.status === status).length;
+  const claims = rows(isRecord(data.description) ? data.description.claims : undefined);
+  const claimCount = (status: string) => claims.filter((claim) => claim.status === status).length;
   return [
     `**Verdict** ${VERDICT_LABEL[text(data.verdict)] ?? md(data.verdict)} · **Risk** ${md(data.risk)} · **Page** [open the review](${PAGE_TOKEN})`,
+    ...(since
+      ? [
+          '',
+          `**Since last review** (${md(since.prior)}): ${priorCount('fixed')} fixed · ${priorCount('changed')} changed · ${priorCount('open')} still open · ${findings.filter((finding) => finding.priorId === undefined).length} new`
+        ]
+      : []),
+    ...(claims.length
+      ? ['', `**PR description** ${claimCount('matches')} match · ${claimCount('partly')} partly · ${claimCount('wrong')} wrong · ${claimCount('missing')} missing from the body`]
+      : []),
     ...section('Findings', bySeverity(['blocker', 'fix-before-merge', 'nit'])),
     ...section('Questions for the author', bySeverity(['question'])),
     ...section(
-      'Bot comments',
-      rows(data.bots).map(
-        (bot) => `- ${line([md(bot.bot), code(bot.anchor), text(bot.disposition), bot.finding === undefined ? undefined : `#${String(bot.finding)}`])}: ${md(bot.claim)}`
+      'Last review, at this head',
+      priorRows.map((row) => `- #${String(row.id)} ${text(row.status)}: ${md(row.title)}${isText(row.anchor) ? ` · ${code(row.anchor)}` : ''}`)
+    ),
+    ...section(
+      'Review conversation',
+      rows(data.conversation).map(
+        (thread) =>
+          `- ${line([text(thread.state), `@${md(thread.who)}`, code(thread.anchor), thread.finding === undefined ? undefined : `#${String(thread.finding)}`])}: ${md(thread.point)}`
       )
     ),
     ...section('Not checked', bullets(data.notChecked))
@@ -495,8 +736,7 @@ export const relinkCard = (saved: string, data: Row, pageName: string): string =
   return `${frontmatter}${renderCard(data).split(PAGE_TOKEN).join(pageName)}`;
 };
 
-const parseDiagrams = (diagrams: ReportCheck['diagrams']): Promise<string[]> =>
-  diagramErrors(diagrams.map(({ flow, source }) => ({ label: `flow "${flow}"`, source })));
+const parseDiagrams = (diagrams: ReportCheck['diagrams']): Promise<string[]> => diagramErrors(diagrams);
 
 const fail = (message: string): never => {
   console.error(`error: ${message}`);

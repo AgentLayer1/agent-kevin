@@ -63,6 +63,16 @@ const withFinding = (data: Data, index: number, change: Data): Data => ({
   findings: rowsOf(data.findings).map((finding, i) => (i === index ? { ...finding, ...change } : finding))
 });
 
+const withThreads = (data: Data, ...extra: Data[]): Data => ({ ...data, conversation: [...rowsOf(data.conversation), ...extra] });
+
+const architecture = (): Data => ({
+  today: { title: 'Today', diagram: 'flowchart LR\n  A --> B' },
+  target: { title: 'Recommended', diagram: 'flowchart LR\n  A --> C' },
+  concerns: [{ concern: 'Shipping', ok: false, state: 'split', today: 'Half in checkout', recommended: 'One carrier class', reuses: 'CarrierBase' }],
+  debt: { adds: ['A second copy of the label step'], paysDown: ['One shared label step'] },
+  path: [{ step: 'Platform PR', what: 'Add the hooks the provider needs' }]
+});
+
 const run = (...args: string[]) => {
   const proc = spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, NODE_PATH: join(import.meta.dir, '..', '..', '..', 'mcp-server', 'node_modules') } });
   return { status: proc.status, out: proc.stdout.toString(), err: proc.stderr.toString() };
@@ -79,7 +89,7 @@ describe('validate', () => {
     const result = validate(sampleReview());
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
-    expect(result.diagrams.map((diagram) => diagram.flow)).toEqual(['Placing an order', 'Cancelling an order']);
+    expect(result.diagrams.map((diagram) => diagram.label)).toEqual(['flow "Placing an order"', 'flow "Cancelling an order"', 'description.proposed diagram 1']);
   });
 
   test('a replies report with a posted thread and no reply is valid', () => {
@@ -136,28 +146,115 @@ describe('validate', () => {
     expect(validate(withFinding(sampleReview(), 0, { anchor: 'src/elsewhere.ts:3' })).errors).toEqual(['findings[0].anchor names a file missing from files']);
   });
 
-  test('a blocker needs its failure and evidence, and a lane from the list', () => {
-    const errors = validate(withFinding(sampleReview(), 0, { failure: '', lanes: ['races'] })).errors;
+  test('a blocker needs what goes wrong and the proof, and a lane from the list', () => {
+    const errors = validate(withFinding(sampleReview(), 0, { scenario: undefined, proof: undefined, lanes: ['races'] })).errors;
     expect(errors).toEqual([
-      'findings[0].lanes[0] must be one of correctness | invariants | security | regressions | conventions | tests | hygiene | generated-code | performance | case-against | gate | bot:<login>, got "races"',
-      'findings[0].failure must be non-empty text'
+      'findings[0].lanes[0] must be one of correctness | invariants | security | regressions | conventions | tests | hygiene | generated-code | performance | architecture | case-against | gate | bot:<login>, got "races"',
+      'findings[0] needs a scenario (or failure) saying what goes wrong',
+      'findings[0] needs proof (or evidence) saying what was read or run'
     ]);
   });
 
-  test('a confirmed bot comment names its finding, and a false positive its reason', () => {
-    const confirmed = validate({ ...sampleReview(), bots: [{ bot: 'copilot', claim: 'x', disposition: 'confirmed' }] }).errors;
-    expect(confirmed).toEqual(['bots[0].finding must name the finding a confirmed bot comment became']);
-    const missing = validate({ ...sampleReview(), bots: [{ bot: 'copilot', claim: 'x', disposition: 'confirmed', finding: 9 }] }).errors;
-    expect(missing).toEqual(['bots[0].finding points at no finding id']);
-    const falsePositive = validate({ ...sampleReview(), bots: [{ bot: 'copilot', claim: 'x', disposition: 'false-positive' }] }).errors;
-    expect(falsePositive).toEqual(['bots[0].reason must say why it is a false positive', "bots[0].reply must give the operator a reply to paste on the bot's thread"]);
+  test('a topic is tests or lint, and ids follow the page order that topics and replies set', () => {
+    expect(validate(withFinding(sampleReview(), 0, { topic: 'style' })).errors).toEqual(['findings[0].topic must be one of tests | lint, got "style"']);
+    const data = sampleReview();
+    const rows = rowsOf(data.findings);
+    const lintFirst = { ...data, findings: [{ ...rows[0], severity: 'fix-before-merge', topic: 'lint', raisedBy: undefined }, { ...rows[0], id: 2, raisedBy: undefined }, ...rows.slice(1).map((row, index) => ({ ...row, id: index + 3 }))] };
+    expect(validate(lintFirst).warnings).toContain(
+      'findings ids should run 1, 2, 3… in page order: blockers and the rest of the signal, then already-raised, tests and lint, nits, then questions'
+    );
   });
 
-  test('How it works needs an explanation or a flow, not always a diagram', () => {
+  test('a scenario is 3 to 5 steps, and each proof line cites one anchor or one source', () => {
+    const errors = validate(withFinding(sampleReview(), 0, { scenario: ['a', 'b'], proof: [{ fact: 'x' }, { anchor: 'src/orders/edit.ts:22', source: 'a doc', fact: 'y' }] })).errors;
+    expect(errors).toEqual([
+      'findings[0].scenario must be 3 to 5 steps, the last one the wrong outcome',
+      'findings[0].proof[0] needs exactly one of anchor or source',
+      'findings[0].proof[1] needs exactly one of anchor or source'
+    ]);
+  });
+
+  test('a long scenario step or before/after line warns', () => {
+    const long = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen';
+    expect(validate(withFinding(sampleReview(), 0, { scenario: ['a', 'b', long] })).warnings).toEqual([
+      'findings[0].scenario[2] has 15 words; 14 at most keeps it readable at a glance'
+    ]);
+  });
+
+  test('a bot point that still holds names its finding, and one that does not hold carries why and a reply', () => {
+    const bot = { who: 'copilot', kind: 'bot', point: 'x', state: 'open' };
+    expect(validate(withThreads(sampleReview(), bot)).errors).toEqual(['conversation[3].finding must name the finding or question a bot point that still holds became']);
+    expect(validate(withThreads(sampleReview(), { ...bot, finding: 9 })).errors).toEqual(['conversation[3].finding points at no finding id']);
+    expect(validate(withThreads(sampleReview(), { ...bot, state: 'wrong' })).errors).toEqual([
+      'conversation[3].note must say why the point does not hold',
+      'conversation[3].reply must give the operator a reply to paste on the thread'
+    ]);
+  });
+
+  test('a thread url must be a comment on this PR, so a javascript: url is refused', () => {
+    const errors = validate(withThreads(sampleReview(), { who: 'grace', kind: 'person', point: 'x', state: 'answered', url: 'javascript:alert(1)' })).errors;
+    expect(errors).toEqual([
+      'conversation[3].url must be a comment on this PR or a PR in its stack, https://github.com/acme/shop/pull/<n>#<discussion_r…, issuecomment-… or pullrequestreview-…>, got "javascript:alert(1)"'
+    ]);
+  });
+
+  test('a stacked review can cite a thread on a lower layer, but not on a PR outside the stack', () => {
+    const stacked = { ...sampleReview(), stack: [{ number: 417, title: 'Parent' }, { number: 418, title: 'This', current: true }] };
+    const thread = (number: number) => ({ who: 'grace', kind: 'person', point: 'x', state: 'answered', url: `https://github.com/acme/shop/pull/${number}#discussion_r7` });
+    expect(validate(withThreads(stacked, thread(417))).errors).toEqual([]);
+    expect(validate(withThreads(stacked, thread(999))).errors).toHaveLength(1);
+  });
+
+  test('a finding someone already raised links their thread, so the paste is a reply and not a second comment', () => {
+    const elsewhere = withFinding(sampleReview(), 0, { raisedBy: { who: 'grace', url: 'https://github.com/acme/shop/pull/418#discussion_r9' } });
+    expect(validate(elsewhere).errors).toEqual(['findings[0].raisedBy.url must be a thread in conversation']);
+    const uncredited = withFinding(sampleReview(), 0, { raisedBy: undefined });
+    expect(validate(uncredited).warnings).toEqual(["finding 1 answers @coderabbitai[bot]'s thread but has no raisedBy, so its paste starts a second comment on the same point"]);
+  });
+
+  test('the description section is required, and a mismatch needs a proposed replacement', () => {
+    const { description: _description, ...bare } = sampleReview();
+    expect(validate(bare).errors).toEqual(['description is required']);
+    const description = { claims: [{ claim: 'x', code: 'y', status: 'wrong' }] };
+    expect(validate({ ...sampleReview(), description }).errors).toEqual([
+      'description.proposed must give the author an accurate description to paste when any claim does not match'
+    ]);
+  });
+
+  test('How it works needs a call tree, an explanation or a flow', () => {
     const { flows: _flows, ...withoutFlows } = sampleReview();
     expect(validate(withoutFlows).errors).toEqual([]);
-    const { explanation: _explanation, ...bare } = withoutFlows;
-    expect(validate(bare).errors).toEqual(['How it works needs an explanation or at least one flow']);
+    const { callTree: _callTree, ...bare } = withoutFlows;
+    expect(validate(bare).errors).toEqual(['How it works needs a callTree, an explanation or at least one flow']);
+    expect(validate({ ...bare, explanation: 'Stock is held at order time.' }).errors).toEqual([]);
+  });
+
+  test('a re-review carries the last review forward, and a finding it repeats points at its old id', () => {
+    const sinceReview = { prior: '10-09, head 1a2b3c4', findings: [{ id: 1, title: 'Edit reads before the lock', status: 'open', now: 'unchanged' }] };
+    expect(validate(withFinding({ ...sampleReview(), sinceReview }, 0, { priorId: 1 })).errors).toEqual([]);
+    expect(validate(withFinding({ ...sampleReview(), sinceReview }, 0, { priorId: 4 })).errors).toEqual(['findings[0].priorId must be an id in sinceReview.findings']);
+    expect(validate({ ...sampleReview(), sinceReview: { ...sinceReview, findings: [{ id: 1, title: 'x', status: 'gone', now: 'y' }] } }).errors).toEqual([
+      'sinceReview.findings[0].status must be one of fixed | changed | open | moot, got "gone"'
+    ]);
+  });
+
+  test('an architecture section needs today, the target, the concerns, the debt and the path, and hands back its diagrams', () => {
+    const result = validate({ ...sampleReview(), architecture: architecture() });
+    expect(result.errors).toEqual([]);
+    expect(result.diagrams.map((diagram) => diagram.label)).toContain('architecture.target');
+    const mapping = { title: 'How it maps', text: 'Carrier\n  labelSteps  # one step' };
+    expect(validate({ ...sampleReview(), architecture: { ...architecture(), mapping } }).errors).toEqual([]);
+    expect(validate({ ...sampleReview(), architecture: { ...architecture(), mapping: { title: 'x' } } }).errors).toEqual(['architecture.mapping.text must be non-empty text']);
+    const pair = { title: 'Code', today: { title: 'Today', text: 'checkout()  // a carrier branch' }, target: { title: 'Target', text: 'class Provider {}' } };
+    expect(validate({ ...sampleReview(), architecture: { ...architecture(), comparisons: [pair] } }).errors).toEqual([]);
+    expect(validate({ ...sampleReview(), architecture: { ...architecture(), comparisons: [{ title: 'Code', today: pair.today }] } }).errors).toEqual([
+      'architecture.comparisons[0] needs both today and target'
+    ]);
+    const { today: _today, path: _path, ...partial } = architecture();
+    expect(validate({ ...sampleReview(), architecture: partial }).errors).toEqual([
+      'architecture.today is required',
+      'architecture.path needs the steps from today to the recommended shape'
+    ]);
   });
 
   test('hunk lines must be a line or a range', () => {
@@ -183,8 +280,8 @@ describe('validate', () => {
   test('the verdict must agree with the findings', () => {
     expect(validate({ ...sampleReview(), verdict: 'approve' }).errors).toEqual(['verdict: approve leaves no blocker, fix-before-merge or question']);
     const noBlockers = rowsOf(sampleReview().findings).filter((finding) => finding.severity !== 'blocker');
-    const bots = rowsOf(sampleReview().bots).filter((bot) => bot.disposition !== 'confirmed');
-    expect(validate({ ...sampleReview(), findings: noBlockers, bots, verdict: 'do-not-merge' }).errors).toEqual(['verdict: do-not-merge needs a blocker']);
+    const conversation = rowsOf(sampleReview().conversation).filter((thread) => thread.finding !== 1);
+    expect(validate({ ...sampleReview(), findings: noBlockers, conversation, verdict: 'do-not-merge' }).errors).toEqual(['verdict: do-not-merge needs a blocker']);
   });
 
   test('a lookAt or decision anchor must name a file in files', () => {
@@ -199,14 +296,16 @@ describe('validate', () => {
 });
 
 describe('card', () => {
-  test('a review card lists every finding, question and bot comment, and links the page', () => {
+  test('a review card lists every finding, question and thread, checks the description, and links the page', () => {
     const card = renderCard(sampleReview());
     expect(card).toContain('# PR #418: Reserve stock when an order is placed, release it on cancel');
     expect(card).toContain('**Verdict** 🟠 Changes requested · **Risk** L');
     expect(card).toContain('- 🔴 #1 An edit that raises quantity can oversell: stock is read before the row lock · `src/orders/edit.ts:22`');
     expect(card).toContain('- 🟡 #2 2 nits in errors.ts · `src/web/checkout/errors.ts`');
     expect(card).toContain('## Questions for the author\n\n- ❓ #3');
-    expect(card).toContain('coderabbitai\\[bot\\] · `src/orders/cancel.ts:19` · false-positive: Holds not deleted on refund failure');
+    expect(card).toContain('**PR description** 1 match · 1 partly · 1 wrong · 1 missing from the body');
+    expect(card).toContain('- wrong · @coderabbitai\\[bot\\] · `src/orders/cancel.ts:19`: Holds not deleted on refund failure');
+    expect(card).toContain('- unanswered · @grace · #3: Does this need #419 first?');
     expect(card).toContain(`[open the review](${PAGE_TOKEN})`);
   });
 
@@ -227,6 +326,19 @@ describe('card', () => {
     expect(card).toContain(
       '- To post · grace · Rejected calls skip the limit · `src/limits.ts:14` · [discussion_r1234567890](https://github.com/acme/shop/pull/52#discussion_r1234567890)'
     );
+  });
+
+  test('a re-review card leads with the delta and lists the last review at this head', () => {
+    const sinceReview = {
+      prior: '10-09, head 1a2b3c4',
+      findings: [
+        { id: 1, title: 'Edit reads before the lock', status: 'open', now: 'unchanged', anchor: 'src/orders/edit.ts:22' },
+        { id: 2, title: 'Cancel leaks holds', status: 'fixed', now: 'same transaction now' }
+      ]
+    };
+    const card = renderCard(withFinding({ ...sampleReview(), sinceReview }, 0, { priorId: 1 }));
+    expect(card).toContain('**Since last review** (10-09, head 1a2b3c4): 1 fixed · 0 changed · 1 still open · 2 new');
+    expect(card).toContain('## Last review, at this head\n\n- #1 open: Edit reads before the lock · `src/orders/edit.ts:22`\n- #2 fixed: Cancel leaks holds');
   });
 
   test('a re-run card says what changed since the last report', () => {
@@ -310,8 +422,8 @@ describe('cli', () => {
     expect(cardMismatch(saved, sampleReview())).toBeNull();
     expect(cardMismatch(saved, replies())).toBe('the card is PR #418 (review), but the data is PR #52 (reply)');
     const fixed = rowsOf(sampleReview().findings).filter((finding) => finding.severity !== 'blocker');
-    const bots = rowsOf(sampleReview().bots).filter((bot) => bot.disposition !== 'confirmed');
-    expect(cardMismatch(saved, { ...sampleReview(), findings: fixed, bots, verdict: 'approve-with-fixes' })).toStartWith(
+    const conversation = rowsOf(sampleReview().conversation).filter((thread) => thread.finding !== 1);
+    expect(cardMismatch(saved, { ...sampleReview(), findings: fixed, conversation, verdict: 'approve-with-fixes' })).toStartWith(
       'the card was saved with verdict: changes-requested, blockers: 1, but the data now gives verdict: approve-with-fixes, blockers: 0'
     );
   });

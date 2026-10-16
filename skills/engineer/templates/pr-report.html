@@ -341,21 +341,18 @@
   .stack .layer.current { border-style: solid; border-color: var(--brand); color: var(--ink); background: color-mix(in srgb, var(--brand) 10%, transparent); }
   .stack .arrow { color: var(--ink-dim); }
 
-  nav.jump {
-    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 0;
-    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line-soft);
-  }
+  nav.jump { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
   nav.jump a { font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 3px 9px; border-radius: 6px; color: var(--ink-2); border: 1px solid var(--line-soft); }
   nav.jump a:hover { color: var(--ink); border-color: var(--brand); text-decoration: none; }
-  nav.jump #theme-slot { margin-left: auto; color: var(--ink-2); }
+  nav.jump .sep { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--line); }
 
-  section { margin-top: 38px; scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
-  details.item[id] { scroll-margin-top: calc(var(--nav-h, 48px) + 16px); }
+  section { margin-top: 38px; scroll-margin-top: 16px; }
+  details.item[id] { scroll-margin-top: 16px; }
   h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 21px; margin: 0 0 6px; }
   h3 { font-size: 16px; margin: 18px 0 10px; }
   .sub { color: var(--ink-dim); font-size: 13.5px; margin: 0 0 16px; }
   .card { background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px 20px; }
-  section > :is(.card, .grid, .paste) + :is(.card, .grid, .paste) { margin-top: 14px; }
+  section > :not(h2, .sub) + :is(.card, .grid, .paste, .stats) { margin-top: 14px; }
   .prose { color: var(--ink-2); white-space: pre-line; margin: 0 0 14px; }
   .grid { display: grid; gap: 14px; }
   .grid.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
@@ -371,7 +368,8 @@
   ul.plain li { margin: 4px 0; }
 
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; overflow-wrap: anywhere; }
+  code { overflow-wrap: anywhere; }
   th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
 
   .diagram { background: var(--panel-b); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px; overflow-x: auto; }
@@ -434,7 +432,81 @@
   .empty { color: var(--ink-dim); font-style: italic; }
   footer { margin-top: 48px; color: var(--ink-dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
 
-  @media (max-width: 700px) { .wrap { padding: 40px 16px 80px; } }
+  .row-static { border: 1px solid var(--line-soft); border-left-width: 4px; border-radius: 10px; background: var(--panel-b); margin-bottom: 8px; padding: 10px 14px 10px 32px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .row-static.risk { border-left-color: var(--risk); }
+  .row-static.logic { border-left-color: var(--logic); }
+  .row-static.mechanical, .row-static.already-fixed, .row-static.out-of-scope { border-left-color: var(--mech); }
+  .row-static .meta { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+  .fileline { display: flex; flex-direction: column; gap: 2px; flex: 1 1 360px; min-width: 0; }
+  .fileline code { color: var(--ink); overflow-wrap: anywhere; }
+  .fileline .desc { color: var(--ink-2); font-size: 13.5px; }
+
+  .tree { background: var(--panel-b); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  .tree pre { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.65; color: var(--ink); white-space: pre; }
+  .tree .cm { color: var(--ink-dim); }
+  .tree .hot { color: var(--risk); }
+  .lbl { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); margin: 14px 0 6px; }
+  .lbl:first-child { margin-top: 0; }
+  .compare { display: grid; gap: 14px; }
+  .compare.side { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .compare .lbl { margin-top: 0; }
+  .compare > div { min-width: 0; }
+  .card > .stats + * { margin-top: 12px; }
+  .group-head { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim);
+    margin: 22px 0 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .pill.replied, .pill.tests, .pill.lint { color: var(--mech); }
+  details.more { margin-top: 12px; }
+  details.more > summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center; font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-b); color: var(--ink-2); }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before { content: "▸"; color: var(--ink-dim); }
+  details.more[open] > summary::before { content: "▾"; }
+
+  .scenario { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 4px 0 12px; }
+  .scenario .step { flex: 1 1 140px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 13px; line-height: 1.4; color: var(--ink); background: var(--panel-a); }
+  .scenario .step .n { display: block; font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--ink-dim); margin-bottom: 2px; }
+  .scenario .step.bad { border-color: color-mix(in srgb, var(--risk) 60%, transparent); color: var(--risk); background: color-mix(in srgb, var(--risk) 9%, var(--panel-a)); font-weight: 500; }
+  .scenario .arrow { align-self: center; color: var(--ink-dim); font-size: 13px; }
+  ul.evidence { list-style: none; padding: 0; margin: 2px 0 8px; display: grid; gap: 4px; }
+  ul.evidence li { display: grid; grid-template-columns: minmax(0, max-content) 1fr; gap: 10px; align-items: baseline; font-size: 13.5px; }
+  ul.evidence li code { color: var(--brand-bright); }
+  .snippet { margin: 6px 0 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--panel-a); overflow-x: auto; }
+  .snippet pre { margin: 0; padding: 8px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink); white-space: pre; }
+  .finding-meta { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-dim); margin-top: 6px; }
+  .raised { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--cool); color: var(--cool); white-space: nowrap; }
+
+  .ba { display: grid; }
+  .ba .case { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); gap: 6px 22px; padding: 14px 0; border-top: 1px solid var(--line-soft); }
+  .ba .case:first-child { border-top: 0; padding-top: 2px; }
+  .ba .case:last-child { padding-bottom: 0; }
+  .ba .case h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.45; }
+  .ba .lines { display: grid; gap: 4px; min-width: 0; }
+  .ba .line { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.45; }
+  .ba .line .tag { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+  .ba .line.before { color: var(--ink-dim); }
+  .ba .line.after { color: var(--ink); }
+  .ba .line.after.bad, .ba .line.after.bad .tag { color: var(--risk); }
+  .ba .line.after.good .tag { color: var(--ok); }
+  .diff { margin: 6px 0 0; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--panel-a); overflow: hidden; font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.6; }
+  .diff div { padding: 1px 10px 1px 22px; text-indent: -12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-2); }
+  .diff .add { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ink); }
+  .diff .del { background: color-mix(in srgb, var(--risk) 12%, transparent); color: var(--ink-2); }
+  ul.evidence li .src { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat { border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; min-width: 120px; background: var(--panel-a); }
+  .stat b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-size: 28px; line-height: 1.1; }
+  .stat span { font-size: 12.5px; color: var(--ink-dim); }
+  .stat.ok b { color: var(--ok); } .stat.bad b { color: var(--risk); } .stat.warn b { color: var(--logic); } .stat.cool b { color: var(--cool); }
+
+  .pill.matches, .pill.fixed, .pill.answered { color: var(--ok); }
+  .pill.partly, .pill.changed { color: var(--logic); }
+  .pill.wrong, .pill.open { color: var(--risk); }
+  .pill.missing, .pill.unanswered, .pill.new { color: var(--cool); }
+  .pill.outdated, .pill.moot { color: var(--mech); }
+  .attn { border: 1px solid color-mix(in srgb, var(--cool) 45%, transparent); background: color-mix(in srgb, var(--cool) 7%, transparent); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
+
+  @media (max-width: 700px) { .wrap { padding: 40px 16px 80px; } .ba .case { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
@@ -469,7 +541,17 @@
     { "criterion": "Two buyers can't both pay for the last unit", "status": "met", "anchor": "src/orders/reserve.ts:41" },
     { "criterion": "Editing an order respects stock", "status": "not-met", "anchor": "src/orders/edit.ts:22" }
   ],
-  "explanation": "Stock is no longer decremented at payment. Placing an order locks each item's stock row in item-id order and writes a hold per line; available stock is on hand minus active holds. Cancelling an unpaid order deletes its holds in the same transaction.",
+  "description": {
+    "picture": { "title": "The PR in one picture (from its description)", "text": "POST /orders                       # api\n  lock stock rows, item-id order\n  write one hold per line           # expires in 15 min\n\ncancel (unpaid)\n  delete holds, same transaction\n\nedit quantity\n  adjust the hold by the delta" },
+    "claims": [
+      { "claim": "Two buyers can no longer both pay for the last unit", "code": "Holds for placing an order; an edit still reads stock before the lock (finding 1)", "anchor": "src/orders/edit.ts:22", "status": "partly" },
+      { "claim": "Cancelling releases the hold", "code": "Same transaction as the cancel", "anchor": "src/orders/cancel.ts:19", "status": "matches" },
+      { "claim": "Holds expire after 15 minutes", "code": "The window is set, but nothing expires holds until #419", "anchor": "src/orders/config.ts:9", "status": "wrong" },
+      { "claim": "(not in the body) The migration backfills holds for open orders at deploy", "code": "Runs inside the deploy on the orders table", "anchor": "migrations/0042_reservations.sql:1", "status": "missing" }
+    ],
+    "proposed": "Placing an order now holds its units in a reservations table instead of decrementing stock at payment, so two buyers can't both pay for the last unit.\n\n```mermaid\nsequenceDiagram\n  participant Web\n  participant API\n  participant DB\n  Web->>API: POST /orders\n  API->>DB: lock stock rows, write holds\n  API-->>Web: 201 order + hold expiry\n```\n\n- Cancelling an unpaid order deletes its holds in the same transaction.\n- Holds carry a 15-minute window; #419 expires them, so this layer ships with it.\n- The migration backfills holds for open orders during the deploy."
+  },
+  "callTree": { "title": "Placing an order", "text": "POST /orders                        # routes.ts:58\n  reserve(cart)                      # reserve.ts:41\n    lockStock(tx, itemId)            # item-id order, no deadlock\n    insertHold(tx, line, expiresAt)\n!  editOrder reads availableStock()  # before the lock: finding 1" },
   "flows": [
     {
       "title": "Placing an order",
@@ -486,13 +568,10 @@
       "steps": [{ "anchor": "src/orders/cancel.ts:19", "text": "Unpaid orders drop their holds in the same transaction." }]
     }
   ],
-  "areas": [
-    { "area": "src/orders/reserve.ts", "what": "New reservation path", "why": "Every checkout runs through it" },
-    { "area": "migrations/0042", "what": "Reservations table + backfill", "why": "Runs at deploy on a large table" }
-  ],
+  "walkTree": { "text": "src/orders/\n  reserve.ts      # new: lock rows, write holds\n  edit.ts         # adjust a hold by the delta\n  cancel.ts       # drop holds with the cancel\nmigrations/\n  0042_reservations.sql  # table + backfill at deploy" },
   "behavior": [
-    { "case": "Two buyers pay for the last unit at once", "before": "Both succeed; one is refunded by hand", "after": "The second sees \"just sold out\" at checkout" },
-    { "case": "A buyer abandons checkout", "before": "Stock never moved", "after": "Held for 15 minutes, then released" }
+    { "case": "Two buyers pay for the last unit at once", "before": "Both succeed; one is refunded by hand", "after": "The second sees \"just sold out\"", "diff": "- decrement stock at payment\n+ lock stock row, then hold at order" },
+    { "case": "A buyer abandons checkout", "before": "Stock never moved", "after": "Held until #419 expires it", "bad": true }
   ],
   "holdQuestions": ["What expires holds before #419 lands?", "Why lock in item-id order rather than one table lock?"],
   "caseAgainst": {
@@ -504,8 +583,14 @@
     {
       "id": 1, "severity": "blocker", "title": "An edit that raises quantity can oversell: stock is read before the row lock",
       "anchor": "src/orders/edit.ts:22", "lanes": ["correctness", "case-against", "bot:coderabbitai[bot]"], "principle": "separate before serializing shared state", "introduced": "yes",
-      "failure": "Two edits on the last unit both read 1 available, both lock in turn, and both write a hold of 1: the item is held twice.",
-      "evidence": "edit.ts:22 reads availableStock() outside the transaction that locks at edit.ts:31; reserve.ts:41 does both inside one.",
+      "raisedBy": { "who": "coderabbitai[bot]", "url": "https://github.com/acme/shop/pull/418#discussion_r1000000001" },
+      "scenario": ["Two edits raise the last unit's quantity", "Both read 1 available", "Each takes the lock in turn", "The item is held twice"],
+      "proof": [
+        { "anchor": "src/orders/edit.ts:22", "fact": "reads availableStock() outside the transaction" },
+        { "anchor": "src/orders/edit.ts:31", "fact": "the lock comes after the read" },
+        { "anchor": "src/orders/reserve.ts:41", "fact": "reserve() reads inside its lock" }
+      ],
+      "snippet": "const available = await availableStock(item.id);   // line 22\nawait db.transaction(async (tx) => {\n  await lockStock(tx, item.id);                      // line 31",
       "comment": "Two edits that raise quantity on the last unit both read 1 available before either takes the row lock, so both hold it and the item oversells.\n\n`availableStock()` at line 22 runs before the transaction that locks at line 31; `reserve()` reads inside its lock. Reading after the lock closes the race:\n\n```diff\n-    const available = await availableStock(item.id);\n     await db.transaction(async (tx) => {\n       await lockStock(tx, item.id);\n+      const available = await availableStock(tx, item.id);\n```"
     },
     {
@@ -514,6 +599,7 @@
     },
     {
       "id": 3, "severity": "question", "title": "Should this layer ship before #419 expires holds?", "anchor": "src/orders/reserve.ts:70", "lanes": ["case-against"],
+      "raisedBy": { "who": "grace", "url": "https://github.com/acme/shop/pull/418#issuecomment-2000000001" },
       "comment": "Does anything expire holds before #419 lands? If this layer ships alone, an abandoned checkout keeps its units held and the item reads as sold out until someone clears it."
     }
   ],
@@ -529,11 +615,14 @@
     { "path": "src/web/checkout/errors.ts", "class": "logic", "concern": "Checkout", "summary": "New sold-out message.", "adds": 12, "dels": 2 },
     { "path": "src/api/client.gen.ts", "class": "mechanical", "concern": "Generated", "summary": "Regenerated client.", "adds": 210, "dels": 140 }
   ],
-  "bots": [
-    { "bot": "coderabbitai[bot]", "anchor": "src/orders/edit.ts:22", "claim": "Race between read and lock", "disposition": "confirmed", "finding": 1 },
-    { "bot": "coderabbitai[bot]", "anchor": "src/orders/cancel.ts:19", "claim": "Holds not deleted on refund failure", "disposition": "false-positive",
-      "reason": "The refund and the hold delete share one transaction (cancel.ts:14), so a failed refund rolls the delete back too.",
-      "reply": "Both run in the same transaction (`cancel.ts:14`), so a failed refund rolls the hold delete back with it." }
+  "conversation": [
+    { "who": "coderabbitai[bot]", "kind": "bot", "url": "https://github.com/acme/shop/pull/418#discussion_r1000000001", "anchor": "src/orders/edit.ts:22", "point": "Race between read and lock", "state": "open", "finding": 1,
+      "note": "Confirmed; finding 1 is a reply on this thread." },
+    { "who": "coderabbitai[bot]", "kind": "bot", "url": "https://github.com/acme/shop/pull/418#discussion_r1000000002", "anchor": "src/orders/cancel.ts:19", "point": "Holds not deleted on refund failure", "state": "wrong",
+      "note": "The refund and the hold delete share one transaction (cancel.ts:14), so a failed refund rolls the delete back too.",
+      "reply": "Both run in the same transaction (`cancel.ts:14`), so a failed refund rolls the hold delete back with it." },
+    { "who": "grace", "kind": "person", "url": "https://github.com/acme/shop/pull/418#issuecomment-2000000001", "point": "Does this need #419 first?", "state": "unanswered", "finding": 3,
+      "note": "Asked on the PR two days ago; the author hasn't replied. Question 3 asks the same thing, so it goes on this thread." }
   ],
   "verifiedClean": [
     "The lock order is the same in reserve() and cancel(): item id ascending.",
@@ -625,8 +714,36 @@
 
   const field = (key, value) => (value ? h("p", {}, h("span", { class: "k" }, key), value) : null);
 
-  const item = (cls, open, id, summaryParts, bodyParts) =>
-    h("details", { class: `item ${cls}`, open: open ? "" : null, id }, h("summary", {}, summaryParts), h("div", { class: "body" }, bodyParts));
+  // A card with nothing behind it is a plain row: no chevron, nothing to expand.
+  const item = (cls, open, id, summaryParts, bodyParts) => {
+    const body = [bodyParts].flat(Infinity).filter((part) => part !== undefined && part !== null && part !== false && part !== "");
+    return body.length
+      ? h("details", { class: `item ${cls}`, open: open ? "" : null, id }, h("summary", {}, summaryParts), h("div", { class: "body" }, body))
+      : h("div", { class: `row-static ${cls}`, id }, summaryParts);
+  };
+
+  // show-me's text views (call tree, file tree, pseudocode, code): "  # " or "  // " starts a dim comment, a leading "!" marks a hot line.
+  const commentAt = (line) => [line.indexOf("  # "), line.indexOf("  // "), /^\s*\/\//.test(line) ? 0 : -1].filter((at) => at !== -1).reduce((first, at) => Math.min(first, at), Infinity);
+  const textView = (source) => h("div", { class: "tree" }, h("pre", {}, String(source).split("\n").flatMap((raw) => {
+    const hot = raw.startsWith("!");
+    const line = hot ? raw.slice(1) : raw;
+    const found = commentAt(line);
+    const at = found === Infinity ? -1 : found;
+    const code = at === -1 ? line : line.slice(0, at);
+    const comment = at === -1 ? null : h("span", { class: "cm" }, line.slice(at));
+    return [h("span", { class: hot ? "hot" : null }, code), comment, "\n"];
+  })));
+
+  const scenarioStrip = (steps) => h("div", { class: "scenario" }, steps.flatMap((step, i) => [
+    i ? h("span", { class: "arrow" }, "→") : null,
+    h("div", { class: `step${i === steps.length - 1 ? " bad" : ""}` }, h("span", { class: "n" }, i === steps.length - 1 ? "result" : `${i + 1}`), step)
+  ]));
+
+  // A unified-diff-style block: "+" lines added, "-" lines removed, anything else context.
+  const diffBlock = (source) => h("div", { class: "diff" }, String(source).split("\n").map((line) =>
+    h("div", { class: line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : null }, line)));
+
+  const evidenceList = (rows) => h("ul", { class: "evidence" }, rows.map((row) => h("li", {}, row.anchor ? anchorLink(row.anchor) : h("span", { class: "src" }, row.source || ""), h("span", {}, row.fact))));
 
   const section = (id, title, sub, ...body) => ({ id, title, node: h("section", { id }, h("h2", {}, title), sub ? h("p", { class: "sub" }, sub) : null, ...body) });
 
@@ -647,7 +764,6 @@
     return h("header", { class: "page" },
       h("div", { class: "eyebrow" }, `PR #${pr.number}${pr.repo ? ` · ${pr.repo}` : ""}${subtitle ? ` · ${subtitle}` : ""}`),
       h("h1", {}, pr.title),
-      h("p", { class: "lede" }, DATA.summary),
       h("div", { class: "chips" },
         verdict ? h("span", { class: `chip ${verdict[1]}` }, verdict[0]) : null,
         DATA.draft ? h("span", { class: "chip warn" }, "draft: quick or partial, gates not run") : null,
@@ -655,8 +771,10 @@
         h("span", { class: "chip" }, `@${pr.author}`),
         h("span", { class: "chip" }, `${pr.head} → ${pr.base}`),
         pr.adds !== undefined ? h("span", { class: "chip" }, `+${pr.adds} / −${pr.dels ?? 0}`) : null,
-        DATA.executed ? h("span", { class: "chip" }, `executed: ${DATA.executed}`) : null),
+        DATA.executed && DATA.executed.length <= 24 ? h("span", { class: "chip" }, `executed: ${DATA.executed}`) : null),
+      h("p", { class: "lede" }, DATA.summary),
       DATA.riskWhy ? h("p", { class: "riskwhy" }, `Risk ${DATA.risk}: ${DATA.riskWhy}`) : null,
+      DATA.executed && DATA.executed.length > 24 ? h("p", { class: "riskwhy" }, `Executed: ${DATA.executed}`) : null,
       list(stack).length ? h("div", { class: "stack" },
         stack.flatMap((layer, i) => [
           i ? h("span", { class: "arrow" }, "→") : null,
@@ -681,12 +799,33 @@
 
   // ---------- review ----------
 
-  const findingCard = (finding, open, anchorId) => item(finding.severity, open, anchorId,
-    [h("span", { class: `pill ${finding.severity}` }, SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`),
-     h("span", { class: "title" }, finding.title), anchorLink(finding.anchor)],
-    [field("Failure", finding.failure), field("Evidence", finding.evidence),
-     field("Lane", [list(finding.lanes).join(", "), finding.principle, finding.introduced ? `introduced: ${finding.introduced}` : null].filter(Boolean).join(" · ")),
-     paste(finding.severity === "question" ? "Question to paste" : "Comment to paste", finding.comment)]);
+  // Signal first. A point someone already raised, whose thread still stands, and a test or lint finding sit lower and collapsed;
+  // a reply that corrects a partly fixed or wrong thread stays up top, and a blocker never moves. pr-report.ts orders ids the same way.
+  const threadStates = Object.fromEntries(list(DATA.conversation).filter((thread) => thread.url).map((thread) => [thread.url, thread.state]));
+  const replied = (finding) => Boolean(finding.raisedBy) && !["partly", "wrong"].includes(threadStates[finding.raisedBy.url]);
+  const tierOf = (finding) => {
+    if (finding.severity === "question") { return replied(finding) || finding.topic ? 5 : 4; }
+    if (finding.severity === "blocker") { return 0; }
+    if (finding.severity === "nit") { return 3; }
+    return replied(finding) ? 1 : finding.topic ? 2 : 0;
+  };
+  const badgeOf = (finding) => (finding.severity === "blocker" ? null : replied(finding) ? "replied" : finding.topic || null);
+
+  const findingCard = (finding, open, anchorId) => {
+    const raised = finding.raisedBy;
+    const visual = list(finding.scenario).length > 0;
+    const badge = badgeOf(finding);
+    return item(badge ? "nit" : finding.severity, open, anchorId,
+      [h("span", { class: `pill ${badge || finding.severity}` }, badge || SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`),
+       h("span", { class: "title" }, finding.title), anchorLink(finding.anchor),
+       raised ? link(raised.url, h("span", { class: "raised" }, replied(finding) ? `also raised by @${raised.who}` : `follow-up on @${raised.who}'s thread`)) : null],
+      [visual ? [h("div", { class: "lbl" }, "What goes wrong"), scenarioStrip(finding.scenario)] : finding.diagram ? h("div", { class: "lbl" }, "What goes wrong") : field("Failure", finding.failure),
+       finding.diagram ? h("div", { class: "diagram" }, h("pre", {}, finding.diagram)) : null,
+       finding.snippet ? [h("div", { class: "lbl" }, "The code"), h("div", { class: "snippet" }, h("pre", {}, finding.snippet))] : null,
+       list(finding.proof).length ? [h("div", { class: "lbl" }, "Evidence"), evidenceList(finding.proof)] : field("Evidence", finding.evidence),
+       h("div", { class: "finding-meta" }, [list(finding.lanes).join(", "), finding.principle, finding.introduced ? `introduced: ${finding.introduced}` : null].filter(Boolean).join(" · ")),
+       paste(raised ? `Reply on @${raised.who}'s thread` : (finding.severity === "question" ? "Question to paste" : "Comment to paste"), finding.comment)]);
+  };
 
   const reviewSections = () => {
     const findings = list(DATA.findings);
@@ -704,15 +843,25 @@
         table(["Criterion", "Status", "Where"], DATA.asked.map((row) => [row.criterion, h("span", { class: `pill ${row.status}` }, row.status.replace(/-/g, " ")), row.anchor ? anchorLink(row.anchor) : ""]))) : null);
 
     const how = section("how", "How it works", null,
-      DATA.explanation ? h("p", { class: "prose" }, DATA.explanation) : null,
+      DATA.callTree ? h("div", { class: "card" }, h("div", { class: "lbl" }, DATA.callTree.title), textView(DATA.callTree.text)) : null,
+      !DATA.callTree && DATA.explanation ? h("p", { class: "prose" }, DATA.explanation) : null,
       list(DATA.flows).length ? h("div", { class: "grid" }, DATA.flows.map((flow) => h("div", { class: "card" },
         h("h3", { style: "margin-top:0" }, flow.title),
         h("div", { class: "diagram" }, h("pre", {}, flow.diagram)),
         list(flow.steps).length ? h("ol", { class: "steps" }, flow.steps.map((step) => h("li", {}, step.anchor ? [anchorLink(step.anchor), " "] : null, step.text))) : null))) : null,
-      list(DATA.areas).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Walkthrough"),
-        table(["Area", "What changed", "Why it matters"], DATA.areas.map((row) => [h("code", {}, row.area), row.what, row.why]))) : null,
+      DATA.walkTree ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Walkthrough"),
+        DATA.walkTree.sub ? h("p", { class: "sub" }, DATA.walkTree.sub) : null, textView(DATA.walkTree.text))
+        : null,
       list(DATA.behavior).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Before → after"),
-        table(["Case", "Before", "After"], DATA.behavior.map((row) => [row.case, row.before, row.after]))) : null,
+        h("div", { class: "ba" }, DATA.behavior.map((row) => {
+          const isNew = !row.before || row.before === "—";
+          return h("div", { class: "case" }, h("h4", {}, row.case),
+            h("div", { class: "lines" },
+              isNew ? null : h("div", { class: "line before" }, h("span", { class: "tag" }, "before"), h("span", {}, row.before)),
+              h("div", { class: `line after ${row.bad ? "bad" : "good"}` }, h("span", { class: "tag" }, isNew ? "new" : "after"), h("span", {}, row.after)),
+              row.diff ? diffBlock(row.diff) : null));
+        })))
+        : null,
       list(DATA.holdQuestions).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Questions to hold in your head"),
         h("ul", { class: "plain" }, DATA.holdQuestions.map((entry) => h("li", {}, entry)))) : null);
 
@@ -720,11 +869,113 @@
       [["Strongest argument against merging", DATA.caseAgainst.strongest], ["Most likely to bite in three months", DATA.caseAgainst.threeMonths], ["If 40% had to go", DATA.caseAgainst.cut]]
         .map(([label, value]) => h("div", { class: "card against" }, h("div", { class: "label" }, label), h("div", {}, value))))) : null;
 
+    const GROUP_HEAD = { 1: "Already raised on the PR: a reply on their thread", 2: "Tests and lint", 3: "Nits", 5: "Already raised, or about tests and lint" };
+    const grouped = (rows) => [...rows]
+      .sort((a, b) => tierOf(a) - tierOf(b) || a.id - b.id)
+      .flatMap((finding, index, sorted) => {
+        const tier = tierOf(finding);
+        const head = (index === 0 || tierOf(sorted[index - 1]) !== tier) && GROUP_HEAD[tier] ? h("div", { class: "group-head" }, GROUP_HEAD[tier]) : null;
+        return [head, findingCard(finding, tier === 0, `finding-${finding.id}`)];
+      });
+
     const findingsSection = section("findings", "Findings", issues.length ? "Open a card for the evidence and the comment to paste on that line." : null,
-      issues.length ? issues.map((finding) => findingCard(finding, finding.severity !== "nit", `finding-${finding.id}`)) : h("p", { class: "empty" }, "No findings."));
+      issues.length ? grouped(issues) : h("p", { class: "empty" }, "No findings."));
 
     const questionsSection = questions.length ? section("questions", "Questions for the author", "Real but unproven: asked, not asserted.",
-      questions.map((finding) => findingCard(finding, false, `finding-${finding.id}`))) : null;
+      grouped(questions)) : null;
+
+    const statStrip = (stats) => h("div", { class: "stats" }, stats.map(([value, label, tone]) => h("div", { class: `stat ${tone}` }, h("b", {}, String(value)), h("span", {}, label))));
+
+    const since = DATA.sinceReview ? (() => {
+      const review = DATA.sinceReview;
+      const status = (name) => list(review.findings).filter((row) => row.status === name).length;
+      return section("since", "Since last review", review.sub || `Against the review of ${review.prior}.`,
+        statStrip([[status("fixed"), "fixed", "ok"], [status("changed"), "changed", "warn"], [status("open"), "still open", "bad"], [findings.filter((finding) => finding.priorId === undefined).length, "new", "cool"]]),
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, `Last review's findings (${review.prior})`),
+          table(["Was", "Status at head", "Now"], list(review.findings).map((row) => [
+            h("span", {}, h("span", { class: "meta mono" }, `#${row.id} `), row.title),
+            h("span", { class: `pill ${row.status}` }, row.status),
+            h("span", {}, row.anchor ? [anchorLink(row.anchor), " "] : null, row.now)]))),
+        list(review.commits).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Commits since the reviewed head"),
+          textView(review.commits.map((commit) => `${commit.sha}  ${commit.subject}`).join("\n"))) : null,
+        list(review.conversation).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Conversation since"),
+          h("ul", { class: "plain" }, review.conversation.map((entry) => h("li", {}, entry)))) : null);
+    })() : null;
+
+    const description = DATA.description ? (() => {
+      const desc = DATA.description;
+      const counts = ["matches", "partly", "wrong", "missing"].map((status) => [status, list(desc.claims).filter((claim) => claim.status === status).length]);
+      const claimRows = h("div", {});
+      const drawClaims = (filter) => {
+        claimRows.replaceChildren(table(["The description says", "The code at head", ""],
+          list(desc.claims).filter((claim) => filter === "all" || claim.status === filter || (filter === "off" && claim.status !== "matches"))
+            .map((claim) => [claim.claim, h("span", {}, claim.code, claim.anchor ? [" ", anchorLink(claim.anchor)] : null), h("span", { class: `pill ${claim.status}` }, claim.status === "missing" ? "missing from body" : claim.status)])));
+      };
+      drawClaims("off");
+      return section("description", "The PR description", "What the PR says it does, checked claim by claim against the code at the head.",
+        desc.picture ? h("div", { class: "card" }, h("div", { class: "lbl" }, desc.picture.title), textView(desc.picture.text)) : null,
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Does it match the code?"),
+          statStrip(counts.map(([status, value]) => [value, status === "missing" ? "missing from body" : status, { matches: "ok", partly: "warn", wrong: "bad", missing: "cool" }[status]])),
+          filterBar([["off", "needs a change"], ["all", `all ${list(desc.claims).length}`]], drawClaims), claimRows),
+        desc.proposed ? h("details", { class: "more" },
+          h("summary", {}, `Proposed description to paste · ${desc.proposed.split("\n").length} lines`),
+          h("p", { class: "sub", style: "margin:12px 0 0" }, "The description the PR should merge with, accurate to the head. It's the record people and agents read later."),
+          paste("Proposed description to paste", desc.proposed)) : null);
+    })() : null;
+
+    const architecture = DATA.architecture ? (() => {
+      const arch = DATA.architecture;
+      return section("architecture", "Architecture", arch.sub,
+        arch.decision ? h("div", { class: "attn" }, h("b", {}, "Decision for you: "), arch.decision) : null,
+        arch.components ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, arch.components.title), h("div", { class: "diagram" }, h("pre", {}, arch.components.diagram)), arch.components.caption ? h("p", { class: "sub", style: "margin:8px 0 0" }, arch.components.caption) : null) : null,
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, arch.today.title),
+          statStrip(list(arch.stats).map((stat) => [stat.value, stat.label, stat.tone || ""])),
+          h("div", { class: "diagram" }, h("pre", {}, arch.today.diagram)),
+          arch.today.caption ? h("p", { class: "sub", style: "margin:8px 0 0" }, arch.today.caption) : null),
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Each concern: where it lives, where it should"),
+          table(["Concern", "Today", "Recommended", "Reuses"], list(arch.concerns).map((row) => [
+            h("b", {}, row.concern),
+            h("span", {}, h("span", { class: `pill ${row.ok ? "matches" : "wrong"}` }, row.state), " ", row.today, row.anchor ? [" ", anchorLink(row.anchor)] : null),
+            row.recommended, h("span", { class: "mono" }, row.reuses)]))),
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, arch.target.title),
+          h("div", { class: "diagram" }, h("pre", {}, arch.target.diagram)),
+          arch.target.caption ? h("p", { class: "sub", style: "margin:8px 0 0" }, arch.target.caption) : null),
+        arch.mapping ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, arch.mapping.title || "How it maps onto the target"),
+          arch.mapping.sub ? h("p", { class: "sub" }, arch.mapping.sub) : null, textView(arch.mapping.text)) : null,
+        list(arch.comparisons).map((pair) => h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, pair.title),
+          pair.sub ? h("p", { class: "sub" }, pair.sub) : null,
+          // Short lines (file trees) read best side by side; code reads best stacked at full width.
+          h("div", { class: Math.max(...[pair.today.text, pair.target.text].flatMap((text) => text.split("\n").map((line) => line.length))) <= 64 ? "compare side" : "compare" },
+            [pair.today, pair.target].map((view) => h("div", {}, h("div", { class: "lbl" }, view.title), textView(view.text)))))),
+        h("div", { class: "grid", style: "grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))" },
+          h("div", { class: "card" }, h("h3", { style: "margin-top:0;color:var(--risk)" }, "Debt this PR adds"), h("ul", { class: "plain" }, list(arch.debt.adds).map((entry) => h("li", {}, entry)))),
+          h("div", { class: "card" }, h("h3", { style: "margin-top:0;color:var(--ok)" }, "Debt it could pay down instead"), h("ul", { class: "plain" }, list(arch.debt.paysDown).map((entry) => h("li", {}, entry))))),
+        h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Path"),
+          h("ol", { class: "look" }, list(arch.path).map((step) => h("li", {}, h("div", {}, h("b", {}, step.step), h("div", { class: "sub", style: "margin:2px 0 0" }, step.what)))))));
+    })() : null;
+
+    const conversation = list(DATA.conversation).length ? (() => {
+      const threads = DATA.conversation;
+      const unanswered = threads.filter((thread) => thread.state === "unanswered");
+      const rows = h("div", {});
+      const draw = (filter) => {
+        rows.replaceChildren();
+        const shown = threads.filter((thread) => filter === "all" || (filter === "people" && thread.kind !== "bot") || (filter === "bots" && thread.kind === "bot") || (filter === "open" && ["open", "partly", "unanswered"].includes(thread.state)));
+        shown.forEach((thread) => rows.append(item(thread.state === "open" ? "risk" : thread.state === "fixed" || thread.state === "answered" ? "mechanical" : "logic", false, null,
+          [h("span", { class: `pill ${thread.state}` }, thread.state === "wrong" ? "doesn't hold" : thread.state), h("span", { class: "meta" }, `@${thread.who}`),
+           h("span", { class: "title" }, thread.point), thread.anchor ? anchorLink(thread.anchor) : null,
+           thread.finding ? h("a", { href: `#finding-${thread.finding}`, class: "meta" }, `→ our #${thread.finding}`) : null,
+           thread.url ? link(thread.url, h("span", { class: "meta" }, "thread ↗")) : null],
+          [thread.note ? h("p", {}, thread.note) : null, thread.reply ? paste("Reply to paste on the thread", thread.reply) : null])));
+        if (!shown.length) { rows.append(h("p", { class: "empty" }, "Nothing in this view.")); }
+      };
+      draw("open");
+      const count = (pred) => threads.filter(pred).length;
+      return section("conversation", "Review conversation", "Every thread on the PR, people and bots, checked against the head. A point someone already raised becomes a reply on their thread, never a second comment.",
+        unanswered.length ? h("div", { class: "attn" }, h("b", {}, "Waiting on the author: "), unanswered.map((thread) => `@${thread.who}: ${thread.point}`).join(" · ")) : null,
+        filterBar([["open", `open ${count((thread) => ["open", "partly", "unanswered"].includes(thread.state))}`], ["all", `all ${threads.length}`], ["people", `people ${count((thread) => thread.kind !== "bot")}`], ["bots", `bots ${count((thread) => thread.kind === "bot")}`]], draw),
+        rows);
+    })() : null;
 
     const fileList = h("div", {});
     const drawFiles = (filter) => {
@@ -734,8 +985,8 @@
         h("div", { class: "name" }, concern),
         files.filter((file) => file.concern === concern).map((file) => {
           const cards = findings.filter((finding) => pathOf(finding.anchor) === file.path);
-          return item(file.class, file.class === "risk" || cards.length > 0, null,
-            [h("span", { class: `pill ${file.class}` }, file.class), h("code", {}, file.path), h("span", { class: "title" }, file.summary),
+          return item(file.class, cards.length > 0, null,
+            [h("span", { class: `pill ${file.class}` }, file.class), h("span", { class: "fileline" }, h("code", {}, file.path), h("span", { class: "desc" }, file.summary)),
              cards.length ? h("span", { class: "meta" }, `${cards.length} comment${cards.length > 1 ? "s" : ""}`) : null,
              file.adds !== undefined ? h("span", { class: "meta" }, `+${file.adds} −${file.dels ?? 0}`) : null],
             [list(file.hunks).length ? h("ul", { class: "plain" }, file.hunks.map((hunk) => h("li", {}, anchorLink(`${file.path}:${hunk.lines}`), " ", hunk.text))) : null,
@@ -751,12 +1002,6 @@
     const files = section("files", "File map", "Every file, grouped by concern, with the comments anchored in it.",
       filterBar([["all", `all ${DATA.files.length}`], ...CLASSES.map((cls) => [cls, `${cls} ${counts[cls]}`])], drawFilesOrEmpty), fileList);
 
-    const bots = list(DATA.bots).length ? section("bots", "Bot comments", "Every bot claim, verified like a lane finding.",
-      DATA.bots.map((bot) => item(bot.disposition, bot.disposition === "false-positive", null,
-        [h("span", { class: `pill ${bot.disposition}` }, bot.disposition.replace(/-/g, " ")), h("span", { class: "meta" }, bot.bot),
-         h("span", { class: "title" }, bot.claim), bot.anchor ? anchorLink(bot.anchor) : null, bot.finding ? h("a", { href: `#finding-${bot.finding}`, class: "meta" }, `→ #${bot.finding}`) : null],
-        [field("Why", bot.reason), bot.reply ? paste("Reply to the bot's thread", bot.reply) : null]))) : null;
-
     const clean = textList("clean", "Verified clean", "What was checked and found right.", DATA.verifiedClean);
     const summary = DATA.summaryComment ? section("summary", "Summary comment", "Optional top-level comment for the PR conversation.", paste("Summary to paste", DATA.summaryComment)) : null;
     const noticed = list(DATA.noticed).length ? section("noticed", "Noticed, not this PR's problem", null,
@@ -766,7 +1011,15 @@
         [h("ul", { class: "plain" }, DATA.dropped.map((entry) => h("li", {}, anchorLink(entry.anchor), ` · ${[list(entry.lanes).join(", "), entry.claim].filter(Boolean).join(": ")} · dropped because ${entry.reason}`)))])) : null;
     const notChecked = textList("not-checked", "Not checked", null, DATA.notChecked);
 
-    return [look, how, against, findingsSection, questionsSection, files, bots, clean, checksTable(), summary, noticed, dropped, notChecked, priorSection()];
+    // Understand the PR, then judge it, then act on it; reference material last. A re-review's delta sits right above the findings it explains.
+    const groups = [
+      [description, how, architecture],
+      [look, since, findingsSection, questionsSection, against],
+      [conversation, summary],
+      [files, clean, checksTable(), noticed, dropped, notChecked, since ? null : priorSection()]
+    ];
+    const placed = groups.flatMap((group, i) => group.filter(Boolean).map((entry) => ({ ...entry, group: i })));
+    return placed.map((entry, k) => ({ ...entry, groupStart: k > 0 && entry.group !== placed[k - 1].group }));
   };
 
   // ---------- replies ----------
@@ -823,16 +1076,11 @@
   const root = document.getElementById("render");
   root.append(
     renderHeader(DATA.kind === "replies" ? "replies" : "review"),
-    h("nav", { class: "jump" }, sections.map((entry) => h("a", { href: `#${entry.id}` }, entry.title)), h("span", { id: "theme-slot" })),
+    h("nav", { class: "jump" }, sections.flatMap((entry) => [entry.groupStart ? h("span", { class: "sep" }) : null, h("a", { href: `#${entry.id}` }, entry.title)])),
     ...sections.map((entry) => entry.node),
     h("footer", {}, "Rendered from the pr-report-data block in this file. Diagram sources show as text when the diagram library can't load."));
   document.title = `PR #${DATA.pr.number}${DATA.kind === "replies" ? " replies" : ""} — ${DATA.pr.title}`;
 
-  // Section jumps land below the sticky nav, which wraps to more rows on narrow screens.
-  const nav = document.querySelector("nav.jump");
-  const fitNav = () => document.documentElement.style.setProperty("--nav-h", `${nav.offsetHeight}px`);
-  fitNav();
-  window.addEventListener("resize", fitNav);
 
   let mermaidLib = null;
   // A theme flip mid-draw starts a new run; the older run's late results are dropped.

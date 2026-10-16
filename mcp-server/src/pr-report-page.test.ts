@@ -69,14 +69,104 @@ describe('pr-report page', () => {
     expect(count('section#findings details.item')).toBe(2);
     expect(count('section#questions details.item')).toBe(1);
     expect(document.getElementById('finding-1')?.tagName).toBe('DETAILS');
-    expect(document.querySelector('section#bots a[href="#finding-1"]')).not.toBeNull();
-    // Three comment cards, the same three inside their files, the bot reply and the summary comment.
+    expect(document.querySelector('section#conversation a[href="#finding-1"]')).not.toBeNull();
+    // Three comment cards, the same three inside their files, the summary comment and the proposed description.
     expect(count('.paste button')).toBe(8);
     expect(document.querySelector('.riskwhy')?.textContent).toStartWith('Risk L: ');
   });
 
+  test('sections run from understanding to judging to acting, with the badges right under the title', () => {
+    const { document } = open(TEMPLATE);
+    const ids = [...document.querySelectorAll('section')].map((section) => section.id);
+    expect(ids.slice(0, 3)).toEqual(['description', 'how', 'look']);
+    expect(ids.indexOf('conversation')).toBeGreaterThan(ids.indexOf('questions'));
+    expect(ids.indexOf('files')).toBeGreaterThan(ids.indexOf('conversation'));
+    expect(document.querySelector('header.page h1 + .chips')).not.toBeNull();
+    expect(document.getElementById('theme-slot')).toBeNull();
+  });
+
+  test('a file with nothing behind it is a plain row, and the visuals render', () => {
+    const { document, count } = open(TEMPLATE);
+    const migration = [...document.querySelectorAll('section#files .row-static')].map((row) => row.textContent ?? '');
+    expect(migration.some((text) => text.includes('migrations/0042_reservations.sql'))).toBe(true);
+    expect(count('section#how .ba .case')).toBe(2);
+    expect(count('section#how .diff .del')).toBe(1);
+    expect(count('section#findings .scenario .step.bad')).toBe(1);
+    expect(document.querySelector('#finding-1 .raised')?.textContent).toBe('also raised by @coderabbitai[bot]');
+    expect(document.querySelector('#finding-1 .paste .label')?.textContent).toBe("Reply on @coderabbitai[bot]'s thread");
+  });
+
+  test('an architecture skeleton renders both panes, with hot lines and dim comments', () => {
+    const architecture = {
+      today: { title: 'Today', diagram: 'flowchart LR\n  A --> B' },
+      target: { title: 'Target', diagram: 'flowchart LR\n  A --> C' },
+      concerns: [{ concern: 'Shipping', ok: false, state: 'split', today: 'In checkout', recommended: 'One class', reuses: 'Base' }],
+      debt: { adds: ['x'], paysDown: ['y'] },
+      path: [{ step: 'One', what: 'Do it' }],
+      comparisons: [
+        { title: 'Files', today: { title: 'Today files', text: 'a.ts\nb.ts' }, target: { title: 'Target files', text: 'shipping/\n  step.ts  # the step' } },
+        { title: 'Code', today: { title: 'Today code', text: '!checkout.branch();  // the finding\nkeep();' }, target: { title: 'Target code', text: `class Provider {}\n// shared code names no provider ${'.'.repeat(60)}` } }
+      ]
+    };
+    const { errors, document } = open(renderPage(TEMPLATE, { ...sample(), architecture }));
+    expect(errors).toEqual([]);
+    const cardTitled = (title: string) => [...document.querySelectorAll('section#architecture .card')].find((node) => node.querySelector('h3')?.textContent === title);
+    expect(cardTitled('Files')?.querySelector('.compare')?.classList.contains('side')).toBe(true);
+    const code = cardTitled('Code');
+    expect(code?.querySelector('.compare')?.classList.contains('side')).toBe(false);
+    expect([...(code?.querySelectorAll('.lbl') ?? [])].map((node) => node.textContent)).toEqual(['Today code', 'Target code']);
+    expect(code?.querySelectorAll('.hot')).toHaveLength(1);
+    expect(code?.querySelectorAll('.cm')).toHaveLength(2);
+  });
+
+  test('findings lead with signal: already-raised, tests and lint, and nits sit lower, collapsed and badged', () => {
+    const data = sample();
+    const findings = (Array.isArray(data.findings) ? data.findings : []).filter(isRecord);
+    const { raisedBy: _raisedBy, ...unraised } = findings[0];
+    const lintFinding = { ...unraised, id: 2, severity: 'fix-before-merge', topic: 'lint', title: 'Lint fails once main is merged' };
+    const nits = findings.filter((finding) => finding.severity === 'nit').map((finding) => ({ ...finding, id: 3 }));
+    const questions = findings.filter((finding) => finding.severity === 'question').map((finding) => ({ ...finding, id: 4 }));
+    const { errors, document } = open(renderPage(TEMPLATE, { ...data, findings: [findings[0], lintFinding, ...nits, ...questions] }));
+    expect(errors).toEqual([]);
+    const section = document.querySelector('section#findings');
+    expect([...(section?.querySelectorAll('.group-head') ?? [])].map((head) => head.textContent)).toEqual(['Tests and lint', 'Nits']);
+    expect(document.getElementById('finding-1')?.hasAttribute('open')).toBe(true);
+    const lint = document.getElementById('finding-2');
+    expect(lint?.hasAttribute('open')).toBe(false);
+    expect(lint?.querySelector('.pill')?.textContent).toBe('lint');
+    // The sample's question repeats a point Grace raised and nobody answered, so it is a reply and sits under its own heading.
+    expect(document.querySelector('section#questions .group-head')?.textContent).toBe('Already raised, or about tests and lint');
+    expect(document.getElementById('finding-4')?.querySelector('.pill')?.textContent).toBe('replied');
+  });
+
+  test('the proposed description is folded behind a toggle, with its copy button inside', () => {
+    const { document } = open(TEMPLATE);
+    const fold = document.querySelector('section#description details.more');
+    expect(fold?.hasAttribute('open')).toBe(false);
+    expect(fold?.querySelector('summary')?.textContent).toStartWith('Proposed description to paste · ');
+    expect(fold?.querySelector('.paste button')).not.toBeNull();
+  });
+
+  test('a re-review opens on the delta, counted from the prior findings', () => {
+    const sinceReview = {
+      prior: '10-09, head 1a2b3c4',
+      findings: [
+        { id: 1, title: 'Edit reads before the lock', status: 'open', now: 'unchanged' },
+        { id: 2, title: 'Cancel leaks holds', status: 'fixed', now: 'same transaction now' }
+      ]
+    };
+    const data = sample();
+    const findings = (Array.isArray(data.findings) ? data.findings : []).map((finding, index) => (index === 0 && isRecord(finding) ? { ...finding, priorId: 1 } : finding));
+    const { errors, document } = open(renderPage(TEMPLATE, { ...data, sinceReview, findings }));
+    expect(errors).toEqual([]);
+    const order = [...document.querySelectorAll('section')].map((section) => section.id);
+    expect(order[order.indexOf('findings') - 1]).toBe('since');
+    const stats = [...document.querySelectorAll('section#since .stat')].map((stat) => stat.textContent);
+    expect(stats).toEqual(['1fixed', '0changed', '1still open', '2new']);
+  });
+
   test('a clean review with no flows and no findings still renders', () => {
-    const { flows: _flows, findings: _findings, bots: _bots, ...data } = sample();
+    const { flows: _flows, findings: _findings, conversation: _conversation, ...data } = sample();
     const { errors, document, count } = open(renderPage(TEMPLATE, { ...data, verdict: 'approve' }));
     expect(errors).toEqual([]);
     expect(document.querySelector('section#findings .empty')?.textContent).toBe('No findings.');

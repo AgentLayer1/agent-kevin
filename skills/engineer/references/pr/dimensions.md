@@ -117,7 +117,7 @@ The PR as an artifact a reviewer can trust.
 
 **Reads:** [handoff](../handoff.md) (what a PR description and commit shape owe a reviewer) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
 
-- **Body versus diff.** Does the description describe this diff? Deleted files, removed guards, or behavior changes the body calls "none" are blockers: a reviewer approving the body approves a different change.
+- **Body versus diff.** Does the description describe this diff? Check every claim the body makes at the head and return one row each for the report's description check: `matches`, `partly`, `wrong`, or `missing` (a change the body leaves out: a DTO sweep, a schema change, a deploy step). Descriptions go stale as the code moves under review, and the merged description is the record people and agents read later, so a stale one is worth a finding even when the code is right. Deleted files, removed guards, or behavior changes the body calls "none" are blockers: a reviewer approving the body approves a different change.
 - Scope: hunks that do not trace to the stated purpose. A root-cause fix carries only itself; unrelated improvements are a defect even when builds pass. Exception: a reviewer-requested fix inside files the PR already touches.
 - Reach beyond intent: a CI workflow, build config, shared config, or dependency change whose effect is wider than the PR's stated purpose (a lint rule turned off repo-wide to land one file, a version bump riding along with a bug fix).
 - Size and shape: a PR that should be a stack, a stack layer that is not "a discrete, reviewable change", a layer based on the wrong parent.
@@ -158,3 +158,20 @@ What the change costs at the sizes it will actually see. Every finding states a 
 - Timeouts: an external call with no timeout, deadline, or cancellation, so one slow dependency holds a worker or a request forever.
 - Growth: a cache, map, or queue with no bound or eviction; a listener, subscription, or timer with no cleanup; a whole file or response read into memory where a stream was needed.
 - Repeated work: an expensive computation redone on every render, request, or loop tick when its inputs did not change.
+
+## Lane 10 — Architecture · `architecture`
+
+Runs only on a large feature: a new provider, integration or module, or about 1,500+ production lines across more than one app. The question is not whether each line is right but whether the feature lives in the right place: code spread across shared flows makes every later change touch it, and every next feature of its kind copies it.
+
+**Reads:** [model the domain](../principles/model-the-domain.md) · [boundary discipline](../principles/boundary-discipline.md) · [migrate callers, then delete legacy APIs](../principles/migrate-callers-then-delete-legacy-apis.md) · [subtract before you add](../principles/subtract-before-you-add.md) · [sequence verifiable units](../principles/sequence-verifiable-units.md)
+
+- Map the feature by lifecycle stage (for a provider integration: account setup and requirements, request creation and routing, execution, settlement and returns, webhooks, ops) and name every file each stage touches.
+- Measure the footprint: files outside the feature's own folder, feature or provider literals branching shared code (`=== Provider.X`, `case X`), lines added to files already over the repo's size cap, steps copied from a sibling feature and how far the copies have drifted. Count with grep and `git diff --stat`, never by eye.
+- Find the extension points the repo already has for this kind of feature (a provider interface and registry, a guard base class, a shared pipeline step, a module registration token) and check whether the PR uses them. A parallel mechanism beside an existing one is the finding, named with the existing symbol and path.
+- Start from the target the team already chose: the concept articles and the operator's pinned architecture docs name it (a step engine, a registry, a route model), even when it sits on an unmerged branch. Read that interface on its branch and recommend toward it rather than inventing a second shape; say plainly when it isn't merged yet.
+- Recommend the shape that keeps the feature in its own folder behind the existing interfaces, and the smallest platform change that makes that possible (a hook the interface lacks, a shared step to extract). Prefer paying down the debt the feature would deepen: the copy that becomes one shared step, the sibling feature that gets the same fix for free.
+- Map the feature onto that interface hook by hook (`mapping`): which function becomes which hook, and which findings disappear because the shared code owns the rule. A target that looks as busy as today is a drawing problem until proven otherwise: redraw it in today's columns with one node per role.
+- Compare the feature folder's file layout today against an organized target (`comparisons`): group by concern in subfolders, tests beside what they test, generated data in one place. Then sketch the code skeleton for today and target, the target copied from a sibling provider already on the chosen interface, so the recommendation reads as code an engineer would write, not boxes.
+- Lay out the path as ordered, separately reviewable PRs, lined up with any split already agreed, the platform change first.
+- When the recommendation reverses a call the operator or team already made (a recorded decision, a PR-thread agreement), say so with its cost and benefit instead of overriding it quietly.
+- Return the report's `architecture` data (per [PR report](report.md) → Review), and findings only for concrete defects the shape causes now (a copy that has already drifted into a bug), in the normal finding shape with `lane: architecture`. A preference about structure with no failure scenario is not a finding: it's the recommendation.
