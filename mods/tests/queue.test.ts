@@ -166,6 +166,16 @@ describe('queue', () => {
     expect(submitted).toEqual([]);
   });
 
+  test("a subagent's turn starting does not hold a /queue sent while the main loop is idle", async ($, on) => {
+    const { clock, submitted } = queueHost(on);
+
+    await $.turn.start({ text: '', turnId: 't2', agentId: 'agent-1' });
+    await run($, 'queue', 'Q1');
+    await clock.settle();
+
+    expect(submitted).toEqual(['Q1']);
+  });
+
   test('a turn ending with nothing queued submits nothing', async ($, on) => {
     const { clock, submitted } = queueHost(on);
 

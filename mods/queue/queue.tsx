@@ -50,7 +50,9 @@ export const registerQueue = (on: On): void => {
   });
 
   on('turn.start', async ($, e, next) => {
-    await update($, queue, (current) => ({ ...current, isBusy: true }));
+    if (e.agentId === undefined) {
+      await update($, queue, (current) => ({ ...current, isBusy: true }));
+    }
     return next(e);
   });
 
