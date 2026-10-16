@@ -97,6 +97,12 @@ const isEnvFile = (fileName: string) => fileName === '.env' || fileName.startsWi
 const isLocalConfigFile = (parentDir: string, fileName: string) =>
   isEnvFile(fileName) || (fileName === 'settings.local.json' && basename(parentDir) === '.claude');
 
+/** True when `path` is `parent` or sits under it. */
+const isWithin = (parent: string, path: string) => {
+  const rel = relative(parent, path);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+
 /** Run git with argv (no shell), capturing trimmed stdout; throws on non-zero. */
 const git = (cwd: string, args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
@@ -288,12 +294,19 @@ export const setupWorktree = ({
   );
 
   // Copy gitignored locals from the main checkout — copy only, never delete/overwrite there.
-  const copied = [
+  // A candidate the new checkout tracks (a committed `.env.example`) belongs to the branch.
+  const candidates = [
     ...new Set([
       ...findLocalEntries(mainCheckout, mainCheckout),
       ...LOCAL_PATHS.filter((path) => existsSync(join(mainCheckout, path)))
     ])
   ];
+  const tracked = candidates.length
+    ? git(worktreePath, ['ls-files', '-z', '--', ...candidates])
+        .split('\0')
+        .filter(Boolean)
+    : [];
+  const copied = candidates.filter((rel) => !tracked.some((path) => isWithin(rel, path)));
   copied.forEach((rel) => {
     const target = join(worktreePath, rel);
     mkdirSync(dirname(target), { recursive: true });

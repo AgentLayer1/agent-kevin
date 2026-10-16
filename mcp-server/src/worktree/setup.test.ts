@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { listWorktrees, type WorktreeStatus } from './setup';
+import { listWorktrees, setupWorktree, type WorktreeStatus } from './setup';
 
 /**
  * Verdict matrix for `listWorktrees`, against a real temp repo with a bare origin: one worktree
@@ -143,5 +143,35 @@ describe('listWorktrees', () => {
     const result = listWorktrees({ repoPath: join(root, 'repo-merged') });
     expect(result.mainCheckout).toBe(run(repo, ['rev-parse', '--show-toplevel']));
     expect(result.worktrees).toHaveLength(7);
+  });
+});
+
+describe('setupWorktree', () => {
+  let root: string;
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  test('copies gitignored local files, never a file the branch tracks', () => {
+    root = mkdtempSync(join(tmpdir(), 'kevin-worktree-setup-'));
+    const repo = join(root, 'repo');
+    const run = (args: string[]) =>
+      execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    mkdirSync(repo);
+    run(['init', '-b', 'main']);
+    run(['config', 'user.email', 'test@example.com']);
+    run(['config', 'user.name', 'Test']);
+    run(['config', 'commit.gpgsign', 'false']);
+    writeFileSync(join(repo, '.gitignore'), '.env\n');
+    writeFileSync(join(repo, '.env.example'), 'API_KEY=\n');
+    run(['add', '.']);
+    run(['commit', '-m', 'initial']);
+    writeFileSync(join(repo, '.env'), 'API_KEY=local\n');
+    writeFileSync(join(repo, '.env.example'), 'API_KEY=edited-in-main\n');
+
+    const result = setupWorktree({ repoPath: repo, branch: 'test/copy-locals', slug: 'copy' });
+
+    expect(result.copied).toEqual(['.env']);
+    expect(readFileSync(join(result.worktreePath, '.env'), 'utf8')).toBe('API_KEY=local\n');
+    expect(readFileSync(join(result.worktreePath, '.env.example'), 'utf8')).toBe('API_KEY=\n');
   });
 });
