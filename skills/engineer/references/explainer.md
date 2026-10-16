@@ -1,6 +1,6 @@
 # Explainer page
 
-An explanation worth more than a chat reply (an architecture walkthrough, a research note, a [how](playbooks/how.md) answer for a subsystem, a design an [architect](architect.md) pass settled) ends in one HTML page beside a short markdown card. The page is never hand-written: you write its body, and a script wraps it in [the shell](../templates/explainer.html), which owns the top bar, the contents dropdown, the Auto / Light / Dark theme and the diagrams. PR reviews and replies have their own page ([PR report](pr/report.md)).
+An explanation worth more than a chat reply (an architecture walkthrough, a research note, a [how](playbooks/how.md) answer for a subsystem, a design an [architect](architect.md) pass settled) ends in one HTML page beside a short markdown card. The page is never hand-written: you write its body, and a script wraps it in [the shell](../templates/explainer.html), which owns the top bar, the contents dropdown, the Auto / Light / Dark theme and the diagrams (each drawn diagram gets an expand button that opens it full-window with zoom and pan). PR reviews and replies have their own page ([PR report](pr/report.md)).
 
 ## Writing it
 
