@@ -17,6 +17,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 300;
 const MAX_RESULTS = 12;
+const API_REQUEST_LINE = '{"type":"api-request';
 
 interface ContentBlock {
   type?: string;
@@ -247,7 +248,12 @@ const matches = listTranscripts(PROJECTS_DIR)
   .filter((path) => cutoffMs === null || statSync(path).mtimeMs >= cutoffMs)
   .flatMap((path) => {
     const raw = readFileSync(path, 'utf-8');
-    const lowered = raw.toLowerCase();
+    // Since 2.1.300 each request's system prompt and tools are logged too, which would hit in every session.
+    const lowered = raw
+      .split('\n')
+      .filter((line) => !line.startsWith(API_REQUEST_LINE))
+      .join('\n')
+      .toLowerCase();
     const hits = Object.fromEntries(
       loweredTerms.map((term) => [term, countOccurrences(lowered, term)] as const).filter(([, count]) => count > 0)
     );
