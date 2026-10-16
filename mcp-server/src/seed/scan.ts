@@ -8,7 +8,8 @@
  * ever surfaces key NAMES from non-secret files.
  */
 import { FILES, FOLDERS } from '@/config';
-import { agentNameIn, classifyGrant, CREDENTIAL_KEY_RE, type GrantClass, PACKS, sha256 } from '@/seed/format';
+import { classifyGrant, CREDENTIAL_KEY_RE, type GrantClass, PACKS, sha256 } from '@/seed/format';
+import { agentNameIn } from '@/shared/agent-name';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 

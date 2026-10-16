@@ -1,4 +1,4 @@
-import { agentDisplayName } from '@/shared/agent-name';
+import { agentDisplayName, renameAgent } from '@/shared/agent-name';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -31,6 +31,10 @@ const identity = (name: string): string => `# Identity\n\n## Who\n\n- **Name:** 
 describe('agentDisplayName', () => {
   test('reads a renamed agent from IDENTITY.md', () => {
     expect(withIdentity(identity('Vega'), agentDisplayName)).toBe('Vega');
+  });
+
+  test("reads a Name written without a dash bullet, as the dashboard's field reader does", () => {
+    expect(withIdentity('# Identity\n\n* **Name:** Vega\n', agentDisplayName)).toBe('Vega');
   });
 
   test('multi-word names survive intact', () => {
@@ -80,5 +84,36 @@ describe('agentDisplayName', () => {
       else process.env.AGENT_HOME = priorHome;
       rmSync(home, { recursive: true, force: true });
     }
+  });
+});
+
+describe('renameAgent', () => {
+  test('renames whole words, possessives and sentence ends', () => {
+    expect(renameAgent("Kevin's notes. Ask Kevin. Kevinism stays.", 'Kevin', 'Vega')).toBe(
+      "Vega's notes. Ask Vega. Kevinism stays."
+    );
+  });
+
+  test('leaves a name that is part of a path or identifier', () => {
+    const text = [
+      '`~/Documents/Agents/Kevin/`',
+      'C:\\Agents\\Kevin',
+      '~/.local/state/agent-kevin/Documents-Agents-Kevin.git',
+      'X-Kevin-Test'
+    ].join('\n');
+    expect(renameAgent(text, 'Kevin', 'Vega')).toBe(text);
+  });
+
+  test('handles multi-word names and replacement text with $ patterns', () => {
+    expect(renameAgent('Ada Lovelace says hi', 'Ada Lovelace', 'Vega')).toBe('Vega says hi');
+    expect(renameAgent('Scout here', 'Scout', "$&$'")).toBe("$&$' here");
+  });
+
+  test('renames inside markdown italics and identifiers joined by an underscore', () => {
+    expect(renameAgent("_Kevin's notes_ and kevin_Kevin", 'Kevin', 'Vega')).toBe("_Vega's notes_ and kevin_Vega");
+  });
+
+  test('a mention already inside the new name stays, so a rerun is a no-op', () => {
+    expect(renameAgent('Kevin and Kevin Prime', 'Kevin', 'Kevin Prime')).toBe('Kevin Prime and Kevin Prime');
   });
 });

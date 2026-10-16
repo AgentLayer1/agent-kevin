@@ -11,7 +11,8 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { HOME_PLACEHOLDER, renameAgent, validateSeedPath } from '@/seed/format';
+import { HOME_PLACEHOLDER, validateSeedPath } from '@/seed/format';
+import { renameAgent } from '@/shared/agent-name';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
 import { importSeed } from '@/seed/import';
@@ -501,6 +502,7 @@ describe('a bundle under a new name', () => {
     inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('- **Name:** Ranger');
   });
+
 });
 
 describe('project pins in a bundle', () => {

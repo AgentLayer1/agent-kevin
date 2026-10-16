@@ -8,13 +8,12 @@
  * temp dir, and shells out to `zip`. Read-only against the home.
  */
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
+import { agentNameIn, NAME_RE, renameAgent } from '@/shared/agent-name';
 import { env } from '@/shared/env';
 import {
-  agentNameIn,
   CREDENTIAL_KEY_RE,
   HOME_PLACEHOLDER,
   isEnvFile,
-  renameAgent,
   type SeedAudience,
   type SeedFileEntry,
   type SeedManifest,
@@ -83,7 +82,6 @@ const expandInclude = (home: string, path: string): string[] => {
     .sort();
 };
 
-const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
 const IDENTITY_FILES = new Set(['IDENTITY.md', 'SOUL.md']);
 const PROJECT_README_RE = /^projects\/[^/]+\/README\.md$/;
 

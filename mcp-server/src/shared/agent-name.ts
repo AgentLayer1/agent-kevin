@@ -16,13 +16,45 @@ import { readFileSync } from 'node:fs';
  * operator is looking for confirmation the rename took.
  */
 export const agentDisplayName = (): string => {
+  const name = agentNameIn(readIdentity());
+  // An unsubstituted template token means init left a placeholder behind;
+  // showing "{{AGENT_NAME}}" everywhere is worse than showing the default.
+  if (name && !name.includes('{{')) return name;
+  return AGENT_SLUG.replace(/^./, (first) => first.toUpperCase());
+};
+
+/** The allowlist init enforces: a name sits inside markdown link text and line parsers read it back. */
+export const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
+
+/** The display name an IDENTITY.md declares (`- **Name:** Scout`), or '' when it has none. */
+export const agentNameIn = (identity: string): string => identity.match(NAME_FIELD)?.[2] ?? '';
+
+/**
+ * IDENTITY.md's `**Name:** value` line: group 1 runs through the label, group 2 is the value.
+ * `[ \t]`, never `\s`, so an empty field can't capture the next line.
+ */
+export const NAME_FIELD = /^(.*?\*\*Name:\*\*)[ \t]*(.*?)[ \t]*$/m;
+
+/**
+ * Swap one agent name for another as a whole word, in exact case. A name touching a letter,
+ * digit, `-`, `/` or `\` is part of a path or identifier (`~/Documents/Agents/Kevin`,
+ * `C:\Agents\Kevin`, `Documents-Agents-Kevin.git`, `X-Kevin-Test`) and stays. When the new name
+ * contains the old one (`Kevin Prime`), a mention already inside it stays too, so a rerun
+ * can't rename it twice.
+ */
+export const renameAgent = (text: string, from: string, to: string): string => {
+  const bounded = `(?<![A-Za-z0-9/\\\\-])${literal(from)}(?![A-Za-z0-9/\\\\-])`;
+  const pattern = to.includes(from) ? `${literal(to)}|${bounded}` : bounded;
+  return text.replace(new RegExp(pattern, 'g'), () => to);
+};
+
+const literal = (name: string): string => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const readIdentity = (): string => {
   try {
-    const name = readFileSync(FILES.IDENTITY, 'utf-8').match(/\*\*Name:\*\*[ \t]*(.+)$/m)?.[1]?.trim();
-    // An unsubstituted template token means init left a placeholder behind;
-    // showing "{{AGENT_NAME}}" everywhere is worse than showing the default.
-    if (name && !name.includes('{{')) return name;
+    return readFileSync(FILES.IDENTITY, 'utf-8');
   } catch {
     // no IDENTITY.md — pre-init home
+    return '';
   }
-  return AGENT_SLUG.replace(/^./, (first) => first.toUpperCase());
 };
