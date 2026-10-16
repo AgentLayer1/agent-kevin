@@ -1,4 +1,4 @@
-import { agentDisplayName, renameAgent } from '@/shared/agent-name';
+import { agentDisplayName, agentFormerNames, renameAgent, withoutFormerNames } from '@/shared/agent-name';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -87,6 +87,19 @@ describe('agentDisplayName', () => {
   });
 });
 
+describe('agentFormerNames', () => {
+  test('reads the Formerly list in order', () => {
+    expect(withIdentity(`${identity('Nova')}- **Formerly:** Kevin, Vega\n`, agentFormerNames)).toEqual([
+      'Kevin',
+      'Vega'
+    ]);
+  });
+
+  test('is empty for an agent never renamed', () => {
+    expect(withIdentity(identity('Kevin'), agentFormerNames)).toEqual([]);
+  });
+});
+
 describe('renameAgent', () => {
   test('renames whole words, possessives and sentence ends', () => {
     expect(renameAgent("Kevin's notes. Ask Kevin. Kevinism stays.", 'Kevin', 'Vega')).toBe(
@@ -115,5 +128,13 @@ describe('renameAgent', () => {
 
   test('a mention already inside the new name stays, so a rerun is a no-op', () => {
     expect(renameAgent('Kevin and Kevin Prime', 'Kevin', 'Kevin Prime')).toBe('Kevin Prime and Kevin Prime');
+  });
+});
+
+describe('withoutFormerNames', () => {
+  test('drops only the Formerly line', () => {
+    expect(withoutFormerNames('- **Name:** Vega\n- **Formerly:** Kevin\n- **Emoji:** 🍌\n')).toBe(
+      '- **Name:** Vega\n- **Emoji:** 🍌\n'
+    );
   });
 });

@@ -503,6 +503,21 @@ describe('a bundle under a new name', () => {
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('- **Name:** Ranger');
   });
 
+  test("leaves the source agent's former names out of the bundle", () => {
+    const identity = '# Identity\n\n## Who\n\n- **Name:** Scout\n- **Kind:** AI assistant\n';
+    write(sourceHome, 'IDENTITY.md', identity.replace('Scout\n', 'Scout\n- **Formerly:** Pathfinder\n'));
+    try {
+      const result = asSource(() =>
+        exportSeed({ include: ['IDENTITY.md'], agentName: 'Scout', out: join(sourceHome, 'formerly.zip') })
+      );
+      const recipient = makeHome();
+      homes.push(recipient);
+      inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
+      expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toBe(identity);
+    } finally {
+      write(sourceHome, 'IDENTITY.md', identity);
+    }
+  });
 });
 
 describe('project pins in a bundle', () => {

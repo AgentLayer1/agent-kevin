@@ -8,7 +8,7 @@
  * temp dir, and shells out to `zip`. Read-only against the home.
  */
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
-import { agentNameIn, NAME_RE, renameAgent } from '@/shared/agent-name';
+import { agentNameIn, NAME_RE, renameAgent, withoutFormerNames } from '@/shared/agent-name';
 import { env } from '@/shared/env';
 import {
   CREDENTIAL_KEY_RE,
@@ -146,10 +146,11 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
     for (const path of paths) {
       const destination = join(staging, 'files', path);
       mkdirSync(dirname(destination), { recursive: true });
-      if (renameFrom && IDENTITY_FILES.has(path)) {
+      if (IDENTITY_FILES.has(path)) {
         const original = readFileSync(resolve(home, path), 'utf-8');
-        const content = renameAgent(original, renameFrom, options.agentName);
-        writeFileSync(destination, content);
+        const content = renameFrom ? renameAgent(original, renameFrom, options.agentName) : original;
+        // The bundle seeds a new agent: this one's former names aren't its history.
+        writeFileSync(destination, withoutFormerNames(content));
         if (content !== original) renamed.push(path);
       } else if (PROJECT_README_RE.test(path)) {
         // Pins point at reports and project files a seed never carries.

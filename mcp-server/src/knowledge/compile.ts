@@ -11,7 +11,7 @@ import { ENTRY_HEADER_RE } from '@/knowledge/session-format';
 import { loadState, saveState } from '@/knowledge/state';
 import { hashBuffer, listInboxFiles, listRawFiles, loadScriptTemplate, renderTemplate } from '@/knowledge/utils';
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
-import { agentDisplayName } from '@/shared/agent-name';
+import { agentDisplayName, agentFormerNames } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
@@ -152,9 +152,21 @@ const expandInboxZips = (): void =>
 // The manual, USER.md, the wiki index, and the memory index are in the caller's
 // context already; embedding them pushed every result past the host's cap.
 
+/** The agent's name, and its old ones: raw input from before a rename still says those, and means this agent. */
+const agentVars = (): { agentName: string; formerNames: string } => {
+  const former = agentFormerNames();
+  return {
+    agentName: agentDisplayName(),
+    formerNames:
+      former.length > 0
+        ? ` Before a rename this agent was called ${former.join(', ')}; in the raw input, an old name means this agent.`
+        : ''
+  };
+};
+
 function buildSessionPrompt(fileName: string, chunkContent: string): string {
   return renderTemplate(SESSION_TEMPLATE, {
-    agentName: agentDisplayName(),
+    ...agentVars(),
     fileName,
     logContent: chunkContent,
     userKnowledgeDir: FOLDERS.USER_KNOWLEDGE,
@@ -167,7 +179,7 @@ function buildSessionPrompt(fileName: string, chunkContent: string): string {
 async function buildFeedbackPrompt(): Promise<string> {
   const feedback = await readFile(FILES.FEEDBACK, 'utf-8');
   return renderTemplate(FEEDBACK_TEMPLATE, {
-    agentName: agentDisplayName(),
+    ...agentVars(),
     memoryIndexPath: FILES.MEMORY,
     feedback,
     now: nowISO()
@@ -194,7 +206,7 @@ async function buildInboxPrompt(inboxPath: string): Promise<string> {
   const fileName = inboxRelative(inboxPath);
   const inboxContent = (await inlineText(inboxPath)) ?? readByPathNote(inboxPath);
   return renderTemplate(INBOX_TEMPLATE, {
-    agentName: agentDisplayName(),
+    ...agentVars(),
     fileName,
     inboxContent,
     archivedRelPath: archivedRelPath(fileName),

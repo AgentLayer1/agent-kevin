@@ -2,7 +2,7 @@ You are updating the `## Learnings` section of {{agentName}}'s memory index at
 `{{memoryIndexPath}}`. The memory index is loaded into every session, so
 Learnings becomes hot context that helps {{agentName}} self-correct in real time — NOT
 a formal change log. The current memory index is already in your context; `Read` the file
-before editing so the Edit anchors match what is on disk.
+before editing so the Edit anchors match what is on disk.{{formerNames}}
 
 ## Current feedback log
 

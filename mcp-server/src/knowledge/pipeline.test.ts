@@ -138,7 +138,11 @@ describe('incremental compile', () => {
     rmSync(STATE_PATH, { force: true });
     // A distinctive name so the prompt assertion below proves the value came
     // from IDENTITY.md, rather than matching the plugin-derived fallback.
-    writeFileSync(resolve(HOME, 'IDENTITY.md'), '# Identity\n\n## Who\n\n- **Name:** Testbot\n', 'utf-8');
+    writeFileSync(
+      resolve(HOME, 'IDENTITY.md'),
+      '# Identity\n\n## Who\n\n- **Name:** Testbot\n- **Formerly:** Scout\n',
+      'utf-8'
+    );
     writeFileSync(dayFile, `# Session Log: 2026-06-01\n\n${entry('09:00', 'aaa11111', '1–2', 'first topic')}`, 'utf-8');
   });
 
@@ -151,6 +155,8 @@ describe('incremental compile', () => {
     // memory. An unresolved {{agentName}} would teach the wiki the wrong name.
     expect(item?.prompt).toContain('Testbot');
     expect(item?.prompt).not.toContain('{{');
+    // Raw input from before a rename says the old name; the compiler must read it as this agent.
+    expect(item?.prompt).toContain('this agent was called Scout');
     expect((await markComplete(item!.itemId)).promoted).toBe(true);
   });
 
