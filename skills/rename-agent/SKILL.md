@@ -48,8 +48,9 @@ uses (`renameAgent` in `mcp-server/src/shared/agent-name.ts`): exact case, whole
 never a name touching a letter, digit, `-`, `/` or `\`. So `Kevin's`, `_Kevin_` and `Kevin.`
 rename, while `~/Documents/Agents/Kevin/`, `Documents-Agents-Kevin.git`, `X-Kevin-Test` and a
 mention already inside the new name (`Kevin Prime`) stay. It reads only `.md` files, skips
-hidden folders other than the bridge and rules, symlinks, and any file that isn't clean
-UTF-8 (a rewrite would mangle it). Don't reproduce it with `sed`, `perl` or `rg`.
+hidden folders other than the bridge and rules, any file that isn't clean UTF-8 (a rewrite
+would mangle it), and every symlink, so a file shared beyond this home is never written
+through; a symlinked `IDENTITY.md` stops the run. Don't reproduce it with `sed`, `perl` or `rg`.
 
 ```bash
 HOME_DIR="${AGENT_HOME:-$PWD}"

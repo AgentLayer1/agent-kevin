@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pluginName, RUNTIME_DIR } from '../../../mcp-server/src/shared/naming';
@@ -190,6 +190,35 @@ describe('rename-agent', () => {
     expect(status).toBe(2);
     expect(stderr).toContain('UTF-8');
     expect(readFileSync(join(root, 'IDENTITY.md'))).toEqual(latin1);
+    expect(read('SOUL.md')).toContain('Kevin');
+  });
+
+  test('a symlinked file or folder is never written through', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'rename-agent-outside-'));
+    dirs.push(outside);
+    writeFileSync(join(outside, 'soul.md'), 'Kevin, shared.\n');
+    mkdirSync(join(outside, 'knowledge'));
+    writeFileSync(join(outside, 'knowledge', 'notes.md'), 'Kevin, shared too.\n');
+    const { run, root } = home();
+    rmSync(join(root, 'SOUL.md'));
+    symlinkSync(join(outside, 'soul.md'), join(root, 'SOUL.md'));
+    rmSync(join(root, 'knowledge'), { recursive: true });
+    symlinkSync(join(outside, 'knowledge'), join(root, 'knowledge'));
+    expect(run('--to', 'Vega', '--apply').status).toBe(0);
+    expect(readFileSync(join(outside, 'soul.md'), 'utf-8')).toBe('Kevin, shared.\n');
+    expect(readFileSync(join(outside, 'knowledge', 'notes.md'), 'utf-8')).toBe('Kevin, shared too.\n');
+  });
+
+  test('a symlinked IDENTITY.md stops the run before anything is written', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'rename-agent-outside-'));
+    dirs.push(outside);
+    writeFileSync(join(outside, 'IDENTITY.md'), IDENTITY);
+    const { run, root, read } = home();
+    rmSync(join(root, 'IDENTITY.md'));
+    symlinkSync(join(outside, 'IDENTITY.md'), join(root, 'IDENTITY.md'));
+    const { status, stderr } = run('--to', 'Vega', '--apply');
+    expect(status).toBe(2);
+    expect(stderr).toContain('symlink');
     expect(read('SOUL.md')).toContain('Kevin');
   });
 

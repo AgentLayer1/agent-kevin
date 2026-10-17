@@ -8,7 +8,7 @@
  *
  * Usage: rename-agent.ts --to <Name> [--from <Name>] [--keep <path>:<line> ...] [--apply] [--home <dir>]
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -19,7 +19,7 @@ if (homeFlag) {
   process.env.AGENT_HOME = resolve(homeFlag);
 }
 process.env.AGENT_LOG_FILE = 'off';
-const { FILES, FOLDERS } = await import('../../../mcp-server/src/config');
+const { FOLDERS } = await import('../../../mcp-server/src/config');
 const { agentHomePath, isAgentHome } = await import('../../../mcp-server/src/shared/env');
 const { agentNameIn, FORMERLY_FIELD, formerNamesIn, NAME_FIELD, NAME_RE, renameAgent } =
   await import('../../../mcp-server/src/shared/agent-name');
@@ -39,6 +39,12 @@ const TREES = [join('.claude', 'rules'), 'knowledge', 'projects'];
 const SKIPPED = new Set([join('knowledge', 'raw'), join('projects', 'TASKS.md')]);
 const MANUAL_TREE = join('.claude', 'skills');
 
+// The entry itself, never a symlink's target: a linked file or folder may be shared beyond this home.
+const isFile = (rel: string): boolean =>
+  lstatSync(join(FOLDERS.HOME, rel), { throwIfNoEntry: false })?.isFile() ?? false;
+const isDir = (rel: string): boolean =>
+  lstatSync(join(FOLDERS.HOME, rel), { throwIfNoEntry: false })?.isDirectory() ?? false;
+
 /** The file's text, or null when it isn't clean UTF-8 and a rewrite would mangle it. */
 const textOf = (rel: string): string | null => {
   const buf = readFileSync(join(FOLDERS.HOME, rel));
@@ -46,9 +52,10 @@ const textOf = (rel: string): string | null => {
   return Buffer.from(text, 'utf-8').equals(buf) ? text : null;
 };
 
-const identity = existsSync(FILES.IDENTITY)
-  ? (textOf(IDENTITY_REL) ?? fail('IDENTITY.md is not UTF-8; save it as UTF-8, then rerun'))
-  : '';
+if (!isFile(IDENTITY_REL)) {
+  fail('IDENTITY.md is missing or a symlink; the rename needs the home to own it');
+}
+const identity = textOf(IDENTITY_REL) ?? fail('IDENTITY.md is not UTF-8; save it as UTF-8, then rerun');
 if (!NAME_FIELD.test(identity)) {
   fail('IDENTITY.md has no `**Name:**` line; add one under ## Who, then rerun');
 }
@@ -74,12 +81,11 @@ interface Hit {
 
 /** Every markdown file under `rel`, skipping dot-entries, symlinks and archive folders. */
 const walk = (rel: string): string[] => {
-  const abs = join(FOLDERS.HOME, rel);
-  if (SKIPPED.has(rel) || !existsSync(abs)) {
+  if (SKIPPED.has(rel) || !isDir(rel)) {
     return [];
   }
   // Sorted, so the report reads the same on every filesystem.
-  return readdirSync(abs, { withFileTypes: true })
+  return readdirSync(join(FOLDERS.HOME, rel), { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith('.'))
     .sort((left, right) => (left.name < right.name ? -1 : 1))
     .flatMap((entry) => {
@@ -107,7 +113,7 @@ const scan = (rels: string[]): (Hit & { renameable: boolean })[] =>
       );
   });
 
-const found = scan([...ROOT_FILES.filter((rel) => existsSync(join(FOLDERS.HOME, rel))), ...TREES.flatMap(walk)]);
+const found = scan([...ROOT_FILES.filter(isFile), ...TREES.flatMap(walk)]);
 const key = (hit: Hit): string => `${hit.path}:${hit.line}`;
 const strip = ({ path, line, text }: Hit): Hit => ({ path, line, text });
 const hits = found.filter((hit) => hit.renameable && !kept.has(key(hit))).map(strip);
