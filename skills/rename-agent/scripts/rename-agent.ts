@@ -39,7 +39,16 @@ const TREES = [join('.claude', 'rules'), 'knowledge', 'projects'];
 const SKIPPED = new Set([join('knowledge', 'raw'), join('projects', 'TASKS.md')]);
 const MANUAL_TREE = join('.claude', 'skills');
 
-const identity = existsSync(FILES.IDENTITY) ? readFileSync(FILES.IDENTITY, 'utf-8') : '';
+/** The file's text, or null when it isn't clean UTF-8 and a rewrite would mangle it. */
+const textOf = (rel: string): string | null => {
+  const buf = readFileSync(join(FOLDERS.HOME, rel));
+  const text = buf.toString('utf-8');
+  return Buffer.from(text, 'utf-8').equals(buf) ? text : null;
+};
+
+const identity = existsSync(FILES.IDENTITY)
+  ? (textOf(IDENTITY_REL) ?? fail('IDENTITY.md is not UTF-8; save it as UTF-8, then rerun'))
+  : '';
 if (!NAME_FIELD.test(identity)) {
   fail('IDENTITY.md has no `**Name:**` line; add one under ## Who, then rerun');
 }
@@ -82,18 +91,8 @@ const walk = (rel: string): string[] => {
     });
 };
 
-/** The file's text, or null when it isn't clean UTF-8 and a rewrite would mangle it. */
-const textOf = (rel: string): string | null => {
-  const buf = readFileSync(join(FOLDERS.HOME, rel));
-  const text = buf.toString('utf-8');
-  return Buffer.from(text, 'utf-8').equals(buf) ? text : null;
-};
-
-// The text around the first mention, so a long line still shows what the name refers to.
-const excerpt = (line: string): string => {
-  const at = line.indexOf(from);
-  return line.slice(Math.max(0, at - 80), at + from.length + 120).trim();
-};
+// IDENTITY.md's Name and Formerly lines belong to the identity edit below, never to the sweep or a keep.
+const isIdentityField = (line: string): boolean => NAME_FIELD.test(line) || FORMERLY_FIELD.test(line);
 
 const scan = (rels: string[]): (Hit & { renameable: boolean })[] =>
   rels.flatMap((rel) => {
@@ -102,8 +101,8 @@ const scan = (rels: string[]): (Hit & { renameable: boolean })[] =>
     return (textOf(rel) ?? '')
       .split('\n')
       .flatMap((line, i) =>
-        line.includes(from) && !(path === IDENTITY_REL && FORMERLY_FIELD.test(line))
-          ? [{ path, line: i + 1, text: excerpt(line), renameable: renameAgent(line, from, to) !== line }]
+        line.includes(from) && !(path === IDENTITY_REL && isIdentityField(line))
+          ? [{ path, line: i + 1, text: line.trim(), renameable: renameAgent(line, from, to) !== line }]
           : []
       );
   });
@@ -112,10 +111,14 @@ const found = scan([...ROOT_FILES.filter((rel) => existsSync(join(FOLDERS.HOME, 
 const key = (hit: Hit): string => `${hit.path}:${hit.line}`;
 const strip = ({ path, line, text }: Hit): Hit => ({ path, line, text });
 const hits = found.filter((hit) => hit.renameable && !kept.has(key(hit))).map(strip);
+// Oldest first; renaming back to an old name takes it off the list.
+const formerly = [...formerNamesIn(identity).filter((name) => name !== from && name !== to), from];
 const report = {
   mode: apply ? 'applied' : 'dry-run',
   from,
   to,
+  // Written whatever the sweep finds, so a leftover `{{AGENT_NAME}}` is repaired too.
+  identity: { name: `${agentNameIn(identity)} → ${to}`, formerly: formerly.join(', ') },
   totals: { files: new Set(hits.map((hit) => hit.path)).size, lines: hits.length },
   hits,
   kept: found.filter((hit) => hit.renameable && kept.has(key(hit))).map(strip),
@@ -148,32 +151,30 @@ const rewrite = (path: string, edit: (text: string) => string): boolean => {
 };
 
 const hitLines = new Set(hits.map(key));
-const sweptChanged = [...new Set(hits.map((hit) => hit.path))].filter((path) =>
-  rewrite(path, (text) =>
-    text
-      .split('\n')
-      .map((line, i) => (hitLines.has(`${path}:${i + 1}`) ? renameAgent(line, from, to) : line))
-      .join('\n')
-  )
-);
-
-// Oldest first; renaming back to an old name takes it off the list.
-const formerly = [...formerNamesIn(identity).filter((name) => name !== from && name !== to), from];
-// The Name is set outright, so one the sweep can't reach (a leftover `{{AGENT_NAME}}`) still lands.
-const identityChanged = rewrite(IDENTITY_REL, (text) => {
+const withIdentity = (text: string): string => {
   const withName = text.replace(NAME_FIELD, `$1 ${to}`);
   const formerlyLine = `- **Formerly:** ${formerly.join(', ')}`;
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   return FORMERLY_FIELD.test(withName)
     ? withName.replace(FORMERLY_FIELD, formerlyLine)
     : withName.replace(NAME_FIELD, `$&${eol}${formerlyLine}`);
-});
+};
+// One planned edit per file, IDENTITY.md's sweep and field edit together, each written once.
+const changed = [...new Set([IDENTITY_REL, ...hits.map((hit) => hit.path)])].filter((path) =>
+  rewrite(path, (text) => {
+    const swept = text
+      .split('\n')
+      .map((line, i) => (hitLines.has(`${path}:${i + 1}`) ? renameAgent(line, from, to) : line))
+      .join('\n');
+    return path === IDENTITY_REL ? withIdentity(swept) : swept;
+  })
+);
 
 console.log(
   JSON.stringify(
     {
       ...report,
-      changed: [...new Set([...sweptChanged, ...(identityChanged ? [IDENTITY_REL] : [])])]
+      changed
     },
     null,
     2

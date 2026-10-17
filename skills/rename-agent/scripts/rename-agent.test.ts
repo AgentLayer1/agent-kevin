@@ -64,7 +64,6 @@ describe('rename-agent', () => {
     expect(json.hits.map((hit: { path: string }) => hit.path)).toEqual([
       'SOUL.md',
       'IDENTITY.md',
-      'IDENTITY.md',
       'AGENTS.md',
       '.claude/CLAUDE.md',
       '.claude/rules/style.md',
@@ -74,6 +73,7 @@ describe('rename-agent', () => {
       'projects/acme/windows.md'
     ]);
     expect(json.guarded.map((hit: { path: string }) => hit.path)).toEqual(['AGENTS.md']);
+    expect(json.identity).toEqual({ name: 'Kevin → Vega', formerly: 'Kevin' });
     expect(json.manual).toEqual([{ path: '.claude/skills/mine/SKILL.md', line: 1, text: 'Kevin runs this.' }]);
     expect(read('SOUL.md')).toBe("You are Kevin. Kevin's rules.\n");
   });
@@ -161,6 +161,36 @@ describe('rename-agent', () => {
     expect(read('IDENTITY.md')).toContain('- **Name:** Nova\n- **Formerly:** Kevin, Vega\n');
     run('--to', 'Kevin', '--apply');
     expect(read('IDENTITY.md')).toContain('- **Name:** Kevin\n- **Formerly:** Vega, Nova\n');
+  });
+
+  test('every mention a hit will rename is in its text, however long the line', () => {
+    const line = `- Kevin helps. ${'A long unrelated sentence. '.repeat(8)}Ask Kevin.`;
+    const { run } = home({ 'SOUL.md': `${line}\n` });
+    expect(run('--to', 'Vega').json.hits[0]).toEqual({ path: 'SOUL.md', line: 1, text: line });
+  });
+
+  test("IDENTITY.md's Name line can't be kept: the identity edit owns it", () => {
+    const { run, read } = home();
+    const { status, stderr } = run('--to', 'Vega', '--keep', 'IDENTITY.md:5', '--apply');
+    expect(status).toBe(2);
+    expect(stderr).toContain('IDENTITY.md:5');
+    expect(read('IDENTITY.md')).toBe(IDENTITY);
+  });
+
+  test('a {{AGENT_NAME}} repair shows the identity edit in the dry run', () => {
+    const { run } = home({ 'IDENTITY.md': '# Identity\n\n- **Name:** {{AGENT_NAME}}\n' });
+    const { json } = run('--to', 'Vega', '--from', 'Kevin');
+    expect(json.identity).toEqual({ name: '{{AGENT_NAME}} → Vega', formerly: 'Kevin' });
+  });
+
+  test("an IDENTITY.md that isn't UTF-8 stops the run before anything is written", () => {
+    const latin1 = Buffer.from('# Identity\n\n- **Name:** Kevin\n- **Vibe:** caf\xe9\n', 'latin1');
+    const { run, root, read } = home({ 'IDENTITY.md': latin1 });
+    const { status, stderr } = run('--to', 'Vega', '--apply');
+    expect(status).toBe(2);
+    expect(stderr).toContain('UTF-8');
+    expect(readFileSync(join(root, 'IDENTITY.md'))).toEqual(latin1);
+    expect(read('SOUL.md')).toContain('Kevin');
   });
 
   test('a --keep that matches no line stops the run before anything is written', () => {

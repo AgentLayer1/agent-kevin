@@ -80,8 +80,10 @@ bun "$RENAME" --home "$HOME_DIR" --to "<New>" > "$DRY"
 It writes nothing. The JSON in `$DRY` can run to hundreds of KB on a lived-in home, so read
 it in parts until you've seen all of it:
 
-- `hits`: every line it would change (`path`, `line`, and `text`, the words around the
-  first mention), with `totals`.
+- `hits`: every line it would change (`path`, `line`, and the whole line as `text`; every
+  mention on it is renamed), with `totals`.
+- `identity`: the Name change and the `Formerly` list it will write. Those two lines of
+  `IDENTITY.md` are never hits and can't be kept.
 - `guarded`: lines where the old name sits in a path or identifier and stays.
 - `manual`: hits in custom skills, which the operator edits by hand.
 
@@ -89,7 +91,8 @@ Read every `hits` line, not the count. The one false-positive class is the old n
 meaning something other than this agent: a person, a character the agent was named
 after ("Inspired by the minion Kevin"), a product or repo that shares the name, a quoted
 upstream doc. Show the operator the totals and each line you'd keep as-is, and agree on
-the keep list before writing.
+the keep list before writing. A keep covers the whole line: when one line names both this
+agent and someone else, keep it and fix the agent's mention with `Edit` after Step 3.
 
 ## Step 3 — Apply
 
@@ -100,10 +103,15 @@ bun "$RENAME" --home "$HOME_DIR" --to "<New>" --keep "<path>:<line>" --keep "<pa
 Keep line numbers come from the dry run. A `--keep` that matches no renameable line stops
 the run before anything is written: rerun the dry run and copy the numbers again.
 
-`--apply` rewrites the hit lines, sets `- **Name:**` to the new name, and adds the old one to
-`- **Formerly:**` (creating it under the Name line; a name renamed back to comes off the
-list). It prints the dry-run report plus `changed`, the files it wrote. Running the same
-command again stops at "already says <New>"; a `--from` rerun changes nothing.
+`--apply` writes exactly what the dry run showed: the hit lines, plus the `identity` edit
+(the new `- **Name:**`, and the old name added to `- **Formerly:**`, created under the Name
+line; a name renamed back to comes off the list). An `IDENTITY.md` that isn't UTF-8 stops
+the run before any write. It prints the dry-run report plus `changed`, the files it wrote.
+
+Running the same command again stops at "already says <New>". A `--from` rerun finishes a
+half-done rename, but it has no memory of the first run's keeps, so treat it as a new
+rename: run its dry run, review it, and pass the keeps again. Line numbers below the Name
+in `IDENTITY.md` move down by one once `Formerly` is added.
 
 ## Step 4 — Emoji and avatar
 
