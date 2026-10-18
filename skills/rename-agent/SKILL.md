@@ -123,9 +123,9 @@ image in the file; the session banner shows the `Name`, the status line and `/to
 - `- **Emoji:** <new>` if they want a different one.
 - **Keeping the old image:** if its filename carries the old name (`kevin-avatar.jpg`),
   rename the file with plain `mv` (never `git mv`, which stages in the operator's repo) to
-  `.claude/assets/<newname-lowercased>-avatar.<ext>` and repoint both the `![...](path)`
+  `assets/<newname-lowercased>-avatar.<ext>` and repoint both the `![...](path)`
   line and the `- **Avatar:**` line.
-- **New image:** copy it to `.claude/assets/<newname-lowercased>-avatar.<ext>`, repoint
+- **New image:** copy it to `assets/<newname-lowercased>-avatar.<ext>`, repoint
   both lines, and delete the old file only once the new one is in place.
 - **None:** delete the image line and the `- **Avatar:**` line outright; an empty link
   renders broken.

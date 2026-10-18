@@ -65,7 +65,7 @@ Copy **`flows/hacker-news/`** as the reference — it shows the full shape (entr
 Flows resolve from two roots, HOME shadowing built-in on a name clash:
 
 - **Built-in** — `flows/<name>/` in this repo, shipped with the plugin (generic, no client specifics). Imports the harness relatively: `import { runFlow } from '../../lib/flow'`.
-- **HOME-local** — `<HOME>/.claude/browser-flows/<name>/`, private to the operator and never shipped with the plugin (a reviewed seed bundle may carry one, never its `.env`). The place for flows that drive a **specific or client app**. Imports the harness as a bare specifier: `import { runFlow } from 'lib/flow'` (the dispatcher adds `skills/browser-flows` to `NODE_PATH`).
+- **HOME-local** — `<HOME>/scripts/browser/<name>/`, private to the operator and never shipped with the plugin (a reviewed seed bundle may carry one, never its `.env`). The place for flows that drive a **specific or client app**. Imports the harness as a bare specifier: `import { runFlow } from 'lib/flow'` (the dispatcher adds `skills/browser-flows` to `NODE_PATH`).
 
 Same `targets` / `step()` / params / `index.md` shape either way. Adding the HOME root or editing the dispatcher requires a session restart; editing a flow itself does not.
 

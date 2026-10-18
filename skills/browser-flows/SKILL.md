@@ -48,7 +48,7 @@ The axis is **fixture vs secret**, not a single file. A flow reads from three pl
 | Input | Where | For | Readable? |
 |---|---|---|---|
 | `--param` | the tool call | one-off overrides typed for a single run | yes — lands in the transcript |
-| `.env` | `<HOME>/.claude/browser-flows/<flow>/.env` | **secrets** — real cards, passwords, tokens | **no** — deny-gated + gitignored |
+| `.env` | `<HOME>/scripts/browser/<flow>/.env` | **secrets** — real cards, passwords, tokens | **no** — deny-gated + gitignored |
 | `config.json` | `<flow>/config.json` (beside `index.ts`) | **QA fixtures** — personas, scenarios, sandbox cards, defaults | yes — committed, agent-readable |
 
 A flow resolves each field `params.x ?? process.env.SECRET ?? config.x ?? default`.
@@ -81,7 +81,7 @@ Flows resolve from two roots; a HOME flow **shadows** a built-in of the same nam
 | Root | Path | For |
 |---|---|---|
 | Built-in | `skills/browser-flows/flows/<name>/` (this repo) | shipped, generic flows (e.g. `hacker-news`) |
-| HOME-local | `<HOME>/.claude/browser-flows/<name>/` | private, per-operator flows — anything that drives a **specific or client app**; never shipped (a seed bundle may carry one, never its `.env`) |
+| HOME-local | `<HOME>/scripts/browser/<name>/` | private, per-operator flows — anything that drives a **specific or client app**; never shipped (a seed bundle may carry one, never its `.env`) |
 
 Put app-specific / client flows in **HOME**, not here — same principle as HOME skills and the memory tree. The only code difference: a HOME flow imports the shared harness as a **bare specifier** (the dispatcher puts `skills/browser-flows` on `NODE_PATH`):
 
@@ -91,7 +91,7 @@ import { log, type Target } from 'lib/browser';
 ```
 
 Built-in flows use the relative form (`../../lib/flow`). Everything else — `targets`, `step()`, params, `index.md` — is identical. Bash fallback for a HOME flow adds the extra root:
-`NODE_PATH="$PWD/mcp-server/node_modules:$PWD/skills/browser-flows" … bun run <HOME>/.claude/browser-flows/<flow>/index.ts …`
+`NODE_PATH="$PWD/mcp-server/node_modules:$PWD/skills/browser-flows" … bun run <HOME>/scripts/browser/<flow>/index.ts …`
 
 Editing an existing flow needs no restart (spawned fresh per run); **adding the HOME root or changing the dispatcher does** — restart the session so the MCP server reloads.
 

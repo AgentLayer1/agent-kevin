@@ -267,8 +267,8 @@ Stage three values for Steps 2, 3 and 7:
 - `AGENT_NAME` — the answer, or `Kevin`
 - `AGENT_EMOJI` — the answer, or `🍌`
 - `AGENT_AVATAR` — the home-relative path the image will land at, which Step 7 then
-  copies to. Default name: `.claude/assets/kevin-avatar.jpg`. Renamed with an image:
-  `.claude/assets/<name-lowercased>-avatar.<ext>`. Renamed without one: empty.
+  copies to. Default name: `assets/kevin-avatar.jpg`. Renamed with an image:
+  `assets/<name-lowercased>-avatar.<ext>`. Renamed without one: empty.
 
 Decide the path here, not in Step 7 — Step 3 writes it into `IDENTITY.md` before Step 7
 runs, so leaving it open until then strands an unresolved token in the file.
@@ -644,7 +644,7 @@ KNOWLEDGE_ROOT="${AGENT_KNOWLEDGE:-$HOME_DIR/knowledge}"
 PROJECTS_ROOT="${AGENT_PROJECTS:-$HOME_DIR/projects}"
 REPORTS_ROOT="${AGENT_REPORTS:-$HOME_DIR/reports}"
 
-mkdir -p "$HOME_DIR"/.state/{config,logs} "$HOME_DIR"/.claude/assets
+mkdir -p "$HOME_DIR"/.state/{config,logs} "$HOME_DIR"/{assets,scripts/browser}
 mkdir -p "$KNOWLEDGE_ROOT"/{user/assets,concepts,memory,raw/{sessions,user,inbox,archive/inbox}}
 mkdir -p "$PROJECTS_ROOT" "$REPORTS_ROOT"
 ```
@@ -673,19 +673,19 @@ CADENCE_FILE="$HOME_DIR/.state/cadence.json"
 
 Note: do **not** create `.claude/skills/` here. Third-party skill libraries are installed via `/agent-kevin:configure-skills` after the user relaunches.
 
-Copy the agent's avatar into `.claude/assets/` so it stays out of the way at the home root but is still resolvable from `IDENTITY.md`.
+Copy the agent's avatar into `assets/`, the home's media folder, where `IDENTITY.md` links it.
 
 **Default name** — ship the bundled Kevin avatar:
 
 ```bash
-cp "${CLAUDE_PLUGIN_ROOT}/assets/kevin-avatar.jpg" "$HOME_DIR/.claude/assets/kevin-avatar.jpg"
+cp "${CLAUDE_PLUGIN_ROOT}/assets/kevin-avatar.jpg" "$HOME_DIR/assets/kevin-avatar.jpg"
 ```
 
-`AGENT_AVATAR=.claude/assets/kevin-avatar.jpg`.
+`AGENT_AVATAR=assets/kevin-avatar.jpg`.
 
 **Renamed agent with an avatar staged in Step 1b** — copy the operator's file to a
 name-matching destination (lowercase the name, keep the source extension), e.g.
-`.claude/assets/vega-avatar.png`, and set `AGENT_AVATAR` to that home-relative path.
+`assets/vega-avatar.png`, and set `AGENT_AVATAR` to that home-relative path.
 Don't ship Kevin's face under someone else's name.
 
 **Renamed agent, no avatar** — copy nothing and leave `AGENT_AVATAR` empty; Step 3

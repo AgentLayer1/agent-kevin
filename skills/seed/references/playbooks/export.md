@@ -18,7 +18,7 @@ Call `seed_scan`. It returns everything the interview needs: agent name (vs temp
 identity divergence, concepts (template-identical ones flagged — the recipient's own init
 seeds those), projects with README/roadmap, custom skills (symlinked skills.sh installs
 listed separately — they are NOT exportable; the recipient reinstalls from the registry),
-custom browser flows, rules, HOME `.mcp.json` servers with the env key names they
+custom browser flows, custom scripts, rules, HOME `.mcp.json` servers with the env key names they
 reference, active packs, classified permission entries, and settings.local.json env key
 names.
 
@@ -61,6 +61,9 @@ If the scan shows a custom name (differs from the template's), lead with it:
 > - Name + avatar only (recipient keeps stock SOUL)
 > - Skip — recipient names their own agent at init
 
+`avatar` lists every file in `assets/`, which can hold other media too. The avatar is the
+file `IDENTITY.md` links; carry only that one unless the operator ticks another.
+
 When the bundle carries a name other than the home's own, export renames the agent in the
 bundled IDENTITY.md and SOUL.md (whole-word, case-sensitive swap) and reports them under
 `renamed`. The home's own files are untouched. The swap happens inside `seed_export`, after the
@@ -77,8 +80,9 @@ Multi-select from the scan: concepts (template-identical ones default-unticked, 
 
 Present each detected item by name, per-item tick:
 - **Custom skills** (`.claude/skills/<name>`) — whole directories
-- **Custom browser flows** (`.claude/browser-flows/<name>`) — whole directories; a flow's
+- **Custom browser flows** (`scripts/browser/<name>`) — whole directories; a flow's
   `.env` is left out automatically and reported under `skippedEnvFiles`
+- **Custom scripts** (`scripts/<name>`, a file or a folder) — same `.env` rule as flows
 - **MCP servers** from `.mcp.json` — show each server's referenced env key names and say
   the recipient gets the entry + empty key placeholders, never values. Pass entries as they
   are: export replaces this home's path inside them with a placeholder the recipient's

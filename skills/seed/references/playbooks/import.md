@@ -19,8 +19,8 @@ Call `seed_import` with `dryRun: true` and present the plan grouped:
   expected, never a leak. `teammate`, an unconfirmed `self`, or a bundle without the field means
   another person's persona: point out anything personal to its sender.
 - **Files to write** — by category (identity / knowledge / projects / skills / rules / browser
-  flows / surfaces). Show each browser flow's `index.ts` in full: the `browser_flows` tool runs it
-  outside the sandbox.
+  flows / scripts / surfaces). Show each browser flow's `index.ts` in full: the `browser_flows` tool runs it
+  outside the sandbox. Show each other script under `scripts/` in full too: it is code the operator will run.
 - **AGENTS.md overlay section** — appended to this home's scaffolded manual (never a
   replacement); re-importing the same bundle is skipped when the section is already there
 - **Conflicts** — existing files that differ from the bundle. For a fresh-after-init home

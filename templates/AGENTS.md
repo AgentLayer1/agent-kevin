@@ -55,14 +55,16 @@ The agent home directory is the single source of truth for memory.
 ├── IDENTITY.md                      # {{AGENT_NAME}}'s role
 ├── USER.md                          # YOUR headline + links to {{KNOWLEDGE_REL}}/user/
 ├── .obsidian/                       # Obsidian vault config (vault root = HOME; code lives in a separate tree)
-├── .claude/
+├── .claude/                         # only what Claude Code itself reads
 │   ├── CLAUDE.md                    # Claude Code bridge: @-imports this manual + the identity stack, plus Claude-only rules
 │   ├── settings.json                # shared policy: pre-granted tool permissions, deny list, sandbox (written by /init)
 │   ├── settings.local.json          # this machine's: plugin registration, status line, folder grants, env block (gitignored)
-│   ├── assets/                      # {{AGENT_NAME}}'s avatar (and any other plugin-shipped images)
 │   ├── rules/                       # path-scoped coding rules, auto-applied by file glob (seeded by /init)
 │   └── skills/                      # user-authored custom skills only (lazy — pack skills stay in the plugin dir)
 ├── .mcp.json                        # only if you register your own MCP servers — {{AGENT_NAME}}'s bundled `kevin` server is registered in the plugin manifest
+├── assets/                          # {{AGENT_NAME}}'s avatar and other home-wide media (your picture lives in {{KNOWLEDGE_REL}}/user/assets/)
+├── scripts/                         # your permanent scripts for ongoing tasks
+│   └── browser/<flow>/              # your browser flows, run by the `browser_flows` tool outside the sandbox (a flow's `.env` is gitignored)
 ├── {{KNOWLEDGE_REL}}/
 │   ├── index.md                     # master catalog
 │   ├── user/                        # evolving long-form knowledge about you
