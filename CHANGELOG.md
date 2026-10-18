@@ -43,6 +43,60 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.1] - 2026-10-19
+
+### Added
+- **Pin reports and docs to a project.** A project's README can hold a `## Pinned` section, in the
+  same line format as `reports/pinned.md`. The project card shows a pin count and a Pinned group,
+  the project's focus page gets a Pinned lane, and the reports page lists project pins after the
+  global ones, each with its project chip. The brain audit checks these pins for broken and stale
+  links, and a seed export ships a README without its Pinned section. Project pins stay out of the
+  session context.
+- **A renamed agent knows its former names.** IDENTITY.md's `- **Formerly:**` field lists the old
+  names, and the session, feedback and inbox compile prompts read them, so dated records under an old
+  name are recognised as the agent's own. Seed bundles drop the field.
+- **Expand and zoom any diagram on a generated page.** Review and explainer pages give every drawn
+  diagram a corner button that opens it full-window, with zoom and drag to pan.
+
+### Changed
+- **`.claude/` keeps only what Claude Code reads.** The agent's avatar moves to `assets/`, and the
+  home's browser flows move to `scripts/browser/<flow>/` (a flow's `.env` moves with it), under a new
+  `scripts/` folder for your own recurring scripts. The `browser_flows` tool reads only the new
+  folder, init creates both, and seed bundles carry `assets/` and `scripts/` (never a `.env`), so a
+  bundle made before this version no longer imports. The upgrade moves your files (see Upgrade).
+- **The rename-agent skill is a script with a dry run.** It shows every line it would change before
+  `--apply` writes anything, and `--keep <path>:<line>` protects a line. It records the old name in
+  `Formerly`, and `--from` repairs a half-done rename. It leaves the home folder, dated records,
+  archives, generated files and non-markdown alone, along with paths like
+  `Documents-Agents-<Name>.git`. It no longer needs `rg` or `perl`. Rename-agent and seed export now
+  share one rename rule.
+- **The engineer PR review page was reworked.** The page checks the PR description's claims, shows
+  call and file trees, and lays out findings as scenarios with proof. Comments from people and bots
+  share one conversation. Large features get an architecture section. A re-review is a delta by
+  default (`--fresh` for a full pass).
+- **IDENTITY.md says the agent runs in whichever agent CLI launched it**, not Claude Code, so a
+  Codex session isn't told it's a Claude Code plugin.
+
+### Fixed
+- **Rename-agent never writes through a symlinked file or folder.** It also writes exactly what the
+  dry run showed, IDENTITY.md included.
+- **Capture skips the API-request records** that Claude Code 2.1.300 logs in transcripts, so they no
+  longer show up as extra turns in `raw/sessions`.
+- **find-session leaves logged API requests out of the hit count**, so a term from the injected
+  context no longer matches every new session.
+- **`/queue` ignores subagent and teammate turns** (Claude Code 2.1.299+). Before, a background
+  subagent could leave a queued prompt stuck at "1 queued".
+- **`setup_worktree` copies only local files the new checkout doesn't track**, so a tracked
+  `.env.example` no longer overwrites the branch's copy.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.8.1.ts. It moves `.claude/assets/*` to `assets/` and `.claude/browser-flows/<flow>` to `scripts/browser/<flow>` (the flow's `.env` with it), then repoints the `IDENTITY.md` links of the files that moved. An identical copy already at the destination drops the old one; a differing one stays in both places and is reported, and its link is left as it was. OS litter files (`.DS_Store`) neither block a dedupe nor keep an old folder alive. Idempotent.
+- `template/AGENTS.md: mandatory` — the folder tree: `.claude/` holds only what Claude Code reads, and `assets/` and `scripts/browser/<flow>/` sit at the home root.
+- `template/IDENTITY.md: optional` — the Short Bio says the agent runs inside whichever agent CLI launched it (Claude Code, Codex, or another).
+- `manual: none` — the upgrade never reconciles IDENTITY.md's `## Who` block. In that block, change `- **Kind:** AI assistant (Claude Code plugin)` to `- **Kind:** AI assistant (agent CLI plugin)`.
+- `manual: none` — only if one of your own flows or scripts names `.claude/browser-flows/` or `.claude/assets/` by path: point it at `scripts/browser/` or `assets/`. Flows that import `lib/flow` need no change.
+- `manual: none` — only if you hold a seed bundle exported before 0.8.1: it no longer imports, so re-export it from the source home once that home is upgraded.
+
 ## [0.8.0] - 2026-10-15
 
 ### Added
