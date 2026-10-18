@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.2] - 2026-10-19
+
+### Fixed
+- **Sync commits the `assets/` and `scripts/` home folders.** The brain commit only knew the folders that existed before 0.8.1, so the upgrade that moved the avatar out of `.claude/assets/` left history with the old file deleted and `assets/` untracked. Both folders now commit beside `.claude/`, so a move out of it lands as one rename, and a flow's `.env` under `scripts/` still never enters history. A home that already synced on 0.8.1 gets `assets/` committed on its next sync.
+
+### Upgrade
+None — code-only, no bun install or HOME changes.
+
 ## [0.8.1] - 2026-10-19
 
 ### Added
