@@ -149,6 +149,27 @@ describe("commitBrain grouping", () => {
     rmSync(home, { recursive: true, force: true });
   });
 
+  test("assets/ and scripts/ land in the state commit beside .claude/; a flow's .env stays out", () => {
+    const home = makeHome();
+    write(home, ".claude/assets/avatar.jpg", "jpeg\n");
+    git(home, "add", ".claude/assets/avatar.jpg");
+    git(home, "commit", "-qm", "track the avatar");
+    unlinkSync(join(home, ".claude/assets/avatar.jpg"));
+    write(home, "assets/avatar.jpg", "jpeg\n");
+    write(home, "scripts/browser/digest/flow.ts", "export {};\n");
+    write(home, "scripts/browser/digest/.env", "TOKEN=1\n");
+
+    const outcome = commitBrain(home);
+    expect(outcome.commits.map((entry) => entry.message)).toEqual(["Sync: update state"]);
+    expect(filesIn(home, outcome.commits[0].sha).sort()).toEqual([
+      "A\tscripts/browser/digest/flow.ts",
+      "R100\t.claude/assets/avatar.jpg\tassets/avatar.jpg",
+    ]);
+    expect(outcome.leftUncommitted).toEqual([]);
+    expect(git(home, "ls-files")).not.toContain(".env");
+    rmSync(home, { recursive: true, force: true });
+  });
+
   test("tracked change outside every group falls through to the state commit", () => {
     const home = makeHome();
     write(home, "notes.md", "tracked root file\n");
