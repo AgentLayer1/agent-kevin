@@ -87,8 +87,8 @@ export const ALLOWED_ROOTS = [
   'projects/',
   '.claude/skills/',
   '.claude/rules/',
-  '.claude/assets/',
-  '.claude/browser-flows/'
+  'assets/',
+  'scripts/'
 ] as const;
 
 /** Within `projects/`, only READMEs and roadmaps travel — never tasks (clean slate). */
@@ -132,7 +132,7 @@ export const validateSeedPath = (path: string): string | null => {
   const inRoot = ALLOWED_ROOTS.some((root) => (root.endsWith('/') ? path.startsWith(root) : path === root));
   if (!inRoot) return `outside allowed seed roots: ${path}`;
   if (isEnvFile(path)) return `credential file never travels: ${path}`;
-  const flow = /^\.claude\/browser-flows\/([^/]+)\//.exec(path)?.[1];
+  const flow = /^scripts\/browser\/([^/]+)\//.exec(path)?.[1];
   if (flow && builtinFlows().includes(flow)) {
     return `a bundled flow may not take a built-in flow's name, since it would run in its place: ${path}`;
   }

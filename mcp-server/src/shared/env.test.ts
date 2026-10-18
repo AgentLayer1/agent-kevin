@@ -234,8 +234,8 @@ describe('readEnvFile', () => {
     const secretsPath = resolve(home, RUNTIME_DIR, 'secrets', '.env');
     mkdirSync(resolve(home, RUNTIME_DIR, 'secrets'), { recursive: true });
     writeFileSync(secretsPath, 'GITHUB_TOKEN=ghp_realsecretvalue\n');
-    const flowPath = resolve(home, '.claude', 'browser-flows', 'x', '.env');
-    mkdirSync(resolve(home, '.claude', 'browser-flows', 'x'), { recursive: true });
+    const flowPath = resolve(home, 'scripts', 'browser', 'x', '.env');
+    mkdirSync(resolve(home, 'scripts', 'browser', 'x'), { recursive: true });
     writeFileSync(flowPath, 'CARD=4111111111111111\n');
 
     withHomeEnv(

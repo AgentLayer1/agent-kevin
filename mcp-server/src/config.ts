@@ -140,6 +140,15 @@ export const FOLDERS = {
   },
   get REPORTS() {
     return fromEnv('AGENT_REPORTS', resolve(homeRoot(), 'reports'));
+  },
+  get ASSETS() {
+    return resolve(homeRoot(), 'assets');
+  },
+  get SCRIPTS() {
+    return resolve(homeRoot(), 'scripts');
+  },
+  get HOME_FLOWS() {
+    return resolve(homeRoot(), 'scripts', 'browser');
   }
 } as const;
 

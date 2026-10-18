@@ -65,7 +65,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
     kind: 'AI assistant (Claude Code plugin)',
     vibe: 'Sharp but approachable, slightly funny.',
     emoji: '🍌',
-    avatar: '.claude/assets/kevin-avatar.jpg',
+    avatar: 'assets/kevin-avatar.jpg',
     bio: 'A personal AI assistant that runs as a Claude Code plugin.',
     identitySections: [{ title: 'Core Role', lines: ['General-purpose personal assistant'] }],
     soulSections: [{ title: 'Vibe', lines: ['Concise by default. Walls of text are a crime.'] }]
@@ -559,7 +559,7 @@ describe('renderDashboardHtml', () => {
 
   test('persona page renders Kevin from IDENTITY/SOUL, not file names', () => {
     const html = renderDashboardHtml(makeSnapshot());
-    expect(html).toContain('src=".claude/assets/kevin-avatar.jpg"');
+    expect(html).toContain('src="assets/kevin-avatar.jpg"');
     expect(html).toContain('Sharp but approachable, slightly funny.');
     expect(html).toContain('A personal AI assistant that runs as a Claude Code plugin.');
     expect(html).toContain('Concise by default. Walls of text are a crime.');

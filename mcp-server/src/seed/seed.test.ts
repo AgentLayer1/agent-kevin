@@ -57,10 +57,11 @@ beforeAll(() => {
   write(sourceHome, 'projects/acme/tasks/ac-001-private.md', 'never travels\n');
   write(sourceHome, '.claude/skills/acme-logs/SKILL.md', '---\nname: acme-logs\n---\n# Acme logs\n');
   write(sourceHome, '.claude/rules/acme.md', '# Acme rule\n');
-  write(sourceHome, '.claude/assets/avatar.jpg', 'jpegbytes');
-  write(sourceHome, '.claude/browser-flows/acme-login/index.ts', 'export {};\n');
-  write(sourceHome, '.claude/browser-flows/acme-login/.env', 'ACME_PASSWORD=hunter2\n');
-  write(sourceHome, '.claude/browser-flows/acme-login/.env.example', 'ACME_PASSWORD=\n');
+  write(sourceHome, 'assets/avatar.jpg', 'jpegbytes');
+  write(sourceHome, 'scripts/browser/acme-login/index.ts', 'export {};\n');
+  write(sourceHome, 'scripts/browser/acme-login/.env', 'ACME_PASSWORD=hunter2\n');
+  write(sourceHome, 'scripts/browser/acme-login/.env.example', 'ACME_PASSWORD=\n');
+  write(sourceHome, 'scripts/acme-report.ts', 'export {};\n');
   write(
     sourceHome,
     '.mcp.json',
@@ -145,19 +146,21 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('knowledge/concepts/x.md')).toBeNull();
     expect(validateSeedPath('projects/acme/README.md')).toBeNull();
     expect(validateSeedPath('.claude/skills/acme-logs/SKILL.md')).toBeNull();
-    expect(validateSeedPath('.claude/browser-flows/acme-login/index.ts')).toBeNull();
+    expect(validateSeedPath('scripts/browser/acme-login/index.ts')).toBeNull();
   });
 
   test('refuses a credential file under any root', () => {
-    expect(validateSeedPath('.claude/browser-flows/acme-login/.env')).toMatch(/credential file/);
+    expect(validateSeedPath('scripts/browser/acme-login/.env')).toMatch(/credential file/);
     expect(validateSeedPath('.claude/skills/acme-logs/.env.local')).toMatch(/credential file/);
-    expect(validateSeedPath('.claude/browser-flows/acme-login/.ENV')).toMatch(/credential file/);
-    expect(validateSeedPath('.claude/browser-flows/acme-login/.envrc')).toMatch(/credential file/);
-    expect(validateSeedPath('.claude/browser-flows/acme-login/.env.example')).toBeNull();
+    expect(validateSeedPath('scripts/browser/acme-login/.ENV')).toMatch(/credential file/);
+    expect(validateSeedPath('scripts/browser/acme-login/.envrc')).toMatch(/credential file/);
+    expect(validateSeedPath('scripts/browser/acme-login/.env.example')).toBeNull();
+    expect(validateSeedPath('scripts/acme-sync/.env')).toMatch(/credential file/);
+    expect(validateSeedPath('scripts/acme-report.ts')).toBeNull();
   });
 
   test("refuses a flow under a built-in flow's name", () => {
-    expect(validateSeedPath('.claude/browser-flows/hacker-news/index.ts')).toMatch(/built-in flow/);
+    expect(validateSeedPath('scripts/browser/hacker-news/index.ts')).toMatch(/built-in flow/);
   });
 
   test('refuses traversal, absolutes, and private material', () => {
@@ -192,6 +195,7 @@ describe('scanSeed', () => {
     expect(scan.rootRoadmap).toBe(true);
     expect(scan.customSkills).toEqual(['acme-logs']);
     expect(scan.customFlows).toEqual(['acme-login']);
+    expect(scan.customScripts).toEqual(['acme-report.ts']);
     expect(scan.rules.map((r) => r.path)).toContain('.claude/rules/acme.md');
     expect(scan.mcpServers).toHaveLength(1);
     expect(scan.mcpServers[0]?.name).toBe('acme-telemetry');
@@ -236,7 +240,7 @@ describe('exportSeed', () => {
           'projects/acme/roadmap.html',
           '.claude/skills/acme-logs',
           '.claude/rules/acme.md',
-          '.claude/assets/avatar.jpg'
+          'assets/avatar.jpg'
         ],
         agentName: 'Scout',
         extras: [{ path: 'AGENTS.md', content: '## Team conventions\n\nShip > start.\n' }],
@@ -307,6 +311,7 @@ describe('importSeed', () => {
     expect(readFileSync(join(recipient, 'IDENTITY.md'), 'utf-8')).toContain('Scout');
     expect(readFileSync(join(recipient, 'AGENTS.md'), 'utf-8')).toContain('Ship > start.');
     expect(readFileSync(join(recipient, '.claude/skills/acme-logs/SKILL.md'), 'utf-8')).toContain('acme-logs');
+    expect(readFileSync(join(recipient, 'assets/avatar.jpg'), 'utf-8')).toBe('jpegbytes');
 
     const settings = JSON.parse(readFileSync(join(recipient, '.claude', 'settings.json'), 'utf-8'));
     expect(settings.permissions.allow).toContain(`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_screenshot`);
@@ -447,21 +452,21 @@ describe('browser flows in a bundle', () => {
   test("a flow's .env stays behind and its .env.example travels", () => {
     const result = asSource(() =>
       exportSeed({
-        include: ['.claude/browser-flows/acme-login'],
+        include: ['scripts/browser/acme-login'],
         agentName: 'Scout',
         out: join(sourceHome, 'flows.zip')
       })
     );
     const paths = result.manifest.files.map((file) => file.path);
-    expect(result.skippedEnvFiles).toEqual(['.claude/browser-flows/acme-login/.env']);
-    expect(paths).toContain('.claude/browser-flows/acme-login/index.ts');
-    expect(paths).toContain('.claude/browser-flows/acme-login/.env.example');
-    expect(paths).not.toContain('.claude/browser-flows/acme-login/.env');
+    expect(result.skippedEnvFiles).toEqual(['scripts/browser/acme-login/.env']);
+    expect(paths).toContain('scripts/browser/acme-login/index.ts');
+    expect(paths).toContain('scripts/browser/acme-login/.env.example');
+    expect(paths).not.toContain('scripts/browser/acme-login/.env');
   });
 
   test('refuses a credential file named outright', () => {
     expect(() =>
-      asSource(() => exportSeed({ include: ['.claude/browser-flows/acme-login/.env'], agentName: 'Scout' }))
+      asSource(() => exportSeed({ include: ['scripts/browser/acme-login/.env'], agentName: 'Scout' }))
     ).toThrow(/credential file never travels/);
   });
 });

@@ -55,8 +55,10 @@ export interface SeedScanResult {
   customSkills: string[];
   /** Symlinked skill installs (skills.sh) — not exportable; the recipient reinstalls from the registry. */
   thirdPartySkills: string[];
-  /** The home's own browser flows (`.claude/browser-flows/<name>`); their `.env` never travels. */
+  /** The home's own browser flows (`scripts/browser/<name>`); their `.env` never travels. */
   customFlows: string[];
+  /** The home's other scripts (`scripts/<name>`, files or folders); a `.env` never travels. */
+  customScripts: string[];
   rules: FileCandidate[];
   mcpServers: McpServerCandidate[];
   /** Packs whose full grant set is present in permissions.allow, with the key names they carry. */
@@ -107,9 +109,8 @@ export const scanSeed = (): SeedScanResult => {
   const home = FOLDERS.HOME;
   const templates = FOLDERS.TEMPLATES;
 
-  const assetsDir = resolve(home, '.claude', 'assets');
-  const avatars = existsSync(assetsDir)
-    ? readdirSync(assetsDir)
+  const avatars = existsSync(FOLDERS.ASSETS)
+    ? readdirSync(FOLDERS.ASSETS)
         .filter((name) => !name.startsWith('.'))
         .sort()
     : [];
@@ -140,11 +141,16 @@ export const scanSeed = (): SeedScanResult => {
     }
   }
 
-  const flowsDir = resolve(home, '.claude', 'browser-flows');
-  const customFlows = existsSync(flowsDir)
-    ? readdirSync(flowsDir, { withFileTypes: true })
+  const customFlows = existsSync(FOLDERS.HOME_FLOWS)
+    ? readdirSync(FOLDERS.HOME_FLOWS, { withFileTypes: true })
         .filter((dirent) => dirent.isDirectory() && !dirent.name.startsWith('.'))
         .map((dirent) => dirent.name)
+        .sort()
+    : [];
+
+  const customScripts = existsSync(FOLDERS.SCRIPTS)
+    ? readdirSync(FOLDERS.SCRIPTS)
+        .filter((name) => !name.startsWith('.') && name !== 'browser')
         .sort()
     : [];
 
@@ -190,6 +196,7 @@ export const scanSeed = (): SeedScanResult => {
     customSkills,
     thirdPartySkills,
     customFlows,
+    customScripts,
     rules,
     mcpServers,
     activePacks,
