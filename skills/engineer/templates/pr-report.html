@@ -508,7 +508,7 @@
   .ba .case:last-child { padding-bottom: 0; }
   .ba .case h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.45; }
   .ba .lines { display: grid; gap: 4px; min-width: 0; }
-  .ba .line { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.45; }
+  .ba .line { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.45; }
   .ba .line .tag { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
   .ba .line.before { color: var(--ink-dim); }
   .ba .line.after { color: var(--ink); }
@@ -879,13 +879,14 @@
       DATA.walkTree ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Walkthrough"),
         DATA.walkTree.sub ? h("p", { class: "sub" }, DATA.walkTree.sub) : null, textView(DATA.walkTree.text))
         : null,
-      list(DATA.behavior).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Before → after"),
+      list(DATA.behavior).length ? h("div", { class: "card" }, h("h3", { style: "margin-top:0" }, "Before and after: what changes when this merges"),
+        h("p", { class: "sub" }, `Each row is one situation: what happens on ${DATA.pr.base} today, then what happens with this PR. Red marks a defect the PR introduces.`),
         h("div", { class: "ba" }, DATA.behavior.map((row) => {
           const isNew = !row.before || row.before === "—";
           return h("div", { class: "case" }, h("h4", {}, row.case),
             h("div", { class: "lines" },
-              isNew ? null : h("div", { class: "line before" }, h("span", { class: "tag" }, "before"), h("span", {}, row.before)),
-              h("div", { class: `line after ${row.bad ? "bad" : "good"}` }, h("span", { class: "tag" }, isNew ? "new" : "after"), h("span", {}, row.after)),
+              isNew ? null : h("div", { class: "line before" }, h("span", { class: "tag" }, "today"), h("span", {}, row.before)),
+              h("div", { class: `line after ${row.bad ? "bad" : "good"}` }, h("span", { class: "tag" }, isNew ? "new path" : "this PR"), h("span", {}, row.after)),
               row.diff ? diffBlock(row.diff) : null));
         })))
         : null,
@@ -947,7 +948,7 @@
         desc.proposed ? h("details", { class: "more" },
           h("summary", {}, `Proposed description to paste · ${desc.proposed.split("\n").length} lines`),
           h("p", { class: "sub", style: "margin:12px 0 0" }, "The description the PR should merge with, accurate to the head. It's the record people and agents read later."),
-          paste("Proposed description to paste", desc.proposed)) : null);
+          paste("Markdown for the PR body", desc.proposed)) : null);
     })() : null;
 
     const architecture = DATA.architecture ? (() => {
