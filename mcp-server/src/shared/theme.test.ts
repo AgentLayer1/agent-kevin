@@ -87,4 +87,20 @@ describe('theme control', () => {
     expect((await open('<span id="theme-slot"></span>')).document.querySelector('#theme-slot > .theme-switch')).not.toBeNull();
     expect((await open('')).document.querySelector('body > .theme-switch.floating')).not.toBeNull();
   });
+
+  test('a floating switch brings a back-to-top button that shows once the page is scrolled', async () => {
+    expect((await open('<span id="theme-slot"></span>')).document.querySelector('.to-top')).toBeNull();
+    const page = await open('');
+    const button = page.document.querySelector<HTMLButtonElement>('body > .to-top');
+    expect(button?.classList.contains('shown')).toBe(false);
+    expect(button?.tabIndex).toBe(-1);
+    const scrolled: unknown[] = [];
+    page.window.scrollTo = ((options: unknown) => scrolled.push(options)) as typeof page.window.scrollTo;
+    Object.defineProperty(page.window, 'scrollY', { value: page.window.innerHeight });
+    page.window.dispatchEvent(new page.window.Event('scroll'));
+    expect(button?.classList.contains('shown')).toBe(true);
+    expect(button?.tabIndex).toBe(0);
+    button?.click();
+    expect(scrolled).toEqual([{ top: 0, behavior: 'smooth' }]);
+  });
 });

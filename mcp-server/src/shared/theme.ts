@@ -23,7 +23,15 @@ export const THEME_BLOCK = `${START}
   .theme-switch button[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
   .theme-switch button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
   .theme-switch svg { width: 14px; height: 14px; display: block; }
-  @media print { .theme-switch { display: none !important; } }
+  .to-top { all: unset; box-sizing: border-box; position: fixed; top: 14px; left: 14px; z-index: 50; width: 32px; height: 32px;
+    display: grid; place-items: center; border-radius: 999px; cursor: pointer; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, Canvas 82%, transparent);
+    backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .to-top.shown { opacity: .7; pointer-events: auto; }
+  .to-top:hover { opacity: 1; }
+  .to-top:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .to-top svg { width: 14px; height: 14px; display: block; }
+  @media print { .theme-switch, .to-top { display: none !important; } }
 </style>
 <script>
 (() => {
@@ -67,7 +75,26 @@ export const THEME_BLOCK = `${START}
       group.append(button);
     });
     (slot || document.body).append(group);
+    if (!slot) { mountToTop(); }
     apply();
+  };
+  // Pages with a floating switch are long reads; a slotted switch sits in an app header that has its own navigation.
+  const mountToTop = () => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "to-top";
+    button.title = "Back to top";
+    button.setAttribute("aria-label", "Back to top");
+    button.innerHTML = "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M8 13V3M3.5 7.5 8 3l4.5 4.5' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+    button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    const show = () => {
+      const shown = window.scrollY > window.innerHeight / 2;
+      button.classList.toggle("shown", shown);
+      button.tabIndex = shown ? 0 : -1;
+    };
+    window.addEventListener("scroll", show, { passive: true });
+    document.body.append(button);
+    show();
   };
   media.addEventListener("change", () => { if (choice === "auto") { apply(); } });
   window.addEventListener("storage", (event) => { if (event.key === KEY) { choice = read(); apply(); } });
