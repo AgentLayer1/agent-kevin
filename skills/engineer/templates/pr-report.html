@@ -116,6 +116,7 @@
   .dv-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px/1.2 system-ui, sans-serif; }
   .dv-bar button { all: unset; cursor: pointer; padding: 5px 10px; border-radius: 7px; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
   .dv-bar button:hover, .dv-bar button:focus-visible { background: color-mix(in srgb, CanvasText 9%, transparent); }
+  .dv-bar button[hidden] { display: none; }
   .dv-zoom { min-width: 46px; text-align: center; opacity: .7; }
   .dv-stage { flex: 1; display: flex; overflow: auto; cursor: grab; touch-action: none; outline: none; }
   .dv-stage.dragging { cursor: grabbing; }
@@ -132,6 +133,8 @@
   let stage = null;
   let label = null;
   let heading = null;
+  let copier = null;
+  let copied = 0;
   let current = null;
   let shown = null;
   let natural = { width: 1, height: 1 };
@@ -194,6 +197,17 @@
     apply();
   };
 
+  // Copied as a fenced block, so it pastes straight into a markdown file.
+  const copy = () => {
+    const fenced = "```mermaid\n" + current.dataset.source.trim() + "\n```\n";
+    const done = (text) => {
+      copier.textContent = text;
+      clearTimeout(copied);
+      copied = setTimeout(() => { copier.textContent = "Copy"; }, 1500);
+    };
+    (navigator.clipboard ? navigator.clipboard.writeText(fenced) : Promise.reject()).then(() => done("Copied"), () => done("Copy failed"));
+  };
+
   const build = () => {
     dialog = document.createElement("dialog");
     dialog.className = "dv";
@@ -202,10 +216,11 @@
     heading.className = "dv-title";
     label = document.createElement("span");
     label.className = "dv-zoom";
+    copier = button("Copy", "Copy Mermaid source", copy);
     const bar = document.createElement("div");
     bar.className = "dv-bar";
     bar.append(heading, button("−", "Zoom out (-)", () => zoomTo(scale / STEP)), label, button("+", "Zoom in (+)", () => zoomTo(scale * STEP)),
-      button("Fit", "Fit to window (0)", fit), button("1:1", "Actual size (1)", () => zoomTo(1)), button("✕", "Close (Esc)", () => dialog.close()));
+      button("Fit", "Fit to window (0)", fit), button("1:1", "Actual size (1)", () => zoomTo(1)), copier, button("✕", "Close (Esc)", () => dialog.close()));
     stage = document.createElement("div");
     stage.className = "dv-stage";
     stage.tabIndex = -1;
@@ -250,6 +265,8 @@
     if (!dialog) { build(); }
     current = box;
     heading.textContent = titleOf(box);
+    copier.hidden = !box.dataset.source;
+    copier.textContent = "Copy";
     show();
     dialog.showModal();
     stage.focus();

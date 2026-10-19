@@ -21,6 +21,7 @@ describe('diagram viewer block', () => {
 const DRAWN = '<svg viewBox="0 0 800 400"><g><text>drawn</text></g></svg>';
 
 const page = async (body: string) => {
+  const copied: string[] = [];
   const dom = new JSDOM(`<!doctype html><html><head>${DIAGRAM_VIEWER_BLOCK}</head><body>${body}</body></html>`, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -33,6 +34,9 @@ const page = async (body: string) => {
         this.removeAttribute('open');
         this.dispatchEvent(new window.Event('close'));
       };
+      Object.defineProperty(window.navigator, 'clipboard', {
+        value: { writeText: (text: string) => Promise.resolve(copied.push(text)) }
+      });
     }
   });
   const { document } = dom.window;
@@ -40,7 +44,7 @@ const page = async (body: string) => {
     await new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve));
   }
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-  return { document, settle };
+  return { copied, document, settle };
 };
 
 describe('diagram viewer', () => {
@@ -74,5 +78,22 @@ describe('diagram viewer', () => {
     document.querySelector<HTMLButtonElement>('.dv-bar button[aria-label="Close (Esc)"]')?.click();
     expect(dialog?.hasAttribute('open')).toBe(false);
     expect(document.querySelector('.dv-stage')?.children).toHaveLength(0);
+  });
+
+  test('Copy puts the source on the clipboard as a fenced mermaid block', async () => {
+    const { copied, document, settle } = await page(`<div class="diagram" data-source="\nflowchart LR\n  A --> B\n">${DRAWN}</div>`);
+    document.querySelector<HTMLButtonElement>('.dv-open')?.click();
+    const copy = document.querySelector<HTMLButtonElement>('.dv-bar button[aria-label="Copy Mermaid source"]');
+    expect(copy?.hidden).toBe(false);
+    copy?.click();
+    await settle();
+    expect(copied).toEqual(['```mermaid\nflowchart LR\n  A --> B\n```\n']);
+    expect(copy?.textContent).toBe('Copied');
+  });
+
+  test('a diagram with no source shows no Copy button', async () => {
+    const { document } = await page(`<div class="diagram">${DRAWN}</div>`);
+    document.querySelector<HTMLButtonElement>('.dv-open')?.click();
+    expect(document.querySelector<HTMLButtonElement>('.dv-bar button[aria-label="Copy Mermaid source"]')?.hidden).toBe(true);
   });
 });
