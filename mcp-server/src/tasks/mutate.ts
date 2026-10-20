@@ -6,7 +6,8 @@ import {
   type TaskFile,
   type TaskFrontmatter,
   type TaskStatus,
-  type ThreadEntry
+  type ThreadEntry,
+  type UpdateTaskOptions
 } from '@/shared/types';
 import { todayDate } from '@/shared/date';
 import { writeFileAtomic } from '@/shared/utils';
@@ -17,7 +18,16 @@ import { normalizeHorizon } from './horizon';
 import { buildTaskMap, rewriteLinks } from './link';
 import type { ScanResult } from './resolve';
 import { findTaskById, getNextId } from './scan';
-import { defaultFrontmatter, isValidTransition, parseFrontmatter, replaceFrontmatter, serializeTask } from './schema';
+import {
+  defaultFrontmatter,
+  isSectionHeader,
+  isValidTransition,
+  parseFrontmatter,
+  parseTaskFile,
+  replaceDescription,
+  replaceFrontmatter,
+  serializeTask
+} from './schema';
 
 const log = createLogger('tasks.mutate');
 
@@ -46,13 +56,12 @@ export const slugify = (title: string): string =>
     .replace(/^-|-$/g, '')
     .slice(0, 50);
 
-/**
- * Surgical frontmatter update — reads raw file, parses only frontmatter,
- * applies field changes, replaces frontmatter block, keeps body byte-for-byte.
- * Returns the updated frontmatter for the caller.
- */
-const updateFrontmatterOnDisk = (filePath: string, apply: (fm: TaskFrontmatter) => void): TaskFrontmatter => {
-  const content = readFileSync(filePath, 'utf-8');
+const updateTaskOnDisk = (
+  filePath: string,
+  apply: (fm: TaskFrontmatter) => void,
+  editBody = (content: string) => content
+): TaskFrontmatter => {
+  const content = editBody(readFileSync(filePath, 'utf-8'));
   const fm = parseFrontmatter(content);
   if (!fm) throw new Error(`Failed to parse frontmatter: ${filePath}`);
 
@@ -149,12 +158,9 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
 };
 
 // ── Update ────────────────────────────────────────────────────────────
-// Surgical: only frontmatter is modified, body is untouched.
+// Surgical: frontmatter plus, when given, the Description section; checklist and thread are untouched.
 
-export const updateTask = (
-  id: string,
-  requested: Partial<Omit<TaskFrontmatter, 'id' | 'schema' | 'created'>>
-): void => {
+export const updateTask = (id: string, { description, ...requested }: UpdateTaskOptions): void => {
   const task = findTaskById(id);
   if (!task) throw new Error(`Task not found: ${id}`);
   const fields =
@@ -166,26 +172,35 @@ export const updateTask = (
       throw new Error(`Invalid status transition: ${task.frontmatter.status} -> ${fields.status}`);
     }
   }
+  if (description?.split('\n').some(isSectionHeader)) {
+    throw new Error('A description cannot contain a ## Description, ## Checklist or ## Thread heading');
+  }
 
-  updateFrontmatterOnDisk(task.filePath, (fm) => {
-    Object.assign(fm, fields);
-    if (fields.status === 'done' || fields.status === 'cancelled') {
-      fm.closed = todayDate();
-    }
-  });
+  updateTaskOnDisk(
+    task.filePath,
+    (fm) => {
+      Object.assign(fm, fields);
+      if (fields.status === 'done' || fields.status === 'cancelled') {
+        fm.closed = todayDate();
+      }
+    },
+    (content) => (description === undefined ? content : replaceDescription(content, description))
+  );
 
   // Round-trip: re-read fresh from disk and assert every requested field
-  // actually persisted. The frontmatter returned by updateFrontmatterOnDisk
+  // actually persisted. The frontmatter returned by updateTaskOnDisk
   // is the in-memory value; only a fresh read catches serialization drift,
   // partial writes, or sandbox rejection.
-  const verifyContent = readFileSync(task.filePath, 'utf-8');
-  const observed = parseFrontmatter(verifyContent);
+  const observed = parseTaskFile(task.filePath);
   if (!observed) {
     throw new Error(`Failed to re-read frontmatter after write: ${task.filePath}`);
   }
-  verifyMutation(id, task.filePath, fields, observed);
+  verifyMutation(id, task.filePath, fields, observed.frontmatter);
+  if (description !== undefined && observed.description !== description.trim()) {
+    throw new PostWriteDriftError(id, 'description', description.trim(), observed.description, task.filePath);
+  }
 
-  log.info(`Updated task ${id}: ${JSON.stringify(fields)}`);
+  log.info(`Updated task ${id}: ${JSON.stringify(fields)}${description === undefined ? '' : ' + description'}`);
   writeDashboardSafe();
 };
 
@@ -243,7 +258,7 @@ export const assignPendingIds = (tasks: TaskFile[]): string[] => {
       if (task.filePath !== newPath) {
         renameSync(task.filePath, newPath);
       }
-      updateFrontmatterOnDisk(newPath, (fm) => {
+      updateTaskOnDisk(newPath, (fm) => {
         fm.id = newId;
       });
     } catch (err) {

@@ -99,6 +99,13 @@ function flagArr(name: string): string[] {
     : [];
 }
 
+function flagAll(name: string): string[] {
+  return args
+    .filter((a) => a.startsWith(`--${name}=`))
+    .map((a) => a.slice(name.length + 3))
+    .filter(Boolean);
+}
+
 function bool(name: string): boolean {
   return args.includes(`--${name}`);
 }
@@ -156,8 +163,8 @@ Groups:
 Task commands:
   task query [--status=X] [--priority=P0-P3] [--project=NAME]
   task get <id>
-  task create --project=NAME --title=... --description=... [--priority=P2] [--type=task|bug|idea|epic] [--due=YYYY-MM-DD] [--horizon=today|week|next-week|month|later] [--labels=a,b] [--depends_on=id1,id2]
-  task update <id> [--status=X] [--priority=X] [--title=X] [--due=YYYY-MM-DD] [--horizon=X] [--blocked_by=X] [--labels=a,b]
+  task create --project=NAME --title=... --description=... [--priority=P2] [--type=task|bug|idea|epic] [--due=YYYY-MM-DD] [--horizon=today|week|next-week|month|later] [--labels=a,b] [--depends_on=id1,id2] [--parent=ID] [--checklist=item ...]
+  task update <id> [--status=X] [--priority=X] [--title=X] [--due=YYYY-MM-DD] [--horizon=X] [--blocked_by=X] [--labels=a,b] [--depends_on=id1,id2] [--parent=ID] [--description=...]
   task close <id>
   task thread <id> --message=... [--type=quote|info|warning]
   task scan                         Resolve dependencies, surface overdue/stale/auto-* changes
@@ -378,7 +385,9 @@ async function run(): Promise<void> {
           labels: flagArr('labels'),
           due: flag('due') ?? '',
           horizon: flag('horizon') ?? '',
-          depends_on: flagArr('depends_on')
+          depends_on: flagArr('depends_on'),
+          parent: flag('parent') ?? '',
+          checklist: flagAll('checklist')
         });
         console.log(JSON.stringify(res, null, 2));
         return;
@@ -387,11 +396,12 @@ async function run(): Promise<void> {
         const id = args[0];
         if (!id) throw new Error(`Usage: ${CLI} task update <id> --field=value ...`);
         const fields: Record<string, string | string[]> = {};
-        for (const k of ['status', 'priority', 'title', 'due', 'horizon', 'blocked_by']) {
+        for (const k of ['status', 'priority', 'title', 'due', 'horizon', 'blocked_by', 'parent', 'description']) {
           const v = flag(k);
           if (v) fields[k] = v;
         }
         if (flagArr('labels').length) fields.labels = flagArr('labels');
+        if (flagArr('depends_on').length) fields.depends_on = flagArr('depends_on');
         const { updateTask } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
         updateTask(id, fields);
         console.log(JSON.stringify({ ok: true }));

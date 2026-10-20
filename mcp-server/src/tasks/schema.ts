@@ -221,6 +221,13 @@ export const parseFrontmatter = (raw: string): TaskFrontmatter | null => parseFr
 const CHECKLIST_RE = /^- \[([ xX])\] (.+)$/;
 const THREAD_RE = /^> \[!(quote|info|warning)\] ([\w-]+) · (\d{4}-\d{2}-\d{2} \d{2}:\d{2})$/;
 
+// Only these headers are section boundaries; anything else (## Objective, ### Details, etc.) stays in the current section.
+const KNOWN_SECTIONS = new Set(['description', 'checklist', 'thread']);
+
+const sectionName = (line: string): string => (line.startsWith('## ') ? line.slice(3).trim().toLowerCase() : '');
+
+export const isSectionHeader = (line: string): boolean => KNOWN_SECTIONS.has(sectionName(line));
+
 export const parseTaskFile = (filePath: string): TaskFile | null => {
   const content = readFileSync(filePath, 'utf-8');
   const frontmatter = parseFrontmatter(content);
@@ -229,19 +236,13 @@ export const parseTaskFile = (filePath: string): TaskFile | null => {
   // Strip frontmatter for body parsing
   const body = content.replace(FRONTMATTER_RE, '').trim();
 
-  // Parse sections — only known section headers are boundaries.
-  // Anything else (## Objective, ### Details, etc.) stays in the current section.
-  const KNOWN_SECTIONS = new Set(['description', 'checklist', 'thread']);
   const sections: Record<string, string> = {};
   let currentSection = '';
   for (const line of body.split('\n')) {
-    if (line.startsWith('## ')) {
-      const name = line.slice(3).trim().toLowerCase();
-      if (KNOWN_SECTIONS.has(name)) {
-        currentSection = name;
-        sections[currentSection] = '';
-        continue;
-      }
+    if (isSectionHeader(line)) {
+      currentSection = sectionName(line);
+      sections[currentSection] = '';
+      continue;
     }
     if (currentSection) {
       sections[currentSection] += line + '\n';
@@ -347,6 +348,23 @@ export const replaceFrontmatter = (content: string, fm: TaskFrontmatter): string
   fmLines.push('---');
 
   return fmLines.join('\n') + body;
+};
+
+/**
+ * Replace ONLY the text of the Description section parseTaskFile reads (the last one), adding it
+ * before the first known section when absent. Everything else is kept byte-for-byte.
+ */
+export const replaceDescription = (content: string, description: string): string => {
+  const match = content.match(FRONTMATTER_RE);
+  if (!match) return content;
+
+  const lines = content.slice(match[0].length).split('\n');
+  const start = lines.findLastIndex((line) => sectionName(line) === 'description');
+  const next = lines.findIndex((line, i) => i > start && isSectionHeader(line));
+  const end = next === -1 ? lines.length : next;
+  const block = ['## Description', '', description.trim(), ''];
+
+  return match[0] + [...lines.slice(0, start === -1 ? end : start), ...block, ...lines.slice(end)].join('\n');
 };
 
 export const serializeTask = (task: TaskFile): string => {

@@ -90,7 +90,9 @@ export const tools: ToolDef[] = [
       labels: z.array(z.string()).optional(),
       due: z.string().optional().describe('YYYY-MM-DD'),
       horizon: HorizonInput.optional(),
-      depends_on: z.array(z.string()).optional()
+      depends_on: z.array(z.string()).optional(),
+      parent: z.string().optional().describe('Parent task id, usually an epic'),
+      checklist: z.array(z.string()).optional().describe('Checklist items, created unchecked')
     },
     handler: async (args) =>
       createTask({
@@ -103,7 +105,9 @@ export const tools: ToolDef[] = [
         labels: args.labels ?? [],
         due: args.due ?? '',
         horizon: args.horizon ?? '',
-        depends_on: args.depends_on ?? []
+        depends_on: args.depends_on ?? [],
+        parent: args.parent ?? '',
+        checklist: args.checklist ?? []
       })
   }),
   defineTool({
@@ -118,7 +122,13 @@ export const tools: ToolDef[] = [
       due: z.string().optional(),
       horizon: HorizonInput.optional(),
       blocked_by: z.string().optional(),
-      labels: z.array(z.string()).optional()
+      depends_on: z.array(z.string()).optional(),
+      parent: z.string().optional(),
+      labels: z.array(z.string()).optional(),
+      description: z
+        .string()
+        .optional()
+        .describe('Replaces the Description section (no ## Checklist or ## Thread headings inside); checklist and thread are kept')
     },
     handler: async ({ id, ...fields }) => {
       const updates = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));

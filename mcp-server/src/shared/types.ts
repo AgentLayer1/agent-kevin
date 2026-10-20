@@ -159,6 +159,13 @@ export interface CreateTaskOptions {
   checklist?: string[];
 }
 
+export interface UpdateTaskOptions extends Partial<Omit<TaskFrontmatter, 'id' | 'schema' | 'created'>> {
+  /**
+   * Replaces the Description section's text; checklist and thread are kept.
+   */
+  description?: string;
+}
+
 /**
  * Thrown when a task mutation writes to disk but the re-read shows a different
  * value than requested. Indicates serialization round-trip drift, partial write,
