@@ -43,6 +43,32 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.3] - 2026-10-21
+
+### Added
+- **A token per GitHub owner.** A fine-grained token reaches one owner's repos only, so the GitHub tools now pick `GITHUB_TOKEN_<OWNER>` (the owner's login uppercased, hyphens as underscores) for the repo each call names, then the catch-all `GITHUB_TOKEN`, then the operator's `gh auth login`. A `gh` or `git` child sees only the token picked for that call, every `GITHUB_TOKEN*` value is masked in the log, and `github_fast_forward` reports `NOT_CONFIGURED` per repo when its owner has no token.
+- **GitHub writes, decided by the token.** `github_issue_create`, `github_issue_comment` (both attach screenshots and videos with `gh` 2.99+), `github_issue_update` (title, description, labels, milestone) and `github_pr_update` (a PR's title or description) run on the same per-owner token as the reads, so the token's permissions decide what they may do: Issues or Pull requests Read and write. Attaching needs the Write role on the repo, not Contents write on the token. Nothing merges, closes, re-runs a workflow or edits someone else's comment.
+- **Your own PR's description, applied after you approve it.** The engineer skill's PR playbooks still post nothing, with one exception: the walkthrough's Describe gap and the replies hand-back offer to apply a new title or description to the operator's own PR with `github_pr_update`, after showing the current and proposed text. A teammate's PR is never edited.
+- **Helpdesk pack.** `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment` and `helpdesk_note` read support tickets and leave private draft notes in SupportCandy or Pylon through one ticket shape that never carries a requester's name or email. The note is the only write, so a person sends every reply. `helpdesk_attachment` saves a ticket's log or screenshot to a temp folder outside the home, ready for a GitHub issue.
+- **guide skill.** Writes a guide someone else can follow as one self-contained HTML page (a setup walkthrough, onboarding, or a shared workflow and who does what) from a house template with a sidebar, tickable steps, copyable commands, zoomable screenshots and a swimlane.
+- **Task tools set more fields.** `task_create` takes `parent` and `checklist`, and `task_update` takes `parent`, `depends_on` and `description` (replacing only the Description section) and answers with the fields it wrote, so a field a stale server dropped shows in the reply.
+- **Copy a diagram's Mermaid source** from the expanded diagram view, and a **back-to-top button** on long themed pages (PR reviews, explainers, the roadmap).
+
+### Changed
+- **The GitHub pack is one walk.** It grants all fifteen tools, lists the owners behind the configured checkouts with the key name for each, and denies `gh` in the agent's own shell (`Bash(gh)`, `Bash(gh *)`), so GitHub is reached only through the tools, under the token picked for each repo.
+- **Codex gets the home's shell denies.** `.codex/rules/kevin.rules` turns each `Bash(…)` entry in `permissions.deny` into a `forbidden` rule beside the prompt rules from `permissions.ask`; Codex applies the strictest match, so `gh pr create` is forbidden too.
+- **GitHub errors say what to fix.** A rejected token (expired, revoked or mistyped), a missing permission, a repo the token can't see, and an owner with no key each get a message naming the key and the fix.
+- The engineer PR report's before/after card reads "Before and after: what changes when this merges" and names the PR's own base branch instead of always saying `main`, and the proposed description's copy box is labelled "Markdown for the PR body".
+
+### Fixed
+- `helpdesk_tickets` with a status filter on SupportCandy filters while paging, so a filtered list no longer comes back short while matching tickets remain in the window.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds `Skill(agent-kevin:guide)` to `permissions.allow` when the home hasn't placed it in allow, ask or deny. Applied automatically.
+- `settings: optional` — only in a home with the GitHub pack: add `mcp__plugin_agent-kevin_kevin__github_issue_create`, `mcp__plugin_agent-kevin_kevin__github_issue_comment`, `mcp__plugin_agent-kevin_kevin__github_issue_update` and `mcp__plugin_agent-kevin_kevin__github_pr_update` to `permissions.allow`, and `Bash(gh)` and `Bash(gh *)` to `permissions.deny`, so GitHub goes through the tools. A home wired for Codex picks the deny up as a `forbidden` rule when the upgrade regenerates its rules. Skip if you want the GitHub pack read-only.
+- `manual: optional` — repos under more than one GitHub owner: add one `GITHUB_TOKEN_<OWNER>=` line per owner to `.state/secrets/.env` in your editor (`my-org` → `GITHUB_TOKEN_MY_ORG`), then restart. An existing `GITHUB_TOKEN` keeps working as the catch-all. For writes, give that owner's token Issues and/or Pull requests: Read and write.
+- `manual: optional` — to read support tickets, run `/agent-kevin:configure-skills` → Helpdesk (SupportCandy or Pylon).
+
 ## [0.8.2] - 2026-10-19
 
 ### Fixed
