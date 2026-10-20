@@ -1,6 +1,6 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after. Triggers on "set up the SEO pack", "add my SerpAPI key", "configure a pack", "turn off the database pack", or /configure-skills.
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode, Helpdesk) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after. Triggers on "set up the SEO pack", "add my SerpAPI key", "configure a pack", "turn off the database pack", or /configure-skills.
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(cp *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *), Bash(command -v *), Bash(bun -e *), Bash(sw_vers *), Bash(xcode-select -p), Bash(xcodebuild -version), Bash(xcrun -f *), Bash(xcrun mcp-server status)
 ---
 
@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 > **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
 
 This skill manages Kevin's optional capabilities. Use it to:
-1. **Configure a pack** (SEO, Browser, Database, GitHub, API, or Xcode) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
+1. **Configure a pack** (SEO, Browser, Database, GitHub, API, Xcode, or Helpdesk) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
@@ -54,7 +54,7 @@ The data dir is the marker; it is the same one the resolver and every runtime gu
 `AskUserQuestion`:
 
 > **What would you like to do?**
-> - Configure a skill pack (SEO / Browser / Database / GitHub / API / Xcode — Xcode on macOS only)
+> - Configure a skill pack (SEO / Browser / Database / GitHub / API / Xcode / Helpdesk — Xcode on macOS only)
 > - Register an external remote MCP server (hardened wrapper → `<HOME>/.mcp.json`)
 > - Install third-party skill libraries (via skills.sh)
 > - Deconfigure a skill pack
@@ -78,11 +78,12 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno or Postman visual clients, or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
+> - ☐ Helpdesk — read support tickets and leave private draft notes in SupportCandy or Pylon (`helpdesk_*`); a person sends every reply
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
 **Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$AGENT_PLATFORM` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Third-party (Section F).
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Helpdesk (A.2g) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
@@ -554,6 +555,50 @@ Then relaunch Claude Code and check /mcp — `xcode` should be connected.
 
 ---
 
+### A.2g — Helpdesk pack walk
+
+Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it, and requester names and emails never reach the model. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
+
+**(1) Pick the helpdesk(s)** (`AskUserQuestion`, multi-select): SupportCandy · Pylon. With both configured, each call names the one it means.
+
+**(2) Pick the level** (`AskUserQuestion`):
+
+> **What may Kevin do in the helpdesk?**
+> - Read tickets and leave draft notes (Recommended) — grants all three tools
+> - Read only — grants `helpdesk_tickets` and `helpdesk_ticket`; no notes
+
+**(3) SupportCandy** — surface these steps verbatim; they happen on the WordPress site, as an admin:
+
+1. **Turn the REST API on:** SupportCandy → Settings → Advanced → REST API. While it's off the plugin registers no REST routes at all, so every call returns 404.
+2. **Make an agent role for the assistant:** SupportCandy → Agent Roles → add a role (e.g. "Assistant") that can **view tickets** and **view and add private notes**, and nothing else: no reply, no status, category or assignee changes, no delete. The plugin checks reply and private-note rights separately, so this role can leave notes but can't answer a customer, whatever is asked of it.
+3. **Make a dedicated WordPress user** (Users → Add New, e.g. `support-assistant`) with the lowest WordPress role the site allows, then add it under SupportCandy → Agents with the role from step 2. Never reuse a person's login: every note it writes is attributed to this user.
+4. **Create its application password:** Users → that user → Application Passwords → name it after this agent → Add, and copy the password. WordPress only offers this on an HTTPS site.
+5. Ask for the site address and the username (`AskUserQuestion`; neither is a secret) and write them with §D.2: `SUPPORTCANDY_URL` (the site root, e.g. `https://help.acme.test`) and `SUPPORTCANDY_USERNAME`.
+6. Ensure the secret store exists (§D.1) and have the operator add, in their editor:
+   ```
+   SUPPORTCANDY_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
+   ```
+
+**(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor. A home that already set up the Pylon pack reuses the same line.
+
+**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
+
+**(6) Summary:**
+
+```
+✅ Helpdesk pack activated.
+
+Helpdesks:              <SupportCandy / Pylon>
+Tool permissions:       helpdesk_tickets, helpdesk_ticket[, helpdesk_note]
+Settings env:           SUPPORTCANDY_URL, SUPPORTCANDY_USERNAME   (SupportCandy)
+Secret lines to add:    SUPPORTCANDY_APP_PASSWORD and/or PYLON_API_TOKEN  (in .state/secrets/.env)
+
+Relaunch to load the secrets, then check with: "list helpdesk tickets from the last day".
+A 404 means the REST API is off; a 401 means the password, the username, or the user isn't a SupportCandy agent.
+```
+
+---
+
 ## Section B — Register an external remote MCP server
 
 For third-party **remote** MCP servers (an `https://…` endpoint authenticated by a bearer token) that aren't part of a first-party pack — e.g. a log platform's hosted MCP. The entry lands in `$MCP_FILE`, the token in `$SECRETS_ENV`, always via the hardened wrapper below. Never register a remote server bare or hand-roll a wrapper.
@@ -692,6 +737,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - Browser (removes the Perplexity API key from `.state/secrets/.env`; the MCP server stays plugin-bundled; briefings fall back to the built-in web search. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
 > - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
+> - Helpdesk (revokes the `helpdesk_*` tool permissions; optionally removes the helpdesk keys)
 > - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
 
 ### C.2 Deconfigure actions
@@ -716,6 +762,11 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
+
+**Helpdesk deconfigure:**
+- Revoke `helpdesk_tickets`, `helpdesk_ticket` and `helpdesk_note` from `permissions.allow` (§E remove helper).
+- `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` (and `PYLON_API_TOKEN`, unless another pack still uses it) from `.state/secrets/.env` in their editor (§D.1).
+- Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
 
 **Xcode deconfigure:**
 - Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.

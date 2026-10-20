@@ -18,6 +18,7 @@ export const TOOL_MODULES = [
   'github',
   'google-page-speed',
   'google-search-console',
+  'helpdesk',
   'home-history',
   'knowledge',
   'open-page-rank',

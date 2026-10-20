@@ -221,7 +221,7 @@ Then below the banner, plain prose (no leading whitespace, no numbered lists —
 > ❓ Communication style and values
 > ❓ Signal topics to track in your briefings (<AGENT_NAME> proposes a starter set)
 > ❓ Keep a history of <AGENT_NAME>'s memory, so changes can be undone (recommended)
-> ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, Xcode, third-party libraries)
+> ❓ Optional: configure skill packs (SEO, Browser, Database, GitHub, Xcode, Helpdesk, third-party libraries)
 > ❓ Confirm + scaffold
 >
 > A few of the steps will prompt Claude Code for permission to run Bash commands, write files, or fetch URLs.
@@ -1242,6 +1242,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |
 | GitHub-gated | `github_pr_*`, `github_run_*`, `github_issue_*`, `github_fast_forward` | configure-skills A.2d (GitHub walk) |
+| Helpdesk-gated | `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_note` | configure-skills A.2g (Helpdesk walk) |
 
 The allow list also carries a **skill** grant for every skill but two. Skills register regardless of permissions: the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill or one skill invokes another through the Skill tool). Every skill is model-invocable except `init`, `release` and `rename-agent`, so the operator asks in plain words ("brief me", "set today's goals", "how's my site ranking", "review 142") and never has to remember a slash name. The playbook skills route inside themselves: `briefing` (morning, evening, pulse), `goals` (day, week, month, year), `seo` (audit, console, speed, serp, rank), `seed` (export, import), `project` (create, archive), `focus` and `engineer`. A skill that writes still asks before it writes: `seed` import's `seed_import` tool sits in `ask`, `project` confirms before creating or archiving, and `configure-skills`, `self-review` and the goals interviews confirm each change. A pack skill that fires on a home without its keys stops at the first missing-key error and names the `/agent-kevin:configure-skills` walk that fixes it; `seo` spends SerpAPI credit only on an explicit SERP ask or an audit anomaly.
 

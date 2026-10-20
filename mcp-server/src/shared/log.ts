@@ -94,6 +94,8 @@ const SENSITIVE_KEYS = [
   'PERPLEXITY_API_KEY',
   'SERPAPI_KEY',
   'OPENPAGERANK_API_KEY',
+  'PYLON_API_TOKEN',
+  'SUPPORTCANDY_APP_PASSWORD',
   'GOOGLE_OAUTH_CLIENT_SECRET'
 ] as const;
 
@@ -234,5 +236,6 @@ export const log = {
   knowledge: createLogger('📚 knowledge'),
   tasks: createLogger('📋 tasks'),
   session: createLogger('🪝 session'),
-  tools: createLogger('🔧 tools')
+  tools: createLogger('🔧 tools'),
+  pylon: createLogger('🎫 pylon')
 };

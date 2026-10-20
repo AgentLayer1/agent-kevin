@@ -265,6 +265,11 @@ export const PACKS: Record<string, PackDef> = {
     ]),
     secretKeys: ['GITHUB_TOKEN'],
     settingsEnv: []
+  },
+  helpdesk: {
+    grants: mcp(['helpdesk_tickets', 'helpdesk_ticket', 'helpdesk_note']),
+    secretKeys: ['SUPPORTCANDY_APP_PASSWORD', 'PYLON_API_TOKEN'],
+    settingsEnv: ['SUPPORTCANDY_URL', 'SUPPORTCANDY_USERNAME']
   }
 };
 
