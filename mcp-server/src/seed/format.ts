@@ -58,7 +58,7 @@ export interface SeedManifest {
   createdAt: string;
   files: SeedFileEntry[];
   /** Permission entries to merge into the recipient's settings.json (reviewed at export). */
-  permissions?: { allow?: string[]; ask?: string[] };
+  permissions?: { allow?: string[]; ask?: string[]; deny?: string[] };
   /** Secret env key NAMES the setup needs — recipient fills values in `.state/secrets/.env`. */
   secretKeys?: string[];
   /** Non-secret env key NAMES planted empty in the recipient's settings.local.json `env` block. */
@@ -209,6 +209,8 @@ const CORE_GRANTS = new Set([
 
 interface PackDef {
   grants: string[];
+  /** Entries the pack's walk adds to `permissions.deny`, carried with the pack so its routing holds. */
+  denies?: string[];
   /** Secret key names the pack's tools read from `.state/secrets/.env`. */
   secretKeys: string[];
   /** Non-secret keys the pack plants in settings.local.json `env`. */
@@ -267,6 +269,7 @@ export const PACKS: Record<string, PackDef> = {
       'github_issue_update',
       'github_pr_update'
     ]),
+    denies: ['Bash(gh)', 'Bash(gh *)'],
     secretKeys: ['GITHUB_TOKEN'],
     settingsEnv: []
   },

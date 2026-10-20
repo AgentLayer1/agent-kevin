@@ -43,10 +43,10 @@ an option yourself: the operator's answer is the only thing that applies a seed.
 
 ## Step 3 — Apply
 
-Re-run `seed_import` with the chosen `overwrite`. If the result lists `ask` entries under
-`permissionsAdded` and this home is wired for Codex (`test -f <HOME>/.codex/hooks.json`),
-call `codex_setup` next: the Codex rules file is generated from that ask list, so without
-the rerun those commands run unprompted under Codex. Report what landed, then close with the
+Re-run `seed_import` with the chosen `overwrite`. If the result lists `ask` or `deny` entries
+under `permissionsAdded` and this home is wired for Codex (`test -f <HOME>/.codex/hooks.json`),
+call `codex_setup` next: the Codex rules file is generated from those lists, so without the
+rerun those commands run unprompted, or unblocked, under Codex. Report what landed, then close with the
 operator's checklist.
 
 Apply the imported files as they came: don't rewrite IDENTITY.md or SOUL.md afterwards on

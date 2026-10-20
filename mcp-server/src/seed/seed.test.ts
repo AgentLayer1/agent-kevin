@@ -200,7 +200,9 @@ describe('scanSeed', () => {
     expect(scan.mcpServers).toHaveLength(1);
     expect(scan.mcpServers[0]?.name).toBe('acme-telemetry');
     expect(scan.mcpServers[0]?.envKeys).toEqual(['MCP_ACME_TELEMETRY_TOKEN']);
-    expect(scan.activePacks).toEqual([{ name: 'browser', secretKeys: ['PERPLEXITY_API_KEY'], settingsEnv: [] }]);
+    expect(scan.activePacks).toEqual([
+      { name: 'browser', denies: [], secretKeys: ['PERPLEXITY_API_KEY'], settingsEnv: [] }
+    ]);
     expect(scan.settingsEnvKeys).toEqual(['GSC_SITE_URL']);
     const classes = new Map(scan.permissions.allow.map((grant) => [grant.entry, grant.class]));
     expect(classes.get('Bash(ls *)')).toBe('core');
@@ -250,7 +252,8 @@ describe('exportSeed', () => {
             `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__browser_screenshot`,
             'Bash(curl https://acme.example/*)',
             `Skill(${PLUGIN_NAME}:seed-export)`
-          ]
+          ],
+          deny: ['Bash(acme *)']
         },
         secretKeys: ['PERPLEXITY_API_KEY', 'MCP_ACME_TELEMETRY_TOKEN'],
         settingsEnv: ['GSC_SITE_URL'],
@@ -320,6 +323,8 @@ describe('importSeed', () => {
     // A grant for a skill retired since the bundle was made lands as its successor's.
     expect(settings.permissions.allow).toContain(`Skill(${PLUGIN_NAME}:seed)`);
     expect(settings.permissions.allow).not.toContain(`Skill(${PLUGIN_NAME}:seed-export)`);
+    expect(settings.permissions.deny).toEqual(['Bash(acme *)']);
+    expect(result.permissionsAdded.deny).toEqual(['Bash(acme *)']);
 
     const mcp = JSON.parse(readFileSync(join(recipient, '.mcp.json'), 'utf-8'));
     expect(Object.keys(mcp.mcpServers)).toEqual(['acme-telemetry']);
@@ -332,6 +337,7 @@ describe('importSeed', () => {
     expect(again.written).toEqual([]);
     expect(again.conflicts).toEqual([]);
     expect(again.permissionsAdded.allow).toEqual([]);
+    expect(again.permissionsAdded.deny).toEqual([]);
     expect(again.mcpServersSkipped).toEqual(['acme-telemetry']);
     // Fully idempotent: the overlay section is already in the manual, so no re-append.
     expect(again.appended).toEqual([]);
@@ -591,5 +597,19 @@ describe('home paths in carried MCP entries', () => {
     } finally {
       process.env.HOME = previous;
     }
+  });
+});
+
+describe('scanSeed with the GitHub pack', () => {
+  test("carries the pack's gh denies with it", () => {
+    const home = makeHome();
+    homes.push(home);
+    const github = [
+      'fast_forward', 'pr_list', 'pr_view', 'pr_comments', 'pr_diff', 'pr_checks', 'run_list', 'run_view', 'run_log',
+      'issue_list', 'issue_view', 'issue_create', 'issue_comment', 'issue_update', 'pr_update'
+    ].map((tool) => `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__github_${tool}`);
+    write(home, '.claude/settings.json', JSON.stringify({ permissions: { allow: github, deny: ['Bash(gh)', 'Bash(gh *)'] } }));
+    const scan = inHome(home, () => scanSeed());
+    expect(scan.activePacks.find((pack) => pack.name === 'github')?.denies).toEqual(['Bash(gh)', 'Bash(gh *)']);
   });
 });

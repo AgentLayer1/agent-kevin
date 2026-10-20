@@ -41,9 +41,15 @@ export const tools: ToolDef[] = [
         .optional()
         .describe('Skill-authored bundle content, e.g. [{path: "AGENTS.md", content: <curated overlay>}].'),
       permissions: z
-        .object({ allow: z.array(z.string()).optional(), ask: z.array(z.string()).optional() })
+        .object({
+          allow: z.array(z.string()).optional(),
+          ask: z.array(z.string()).optional(),
+          deny: z.array(z.string()).optional()
+        })
         .optional()
-        .describe('Reviewed permission entries the recipient should inherit (pack grants + approved custom entries).'),
+        .describe(
+          'Reviewed permission entries the recipient should inherit (pack grants and denies + approved custom entries).'
+        ),
       secretKeys: z
         .array(z.string())
         .optional()

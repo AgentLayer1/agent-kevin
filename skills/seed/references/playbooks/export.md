@@ -88,9 +88,10 @@ Present each detected item by name, per-item tick:
   are: export replaces this home's path inside them with a placeholder the recipient's
   import fills with its own home, so never hand-edit a path for the recipient
 - **Diverged/custom rules** (template-identical ones default-unticked)
-- **Active packs** — carried as their permission grants + the key names the recipient
-  must fill (the scan lists each pack's `secretKeys`/`settingsEnv` — forward the ticked
-  packs' names into the export call); recipient's tools work once they add credentials
+- **Active packs** — carried as their permission grants, their denies, and the key names the
+  recipient must fill (the scan lists each pack's `denies`/`secretKeys`/`settingsEnv` — forward
+  the ticked packs' denies into `permissions.deny` and their names into the export call);
+  recipient's tools work once they add credentials
 - **Custom permission entries** (class `custom` in the scan) — walk these individually;
   they can encode personal hosts or paths. Default to excluding anything operator-specific.
 - **settings.local.json env keys** — key NAMES only, planted empty on import. Exclude

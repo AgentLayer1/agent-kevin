@@ -62,7 +62,7 @@ export interface SeedImportResult {
   unchanged: string[];
   /** The manual's home-relative path when the overlay section was appended to it rather than written fresh. */
   appended: string[];
-  permissionsAdded: { allow: string[]; ask: string[] };
+  permissionsAdded: { allow: string[]; ask: string[]; deny: string[] };
   mcpServersAdded: string[];
   /** MCP server names already present locally — never clobbered. */
   mcpServersSkipped: string[];
@@ -182,7 +182,7 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
     const settingsPath = resolve(home, '.claude', 'settings.json');
     const settings = readJson(settingsPath);
     const permissions = (settings.permissions ?? {}) as Record<string, string[]>;
-    const mergeGrants = (list: 'allow' | 'ask'): string[] => {
+    const mergeGrants = (list: 'allow' | 'ask' | 'deny'): string[] => {
       // A bundle from an older release names retired skills; grant their successors instead.
       const incoming = migrateGrants(manifest.permissions?.[list] ?? [], PLUGIN_NAME);
       const current = permissions[list] ?? [];
@@ -190,8 +190,8 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
       if (added.length > 0) permissions[list] = [...current, ...added].sort();
       return added;
     };
-    const permissionsAdded = { allow: mergeGrants('allow'), ask: mergeGrants('ask') };
-    if (!dryRun && (permissionsAdded.allow.length > 0 || permissionsAdded.ask.length > 0)) {
+    const permissionsAdded = { allow: mergeGrants('allow'), ask: mergeGrants('ask'), deny: mergeGrants('deny') };
+    if (!dryRun && Object.values(permissionsAdded).some((added) => added.length > 0)) {
       settings.permissions = permissions;
       writeJson(settingsPath, settings);
     }

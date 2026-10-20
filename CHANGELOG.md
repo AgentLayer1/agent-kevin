@@ -62,6 +62,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Fixed
 - `helpdesk_tickets` with a status filter on SupportCandy filters while paging, so a filtered list no longer comes back short while matching tickets remain in the window.
+- **Seed bundles carry a pack's denies.** A home set up from a seed now gets the GitHub pack's `gh` block along with its tools; before, only `allow` and `ask` entries travelled, so the block waited for the GitHub walk to run again.
 
 ### Upgrade
 - `settings: mandatory` — upgrade's baseline reconcile adds `Skill(agent-kevin:guide)` to `permissions.allow` when the home hasn't placed it in allow, ask or deny. Applied automatically.

@@ -44,7 +44,7 @@ export interface SeedExportOptions {
   audience?: SeedAudience;
   /** Skill-authored content written into the bundle (e.g. the AGENTS.md overlay section). */
   extras?: { path: string; content: string }[];
-  permissions?: { allow?: string[]; ask?: string[] };
+  permissions?: { allow?: string[]; ask?: string[]; deny?: string[] };
   secretKeys?: string[];
   settingsEnv?: string[];
   mcpServers?: Record<string, unknown>;

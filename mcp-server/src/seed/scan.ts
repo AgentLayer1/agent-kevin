@@ -39,6 +39,8 @@ interface ClassifiedGrant {
 
 interface ActivePack {
   name: string;
+  /** `permissions.deny` entries the pack writes — forwarded to the bundle's `permissions.deny` when the pack is carried. */
+  denies: string[];
   /** Secret key NAMES the pack needs — forwarded to the bundle's `secretKeys` when the pack is carried. */
   secretKeys: string[];
   /** Non-secret key NAMES — forwarded to the bundle's `settingsEnv`. */
@@ -173,7 +175,7 @@ export const scanSeed = (): SeedScanResult => {
   const allow = classify(permissionsRaw.allow);
   const activePacks = Object.entries(PACKS)
     .filter(([, def]) => def.grants.every((grant) => permissionsRaw.allow?.includes(grant)))
-    .map(([name, def]) => ({ name, secretKeys: def.secretKeys, settingsEnv: def.settingsEnv }));
+    .map(([name, def]) => ({ name, denies: def.denies ?? [], secretKeys: def.secretKeys, settingsEnv: def.settingsEnv }));
 
   const localSettings = readJson(resolve(home, '.claude', 'settings.local.json'));
   // Credential-shaped keys (some homes keep e.g. an OAuth token in the env block on
