@@ -9,7 +9,7 @@ import type { HelpdeskConnector, HelpdeskName } from './types';
 
 const LOOKUPS: Lookups = {
   statuses: new Map([[1, 'Open'], [4, 'Closed']]),
-  categories: new Map([[2, 'Watch']])
+  categories: new Map([[2, 'Billing']])
 };
 
 describe('SupportCandy mapping', () => {
@@ -20,12 +20,12 @@ describe('SupportCandy mapping', () => {
 
   test('a ticket resolves its status and category names and links to the agent view', () => {
     const ticket = mapTicket(
-      { id: 1042, subject: 'Adhan silent', status: 1, category: 2, customer: 77, date_updated: '2026-10-20 08:15:00' },
+      { id: 318, subject: 'Export does nothing', status: 1, category: 2, customer: 77, date_updated: '2026-10-20 08:15:00' },
       LOOKUPS,
       'https://help.example.com'
     );
-    expect(ticket).toMatchObject({ id: '1042', status: 'Open', category: 'Watch', updated_at: '2026-10-20T08:15:00Z' });
-    expect(ticket.link).toBe(adminLink('https://help.example.com', 1042));
+    expect(ticket).toMatchObject({ id: '318', status: 'Open', category: 'Billing', updated_at: '2026-10-20T08:15:00Z' });
+    expect(ticket.link).toBe(adminLink('https://help.example.com', 318));
     expect(JSON.stringify(ticket)).not.toContain('77');
   });
 
@@ -61,9 +61,9 @@ describe('SupportCandy notes', () => {
   });
 
   test('a note is posted as a private note, never a reply', async () => {
-    expect(await supportcandy.addNote('1042', '<p>Draft</p>')).toBe('9');
+    expect(await supportcandy.addNote('318', '<p>Draft</p>')).toBe('9');
     const [request] = sent;
-    expect(request?.url).toBe('https://help.example.com/wp-json/supportcandy/v2/tickets/1042/threads');
+    expect(request?.url).toBe('https://help.example.com/wp-json/supportcandy/v2/tickets/318/threads');
     const form = new URLSearchParams(request?.body);
     expect(form.get('type')).toBe('note');
     expect(form.get('body')).toBe('<p>Draft</p>');
@@ -135,9 +135,9 @@ describe('noteHtml', () => {
 
 describe('attachments', () => {
   test('SupportCandy threads list their attachments by id and resolved name', async () => {
-    const message = await mapThread({ id: 1, type: 'report', customer: 77, body: '<p>Log attached</p>', attachments: '12, 13' }, 77, new Map([['12', 'praywatch.log']]));
+    const message = await mapThread({ id: 1, type: 'report', customer: 77, body: '<p>Log attached</p>', attachments: '12, 13' }, 77, new Map([['12', 'acme.log']]));
     expect(message.attachments).toEqual([
-      { id: '12', name: 'praywatch.log' },
+      { id: '12', name: 'acme.log' },
       { id: '13', name: 'attachment-13' }
     ]);
     expect((await mapThread({ id: 2, type: 'reply', attachments: '' }, 77)).attachments).toEqual([]);
@@ -171,7 +171,7 @@ describe('SupportCandy downloads', () => {
       const url = String(input);
       asked.push(url);
       return url.includes('/wp-json/supportcandy/v2/attachments/12')
-        ? new Response(JSON.stringify({ id: 12, name: 'praywatch.log', url: 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret' }))
+        ? new Response(JSON.stringify({ id: 12, name: 'acme.log', url: 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret' }))
         : new Response('log line', { headers: { 'content-type': 'text/plain' } });
     }) as typeof fetch;
   });
@@ -185,7 +185,7 @@ describe('SupportCandy downloads', () => {
   test('follows the signed link but returns only the file', async () => {
     const file = await supportcandy.download('12');
     expect(asked).toEqual(['https://help.example.com/wp-json/supportcandy/v2/attachments/12', 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret']);
-    expect(file.name).toBe('praywatch.log');
+    expect(file.name).toBe('acme.log');
     expect(new TextDecoder().decode(file.bytes)).toBe('log line');
     expect(JSON.stringify(file)).not.toContain('auth_code');
   });

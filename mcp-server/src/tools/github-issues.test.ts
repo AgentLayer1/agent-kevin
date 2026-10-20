@@ -36,7 +36,7 @@ describe('attachArgs', () => {
     const shot = join(dir, 'watch.png');
     writeFileSync(shot, 'png');
     expect(attachArgs([shot])).toEqual(['--attach', shot]);
-    expect(() => attachArgs([join(dir, 'praywatch.log')])).toThrow(/only/);
+    expect(() => attachArgs([join(dir, 'acme.log')])).toThrow(/only/);
     expect(() => attachArgs([join(dir, 'a#b.png')])).toThrow(/alt text/);
     expect(() => attachArgs([join(dir, 'missing.png')])).toThrow(/no such file/);
   });

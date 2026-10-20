@@ -29,7 +29,7 @@
 
 ## Content rules
 
-- **Write for the reader named in the eyebrow.** Plain words; a term that needs a gloss gets renamed ("bug card", not "issue"). A guide for one person doing one job speaks to them in the second person. A process shared by several people uses **names** throughout (Sarah, Sarah's agent, Basem), never "you", "your agent" and "me", which blur who does what, and opens with the boundary: who owns which side, and the one thing that crosses it.
+- **Write for the reader named in the eyebrow.** Plain words; a term that needs a gloss gets renamed ("bug card", not "issue"). A guide for one person doing one job speaks to them in the second person. A process shared by several people uses **names** throughout (Ada, Ada's agent, Sam), never "you", "your agent" and "me", which blur who does what, and opens with the boundary: who owns which side, and the one thing that crosses it.
 - **The guide stays about its reader.** The reader's own flow names only the people and agents they deal with. Someone else's part of the process (how the team takes it from there) gets one short section of its own: what happens, in order, and that the reader does nothing there. Point to it from the reader's flow ("see Development") instead of weaving its actors through every section. Within that section, name each person and agent plainly, one sentence each.
 - **Every step is one action** with what the reader will see when it worked. A step that needs a value says where the value comes from.
 - **Order is dependency order.** A step uses only what an earlier step installed or created.
