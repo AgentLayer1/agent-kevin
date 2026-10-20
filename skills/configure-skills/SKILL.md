@@ -357,6 +357,8 @@ Then surface these steps verbatim, once per owner:
 
 **Writes.** A token can never do more than its owner's role on the repo: opening and labelling issues needs at least Triage, and attaching files or editing a PR needs Write. Labels and milestones must exist before a tool can apply them (`gh issue create --label` fails on an unknown label), so point the operator at the repo's Labels and Milestones pages. Attachments take png, jpg, gif, webp, svg, mp4, mov or webm, up to 10 MB each, and need `gh` 2.99.0 or later (`gh --version`); text such as a log goes in the issue body.
 
+**Codex, when the home runs it.** If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool after the grants. It turns each `Bash(…)` deny into a `forbidden` rule in `.codex/rules/kevin.rules`, so `gh` is blocked in a Codex session too; Codex has no per-tool allow list, so the tool grants need nothing there. Skip it in a home that never opted into Codex: a later Codex wiring reads the deny from the settings on its own.
+
 **(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope each owner's token to whatever those paths point at (plus any repo you'll name explicitly).
 
 **(4) Summary:**
@@ -798,7 +800,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove the GitHub tokens from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete `GITHUB_TOKEN` and every `GITHUB_TOKEN_<OWNER>` line in their editor (§D.1 — Claude can't edit the gated file). If no, leave them (harmless once the perms are revoked).
-- `AskUserQuestion`: "Let Kevin run `gh` in its own shell again?" (No, keep it denied (Recommended) / Yes). Only on yes, remove `Bash(gh)` and `Bash(gh *)` from `permissions.deny` (§E deny helper, remove); removing a deny widens what the agent can run, so it is never the default.
+- `AskUserQuestion`: "Let Kevin run `gh` in its own shell again?" (No, keep it denied (Recommended) / Yes). Only on yes, remove `Bash(gh)` and `Bash(gh *)` from `permissions.deny` (§E deny helper, remove), then run `codex_setup` if `<HOME>/.codex/hooks.json` exists so Codex's forbidden rule goes too; removing a deny widens what the agent can run, so it is never the default.
 - The operator's `gh auth login` is theirs: `gh auth logout` ends it.
 
 **Helpdesk deconfigure:**

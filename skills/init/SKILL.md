@@ -1694,7 +1694,7 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > `<HISTORY_ROW>`
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
-For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules) · user-level keys: .state/updates/codex-user-config.md`; otherwise omit the row.
+For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules, <m> forbidden rules) · user-level keys: .state/updates/codex-user-config.md`; otherwise omit the row.
 
 For `<WORLD_ROW>`, from Step 5d: what landed, e.g. `✅ Your world    3 projects · roadmap draft · company profile · 4 documents in the inbox`; when every part was skipped → `⏳ Your world    nothing yet — drop documents into <KNOWLEDGE>/raw/inbox/ any time and run /agent-kevin:knowledge-compile`.
 

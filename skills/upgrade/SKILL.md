@@ -327,7 +327,8 @@ model and set it in the home config.
 Since 0.4.2 the generator also writes the home's permission posture from its Claude settings
 (a `[permissions.kevin]` profile that denies the secrets store and `.env` reads, makes
 `.git` writable, and lists the code path and `additionalDirectories` as workspace roots) and
-`.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`), it
+`.codex/rules/kevin.rules` (one prompt rule per `Bash(…)` entry in `permissions.ask`, and one forbidden rule per
+`Bash(…)` entry in `permissions.deny`), it
 mirrors any MCP server a pack registered in `$HOME_DIR/.mcp.json` (the Xcode pack's `xcode`),
 and any server there Claude has approved, into its own `[mcp_servers.<name>]` table, which is
 how a server set up before this home ran Codex reaches it on this run, and it adds a `[tui]` status line (model with reasoning, directory, branch, approval mode, context used)

@@ -255,7 +255,7 @@ describe('codex-setup mcp registration', () => {
       status_line_use_colors: true
     });
     expect(config.skills).toEqual({ max_context_tokens: 10_000 });
-    expect(json.profile).toEqual({ name: `${AGENT_SLUG}`, workspaceRoots: [], rules: [], servers: [] });
+    expect(json.profile).toEqual({ name: `${AGENT_SLUG}`, workspaceRoots: [], rules: [], forbidden: [], servers: [] });
     expect(readFileSync(json.rules.path, 'utf-8')).not.toContain('prefix_rule');
   });
 
@@ -268,7 +268,16 @@ describe('codex-setup mcp registration', () => {
       join(home, '.claude', 'settings.json'),
       JSON.stringify({
         permissions: {
-          deny: ['Read(//**/.acme/secrets/**)', 'Read(~/.ssh/**)', 'Read(vault/**)', 'WebFetch(domain:example.com)'],
+          deny: [
+            'Read(//**/.acme/secrets/**)',
+            'Read(~/.ssh/**)',
+            'Read(vault/**)',
+            'WebFetch(domain:example.com)',
+            'Bash(acme)',
+            'Bash(acme *)',
+            'Bash(pip install*)',
+            'Bash(uv pip install*--system*)'
+          ],
           ask: [
             'Bash(git push)',
             'Bash(git push *)',
@@ -311,6 +320,9 @@ describe('codex-setup mcp registration', () => {
     expect(rules).toContain('pattern = ["gh", "pr", "create"],');
     expect(rules).toContain('decision = "prompt"');
     expect(rules).not.toContain('curl_run');
+    expect(json.profile.forbidden).toEqual(['acme', 'pip install']);
+    expect(rules).toContain('pattern = ["acme"],\n    decision = "forbidden",');
+    expect(rules).toContain('pattern = ["pip", "install"],\n    decision = "forbidden",');
   });
 
   test("carries Claude's user-level Read denies into the home's profile, except those the user-level Codex profile already denies", () => {
