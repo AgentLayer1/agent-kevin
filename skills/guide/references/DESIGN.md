@@ -14,7 +14,7 @@
 
 | Module | Use when | Markup |
 |---|---|---|
-| Who does what | The reader works with other people or agents | `.who` with one `div.c-*` per actor: name, role line, 2–4 bullets |
+| Who does what | The reader works with other people or agents | `.who` with one `div.c-*` per actor: name, role line, 2–4 bullets. `.who.pairs` lays four actors out two by two, each person beside the agent that works for them |
 | Steps | Anything the reader does in order | `ol.steps` of `li` with a checkbox, `strong` title, `.sub` line; add `.who-tag.c-*` when someone else does the step, `.status.soon` / `.status.ready` for what isn't built yet |
 | Code | A command to paste | `.code` with `.label-row` (where to paste it) and a `.copy` button; one command per block |
 | Figure | A real screenshot helps | `figure > img + figcaption`; click zooms. Only real screenshots of the reader's screen, never stock art |
@@ -29,6 +29,7 @@
 ## Content rules
 
 - **Write for the reader named in the eyebrow.** Second person; plain words; a term that needs a gloss gets renamed ("bug card", not "issue"). The guide's author speaks in the first person when the operator is handing it over.
+- **Every actor is distinct.** Each person and each agent gets its own name, colour and swimlane column; an agent is never folded into the person it works for. Name an agent by its job on first mention ("your support agent", "Kevin, my coding agent"). When two agents appear, add a short does / never-does table that shows where one's work ends and the other's starts, and what they hand each other.
 - **Every step is one action** with what the reader will see when it worked. A step that needs a value says where the value comes from.
 - **Order is dependency order.** A step uses only what an earlier step installed or created.
 - **Mocks and examples are invented** (made-up ids, names and amounts) and look like the real screen. Say so once ("a made-up example").
