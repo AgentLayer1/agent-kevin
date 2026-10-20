@@ -1,16 +1,11 @@
 ---
 name: setup-worktree
 description: >
-  Create a git worktree for parallel agent work and bootstrap it so it's ready to code — copies the
-  gitignored local files (`.env*`, `.claude/settings.local.json`, `.cursor`, `.cmux`) from the main
-  checkout, installs dependencies, and builds the packages. Use whenever the user asks to spin up a
-  worktree, work on a branch in parallel, set up an isolated checkout for another agent, or "make a
-  worktree for <feature>". First pins down WHICH repo the worktree is for (the user's words, the
-  `$AGENT_CODE_PATH` default when they assume you know, or by asking when
-  neither resolves), then creates the worktree as a sibling of that repo, never nested inside it,
-  and offers to add it to a sibling `*.code-workspace` if one exists. Also covers the audit: when
-  the user asks "which worktrees do I have", "which of these are merged/stale", or "what worktrees
-  can I delete", run the read-only `list_worktrees` triage and report the verdicts.
+  Create a git worktree for parallel work, as a sibling of the repo, and bootstrap it ready to code:
+  copies the gitignored local files from the main checkout, installs dependencies, builds the
+  packages. Also audits existing worktrees (merged, stale, safe to delete). Triggers on "make a
+  worktree for <feature>", "spin up a worktree", "work this branch in parallel", "an isolated
+  checkout for another agent", "which worktrees do I have", "what worktrees can I delete".
 allowed-tools: mcp__plugin_agent-kevin_kevin__setup_worktree, mcp__plugin_agent-kevin_kevin__list_worktrees, mcp__plugin_agent-kevin_kevin__remove_worktree, mcp__plugin_agent-kevin_kevin__database_fork, mcp__plugin_agent-kevin_kevin__database_list, mcp__plugin_agent-kevin_kevin__database_query, mcp__plugin_agent-kevin_kevin__github_pr_list, Bash, Read, Edit
 ---
 

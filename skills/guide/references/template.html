@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your First Week at Acme</title>
+<!-- theme:start -->
+<style>
+  .theme-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, currentColor 5%, transparent); }
+  .theme-switch.floating { position: fixed; top: 14px; right: 14px; z-index: 50;
+    background: color-mix(in srgb, Canvas 82%, transparent); backdrop-filter: blur(8px); }
+  .theme-switch button { all: unset; box-sizing: border-box; cursor: pointer; width: 28px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center; opacity: .55; transition: opacity .15s, background .15s; }
+  .theme-switch button:hover { opacity: .9; }
+  .theme-switch button[aria-pressed="true"] { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
+  .theme-switch button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .theme-switch svg { width: 14px; height: 14px; display: block; }
+  .to-top { all: unset; box-sizing: border-box; position: fixed; top: 14px; left: 14px; z-index: 50; width: 32px; height: 32px;
+    display: grid; place-items: center; border-radius: 999px; cursor: pointer; color: inherit;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: color-mix(in srgb, Canvas 82%, transparent);
+    backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .to-top.shown { opacity: .7; pointer-events: auto; }
+  .to-top:hover { opacity: 1; }
+  .to-top:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  .to-top svg { width: 14px; height: 14px; display: block; }
+  @media print { .theme-switch, .to-top { display: none !important; } }
+</style>
+<script>
+(() => {
+  const KEY = "agent-theme";
+  const CHOICES = {
+    auto: ["Auto, follows the system", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/><path d='M8 2a6 6 0 0 1 0 12z' fill='currentColor'/></svg>"],
+    light: ["Light", "<svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='8' cy='8' r='3' fill='currentColor'/><path d='M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"],
+    dark: ["Dark", "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z' fill='currentColor'/></svg>"],
+  };
+  const root = document.documentElement;
+  const media = matchMedia("(prefers-color-scheme: dark)");
+  const read = () => { try { const saved = localStorage.getItem(KEY); return Object.hasOwn(CHOICES, saved) ? saved : "auto"; } catch (e) { return "auto"; } };
+  let choice = read();
+  const apply = () => {
+    const mode = choice === "auto" ? (media.matches ? "dark" : "light") : choice;
+    const changed = root.getAttribute("data-theme") !== mode;
+    root.setAttribute("data-theme", mode);
+    root.style.colorScheme = mode;
+    document.querySelectorAll(".theme-switch button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.choice === choice)));
+    if (changed) { document.dispatchEvent(new CustomEvent("themechange", { detail: { mode } })); }
+  };
+  const choose = (next) => {
+    choice = next;
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply();
+  };
+  const mount = () => {
+    const slot = document.getElementById("theme-slot");
+    const group = document.createElement("div");
+    group.className = slot ? "theme-switch" : "theme-switch floating";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Theme");
+    Object.entries(CHOICES).forEach(([name, [label, icon]]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.choice = name;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.innerHTML = icon;
+      button.addEventListener("click", () => choose(name));
+      group.append(button);
+    });
+    (slot || document.body).append(group);
+    if (!slot) { mountToTop(); }
+    apply();
+  };
+  // Pages with a floating switch are long reads; a slotted switch sits in an app header that has its own navigation.
+  const mountToTop = () => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "to-top";
+    button.title = "Back to top";
+    button.setAttribute("aria-label", "Back to top");
+    button.innerHTML = "<svg viewBox='0 0 16 16' aria-hidden='true'><path d='M8 13V3M3.5 7.5 8 3l4.5 4.5' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+    button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    const show = () => {
+      const shown = window.scrollY > window.innerHeight / 2;
+      button.classList.toggle("shown", shown);
+      button.tabIndex = shown ? 0 : -1;
+    };
+    window.addEventListener("scroll", show, { passive: true });
+    document.body.append(button);
+    show();
+  };
+  media.addEventListener("change", () => { if (choice === "auto") { apply(); } });
+  window.addEventListener("storage", (event) => { if (event.key === KEY) { choice = read(); apply(); } });
+  apply();
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", mount); } else { mount(); }
+})();
+</script>
+<!-- theme:end -->
+<style>
+:root, html[data-theme="dark"] {
+  --bg: #0e1014; --surface: #151920; --surface-2: #1b2029; --line: #262c37;
+  --text: #e7e9ee; --muted: #98a1ae; --faint: #6b7380;
+  --accent: #f2b84b; --accent-ink: #1a1408; --blue: #6ea8ff; --green: #5fd38d; --rose: #ff7a90; --violet: #b69cff;
+  --note: #2a2414; --note-line: #5a4a1e; --code-bg: #0a0c10;
+  --shadow: 0 1px 0 rgba(255,255,255,.03), 0 12px 32px rgba(0,0,0,.35);
+}
+html[data-theme="light"] {
+  --bg: #f6f4ee; --surface: #fffdf8; --surface-2: #f1eee6; --line: #e2ddd1;
+  --text: #1c1e22; --muted: #5d6470; --faint: #8b919b;
+  --accent: #b7791f; --accent-ink: #fff8ea; --blue: #2f6fdb; --green: #1f8a4c; --rose: #c43c55; --violet: #6b4fd1;
+  --note: #fff6dc; --note-line: #ecd9a0; --code-bg: #f3f0e7;
+  --shadow: 0 1px 0 rgba(0,0,0,.02), 0 10px 28px rgba(60,50,30,.08);
+}
+:root {
+  --serif: ui-serif, "New York", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--blue); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--blue) 35%, transparent); }
+a:hover { border-bottom-color: var(--blue); }
+code { font: .86em var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: .08em .38em; border-radius: 5px; }
+kbd { font: 600 .8em var(--sans); background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: .05em .45em; white-space: nowrap; }
+
+/* sidebar */
+.layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; }
+nav.toc { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 28px 18px 28px 24px; border-right: 1px solid var(--line); }
+.brand { font: 600 15px var(--serif); letter-spacing: .01em; margin-bottom: 4px; }
+.brand-sub { color: var(--faint); font-size: 12px; margin-bottom: 18px; }
+.overall { margin-bottom: 20px; }
+.overall .bar { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+.overall .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width .35s ease; }
+.overall small { display: block; color: var(--muted); font-size: 12px; margin-top: 6px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li a { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; color: var(--muted); border: 0; font-size: 14px; }
+nav.toc li a:hover, nav.toc li a.active { background: var(--surface); color: var(--text); }
+nav.toc li a .n { font: 600 11px var(--mono); width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: var(--surface-2); color: var(--faint); border: 1px solid var(--line); flex: none; }
+nav.toc li a.done .n { background: var(--green); color: #07130c; border-color: transparent; }
+nav.toc li a .c { margin-left: auto; font: 11px var(--mono); color: var(--faint); }
+#theme-slot { display: block; margin-top: 22px; color: var(--muted); }
+.reset { margin-top: 10px; font: 12px var(--sans); color: var(--faint); background: none; border: 0; cursor: pointer; padding: 0; }
+.reset:hover { color: var(--rose); }
+
+/* page */
+main { padding: 56px 56px 120px; max-width: 920px; }
+header.hero { padding-bottom: 36px; margin-bottom: 44px; border-bottom: 1px solid var(--line); }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 600 46px/1.08 var(--serif); letter-spacing: -.015em; margin: 12px 0 14px; }
+.lede { font-size: 19px; color: var(--muted); max-width: 660px; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.chip { font-size: 12.5px; padding: 4px 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+section.phase { margin: 0 0 76px; }
+.phase-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+.phase-num { font: 600 13px var(--mono); color: var(--accent-ink); background: var(--accent); border-radius: 7px; padding: 2px 8px; position: relative; top: -4px; }
+h2 { font: 600 30px/1.2 var(--serif); letter-spacing: -.01em; margin: 0; }
+.phase-why { color: var(--muted); margin: 4px 0 26px; font-size: 17px; }
+h3 { font: 600 18px/1.3 var(--sans); margin: 34px 0 10px; }
+p { margin: 0 0 14px; }
+
+/* actors: one colour per person or agent, used by every module that names who acts */
+.c-you { --c: var(--accent); } .c-agent { --c: var(--blue); } .c-team { --c: var(--green); } .c-other { --c: var(--violet); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; }
+.who { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 8px 0 20px; }
+.who > div { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 14px; padding: 16px 16px 14px; }
+.who h4 { margin: 0 0 2px; font: 600 16px var(--sans); display: flex; align-items: center; gap: 8px; }
+.who .role { color: var(--muted); font-size: 13.5px; margin-bottom: 10px; }
+.who ul { margin: 0; padding-left: 18px; font-size: 14.5px; }
+.who li { margin: 4px 0; }
+
+/* swimlane: one column per actor, one row per step */
+.lanes { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow); }
+.lane-head, .lane-row { display: grid; grid-template-columns: 34px repeat(var(--lanes, 3), 1fr); }
+.lane-head { border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.lane-head div { padding: 10px 12px; font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.lane-row + .lane-row { border-top: 1px dashed var(--line); }
+.lane-row .num { font: 600 11px var(--mono); color: var(--faint); display: grid; place-items: center; border-right: 1px solid var(--line); }
+.lane-row .cell { padding: 10px; border-right: 1px solid color-mix(in srgb, var(--line) 55%, transparent); min-height: 64px; }
+.lane-row .cell:last-child { border-right: 0; }
+.card { background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--c); border-radius: 10px; padding: 9px 11px; font-size: 14px; line-height: 1.45; }
+.card b { display: block; font-size: 14.5px; margin-bottom: 2px; }
+.card span { color: var(--muted); font-size: 13px; }
+.lane-row.branch .card { border-style: dashed; border-left-style: solid; }
+.lane-sep { padding: 7px 14px; font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); background: color-mix(in srgb, var(--violet) 8%, transparent); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.lane-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+/* journey: a worked example, step by step, with mock screens */
+.journey { display: grid; gap: 18px; margin: 16px 0; }
+.jstep { display: grid; grid-template-columns: 40px 1fr; gap: 14px; }
+.jstep .badge { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font: 600 14px var(--mono); background: var(--surface); border: 1px solid var(--line); color: var(--c); }
+.jstep h4 { margin: 6px 0 4px; font: 600 16.5px var(--sans); }
+.jstep p { color: var(--muted); font-size: 15px; }
+.mock { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; margin: 10px 0 4px; font-size: 14.5px; box-shadow: var(--shadow); }
+.mock .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); font: 12px var(--mono); color: var(--faint); }
+.mock .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: inline-block; }
+.mock .inner { padding: 14px 16px; }
+.mock .meta { color: var(--faint); font-size: 12.5px; margin-bottom: 6px; }
+.mock .quote { border-left: 3px solid var(--line); padding-left: 12px; color: var(--muted); font-style: italic; }
+.mock.note .inner { background: var(--note); border-top: 1px solid var(--note-line); }
+.mock .stamp { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.mock .aside { margin-top: 10px; font-size: 13px; color: var(--muted); border-top: 1px dashed var(--note-line); padding-top: 8px; }
+.mock h5 { margin: 0 0 6px; font: 600 17px var(--sans); }
+.mock .row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.mock dl { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+.mock dt { color: var(--faint); }
+.mock dd { margin: 0; }
+
+/* labels: a coloured pill for a status or tag the reader will meet */
+.label { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--sans); padding: 2px 10px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); white-space: nowrap; }
+.l-blue { --c: var(--blue); } .l-amber { --c: var(--accent); } .l-green { --c: var(--green); } .l-grey { --c: var(--faint); } .l-violet { --c: var(--violet); } .l-rose { --c: var(--rose); }
+
+/* steps: tickable, saved per page */
+.steps { list-style: none; padding: 0; margin: 14px 0 22px; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; transition: border-color .2s; }
+.steps li:has(input:checked) { border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
+.steps li:has(input:checked) .body { opacity: .62; }
+.steps input { appearance: none; width: 20px; height: 20px; margin: 2px 0 0; border: 1.5px solid var(--faint); border-radius: 6px; cursor: pointer; display: grid; place-items: center; background: var(--bg); }
+.steps input:checked { background: var(--green); border-color: var(--green); }
+.steps input:checked::after { content: ""; width: 5px; height: 10px; border: solid #07130c; border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.steps .body { min-width: 0; }
+.steps .body > *:last-child { margin-bottom: 0; }
+.steps .body strong { font-weight: 600; }
+.steps .body .sub { color: var(--muted); font-size: 14.5px; display: block; margin-top: 2px; }
+.who-tag { font: 600 10.5px var(--mono); letter-spacing: .04em; padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line)); }
+.status { display: inline-block; font: 600 10.5px var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 5px; margin-left: 6px; vertical-align: 2px; }
+.status.ready { color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--line)); }
+.status.soon { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
+
+/* code: a command to copy */
+.code { position: relative; margin: 12px 0 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--code-bg); overflow: hidden; }
+.code .label-row { display: flex; justify-content: space-between; align-items: center; font: 12px var(--mono); color: var(--faint); padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font: 13px/1.6 var(--mono); color: var(--text); }
+.code pre .cm { color: var(--faint); }
+.copy { font: 500 11.5px var(--sans); color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.copy:hover { color: var(--text); }
+.copy.ok { color: var(--green); border-color: var(--green); }
+
+/* figures: a screenshot, click to zoom */
+figure { margin: 16px 0 26px; }
+figure img { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); cursor: zoom-in; }
+figcaption { font-size: 13.5px; color: var(--muted); margin-top: 8px; }
+dialog.lightbox { border: 0; padding: 0; background: transparent; max-width: 94vw; max-height: 94vh; }
+dialog.lightbox::backdrop { background: rgba(5,6,8,.82); backdrop-filter: blur(4px); }
+dialog.lightbox img { max-width: 94vw; max-height: 90vh; border-radius: 12px; display: block; cursor: zoom-out; }
+
+/* phrases the reader can say or type */
+.say { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 12px 0 20px; }
+.say div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; font-size: 14.5px; }
+.say div::before { content: attr(data-kicker); display: block; font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
+.say div span { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+.callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface); border-radius: 10px; padding: 14px 16px; margin: 18px 0; font-size: 15px; }
+.callout.blue { border-left-color: var(--blue); } .callout.green { border-left-color: var(--green); } .callout.rose { border-left-color: var(--rose); }
+.callout b.t { display: block; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.callout ul { margin: 6px 0 0; padding-left: 18px; } .callout li { margin: 3px 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; margin: 10px 0 22px; }
+th { text-align: left; font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { white-space: nowrap; }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 12px 0; }
+.rules div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 14.5px; }
+.rules div b { display: block; font-size: 15.5px; margin-bottom: 4px; }
+.rules div span { color: var(--muted); }
+
+details.more { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin: 10px 0; }
+details.more summary { cursor: pointer; padding: 13px 16px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::after { content: "+"; font: 400 20px var(--mono); color: var(--faint); }
+details.more[open] summary::after { content: "–"; }
+details.more .inner { padding: 0 16px 14px; color: var(--muted); }
+
+footer { color: var(--faint); font-size: 13px; border-top: 1px solid var(--line); padding-top: 22px; }
+
+@media (max-width: 920px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  main { padding: 36px 20px 80px; }
+  h1 { font-size: 36px; }
+  .lane-head { display: none; }
+  .lane-row { grid-template-columns: 34px 1fr; }
+  .lane-row .cell:empty { display: none; }
+  .lane-row .cell { border-right: 0; }
+  .mock dl { grid-template-columns: 1fr; }
+}
+@media print {
+  :root, html[data-theme] {
+    --bg: #fff; --surface: #fff; --surface-2: #f4f4f4; --line: #ddd; --text: #111; --muted: #444; --faint: #777;
+    --accent: #b7791f; --blue: #2f6fdb; --green: #1f8a4c; --rose: #c43c55; --violet: #6b4fd1; --note: #fff6dc; --note-line: #ecd9a0; --code-bg: #f6f6f6;
+  }
+  nav.toc, .copy, .reset { display: none; }
+  .layout { display: block; } main { max-width: none; padding: 0; }
+  section.phase, .lanes, details.more, .steps li, .mock { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <div class="brand">🧭 First Week at Acme</div>
+  <div class="brand-sub">Tick steps as you go. Progress saves in this browser.</div>
+  <div class="overall"><div class="bar"><i id="overall-bar"></i></div><small id="overall-text"></small></div>
+  <ol id="toc"></ol>
+  <span id="theme-slot"></span>
+  <button class="reset" id="reset">Reset all checkboxes</button>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">For Ada · Acme support team</div>
+  <h1>Your first week at Acme</h1>
+  <p class="lede">Everything you need to go from a fresh laptop to answering customers with your agent beside you. Each section is short, the steps are in order, and nothing assumes you've done this before.</p>
+  <div class="chips">
+    <span class="chip">15-minute read</span>
+    <span class="chip">Setup takes about an hour</span>
+    <span class="chip">Tick the boxes as you go</span>
+  </div>
+</header>
+
+<section class="phase" id="who" data-title="Who does what">
+  <div class="phase-head"><span class="phase-num">00</span><h2>Who does what</h2></div>
+  <p class="phase-why">Three players. People decide; the agent does the legwork.</p>
+  <div class="who">
+    <div class="c-you"><h4><span class="dot"></span>You</h4><div class="role">The voice of Acme</div>
+      <ul><li>Read the agent's drafts, edit and send them</li><li>Handle anything sensitive yourself</li></ul></div>
+    <div class="c-agent"><h4><span class="dot"></span>Your agent</h4><div class="role">Your assistant</div>
+      <ul><li>Sorts every new request</li><li>Writes a first draft of each reply</li><li>Turns real problems into cards for the team</li></ul></div>
+    <div class="c-team"><h4><span class="dot"></span>The product team</h4><div class="role">The people who build Acme</div>
+      <ul><li>Decide what each card needs</li><li>Fix it and ship it</li></ul></div>
+  </div>
+  <div class="callout green"><b class="t">The one promise</b>
+    The agent never talks to customers. Every reply goes out only after you read it and press send.
+  </div>
+</section>
+
+<section class="phase" id="setup" data-title="Set up your laptop">
+  <div class="phase-head"><span class="phase-num">01</span><h2>Set up your laptop</h2></div>
+  <p class="phase-why">In this order: each step only needs what the steps before it installed.</p>
+  <ol class="steps">
+    <li><input type="checkbox" aria-label="done"><div class="body"><strong>Sign in to your Acme account</strong><span class="who-tag c-you">you</span><span class="sub">Use the invite email from Sam. It asks you to pick a password and turn on two-step sign-in.</span></div></li>
+    <li><input type="checkbox" aria-label="done"><div class="body"><strong>Install the Acme desk app</strong><span class="who-tag c-you">you</span><span class="sub">Open Terminal (press <kbd>⌘</kbd> <kbd>Space</kbd>, type Terminal) and paste this line:</span>
+      <div class="code"><div class="label-row"><span>Terminal</span><button class="copy">Copy</button></div><pre>curl -fsSL https://example.com/install.sh | sh</pre></div></div></li>
+    <li><input type="checkbox" aria-label="done"><div class="body"><strong>Connect your agent</strong><span class="who-tag c-team">together</span><span class="status soon">next week</span><span class="sub">Sam sets this up with you on a call. You paste one key into a file, never into a chat.</span></div></li>
+  </ol>
+  <figure><img alt="The desk app's inbox" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260'%3E%3Crect width='640' height='260' rx='14' fill='%23e9e5da'/%3E%3Crect x='20' y='20' width='170' height='220' rx='10' fill='%23fffdf8'/%3E%3Crect x='206' y='20' width='414' height='220' rx='10' fill='%23fffdf8'/%3E%3Crect x='36' y='40' width='120' height='12' rx='6' fill='%23b7791f'/%3E%3Crect x='36' y='70' width='138' height='10' rx='5' fill='%23d8d2c4'/%3E%3Crect x='36' y='92' width='110' height='10' rx='5' fill='%23d8d2c4'/%3E%3Crect x='226' y='40' width='260' height='14' rx='7' fill='%231c1e22' opacity='.75'/%3E%3Crect x='226' y='72' width='370' height='10' rx='5' fill='%23d8d2c4'/%3E%3Crect x='226' y='92' width='330' height='10' rx='5' fill='%23d8d2c4'/%3E%3Crect x='226' y='130' width='378' height='80' rx='8' fill='%23fff6dc' stroke='%23ecd9a0'/%3E%3C/svg%3E"><figcaption>The desk app's inbox. A yellow box under a request is a draft from your agent. Click to zoom.</figcaption></figure>
+</section>
+
+<section class="phase" id="flow" data-title="The big picture">
+  <div class="phase-head"><span class="phase-num">02</span><h2>The big picture</h2></div>
+  <p class="phase-why">One request from start to finish. Each column is one of us.</p>
+  <div class="lanes" style="--lanes: 3">
+    <div class="lane-head"><div></div><div><span class="dot c-you"></span>You</div><div><span class="dot c-agent"></span>Your agent</div><div><span class="dot c-team"></span>Product team</div></div>
+    <div class="lane-row"><div class="num">1</div><div class="cell"></div><div class="cell"><div class="card c-agent"><b>Sorts and drafts</b><span>question or problem · a draft reply</span></div></div><div class="cell"></div></div>
+    <div class="lane-row"><div class="num">2</div><div class="cell"><div class="card c-you"><b>Review and send</b><span>edit the draft, send it</span></div></div><div class="cell"></div><div class="cell"></div></div>
+    <div class="lane-sep">Only when something is broken ↓</div>
+    <div class="lane-row branch"><div class="num">3</div><div class="cell"></div><div class="cell"><div class="card c-agent"><b>Makes a card</b><span>tagged <span class="label l-blue">new</span></span></div></div><div class="cell"></div></div>
+    <div class="lane-row branch"><div class="num">4</div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="card c-team"><b>Fix and ship</b><span>the card closes when it's live</span></div></div></div>
+    <div class="lane-row branch"><div class="num">5</div><div class="cell"><div class="card c-you"><b>Send the good news</b><span>from the agent's draft</span></div></div><div class="cell"></div><div class="cell"></div></div>
+  </div>
+  <div class="lane-legend"><span>Solid cards happen every time.</span><span>Dashed cards only when something is broken.</span></div>
+</section>
+
+<section class="phase" id="journey" data-title="A request's journey">
+  <div class="phase-head"><span class="phase-num">03</span><h2>A request's journey</h2></div>
+  <p class="phase-why">A made-up example, so you can see each step on screen.</p>
+  <div class="journey">
+    <div class="jstep c-agent"><div class="badge">1</div><div>
+      <h4>A customer writes in</h4>
+      <div class="mock"><div class="bar"><i></i><i></i><i></i>Desk · Request #318</div>
+        <div class="inner"><div class="meta">New · web form</div><div class="quote">"The export button does nothing since this morning."</div></div></div>
+    </div></div>
+    <div class="jstep c-agent"><div class="badge">2</div><div>
+      <h4>Your agent drafts a reply</h4>
+      <div class="mock note"><div class="bar"><i></i><i></i><i></i>Request #318 · Private note · customers can't see this</div>
+        <div class="inner"><div class="stamp">Draft reply · not sent</div>
+          <p style="margin:8px 0 0">Thanks for flagging this. Which browser are you using? Meanwhile, the export also works from the Reports page.</p>
+          <div class="aside"><b>Not sure:</b> whether this is one browser or all of them.</div></div></div>
+    </div></div>
+    <div class="jstep c-agent"><div class="badge">3</div><div>
+      <h4>It makes a card for the team</h4>
+      <div class="mock"><div class="bar"><i></i><i></i><i></i>Tracker · Card #41</div>
+        <div class="inner"><h5>Export button does nothing</h5><div class="row"><span class="label l-blue">new</span></div>
+          <dl><dt>What happens</dt><dd>Clicking Export shows nothing.</dd><dt>Requests</dt><dd>#318</dd></dl></div></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="phase" id="routine" data-title="Your routine">
+  <div class="phase-head"><span class="phase-num">04</span><h2>Your routine</h2></div>
+  <p class="phase-why">Once a day, about twenty minutes.</p>
+  <ol class="steps">
+    <li><input type="checkbox" aria-label="done"><div class="body"><strong>Ask your agent to check the inbox</strong><span class="sub">It sorts what's new and drafts the replies.</span></div></li>
+    <li><input type="checkbox" aria-label="done"><div class="body"><strong>Send the drafts</strong><span class="sub">Edit each one, send it, or delete it and write your own.</span></div></li>
+  </ol>
+  <h3>Things you can say to your agent</h3>
+  <div class="say">
+    <div data-kicker="you say">"Check the inbox"<span>The full run.</span></div>
+    <div data-kicker="you say">"Make that shorter"<span>Rewrites the draft in front of you.</span></div>
+  </div>
+</section>
+
+<section class="phase" id="tags" data-title="The card tags">
+  <div class="phase-head"><span class="phase-num">05</span><h2>The card tags</h2></div>
+  <p class="phase-why">Each card wears one tag that says where it is.</p>
+  <table>
+    <thead><tr><th>Tag</th><th>What it means</th><th>What you do</th></tr></thead>
+    <tbody>
+      <tr><td><span class="label l-blue">new</span></td><td>Nobody has looked yet.</td><td>Nothing.</td></tr>
+      <tr><td><span class="label l-amber">needs info</span></td><td>The team needs more detail.</td><td>Ask the customer.</td></tr>
+      <tr><td><span class="label l-green">accepted</span></td><td>It will be fixed.</td><td>Nothing.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="phase" id="rules" data-title="Ground rules">
+  <div class="phase-head"><span class="phase-num">06</span><h2>Ground rules</h2></div>
+  <p class="phase-why">A few lines that keep customers safe.</p>
+  <div class="rules">
+    <div><b>You press send</b><span>The agent only writes private drafts.</span></div>
+    <div><b>No personal details on cards</b><span>Cards link to the request and nothing more.</span></div>
+  </div>
+</section>
+
+<section class="phase" id="faq" data-title="Questions">
+  <div class="phase-head"><span class="phase-num">07</span><h2>Questions you might have</h2></div>
+  <p class="phase-why">Ask Sam anything that's not here.</p>
+  <details class="more"><summary>What if a draft is wrong?</summary><div class="inner">Rewrite it, and tell the agent what was off. It learns from your corrections.</div></details>
+</section>
+
+<footer>Written for Ada by Sam · Acme</footer>
+</main>
+</div>
+
+<dialog class="lightbox" id="lightbox"><img alt=""></dialog>
+
+<script>
+(() => {
+  const sections = [...document.querySelectorAll('section.phase')];
+  const toc = document.getElementById('toc');
+  toc.innerHTML = sections.map((section, i) =>
+    `<li><a href="#${section.id}"><span class="n">${String(i).padStart(2, '0')}</span>${section.dataset.title}<span class="c"></span></a></li>`).join('');
+  const links = [...toc.querySelectorAll('a')];
+  const observer = new IntersectionObserver((entries) => entries
+    .filter((entry) => entry.isIntersecting)
+    .forEach((entry) => links.forEach((link) => link.classList.toggle('active', link.hash === `#${entry.target.id}`))),
+    { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach((section) => observer.observe(section));
+
+  const key = `guide-steps:${location.pathname}`;
+  const boxes = [...document.querySelectorAll('.steps input[type=checkbox]')];
+  const read = () => { try { return JSON.parse(localStorage.getItem(key) ?? '[]'); } catch (e) { return []; } };
+  const save = () => { try { localStorage.setItem(key, JSON.stringify(boxes.flatMap((box, i) => box.checked ? [i] : []))); } catch (e) {} };
+  const progress = () => {
+    const done = boxes.filter((box) => box.checked).length;
+    document.getElementById('overall-bar').style.width = boxes.length ? `${(done / boxes.length) * 100}%` : '0';
+    document.getElementById('overall-text').textContent = `${done} of ${boxes.length} steps`;
+    sections.forEach((section, i) => {
+      const own = [...section.querySelectorAll('.steps input[type=checkbox]')];
+      const ticked = own.filter((box) => box.checked).length;
+      links[i].classList.toggle('done', own.length > 0 && ticked === own.length);
+      links[i].querySelector('.c').textContent = own.length ? `${ticked}/${own.length}` : '';
+    });
+  };
+  const saved = read();
+  boxes.forEach((box, i) => {
+    box.checked = saved.includes(i);
+    box.addEventListener('change', () => { save(); progress(); });
+  });
+  document.getElementById('reset').addEventListener('click', () => {
+    boxes.forEach((box) => { box.checked = false; });
+    save();
+    progress();
+  });
+  progress();
+
+  document.querySelectorAll('.code .copy').forEach((button) => button.addEventListener('click', async () => {
+    const text = button.closest('.code').querySelector('pre').innerText;
+    try { await navigator.clipboard.writeText(text); button.textContent = 'Copied'; button.classList.add('ok'); } catch (e) { button.textContent = 'Select and copy'; }
+    setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('ok'); }, 1600);
+  }));
+
+  const lightbox = document.getElementById('lightbox');
+  document.querySelectorAll('figure img').forEach((img) => img.addEventListener('click', () => {
+    lightbox.querySelector('img').src = img.src;
+    lightbox.showModal();
+  }));
+  lightbox.addEventListener('click', () => lightbox.close());
+})();
+</script>
+</body>
+</html>

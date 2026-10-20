@@ -1203,6 +1203,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:flywheel)",
       "Skill(agent-kevin:focus)",
       "Skill(agent-kevin:goals)",
+      "Skill(agent-kevin:guide)",
       "Skill(agent-kevin:history)",
       "Skill(agent-kevin:humanizer)",
       "Skill(agent-kevin:itinerary)",
