@@ -75,7 +75,7 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ SEO — the `seo` skill (audit, Search Console, PageSpeed, SERP, rank) and `wordpress-rest` (already loaded; this walks API key + permission setup)
 > - ☐ Browser **(recommended)** — Playwright tool permissions + optional Perplexity search (briefings fall back to the built-in web search without it)
 > - ☐ Database — connect Kevin to one or more Postgres databases (read-only `database_list`/`database_schema`/`database_query` + `database_fork` to clone a local DB for risky schema work)
-> - ☐ GitHub — read-only PR + GitHub Actions access (`github_pr_*`, `github_run_*`) so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
+> - ☐ GitHub — PR, issue + GitHub Actions access (`github_pr_*` / `github_issue_*` / `github_run_*`), plus the writes your token allows (issues, a PR's title and description), so Kevin can review PRs, walk their own, and brief a second model on them or on any branch (the `engineer` skill's PR playbooks and the `adversarial-review` skill) and diagnose failing CI builds
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno or Postman visual clients, or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Helpdesk — read support tickets and leave private draft notes in SupportCandy or Pylon (`helpdesk_*`); a person sends every reply
@@ -268,13 +268,19 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review threads, pull diffs, and diagnose failing GitHub Actions runs (the failed-step logs). The `engineer` skill's PR playbooks (review, replies, walkthrough) and the `adversarial-review` skill run on these tools. Eleven MCP tools. Ten are `gh` reads with no write subcommands — commenting, creating PRs, merging, and re-running workflows stay a human-in-terminal activity by design. The eleventh, `github_fast_forward`, is also read-only *against GitHub* (one authenticated `git fetch`) but does mutate the operator's **local** checkouts: it fast-forwards their default branches, strictly forward-only, and reports rather than resolves anything dirty, diverged, or held by a worktree.
+Gives Kevin GitHub access through fifteen MCP tools. Reads: list and view PRs and issues, review threads, diffs, and failing GitHub Actions runs with their failed-step logs. `github_fast_forward` fast-forwards the operator's local checkouts during sync, strictly forward-only, reporting rather than resolving anything dirty, diverged, or held by a worktree. Writes: open, edit, comment on and label issues (with screenshots or videos), and replace a PR's title or description. The `engineer` skill's PR playbooks and the `adversarial-review` skill run on these tools. Nothing merges, closes, re-runs a workflow, or edits someone else's comment. The walk grants every tool; the token decides what a write may do, and a call the token isn't allowed gets a message naming the permission to add.
 
-**Why a token, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail). They authenticate via `GITHUB_TOKEN` from `.state/secrets/.env` — a **secret**, so it follows the same editor-fill rule as every other credential.
+**Why tokens, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail), and a fine-grained token reaches the repos of **one** owner (an org or a user) only, while a `gh` login holds one active account at a time. So the tokens live in `.state/secrets/.env`, one per owner, and every tool picks the one for the repo it is called on:
 
-> **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.state/secrets/.env` exists, and surfaces the `GITHUB_TOKEN=` line + minting steps. The user fills the value in their editor.
+1. `GITHUB_TOKEN_<OWNER>`: the owner's login uppercased, hyphens as underscores (`my-org` → `GITHUB_TOKEN_MY_ORG`).
+2. `GITHUB_TOKEN`: optional catch-all for any owner without a key of its own (a single-owner home, or a classic token).
+3. Neither: the operator's own `gh auth login`, if they have one (`github_fast_forward` skips that repo instead).
 
-**(1) Grant the GitHub tool permissions.** Add all eleven to `permissions.allow` via §E (all read-only against GitHub):
+Each is a **secret**, so it follows the same editor-fill rule as every other credential.
+
+> **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.state/secrets/.env` exists, and surfaces one `GITHUB_TOKEN_<OWNER>=` line per owner + minting steps. The user fills the values in their editor.
+
+**(1) Grant the GitHub tool permissions.** Add all fifteen to `permissions.allow` via §E:
 
 - `mcp__plugin_agent-kevin_kevin__github_fast_forward`
 - `mcp__plugin_agent-kevin_kevin__github_pr_list`
@@ -287,11 +293,23 @@ Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review t
 - `mcp__plugin_agent-kevin_kevin__github_run_log`
 - `mcp__plugin_agent-kevin_kevin__github_issue_list`
 - `mcp__plugin_agent-kevin_kevin__github_issue_view`
+- `mcp__plugin_agent-kevin_kevin__github_issue_create`
+- `mcp__plugin_agent-kevin_kevin__github_issue_comment`
+- `mcp__plugin_agent-kevin_kevin__github_issue_update`
+- `mcp__plugin_agent-kevin_kevin__github_pr_update`
+
+And add to `permissions.deny` (§E deny helper), so GitHub is reached only through these tools and never through `gh` in the agent's own shell:
+
+```json
+["Bash(gh)", "Bash(gh *)"]
+```
+
+The tools are the capability surface: each exposes what the pack chose to expose, under the token picked for that repo, and a shell `gh` would skip both. Deny wins over `ask` and `allow` in every permission mode. Nothing in the plugin runs `gh` from the shell; the MCP server's own `gh` calls run outside Bash and are untouched. The operator's own terminal is unaffected. A prefix rule doesn't catch `/opt/homebrew/bin/gh` or a script that calls gh, but such a call gets no token either: the secrets store is unreadable from the shell, and the sandbox breaks `gh`'s TLS.
 
 **(2) Surface the PAT minting steps.** `AskUserQuestion`:
 
-> **Activate GitHub (read-only)?**
-> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Ensures `.state/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. Until you do, the tools use your own `gh auth login` if you have one, and `github_fast_forward` reports "GITHUB_TOKEN not set".
+> **Activate GitHub?**
+> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Writes (issues, a PR's title and description) work only where your token allows them. Denies `gh` in Kevin's own shell, so GitHub goes through these tools. Ensures `.state/secrets/.env` exists. You add one token line per repo owner via your editor after this completes. Until you do, the tools use your own `gh auth login` if you have one, and `github_fast_forward` reports the repo as not configured.
 >
 > - Yes — grant permissions + ensure placeholder
 > - Skip (no permission grant, no placeholder)
@@ -309,57 +327,57 @@ On `GH_MISSING`, say so plainly and let the operator choose — don't silently p
 > - Continue anyway — grant permissions + mint the PAT now, install `gh` after
 > - Stop here — come back to `/agent-kevin:configure-skills` once `gh` is installed
 
-Then surface these steps verbatim:
+Then list the owners behind the configured checkouts, so the operator knows how many tokens to mint. For each path in `AGENT_CODE_PATH` and `AGENT_GIT_REPOS` (from `$SETTINGS_FILE` → `env`):
+
+```bash
+git -C "<path>" remote get-url origin
+```
+
+Take the owner out of each GitHub remote (`git@github.com:<owner>/<repo>.git` or `https://github.com/<owner>/<repo>`), dedupe, and map each to its key (`my-org` → `GITHUB_TOKEN_MY_ORG`). With no checkouts configured, ask which owners' repos Kevin will read. One owner can use `GITHUB_TOKEN` instead; say so.
+
+Then surface these steps verbatim, once per owner:
 
 1. Open [GitHub → Settings → Developer settings → Fine-grained tokens](https://github.com/settings/tokens?type=beta).
-2. **Generate new token.** Set **Resource owner** to the org/user that owns the repos Kevin will read (e.g. your org — self-approval is instant if you own it).
+2. **Generate new token.** Set **Resource owner** to that owner (your org, or your own account; self-approval is instant if you own the org). A fine-grained token reaches one owner's repos only, so repeat these steps for each owner.
 3. **Repository access:** select the specific repos (or all repos under that owner) — keep it as tight as the work needs.
-4. **Permissions → Repository permissions**, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Actions** · **Contents**. That is the whole list — five. Grant **no** write permissions — read-only is the second wall behind the read-only tool surface.
+4. **Permissions → Repository permissions.** For reading, all **Read-only**: **Pull requests** · **Issues** · **Metadata** (required) · **Actions** · **Contents**. For writes, raise only what Kevin should do in that owner's repos: **Issues: Read and write** to open, edit, comment on and label issues; **Pull requests: Read and write** to change a PR's title or description. Attaching screenshots or videos needs nothing more on the token; the person behind it needs the Write role on the repo. A token with only the reads keeps the pack read-only.
    - **Actions (Read)** is the one that covers workflow **runs**, logs, and artifacts — that's what "did this PR build pass / debug the red build" needs.
    - There is **no Checks permission** for fine-grained PATs — check runs are a GitHub App capability, absent from the docs' repository-permission list, so a PAT can never read them. Don't send the operator hunting for it. `github_pr_checks` reads `statusCheckRollup`, which mixes commit statuses with check runs, so it `403`s (`Resource not accessible by personal access token (node.statusCheckRollup.nodes.0)`) wherever CI reports as check runs — GitHub Actions does. **Commit statuses** is the lookalike in the picker and does *not* fix it: it covers only the legacy status half. Treat `github_pr_checks` as unavailable on a PAT and read build state from `github_run_list` / `github_run_view` under `Actions: Read` instead.
    - Do **NOT** add **Workflows** — despite the name, that permission grants *write* access to the `.github/workflows/*.yml` files (editing the CI definitions), which Kevin never does. `Actions: Read` is the correct one for reading run status.
-   - **Contents (Read)** is what `git fetch` authenticates against, so `github_fast_forward` (sync step 0) needs it — and `github_pr_diff` too, since a PR diff returns file content. Without it both fail while the PR, issue, and run tools keep working fine. Verified against a live org: three different states all surface as `403` on the git endpoint — a PAT awaiting org approval, an approved PAT missing `Contents`, and (as `404 Repository not found`) a repo the token can't see at all. The status code won't tell you which, but **one probe will**: a pending token can only read *public* resources, so if the PR/issue tools return private data the token is already approved and `Contents` is the thing missing. `Contents: Read` grants no ability to push: writing requires `Contents: Write`, which is never requested.
+   - **Contents (Read)** is what `git fetch` authenticates against, so `github_fast_forward` (sync step 0) needs it — and `github_pr_diff` too, since a PR diff returns file content. Without it both fail while the PR, issue, and run tools keep working fine. Verified against a live org: three different states all surface as `403` on the git endpoint — a PAT awaiting org approval, an approved PAT missing `Contents`, and (as `404 Repository not found`) a repo the token can't see at all. The status code won't tell you which, but **one probe will**: a pending token can only read *public* resources, so if the PR/issue tools return private data the token is already approved and `Contents` is the thing missing. `Contents: Read` grants no ability to push: that takes `Contents: Read and write`, which Kevin never needs.
 5. Generate, copy the `github_pat_…` value.
-6. Ensure the secret store exists (§D.1) and add the line in your editor:
+6. Ensure the secret store exists (§D.1) and add one line per owner in your editor, named for the owner:
    ```
-   GITHUB_TOKEN=github_pat_...
+   GITHUB_TOKEN_MY_ORG=github_pat_...
+   GITHUB_TOKEN_MY_LOGIN=github_pat_...
    ```
+   `GITHUB_TOKEN=` is optional: it covers any owner without a line of its own.
 
-**No token, already signed in?** When `GITHUB_TOKEN` is absent, the `gh`-based tools use the operator's own `gh auth login` instead (`github_fast_forward` still needs the token). That suits someone who only works with issues; the read-only PAT stays the recommended setup for anyone reviewing code.
+**No token, already signed in?** For an owner with no key and no `GITHUB_TOKEN`, the `gh`-based tools use the operator's own `gh auth login` instead (`github_fast_forward` skips that repo). The per-owner token stays the recommended setup for anyone reviewing code.
 
-**(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope the PAT to whatever those paths point at (plus any repo you'll name explicitly).
+**Writes.** A token can never do more than its owner's role on the repo: opening and labelling issues needs at least Triage, and attaching files or editing a PR needs Write. Labels and milestones must exist before a tool can apply them (`gh issue create --label` fails on an unknown label), so point the operator at the repo's Labels and Milestones pages. Attachments take png, jpg, gif, webp, svg, mp4, mov or webm, up to 10 MB each, and need `gh` 2.99.0 or later (`gh --version`); text such as a log goes in the issue body.
+
+**(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope each owner's token to whatever those paths point at (plus any repo you'll name explicitly).
 
 **(4) Summary:**
 
 ```
-✅ GitHub pack activated (read-only).
+✅ GitHub pack activated.
 
 Tool permissions granted:  github_pr_list, github_pr_view, github_pr_comments, github_pr_diff,
                            github_pr_checks, github_run_list, github_run_view, github_run_log,
-                           github_issue_list, github_issue_view, github_fast_forward
-Secret line to add:        GITHUB_TOKEN  (add to .state/secrets/.env)
+                           github_issue_list, github_issue_view, github_fast_forward,
+                           github_issue_create, github_issue_comment, github_issue_update, github_pr_update
+Denied:                    Bash(gh), Bash(gh *)  (GitHub goes through the tools)
+Secret lines to add:       GITHUB_TOKEN_<OWNER> per owner, e.g. GITHUB_TOKEN_MY_ORG  (add to .state/secrets/.env)
+                           GITHUB_TOKEN  optional, for any owner without its own line
 Default repo:              resolved from AGENT_CODE_PATH / AGENT_GIT_REPOS; override per-call with repo="owner/repo"
 
-Mint a fine-grained, READ-ONLY PAT (PRs·Issues·Metadata·Actions·Contents — NOT Workflows; no Checks exists),
-add it to <HOME>/.state/secrets/.env — never paste it into chat. Relaunch Claude Code to load it.
+Mint one fine-grained PAT per owner: read-only PRs·Issues·Metadata·Actions·Contents (NOT Workflows; no Checks exists),
+plus Read and write on Issues · Pull requests only for the writes you want,
+add each to <HOME>/.state/secrets/.env — never paste one into chat. Relaunch Claude Code to load them.
 Requires the `gh` CLI on PATH (`brew install gh`).
 ```
-
-**(5) Issue writes (optional level).** Ask separately, after the read-only pack is set up:
-
-> **Also let Kevin open and tag issues?**
-> Adds `github_issue_create` and `github_issue_comment` (both can attach screenshots and videos) and `github_issue_update` (labels and milestone). They write to GitHub, where everyone with access to the repo sees them. Nothing closes an issue, edits someone's text, or touches a pull request.
->
-> - Yes — grant the three tools
-> - No (Recommended unless issues are how this agent hands work to someone)
-
-If yes:
-
-1. **Sign in.** The issue tools run as the operator's own GitHub login, never as the read-only `GITHUB_TOKEN`. Have the operator run `gh auth login` once in a terminal of their own (GitHub.com → HTTPS → log in with a web browser); a browser opens and they approve it. This is the recommended path, and the only easy one that can attach files: GitHub's upload accepts the `gh auth login` token or a classic personal access token, not a fine-grained one. A home that must pin a token instead adds a classic token as `GITHUB_ISSUES_TOKEN=` in `.state/secrets/.env` (§D.1); it wins over the login.
-2. **Repo access.** Opening and labelling issues needs at least the Triage role on the repo; attaching screenshots or videos needs **Write**. The login can do whatever the person's GitHub role allows, so the role is the limit.
-3. Labels and milestones must exist before a tool can apply them; `gh issue create --label` fails on an unknown label. Point the operator at the repo's Labels and Milestones pages.
-4. Attachments take png, jpg, gif, webp, svg, mp4, mov or webm, up to 10 MB each, and need `gh` 2.99.0 or later (`gh --version`). Text such as a log goes in the issue body. In a private repo only people with access can open them.
-5. Grant via §E: `mcp__plugin_agent-kevin_kevin__github_issue_create`, `mcp__plugin_agent-kevin_kevin__github_issue_comment`, `mcp__plugin_agent-kevin_kevin__github_issue_update`.
 
 ### A.2e — API pack walk
 
@@ -754,7 +772,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - SEO (clears API keys + permissions; skill files stay loaded but tool calls will error)
 > - Browser (removes the Perplexity API key from `.state/secrets/.env`; the MCP server stays plugin-bundled; briefings fall back to the built-in web search. Playwright tools stay since they're built-in)
 > - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
-> - GitHub (revokes the `github_*` tool permissions; optionally removes `GITHUB_TOKEN`)
+> - GitHub (revokes the `github_*` tool permissions; optionally removes the `GITHUB_TOKEN*` lines)
 > - Helpdesk (revokes the `helpdesk_*` tool permissions; optionally removes the helpdesk keys)
 > - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
 
@@ -777,10 +795,11 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove your `AGENT_DB_*` connection lines from `.state/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `AGENT_DB_*` lines they no longer want from `.state/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
-- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
-- `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
-- If the issue-write level is on, revoke `github_issue_create`, `github_issue_comment` and `github_issue_update` too, and offer to remove `GITHUB_ISSUES_TOKEN` if one was set. To drop only that level, revoke those three; the read-only pack stays. The operator's `gh auth login` is theirs: `gh auth logout` ends it.
+- `AskUserQuestion`: "Also remove the GitHub tokens from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete `GITHUB_TOKEN` and every `GITHUB_TOKEN_<OWNER>` line in their editor (§D.1 — Claude can't edit the gated file). If no, leave them (harmless once the perms are revoked).
+- `AskUserQuestion`: "Let Kevin run `gh` in its own shell again?" (No, keep it denied (Recommended) / Yes). Only on yes, remove `Bash(gh)` and `Bash(gh *)` from `permissions.deny` (§E deny helper, remove); removing a deny widens what the agent can run, so it is never the default.
+- The operator's `gh auth login` is theirs: `gh auth logout` ends it.
 
 **Helpdesk deconfigure:**
 - Revoke `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment` and `helpdesk_note` from `permissions.allow` (§E remove helper).
@@ -925,7 +944,7 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 ```
 
 **Prefix rule** (use this whenever you need to know how a tool surfaces to permissions.allow):
-- Plugin-bundled MCP tools (from the plugin manifest's `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the read-only `github_*` PR/Actions tools).
+- Plugin-bundled MCP tools (from the plugin manifest's `mcpServers.<name>`): `mcp__plugin_agent-kevin_<server>__<tool>`. The plugin bundles a single server: `kevin` (its tools include `web_search`, which wraps the Perplexity Search API, and the `github_*` tools).
 - Standalone MCP servers registered in `<HOME>/.mcp.json` (the Xcode pack's `xcode` server, plus any the user adds): `mcp__<server>__<tool>`
 
 **Revoke** (remove entries — deconfigure path):
@@ -934,6 +953,8 @@ Example final shape — `/init` always-on baseline + both SEO and Browser activa
 2. Filter out the entries to revoke. Keep the array sorted.
 3. If `permissions.allow` ends up empty, you can leave `[]` or drop the `permissions` block — both work.
 4. Write back.
+
+**Deny** (a pack that routes a capability through its tools, such as GitHub's `Bash(gh)` / `Bash(gh *)`): the same steps as Grant and Revoke, on `permissions.deny` instead of `permissions.allow`. Deny wins over `ask` and `allow` in every mode, so only write entries the pack's walk names.
 
 **Why `settings.json` (not `settings.local.json`):** these aren't secrets — they're "the user opted into this pack, so its tools shouldn't trigger a confirm prompt." Putting them in `settings.json` keeps them committable (no harm in sharing across machines if the user clones their Kevin home).
 
