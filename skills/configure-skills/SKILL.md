@@ -291,7 +291,7 @@ Gives Kevin **read-only** GitHub access: list/view PRs and issues, read review t
 **(2) Surface the PAT minting steps.** `AskUserQuestion`:
 
 > **Activate GitHub (read-only)?**
-> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Ensures `.state/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. The tools stay callable but return "GITHUB_TOKEN not set" until you fill it.
+> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Ensures `.state/secrets/.env` exists. You add a `GITHUB_TOKEN=<value>` line via your editor after this completes. Until you do, the tools use your own `gh auth login` if you have one, and `github_fast_forward` reports "GITHUB_TOKEN not set".
 >
 > - Yes — grant permissions + ensure placeholder
 > - Skip (no permission grant, no placeholder)

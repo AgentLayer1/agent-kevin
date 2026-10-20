@@ -16,7 +16,7 @@
  *
  * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
  * failing workflow runs. No write subcommands (comment/create/merge/re-run) are exposed here; the
- * one opt-in write surface, issues on their own token, lives in github-issues.ts.
+ * one opt-in write surface, issues, lives in github-issues.ts.
  *
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */

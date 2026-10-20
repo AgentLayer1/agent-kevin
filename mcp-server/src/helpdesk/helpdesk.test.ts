@@ -195,3 +195,40 @@ describe('SupportCandy downloads', () => {
     expect(JSON.stringify(file)).not.toContain('auth_code');
   });
 });
+
+describe('SupportCandy status filter', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    process.env.SUPPORTCANDY_URL = 'https://help.example.com';
+    process.env.SUPPORTCANDY_USERNAME = 'agent-bot';
+    process.env.SUPPORTCANDY_APP_PASSWORD = 'abcd efgh';
+    const recent = '2026-10-20 08:00:00';
+    const pages: Record<string, unknown> = {
+      '1': { has_next_page: true, results: [{ id: 1, status: 1, date_updated: recent }, { id: 2, status: 1, date_updated: recent }] },
+      '2': { has_next_page: false, results: [{ id: 3, status: 4, date_updated: recent }] }
+    };
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      const body = url.pathname.endsWith('/statuses')
+        ? [{ id: 1, name: 'Open' }, { id: 4, name: 'Closed' }]
+        : url.pathname.endsWith('/categories')
+          ? []
+          : url.pathname.endsWith('/tickets')
+            ? pages[url.searchParams.get('page') ?? '1']
+            : { results: [] };
+      return new Response(JSON.stringify(body));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+  });
+
+  test('keeps paging until it has enough tickets in the wanted status', async () => {
+    const tickets = await supportcandy.list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['3']);
+  });
+});

@@ -193,20 +193,18 @@ export const supportcandy: HelpdeskConnector = {
     const { site } = requireCredentials();
     const names = await lookups();
     const cutoff = Date.parse(query.updatedSince);
-    const recent = async (page: number, gathered: ScTicket[]): Promise<ScTicket[]> => {
+    const wanted = query.status?.map((status) => status.toLowerCase());
+    const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
+    const recent = async (page: number, gathered: { raw: ScTicket; ticket: HelpdeskTicket }[]): Promise<{ raw: ScTicket; ticket: HelpdeskTicket }[]> => {
       const result = await call<ScPage<ScTicket>>('/tickets', {
         query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
       });
       const fresh = (result.results ?? []).filter((ticket) => Date.parse(toIso(ticket.date_updated) ?? '') >= cutoff);
-      const next = [...gathered, ...fresh];
+      const next = [...gathered, ...fresh.map((raw) => ({ raw, ticket: mapTicket(raw, names, site, '') })).filter(({ ticket }) => matches(ticket))];
       const reachedCutoff = fresh.length < (result.results ?? []).length;
       return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
     };
-    const wanted = query.status?.map((status) => status.toLowerCase());
-    const tickets = (await recent(1, []))
-      .map((raw) => ({ raw, ticket: mapTicket(raw, names, site, '') }))
-      .filter(({ ticket }) => !wanted || wanted.includes(ticket.status.toLowerCase()))
-      .slice(0, query.limit);
+    const tickets = (await recent(1, [])).slice(0, query.limit);
     return Promise.all(
       tickets.map(async ({ raw, ticket }) => ({ ...ticket, body: truncate(await openingText(raw.id), LIST_PREVIEW_CHARS) }))
     );

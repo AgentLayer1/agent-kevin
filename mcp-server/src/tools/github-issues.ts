@@ -67,8 +67,8 @@ export interface IssueUpdate {
 
 export const issueEditArgs = ({ repo, number, addLabels, removeLabels, milestone }: IssueUpdate): string[] => {
   const changes = [
-    ...(addLabels?.length ? ['--add-label', addLabels.join(',')] : []),
-    ...(removeLabels?.length ? ['--remove-label', removeLabels.join(',')] : []),
+    ...(addLabels ?? []).flatMap((label) => ['--add-label', label]),
+    ...(removeLabels ?? []).flatMap((label) => ['--remove-label', label]),
     ...(milestone === undefined ? [] : milestone === '' ? ['--remove-milestone'] : ['--milestone', milestone])
   ];
   if (changes.length === 0) {
