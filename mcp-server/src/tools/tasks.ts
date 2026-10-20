@@ -112,7 +112,8 @@ export const tools: ToolDef[] = [
   }),
   defineTool({
     name: 'task_update',
-    description: 'Update fields on an existing task. Status transitions are validated.',
+    description:
+      'Update fields on an existing task. Status transitions are validated. Returns the fields written; one you sent that is missing was not applied.',
     inputSchema: {
       id: z.string(),
       status: StatusEnum.optional(),
@@ -133,7 +134,7 @@ export const tools: ToolDef[] = [
     handler: async ({ id, ...fields }) => {
       const updates = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
       updateTask(id, updates);
-      return { ok: true };
+      return { ok: true, written: Object.keys(updates) };
     }
   }),
   defineTool({

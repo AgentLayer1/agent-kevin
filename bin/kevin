@@ -404,7 +404,7 @@ async function run(): Promise<void> {
         if (flagArr('depends_on').length) fields.depends_on = flagArr('depends_on');
         const { updateTask } = await import(resolve(PLUGIN_ROOT, `${TASKS}/mutate`));
         updateTask(id, fields);
-        console.log(JSON.stringify({ ok: true }));
+        console.log(JSON.stringify({ ok: true, written: Object.keys(fields) }));
         return;
       }
       case 'close': {
