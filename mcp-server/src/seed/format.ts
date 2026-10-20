@@ -266,6 +266,11 @@ export const PACKS: Record<string, PackDef> = {
     secretKeys: ['GITHUB_TOKEN'],
     settingsEnv: []
   },
+  'github-issues': {
+    grants: mcp(['github_issue_create', 'github_issue_comment', 'github_issue_update']),
+    secretKeys: ['GITHUB_ISSUES_TOKEN'],
+    settingsEnv: []
+  },
   helpdesk: {
     grants: mcp(['helpdesk_tickets', 'helpdesk_ticket', 'helpdesk_note']),
     secretKeys: ['SUPPORTCANDY_APP_PASSWORD', 'PYLON_API_TOKEN'],

@@ -343,6 +343,24 @@ add it to <HOME>/.state/secrets/.env — never paste it into chat. Relaunch Clau
 Requires the `gh` CLI on PATH (`brew install gh`).
 ```
 
+**(5) Issue writes (optional level).** Ask separately, after the read-only pack is set up:
+
+> **Also let Kevin open and tag issues?**
+> Adds `github_issue_create`, `github_issue_comment` and `github_issue_update` (labels and milestone). They write to GitHub, where everyone with access to the repo sees them, and run on a second token so `GITHUB_TOKEN` stays read-only. Nothing closes an issue, edits someone's text, or touches a pull request.
+>
+> - Yes — grant the three tools + mint an Issues-only token
+> - No (Recommended unless issues are how this agent hands work to someone)
+
+If yes:
+
+1. Mint a second fine-grained token at [GitHub → Fine-grained tokens](https://github.com/settings/tokens?type=beta): the same **Resource owner**, **Repository access** limited to the repos it may write issues in, and **Repository permissions → Issues: Read and write** (Metadata: Read is added automatically). Nothing else. An organization owner may have to approve it (Organization → Settings → Personal access tokens → Pending requests), and only members can pick an organization as the resource owner.
+2. Have the operator add it in their editor (§D.1):
+   ```
+   GITHUB_ISSUES_TOKEN=github_pat_...
+   ```
+3. Labels and milestones must exist before a tool can apply them; `gh issue create --label` fails on an unknown label. Point the operator at the repo's Labels and Milestones pages.
+4. Grant via §E: `mcp__plugin_agent-kevin_kevin__github_issue_create`, `mcp__plugin_agent-kevin_kevin__github_issue_comment`, `mcp__plugin_agent-kevin_kevin__github_issue_update`.
+
 ### A.2e — API pack walk
 
 The lightest pack: no API keys, no MCP tools, no permission grants. The `api-collections` skill authors request files the operator fires themselves; this walk picks which adapter(s) to set up.
@@ -762,6 +780,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
+- If the issue-write level is on, revoke `github_issue_create`, `github_issue_comment` and `github_issue_update` too, and offer the same removal for `GITHUB_ISSUES_TOKEN`. To drop only that level, revoke those three and remove that one line; the read-only pack stays.
 
 **Helpdesk deconfigure:**
 - Revoke `helpdesk_tickets`, `helpdesk_ticket` and `helpdesk_note` from `permissions.allow` (§E remove helper).

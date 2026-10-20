@@ -14,8 +14,8 @@
  * An explicit `owner/repo` always wins. Mirrors how setup-worktree pins its target.
  *
  * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
- * failing workflow runs. No write subcommands (comment/create/merge/re-run) are exposed; those
- * leave the machine and stay a maintainer-gated, human-in-terminal activity.
+ * failing workflow runs. No write subcommands (comment/create/merge/re-run) are exposed here; the
+ * one opt-in write surface, issues on their own token, lives in github-issues.ts.
  *
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
@@ -72,8 +72,11 @@ const requireToken = (): string => {
  * printing valid output (e.g. `gh pr checks` exits 8 on pending / 1 on failure). For
  * those, a non-zero exit with stdout present is a normal result, not an error.
  */
-const runGh = async (args: string[], { allowNonZero = false } = {}): Promise<string> => {
-  const token = requireToken();
+const runGh = async (args: string[], { allowNonZero = false } = {}): Promise<string> =>
+  runGhAs(requireToken(), args, { allowNonZero });
+
+/** `runGh` under an explicit token, for a tool family that carries its own PAT. */
+export const runGhAs = async (token: string, args: string[], { allowNonZero = false } = {}): Promise<string> => {
   try {
     const { stdout } = await execFileAsync('gh', args, { env: childEnv(token), maxBuffer: 64 * 1024 * 1024 });
     log.info(`gh ${args.slice(0, 3).join(' ')} → ${stdout.length}b`);
@@ -129,6 +132,11 @@ const resolveDefaultRepo = async (): Promise<string> => {
  */
 const resolveRepo = async (repo: string | undefined): Promise<string> => {
   requireToken();
+  return repoOrDefault(repo);
+};
+
+/** An explicit `owner/repo`, validated, or the configured codebase's repo. */
+export const repoOrDefault = async (repo: string | undefined): Promise<string> => {
   if (repo) {
     if (!REPO_RE.test(repo)) {
       throw new Error(`Invalid repo (expected OWNER/REPO): ${repo}`);
