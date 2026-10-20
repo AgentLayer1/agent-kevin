@@ -29,7 +29,7 @@
 ## Content rules
 
 - **Write for the reader named in the eyebrow.** Second person; plain words; a term that needs a gloss gets renamed ("bug card", not "issue"). The guide's author speaks in the first person when the operator is handing it over.
-- **Every actor is distinct.** Each person and each agent gets its own name, colour and swimlane column; an agent is never folded into the person it works for. Name an agent by its job on first mention ("your support agent", "Kevin, my coding agent"). When two agents appear, add a short does / never-does table that shows where one's work ends and the other's starts, and what they hand each other.
+- **The guide stays about its reader.** The reader's own flow names only the people and agents they deal with. Someone else's part of the process (how the team takes it from there) gets one short section of its own: what happens, in order, and that the reader does nothing there. Point to it from the reader's flow ("see Development") instead of weaving its actors through every section. Within that section, name each person and agent plainly, one sentence each.
 - **Every step is one action** with what the reader will see when it worked. A step that needs a value says where the value comes from.
 - **Order is dependency order.** A step uses only what an earlier step installed or created.
 - **Mocks and examples are invented** (made-up ids, names and amounts) and look like the real screen. Say so once ("a made-up example").
