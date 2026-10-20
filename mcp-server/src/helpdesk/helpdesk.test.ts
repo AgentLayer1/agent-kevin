@@ -22,8 +22,7 @@ describe('SupportCandy mapping', () => {
     const ticket = mapTicket(
       { id: 1042, subject: 'Adhan silent', status: 1, category: 2, customer: 77, date_updated: '2026-10-20 08:15:00' },
       LOOKUPS,
-      'https://help.example.com',
-      'It stopped.'
+      'https://help.example.com'
     );
     expect(ticket).toMatchObject({ id: '1042', status: 'Open', category: 'Watch', updated_at: '2026-10-20T08:15:00Z' });
     expect(ticket.link).toBe(adminLink('https://help.example.com', 1042));
@@ -72,13 +71,9 @@ describe('SupportCandy notes', () => {
 });
 
 describe('Pylon mapping', () => {
-  test('an issue keeps its state and tags and drops the requester', async () => {
-    const ticket = await mapIssue(
-      { id: 'iss_1', title: 'Export broken', state: 'new', tags: ['bug'], body_html: `<p>${'x'.repeat(500)}</p>`, requester: { email: 'ada@acme.test' } },
-      true
-    );
-    expect(ticket).toMatchObject({ id: 'iss_1', status: 'new', tags: ['bug'] });
-    expect(ticket.body.endsWith('…')).toBe(true);
+  test('an issue keeps its state and tags and drops the requester', () => {
+    const ticket = mapIssue({ id: 'iss_1', title: 'Export broken', state: 'new', tags: ['bug'], requester: { email: 'ada@acme.test' } });
+    expect(ticket).toMatchObject({ id: 'iss_1', subject: 'Export broken', status: 'new', tags: ['bug'] });
     expect(JSON.stringify(ticket)).not.toContain('ada@acme.test');
   });
 

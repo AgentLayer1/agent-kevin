@@ -12,12 +12,12 @@ import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync } from 'node:fs';
 import { extname } from 'node:path';
 import { z } from 'zod';
-import { repoOrDefault, runGhAs } from './github';
+import { resolveRepo, runGhAs } from './github';
 
 const issuesToken = (): string | undefined => env('GITHUB_ISSUES_TOKEN');
 
 /** The file types gh's `--attach` uploads. */
-export const ATTACHABLE = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.mp4', '.mov', '.webm'] as const;
+const ATTACHABLE = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.mp4', '.mov', '.webm'] as const;
 
 export const attachArgs = (paths: readonly string[] | undefined): string[] =>
   (paths ?? []).flatMap((path) => {
@@ -33,7 +33,7 @@ export const attachArgs = (paths: readonly string[] | undefined): string[] =>
     return ['--attach', path];
   });
 
-export interface IssueCreate {
+interface IssueCreate {
   repo: string;
   title: string;
   body: string;
@@ -56,7 +56,7 @@ export const issueCreateArgs = ({ repo, title, body, labels, milestone, attachme
   ...attachArgs(attachments)
 ];
 
-export interface IssueUpdate {
+interface IssueUpdate {
   repo: string;
   number: number;
   addLabels?: readonly string[];
@@ -104,7 +104,7 @@ export const tools: ToolDef[] = [
       attachments
     },
     handler: async ({ repo, title, body, labels, milestone, attachments: files }) => {
-      const target = await repoOrDefault(repo);
+      const target = await resolveRepo(repo);
       const url = (await runGhAs(issuesToken(), issueCreateArgs({ repo: target, title, body, labels, milestone, attachments: files }))).trim();
       return { ok: true, repo: target, url };
     }
@@ -120,7 +120,7 @@ export const tools: ToolDef[] = [
       attachments
     },
     handler: async ({ repo, number, body, attachments: files }) => {
-      const target = await repoOrDefault(repo);
+      const target = await resolveRepo(repo);
       const url = (
         await runGhAs(issuesToken(), ['issue', 'comment', String(number), '-R', target, '--body', body, ...attachArgs(files)])
       ).trim();
@@ -139,7 +139,7 @@ export const tools: ToolDef[] = [
       milestone: z.string().optional().describe("Milestone title to set, or '' to clear it.")
     },
     handler: async ({ repo, number, add_labels, remove_labels, milestone }) => {
-      const target = await repoOrDefault(repo);
+      const target = await resolveRepo(repo);
       const args = issueEditArgs({ repo: target, number, addLabels: add_labels, removeLabels: remove_labels, milestone });
       const url = (await runGhAs(issuesToken(), args)).trim();
       return { ok: true, repo: target, number, url };

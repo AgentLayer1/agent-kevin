@@ -125,11 +125,8 @@ const resolveDefaultRepo = async (): Promise<string> => {
   );
 };
 
-/** Resolve the target repo for a call; every handler awaits this as its first step. */
-const resolveRepo = async (repo: string | undefined): Promise<string> => repoOrDefault(repo);
-
-/** An explicit `owner/repo`, validated, or the configured codebase's repo. */
-export const repoOrDefault = async (repo: string | undefined): Promise<string> => {
+/** An explicit `owner/repo`, validated, or the configured codebase's repo; every handler awaits this first. */
+export const resolveRepo = async (repo: string | undefined): Promise<string> => {
   if (repo) {
     if (!REPO_RE.test(repo)) {
       throw new Error(`Invalid repo (expected OWNER/REPO): ${repo}`);

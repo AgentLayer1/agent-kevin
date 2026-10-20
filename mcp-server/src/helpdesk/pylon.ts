@@ -5,29 +5,21 @@
  */
 import { addNote, getIssue, getIssueMessages, searchIssues, type IssueFilter } from '@/pylon/client';
 import { env } from '@/shared/env';
-import { htmlToText } from '@/pylon/format';
+import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
 import type { PylonIssue, PylonMessage } from '@/pylon/types';
 import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskMessage, type HelpdeskTicket, type MessageKind, type TicketQuery } from './types';
 
-const LIST_PREVIEW_CHARS = 400;
-
-const truncate = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max)}…` : text);
-
-export const mapIssue = async (issue: PylonIssue, preview: boolean): Promise<HelpdeskTicket> => {
-  const body = await htmlToText(issue.body_html);
-  return {
-    id: issue.id,
-    helpdesk: 'pylon',
-    subject: issue.title ?? '',
-    status: issue.state ?? '',
-    tags: issue.tags ?? [],
-    created_at: issue.created_at,
-    updated_at: issue.updated_at,
-    ...(issue.link && { link: issue.link }),
-    body: preview ? truncate(body, LIST_PREVIEW_CHARS) : body
-  };
-};
+export const mapIssue = (issue: PylonIssue): HelpdeskTicket => ({
+  id: issue.id,
+  helpdesk: 'pylon',
+  subject: issue.title ?? '',
+  status: issue.state ?? '',
+  tags: issue.tags ?? [],
+  created_at: issue.created_at,
+  updated_at: issue.updated_at,
+  ...(issue.link && { link: issue.link })
+});
 
 const kindOf = (message: PylonMessage): MessageKind => {
   if (message.is_private) {
@@ -67,11 +59,11 @@ export const pylon: HelpdeskConnector = {
   configured: () => Boolean(env('PYLON_API_TOKEN')),
   list: async (query) => {
     const page = await searchIssues({ filter: issueFilter(query), ...(query.search && { search_text: query.search }), limit: query.limit });
-    return Promise.all(page.issues.map((issue) => mapIssue(issue, true)));
+    return page.issues.map(mapIssue);
   },
   get: async (id) => {
     const [issue, messages] = await Promise.all([getIssue(id), getIssueMessages(id)]);
-    return { ticket: await mapIssue(issue, false), messages: await Promise.all(messages.map(mapMessage)) };
+    return { ticket: mapIssue(issue), messages: await Promise.all(messages.map(mapMessage)) };
   },
   addNote: async (id, bodyHtml) => (await addNote(id, bodyHtml)).id,
   download: async (attachmentId) => {

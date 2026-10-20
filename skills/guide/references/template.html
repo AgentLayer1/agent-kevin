@@ -168,7 +168,6 @@ p { margin: 0 0 14px; }
 .who .role { color: var(--muted); font-size: 13.5px; margin-bottom: 10px; }
 .who ul { margin: 0; padding-left: 18px; font-size: 14.5px; }
 .who li { margin: 4px 0; }
-.who.pairs { grid-template-columns: repeat(2, 1fr); }
 
 /* swimlane: one column per actor, one row per step */
 .lanes { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow); }
@@ -266,6 +265,9 @@ td:first-child { white-space: nowrap; }
 .rules div b { display: block; font-size: 15.5px; margin-bottom: 4px; }
 .rules div span { color: var(--muted); }
 
+/* four cards that would wrap three-and-one: two by two, one column on a phone */
+.two-up { grid-template-columns: repeat(2, 1fr); }
+
 details.more { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin: 10px 0; }
 details.more summary { cursor: pointer; padding: 13px 16px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 details.more summary::-webkit-details-marker { display: none; }
@@ -280,7 +282,7 @@ footer { color: var(--faint); font-size: 13px; border-top: 1px solid var(--line)
   nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   main { padding: 36px 20px 80px; }
   h1 { font-size: 36px; }
-  .who.pairs { grid-template-columns: 1fr; }
+  .two-up { grid-template-columns: 1fr; }
   .lane-head { display: none; }
   .lane-row { grid-template-columns: 34px 1fr; }
   .lane-row .cell:empty { display: none; }

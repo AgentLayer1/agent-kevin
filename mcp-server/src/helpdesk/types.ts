@@ -18,8 +18,6 @@ export interface HelpdeskTicket {
   updated_at?: string;
   /** Agent-side link; never a customer link that carries its own auth. */
   link?: string;
-  /** The opening message, trimmed for a list or whole for a single ticket. */
-  body: string;
 }
 
 export const MESSAGE_KINDS = {

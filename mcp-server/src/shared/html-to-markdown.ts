@@ -8,7 +8,8 @@
  *
  * Always returns a result. On Readability failure (rare — paywalled stubs,
  * weird markup), falls back to a regex strip of structural noise so callers
- * never have to handle null.
+ * never have to handle null. `htmlToText` skips Readability for a fragment
+ * (a ticket message, an issue body) that is all content.
  */
 
 const TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
@@ -47,11 +48,21 @@ function sanitizeHtmlFallback(html: string): string {
     .trim();
 }
 
+let turndownPromise: Promise<(html: string) => string> | null = null;
+
+/** One Turndown setup for pages and fragments alike, built on first use. */
+const converter = (): Promise<(html: string) => string> =>
+  (turndownPromise ??= (async () => {
+    const TurndownService = (await import('turndown')).default;
+    const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-', emDelimiter: '*' });
+    turndown.remove(['script', 'style', 'noscript', 'iframe', 'form', 'button']);
+    return (html) => turndown.turndown(html).trim();
+  })());
+
 export async function htmlToMarkdown(html: string): Promise<ExtractedArticle> {
   try {
     const { parseHTML } = await import('linkedom');
     const { Readability } = await import('@mozilla/readability');
-    const TurndownService = (await import('turndown')).default;
 
     const { document } = parseHTML(html);
     // Readability expects a Document; linkedom's matches the shape closely
@@ -60,14 +71,7 @@ export async function htmlToMarkdown(html: string): Promise<ExtractedArticle> {
     const reader = new Readability(document as any);
     const article = reader.parse();
     if (article && article.content) {
-      const td = new TurndownService({
-        headingStyle: 'atx',
-        codeBlockStyle: 'fenced',
-        bulletListMarker: '-',
-        emDelimiter: '*'
-      });
-      td.remove(['script', 'style', 'noscript', 'iframe', 'form', 'button']);
-      const markdown = td.turndown(article.content).trim();
+      const markdown = (await converter())(article.content);
       if (markdown) {
         return {
           title: article.title?.trim() || extractTitleTag(html),
@@ -94,3 +98,16 @@ export function renderExtracted(extracted: ExtractedArticle): string {
   const byline = extracted.byline ? `*${extracted.byline}*\n\n` : '';
   return `${heading}${byline}${extracted.markdown}`;
 }
+
+/** An HTML fragment → readable markdown-ish text (links survive). */
+export const htmlToText = async (html: string | undefined): Promise<string> => {
+  if (!html) return '';
+  try {
+    return (await converter())(html);
+  } catch {
+    return html
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+};

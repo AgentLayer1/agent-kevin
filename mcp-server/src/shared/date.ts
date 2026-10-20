@@ -65,3 +65,12 @@ export function nowTime(date: Date = new Date()): string {
 export function nowTimeCompact(date: Date = new Date()): string {
   return nowTime(date).replace(':', '');
 }
+
+/** `Nh` / `Nd` / `Nw` / `Nm` lookback → RFC3339 start time. */
+export const sinceToStartTime = (since: string, now: Date = new Date()): string => {
+  const match = /^(\d+)([hdwm])$/.exec(since);
+  if (!match) throw new Error('Invalid `since` — use Nh / Nd / Nw / Nm (hours/days/weeks/months).');
+  const hoursPerUnit = { h: 1, d: 24, w: 24 * 7, m: 24 * 30 } as const;
+  const hours = Number(match[1]) * hoursPerUnit[match[2] as keyof typeof hoursPerUnit];
+  return new Date(now.getTime() - hours * 3_600_000).toISOString();
+};

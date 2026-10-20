@@ -14,7 +14,7 @@
 
 | Module | Use when | Markup |
 |---|---|---|
-| Who does what | The reader works with other people or agents | `.who` with one `div.c-*` per actor: name, role line, 2–4 bullets. `.who.pairs` lays four actors out two by two, each person beside the agent that works for them |
+| Who does what | The reader works with other people or agents | `.who` with one `div.c-*` per actor: name, role line, 2–4 bullets |
 | Steps | Anything the reader does in order | `ol.steps` of `li` with a checkbox, `strong` title, `.sub` line; add `.who-tag.c-*` when someone else does the step, `.status.soon` / `.status.ready` for what isn't built yet |
 | Code | A command to paste | `.code` with `.label-row` (where to paste it) and a `.copy` button; one command per block |
 | Figure | A real screenshot helps | `figure > img + figcaption`; click zooms. Only real screenshots of the reader's screen, never stock art |
@@ -23,6 +23,7 @@
 | Say | The reader talks to an agent | `.say` cards with `data-kicker="you say"`, the phrase and what it does |
 | Labels | The reader meets statuses or tags | `.label.l-*` pills, explained in a table: tag · what it means · what you do |
 | Rules | A few lines the reader must never break | `.rules` cards: bold rule, one-line reason |
+| Two-up | Four cards in `.who`, `.rules` or `.say` that would wrap three-and-one | add `.two-up`: two by two, one column on a phone |
 | Callout | One thing worth stopping for | `.callout` (amber), `.blue` for context, `.green` for a promise, `.rose` for a warning; a `b.t` kicker |
 | Questions | Objections the reader will have | `details.more`, one per question, answer in two or three sentences |
 

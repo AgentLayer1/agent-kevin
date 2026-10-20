@@ -8,7 +8,7 @@
 import { noteHtml, resolveConnector } from '@/helpdesk/connectors';
 import { saveToTemp } from '@/helpdesk/download';
 import { HELPDESKS } from '@/helpdesk/types';
-import { sinceToStartTime } from '@/pylon/format';
+import { sinceToStartTime } from '@/shared/date';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { untrusted } from '@/shared/untrusted';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_tickets',
     description:
-      'List helpdesk tickets updated within a lookback window, newest first, with a preview of each opening message. Read-only. Filter by status names and free-text search. Works over whichever helpdesk is configured (SupportCandy, Pylon). Requester names and emails are never returned. Use helpdesk_ticket for the whole conversation.',
+      "List helpdesk tickets updated within a lookback window, newest first: id, subject, status, category or tags, dates and an agent link. Read-only. Filter by status names and free-text search. Works over whichever helpdesk is configured (SupportCandy, Pylon). Requester names and emails are never returned. Read a ticket's conversation with helpdesk_ticket.",
     inputSchema: {
       helpdesk: HELPDESK,
       since: z

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { DownloadedFile } from './types';
 
-export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 export const fetchFile = async (url: string, name: string): Promise<DownloadedFile> => {
   const response = await fetch(url);

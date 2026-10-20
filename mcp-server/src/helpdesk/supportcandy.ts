@@ -11,14 +11,13 @@
  */
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
-import { htmlToText } from '@/pylon/format';
+import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
 import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskMessage, type HelpdeskTicket, type MessageKind } from './types';
 
 const API_PATH = '/wp-json/supportcandy/v2';
 const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
-const LIST_PREVIEW_CHARS = 400;
 
 interface Credentials {
   site: string;
@@ -119,19 +118,16 @@ export const toIso = (value: string | undefined): string | undefined =>
 export const adminLink = (site: string, id: number): string =>
   `${site}/wp-admin/admin.php?page=wpsc-tickets&section=ticket-list&id=${id}`;
 
-const truncate = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max)}…` : text);
-
-export const mapTicket = (raw: ScTicket, lookups: Lookups, site: string, body: string): HelpdeskTicket => ({
+export const mapTicket = (raw: ScTicket, lookups: Lookups, site: string): HelpdeskTicket => ({
   id: String(raw.id),
   helpdesk: 'supportcandy',
   subject: raw.subject ?? '',
-  status: (raw.status !== undefined && lookups.statuses.get(raw.status)) || String(raw.status ?? ''),
+  status: raw.status === undefined ? '' : (lookups.statuses.get(raw.status) ?? String(raw.status)),
   ...(raw.category !== undefined && { category: lookups.categories.get(raw.category) ?? String(raw.category) }),
   tags: [],
   created_at: toIso(raw.date_created),
   updated_at: toIso(raw.date_updated),
-  link: adminLink(site, raw.id),
-  body
+  link: adminLink(site, raw.id)
 });
 
 const kindOf = (thread: ScThread, ticketCustomer: number | undefined): MessageKind => {
@@ -179,13 +175,6 @@ const allThreads = async (id: string): Promise<ScThread[]> => {
   return pages(1, []);
 };
 
-/** The opening message: SupportCandy files a ticket's description as its first `report` thread. */
-const openingText = async (id: number): Promise<string> => {
-  const first = await call<ScPage<ScThread>>(`/tickets/${id}/threads`, { query: { page: 1, per_page: 1, order: 'ASC' } });
-  const thread = first.results?.[0];
-  return thread && typeof thread.body === 'string' ? htmlToText(thread.body) : '';
-};
-
 export const supportcandy: HelpdeskConnector = {
   name: 'supportcandy',
   configured: () => credentials() !== null,
@@ -195,19 +184,16 @@ export const supportcandy: HelpdeskConnector = {
     const cutoff = Date.parse(query.updatedSince);
     const wanted = query.status?.map((status) => status.toLowerCase());
     const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
-    const recent = async (page: number, gathered: { raw: ScTicket; ticket: HelpdeskTicket }[]): Promise<{ raw: ScTicket; ticket: HelpdeskTicket }[]> => {
+    const recent = async (page: number, gathered: HelpdeskTicket[]): Promise<HelpdeskTicket[]> => {
       const result = await call<ScPage<ScTicket>>('/tickets', {
         query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
       });
       const fresh = (result.results ?? []).filter((ticket) => Date.parse(toIso(ticket.date_updated) ?? '') >= cutoff);
-      const next = [...gathered, ...fresh.map((raw) => ({ raw, ticket: mapTicket(raw, names, site, '') })).filter(({ ticket }) => matches(ticket))];
+      const next = [...gathered, ...fresh.map((raw) => mapTicket(raw, names, site)).filter(matches)];
       const reachedCutoff = fresh.length < (result.results ?? []).length;
       return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
     };
-    const tickets = (await recent(1, [])).slice(0, query.limit);
-    return Promise.all(
-      tickets.map(async ({ raw, ticket }) => ({ ...ticket, body: truncate(await openingText(raw.id), LIST_PREVIEW_CHARS) }))
-    );
+    return (await recent(1, [])).slice(0, query.limit);
   },
   get: async (id) => {
     const { site } = requireCredentials();
@@ -216,8 +202,7 @@ export const supportcandy: HelpdeskConnector = {
     const found = await Promise.all(ids.map((id) => call<ScAttachment>(`/attachments/${encodeURIComponent(id)}`)));
     const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
     const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames)));
-    const opening = messages.find((message) => message.kind === MESSAGE_KINDS.customer)?.body ?? '';
-    return { ticket: mapTicket(raw, names, site, opening), messages };
+    return { ticket: mapTicket(raw, names, site), messages };
   },
   addNote: async (id, bodyHtml) => {
     const created = await call<{ id?: number } | ScThread>(`/tickets/${encodeURIComponent(id)}/threads`, {
