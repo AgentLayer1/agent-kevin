@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
@@ -89,5 +89,29 @@ describe('file logging', () => {
         expect(existsSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'))).toBe(false);
       }
     );
+  });
+});
+
+describe('redaction', () => {
+  test("a per-owner GitHub token's value never reaches the log file", async () => {
+    const secret = 'fixture-owner-token-0000';
+    process.env.GITHUB_TOKEN_ACME = secret;
+    try {
+      await withHome(
+        (home) => {
+          mkdirSync(resolve(home, RUNTIME_DIR), { recursive: true });
+          writeFileSync(resolve(home, RUNTIME_DIR, HOME_MARKER_FILES[0]), `${JSON.stringify({ plugin: pluginName() })}\n`);
+        },
+        async (home) => {
+          const { log } = await import(`@/shared/log?redact=${Date.now()}`);
+          log.info(`calling gh with ${secret}`);
+          const written = readFileSync(resolve(home, RUNTIME_DIR, 'logs', 'app.log'), 'utf8');
+          expect(written).not.toContain(secret);
+          expect(written).toContain('[REDACTED]');
+        }
+      );
+    } finally {
+      delete process.env.GITHUB_TOKEN_ACME;
+    }
   });
 });

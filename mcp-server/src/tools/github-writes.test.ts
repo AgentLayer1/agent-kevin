@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { childEnv } from './github';
-import { attachArgs, issueCreateArgs, issueEditArgs } from './github-issues';
+import { attachArgs, issueCreateArgs, issueEditArgs, prEditArgs } from './github-writes';
 
 describe('issueCreateArgs', () => {
   test('repeats --label per label and adds the milestone when given', () => {
@@ -21,12 +21,30 @@ describe('issueEditArgs', () => {
     ]);
   });
 
+  test('replaces the description alone', () => {
+    expect(issueEditArgs({ repo: 'acme/app', number: 57, body: 'Steps to reproduce' })).toEqual([
+      'issue', 'edit', '57', '-R', 'acme/app', '--body', 'Steps to reproduce'
+    ]);
+  });
+
   test('an empty milestone clears it', () => {
     expect(issueEditArgs({ repo: 'acme/app', number: 57, milestone: '' })).toContain('--remove-milestone');
   });
 
   test('refuses a call that changes nothing', () => {
     expect(() => issueEditArgs({ repo: 'acme/app', number: 57 })).toThrow(/Nothing to change/);
+  });
+});
+
+describe('prEditArgs', () => {
+  test('sets only what was given', () => {
+    expect(prEditArgs({ repo: 'acme/app', number: 9, body: 'New description' })).toEqual([
+      'pr', 'edit', '9', '-R', 'acme/app', '--body', 'New description'
+    ]);
+  });
+
+  test('refuses a call that changes nothing', () => {
+    expect(() => prEditArgs({ repo: 'acme/app', number: 9 })).toThrow(/Nothing to change/);
   });
 });
 
@@ -43,18 +61,26 @@ describe('attachArgs', () => {
 });
 
 describe('childEnv', () => {
-  const saved = process.env.GITHUB_TOKEN;
+  const keys = ['GITHUB_TOKEN', 'GITHUB_TOKEN_ACME', 'GH_TOKEN'] as const;
+  const saved = keys.map((key) => [key, process.env[key]] as const);
   afterEach(() => {
-    if (saved === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = saved;
-    }
+    saved.forEach(([key, value]) => {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    });
   });
 
-  test('an issue write never inherits the read-only token', () => {
-    process.env.GITHUB_TOKEN = 'read-only';
+  test('a call carries only the token it resolved', () => {
+    process.env.GITHUB_TOKEN = 'catch-all';
+    process.env.GITHUB_TOKEN_ACME = 'acme-only';
+    process.env.GH_TOKEN = 'login';
+    const child = childEnv('acme-only');
+    expect(child.GITHUB_TOKEN).toBe('acme-only');
+    expect(child.GITHUB_TOKEN_ACME).toBeUndefined();
+    expect(child.GH_TOKEN).toBeUndefined();
     expect(childEnv(undefined).GITHUB_TOKEN).toBeUndefined();
-    expect(childEnv('issues').GITHUB_TOKEN).toBe('issues');
   });
 });

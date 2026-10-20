@@ -94,11 +94,13 @@ const SENSITIVE_KEYS = [
   'PERPLEXITY_API_KEY',
   'SERPAPI_KEY',
   'OPENPAGERANK_API_KEY',
-  'GITHUB_ISSUES_TOKEN',
   'PYLON_API_TOKEN',
   'SUPPORTCANDY_APP_PASSWORD',
   'GOOGLE_OAUTH_CLIENT_SECRET'
 ] as const;
+
+/** `GITHUB_TOKEN` and every per-owner `GITHUB_TOKEN_<OWNER>`, whose names aren't known ahead. */
+const SENSITIVE_KEY_RE = /^GITHUB_TOKEN(_|$)/;
 
 // ── Rotation helpers ──────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ const TOKEN_PATTERNS: RegExp[] = [
 
 function scrub(str: string): string {
   let out = str;
-  for (const key of SENSITIVE_KEYS) {
+  for (const key of [...SENSITIVE_KEYS, ...Object.keys(process.env).filter((name) => SENSITIVE_KEY_RE.test(name))]) {
     const value = process.env[key];
     if (value && value.length >= 8) out = out.split(value).join('[REDACTED]');
   }

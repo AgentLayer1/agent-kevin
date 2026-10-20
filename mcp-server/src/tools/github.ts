@@ -6,23 +6,24 @@
  * Why an MCP tool and not Bash: under the Claude Code seatbelt `gh` dies during TLS
  * setup (its macOS build verifies certs via Security.framework/keychain, which the
  * sandbox blocks — OSStatus -26276). The MCP server runs OUTSIDE that sandbox, so the
- * same `gh` invocation works here. Auth is a fine-grained, read-only PAT in
- * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain); with no
- * token set, gh falls back to the operator's own `gh auth login`.
+ * same `gh` invocation works here. Auth is a fine-grained PAT per repo owner in
+ * `<data-dir>/secrets/.env` as `GITHUB_TOKEN_<OWNER>`, since a fine-grained PAT reaches one owner
+ * only; `GITHUB_TOKEN` covers any owner without its own key, and with neither gh falls back to
+ * the operator's own `gh auth login`. gh honors the token and skips the keychain.
  *
  * Repo resolution when a call omits `repo`: derive `owner/repo` from the `origin` remote
  * of the configured code path, then the first configured git repo, then error asking for one.
  * An explicit `owner/repo` always wins. Mirrors how setup-worktree pins its target.
  *
- * Scope is deliberately read-only against GitHub — list/view PRs, diffs, checks, and diagnose
- * failing workflow runs. No write subcommands (comment/create/merge/re-run) are exposed here; the
- * one opt-in write surface, issues, lives in github-issues.ts.
+ * These tools only read: list/view PRs, diffs, checks, and diagnose failing workflow runs. The
+ * writes (issues, a PR's title and description) live in github-writes.ts; nothing merges or
+ * re-runs. Whether a write is allowed is up to the token's permissions.
  *
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths, PLUGIN_NAME } from '@/config';
 import { RUNTIME_DIR } from '@/shared/naming';
-import { env } from '@/shared/env';
+import { env, GITHUB_TOKEN_KEY, githubTokenKeyFor, githubTokenKeys, isGitHubTokenKey } from '@/shared/env';
 import { log } from '@/shared/log';
 import { expandTilde } from '@/shared/paths';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -43,13 +44,35 @@ const GH_REMOTE_RE = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/;
 /** gh log/diff output is unbounded; cap text payloads so a giant CI log can't blow up context. */
 const DEFAULT_MAX_CHARS = 100_000;
 
+/** A token and the key it was read from; the key names it in errors, only the gh child sees the value. */
+interface GitHubCredential {
+  readonly key: string;
+  readonly value: string;
+}
+
+/** The owner's own key, else the catch-all `GITHUB_TOKEN`, else none (gh's own login). */
+export const tokenFor = (owner: string): GitHubCredential | undefined => {
+  const ownerKey = githubTokenKeyFor(owner);
+  const ownerToken = env(ownerKey);
+  if (ownerToken) {
+    return { key: ownerKey, value: ownerToken };
+  }
+  const fallback = env(GITHUB_TOKEN_KEY);
+  return fallback ? { key: GITHUB_TOKEN_KEY, value: fallback } : undefined;
+};
+
+const ownerOf = (slug: string): string => slug.slice(0, slug.indexOf('/'));
+
+/** Secrets are loaded into process.env, so every GitHub token is dropped before a child runs. */
+const envWithoutGitHubTokens = (): NodeJS.ProcessEnv =>
+  Object.fromEntries(Object.entries(process.env).filter(([key]) => !isGitHubTokenKey(key) && key !== 'GH_TOKEN'));
+
 /**
- * Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. Secrets are
- * loaded into process.env, so the inherited GitHub tokens are dropped and only the one meant for
- * this call is set; with none, gh uses its own `gh auth login`.
+ * Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. Only the
+ * token meant for this call is set; with none, gh uses its own `gh auth login`.
  */
 export const childEnv = (token: string | undefined): NodeJS.ProcessEnv => ({
-  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== 'GITHUB_TOKEN' && key !== 'GH_TOKEN')),
+  ...envWithoutGitHubTokens(),
   ...(token && { GITHUB_TOKEN: token }),
   GH_PROMPT_DISABLED: '1',
   GH_NO_UPDATE_NOTIFIER: '1',
@@ -59,21 +82,27 @@ export const childEnv = (token: string | undefined): NodeJS.ProcessEnv => ({
 });
 
 
+/** GitHub rejected the token itself: expired, revoked, or mistyped. */
+export const isRejectedToken = (stderr: string): boolean =>
+  /bad credentials|HTTP 401|invalid username or token|authentication failed/i.test(stderr);
+
+/** GitHub refused the call for lack of a permission, as opposed to a missing repo, PR or label. */
+export const isPermissionDenied = (stderr: string): boolean =>
+  /resource not accessible|HTTP 403|must have (push|admin) access/i.test(stderr);
+
 /**
- * Run a `gh` subcommand (argv, no shell) outside the sandbox and return stdout.
- * Throws a fail-loud error when the token is missing or `gh` is not installed.
+ * Run a `gh` subcommand (argv, no shell) outside the sandbox as the token of `target`'s owner,
+ * and return stdout. Throws a fail-loud error naming the key it ran as.
  *
  * `allowNonZero`: some gh commands use the exit code as a status signal while still
  * printing valid output (e.g. `gh pr checks` exits 8 on pending / 1 on failure). For
  * those, a non-zero exit with stdout present is a normal result, not an error.
  */
-const runGh = async (args: string[], { allowNonZero = false } = {}): Promise<string> =>
-  runGhAs(env('GITHUB_TOKEN'), args, { allowNonZero });
-
-/** `runGh` under an explicit token, or under gh's own login when there is none. */
-export const runGhAs = async (token: string | undefined, args: string[], { allowNonZero = false } = {}): Promise<string> => {
+export const runGh = async (target: string, args: string[], { allowNonZero = false } = {}): Promise<string> => {
+  const owner = ownerOf(target);
+  const credential = tokenFor(owner);
   try {
-    const { stdout } = await execFileAsync('gh', args, { env: childEnv(token), maxBuffer: 64 * 1024 * 1024 });
+    const { stdout } = await execFileAsync('gh', args, { env: childEnv(credential?.value), maxBuffer: 64 * 1024 * 1024 });
     log.info(`gh ${args.slice(0, 3).join(' ')} → ${stdout.length}b`);
     return stdout;
   } catch (error) {
@@ -84,12 +113,32 @@ export const runGhAs = async (token: string | undefined, args: string[], { allow
     if (allowNonZero && failure.stdout) {
       return failure.stdout;
     }
-    if (!token && /gh auth login/.test(failure.stderr ?? '')) {
+    if (!credential && /gh auth login/.test(failure.stderr ?? '')) {
+      const configured = githubTokenKeys();
       throw new Error(
-        `GitHub isn't signed in. Run \`gh auth login\` in a terminal, or add a PAT to <HOME>/${RUNTIME_DIR}/secrets/.env (run /${PLUGIN_NAME}:configure-skills → GitHub pack).`
+        `No GitHub token for ${owner}. Add ${githubTokenKeyFor(owner)} (or ${GITHUB_TOKEN_KEY} for every owner) to <HOME>/${RUNTIME_DIR}/secrets/.env (run /${PLUGIN_NAME}:configure-skills → GitHub pack), or run \`gh auth login\` in a terminal.${configured.length ? ` Configured: ${configured.join(', ')}.` : ''}`
       );
     }
-    throw new Error(`gh ${args[0]} failed: ${(failure.stderr || failure.message || String(error)).trim()}`);
+    const said = (failure.stderr || failure.message || String(error)).trim();
+    if (credential && isRejectedToken(said)) {
+      throw new Error(
+        `GitHub rejected ${credential.key}: it has expired, been revoked, or is mistyped. Mint a new token for ${owner} on GitHub, replace that line in <HOME>/${RUNTIME_DIR}/secrets/.env, then restart the session. GitHub said: ${said.split('\n')[0]}`
+      );
+    }
+    if (isPermissionDenied(said)) {
+      const fix = credential
+        ? `Give ${credential.key} the permission on GitHub (Issues or Pull requests: Read and write for a write), then restart the session. Attaching files also needs your role on the repo to be Write.`
+        : 'Your GitHub role on the repo is the limit for the gh login.';
+      throw new Error(`${credential?.key ?? 'Your gh login'} may not do this on ${target}. GitHub said: ${said}\n${fix}`);
+    }
+    const as = credential ? ` (as ${credential.key})` : '';
+    const printed = failure.stdout?.trim();
+    // GitHub answers "not found" for a private repo the token can't see, so name the likely fix.
+    const unseen =
+      credential && /could not resolve to a repository/i.test(said)
+        ? `\nIf the repo exists, ${credential.key} can't see it: add it under that token's Repository access on GitHub.`
+        : '';
+    throw new Error(`gh ${args[0]} failed${as}: ${said}${printed ? `\nIt printed: ${printed}` : ''}${unseen}`);
   }
 };
 
@@ -137,8 +186,8 @@ export const resolveRepo = async (repo: string | undefined): Promise<string> => 
 };
 
 /** Run a `--json` gh command (args already include `-R <repo>`) and return the parsed value wrapped as untrusted. */
-const ghJson = async (label: string, args: string[], { allowNonZero = false } = {}): Promise<string> => {
-  const stdout = await runGh(args, { allowNonZero });
+const ghJson = async (label: string, target: string, args: string[], { allowNonZero = false } = {}): Promise<string> => {
+  const stdout = await runGh(target, args, { allowNonZero });
   return untrusted(label, JSON.stringify(JSON.parse(stdout), null, 2));
 };
 
@@ -219,7 +268,7 @@ const runGit = async (cwd: string, args: readonly string[], extraEnv: NodeJS.Pro
   try {
     const { stdout, stderr } = await execFileAsync('git', ['-C', cwd, ...args], {
       encoding: 'utf8',
-      env: { ...process.env, ...extraEnv },
+      env: { ...envWithoutGitHubTokens(), ...extraEnv },
       maxBuffer: 8 * 1024 * 1024
     });
     return { code: 0, stdout, stderr };
@@ -338,7 +387,7 @@ export const fastForwardBranch = async (
  * rewritten, so an SSH remote keeps working for the operator's own pushes. `path` is already
  * absolute — tilde expansion happens once, at the boundary.
  */
-const syncRepo = async (path: string, token: string): Promise<RepoSyncReport> => {
+const syncRepo = async (path: string): Promise<RepoSyncReport> => {
   if (!(await isMainCheckout(path))) {
     return { repo: path, status: RepoSyncStatus.NotAMainCheckout, branches: [] };
   }
@@ -346,11 +395,22 @@ const syncRepo = async (path: string, token: string): Promise<RepoSyncReport> =>
   if (!slug) {
     return { repo: path, status: RepoSyncStatus.NotGitHub, branches: [] };
   }
+  const owner = ownerOf(slug);
+  const credential = tokenFor(owner);
+  if (!credential) {
+    return {
+      repo: path,
+      slug,
+      status: RepoSyncStatus.NotConfigured,
+      detail: `No token for ${owner}: add ${githubTokenKeyFor(owner)} to the secrets store.`,
+      branches: []
+    };
+  }
 
   const fetched = await runGit(
     path,
     [...CREDENTIAL_ARGS, 'fetch', '--prune', `https://github.com/${slug}.git`, '+refs/heads/*:refs/remotes/origin/*'],
-    { GITHUB_TOKEN: token, GIT_TERMINAL_PROMPT: '0' }
+    { GITHUB_TOKEN: credential.value, GIT_TERMINAL_PROMPT: '0' }
   );
   if (fetched.code !== 0) {
     return {
@@ -358,7 +418,7 @@ const syncRepo = async (path: string, token: string): Promise<RepoSyncReport> =>
       slug,
       status: RepoSyncStatus.FetchFailed,
       reason: classifyFetchFailure(fetched.stderr),
-      detail: fetched.stderr.split('\n').filter(Boolean).at(-1) ?? '',
+      detail: `${fetched.stderr.split('\n').filter(Boolean).at(-1) ?? ''} (as ${credential.key})`,
       branches: []
     };
   }
@@ -595,7 +655,7 @@ export const tools: ToolDef[] = [
     },
     handler: async ({ repo, ...filters }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:pr_list:${target}`, prListArgs(target, filters));
+      return ghJson(`github:pr_list:${target}`, target, prListArgs(target, filters));
     }
   }),
 
@@ -606,7 +666,7 @@ export const tools: ToolDef[] = [
     inputSchema: { ...repoField, ...prNumberField },
     handler: async ({ repo, number }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:pr_view:${target}#${number}`, [
+      return ghJson(`github:pr_view:${target}#${number}`, target, [
         'pr',
         'view',
         String(number),
@@ -626,7 +686,7 @@ export const tools: ToolDef[] = [
     handler: async ({ repo, number }) => {
       const target = await resolveRepo(repo);
       const [owner, name] = target.split('/');
-      return ghJson(`github:pr_comments:${target}#${number}`, [
+      return ghJson(`github:pr_comments:${target}#${number}`, target, [
         'api',
         'graphql',
         '-f',
@@ -662,7 +722,7 @@ export const tools: ToolDef[] = [
       if (nameOnly) {
         args.push('--name-only');
       }
-      const diff = await runGh(args);
+      const diff = await runGh(target, args);
       return untrusted(`github:pr_diff:${target}#${number}`, clip(diff, maxChars ?? DEFAULT_MAX_CHARS));
     }
   }),
@@ -676,6 +736,7 @@ export const tools: ToolDef[] = [
       const target = await resolveRepo(repo);
       return ghJson(
         `github:pr_checks:${target}#${number}`,
+        target,
         ['pr', 'checks', String(number), '-R', target, '--json', PR_CHECKS_FIELDS],
         { allowNonZero: true }
       );
@@ -708,7 +769,7 @@ export const tools: ToolDef[] = [
       if (status) {
         args.push('--status', status);
       }
-      return ghJson(`github:run_list:${target}`, args);
+      return ghJson(`github:run_list:${target}`, target, args);
     }
   }),
 
@@ -722,7 +783,7 @@ export const tools: ToolDef[] = [
     },
     handler: async ({ repo, runId }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:run_view:${target}#${runId}`, [
+      return ghJson(`github:run_view:${target}#${runId}`, target, [
         'run',
         'view',
         String(runId),
@@ -752,7 +813,7 @@ export const tools: ToolDef[] = [
     handler: async ({ repo, runId, fullLog, maxChars }) => {
       const target = await resolveRepo(repo);
       const logArg = fullLog ? '--log' : '--log-failed';
-      const output = await runGh(['run', 'view', String(runId), '-R', target, logArg]);
+      const output = await runGh(target, ['run', 'view', String(runId), '-R', target, logArg]);
       return untrusted(`github:run_log:${target}#${runId}`, clip(output, maxChars ?? DEFAULT_MAX_CHARS));
     }
   }),
@@ -768,7 +829,7 @@ export const tools: ToolDef[] = [
     },
     handler: async ({ repo, state, limit }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:issue_list:${target}`, [
+      return ghJson(`github:issue_list:${target}`, target, [
         'issue',
         'list',
         '-R',
@@ -790,7 +851,7 @@ export const tools: ToolDef[] = [
     inputSchema: { ...repoField, ...issueNumberField },
     handler: async ({ repo, number }) => {
       const target = await resolveRepo(repo);
-      return ghJson(`github:issue_view:${target}#${number}`, [
+      return ghJson(`github:issue_view:${target}#${number}`, target, [
         'issue',
         'view',
         String(number),
@@ -805,7 +866,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_fast_forward',
     description:
-      "Fast-forward the default branches (main||master and develop||dev) of the configured local checkouts so the agent grounds against current code. Authenticates with the read-only PAT over HTTPS — one fetch per repo — then does every ref update locally; the checkout's own remote (SSH or otherwise) is neither used for transport nor rewritten. Strictly forward-only: never checks out, stashes, resets, rebases, cleans, or commits, and a dirty, diverged, or worktree-held branch is reported rather than resolved. Reports rather than throws when the GitHub pack isn't configured, so a caller can carry on. Returns per-repo status (SYNCED / NOT_CONFIGURED / NOT_A_MAIN_CHECKOUT / NOT_GITHUB / FETCH_FAILED with a reason) and per-branch status (UPDATED / CURRENT / AHEAD / SKIPPED_DIRTY / CLAIMED_BY_WORKTREE / NOT_FAST_FORWARD).",
+      "Fast-forward the default branches (main||master and develop||dev) of the configured local checkouts so the agent grounds against current code. Authenticates with the repo owner's token (GITHUB_TOKEN_<OWNER>, else GITHUB_TOKEN) over HTTPS — one fetch per repo — then does every ref update locally; the checkout's own remote (SSH or otherwise) is neither used for transport nor rewritten. Strictly forward-only: never checks out, stashes, resets, rebases, cleans, or commits, and a dirty, diverged, or worktree-held branch is reported rather than resolved. Reports rather than throws when the GitHub pack isn't configured, or a repo's owner has no token, so a caller can carry on. Returns per-repo status (SYNCED / NOT_CONFIGURED / NOT_A_MAIN_CHECKOUT / NOT_GITHUB / FETCH_FAILED with a reason) and per-branch status (UPDATED / CURRENT / AHEAD / SKIPPED_DIRTY / CLAIMED_BY_WORKTREE / NOT_FAST_FORWARD).",
     inputSchema: {
       repos: z
         .array(z.string())
@@ -830,17 +891,16 @@ export const tools: ToolDef[] = [
           detail: `No checkouts configured — set AGENT_CODE_PATH or AGENT_GIT_REPOS, or pass repos explicitly.`
         });
       }
-      const token = env('GITHUB_TOKEN');
-      if (!token) {
+      if (!env(GITHUB_TOKEN_KEY) && githubTokenKeys().length === 0) {
         return report({
           repos: paths.map((path) => ({ repo: path, status: RepoSyncStatus.NotConfigured, branches: [] })),
-          detail: `GITHUB_TOKEN not set — run /${PLUGIN_NAME}:configure-skills → GitHub pack. Checkouts were left untouched.`
+          detail: `No GitHub token set (GITHUB_TOKEN_<OWNER> or ${GITHUB_TOKEN_KEY}) — run /${PLUGIN_NAME}:configure-skills → GitHub pack. Checkouts were left untouched.`
         });
       }
       // Repos are independent checkouts, so the ~1s authenticated fetches overlap. Safe only
       // because paths are deduped AFTER tilde expansion — two spellings of one repo would
       // otherwise race on the same .git.
-      const reports = await Promise.all(paths.map((path) => syncRepo(path, token)));
+      const reports = await Promise.all(paths.map((path) => syncRepo(path)));
       log.info(`github fast-forward → ${reports.length} repo(s)`);
       return report({ repos: reports });
     }

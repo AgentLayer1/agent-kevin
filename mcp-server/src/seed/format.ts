@@ -261,14 +261,13 @@ export const PACKS: Record<string, PackDef> = {
       'github_run_view',
       'github_run_log',
       'github_issue_list',
-      'github_issue_view'
+      'github_issue_view',
+      'github_issue_create',
+      'github_issue_comment',
+      'github_issue_update',
+      'github_pr_update'
     ]),
     secretKeys: ['GITHUB_TOKEN'],
-    settingsEnv: []
-  },
-  'github-issues': {
-    grants: mcp(['github_issue_create', 'github_issue_comment', 'github_issue_update']),
-    secretKeys: ['GITHUB_ISSUES_TOKEN'],
     settingsEnv: []
   },
   helpdesk: {

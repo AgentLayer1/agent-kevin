@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, legacyEnvPrefix, pluginName } from './naming';
-import { agentHomePath, env, isAgentHome, loadSecretsEnv, readEnvFile } from './env';
+import { agentHomePath, env, githubTokenKeyFor, isAgentHome, isGitHubTokenKey, loadSecretsEnv, readEnvFile } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
 
@@ -347,5 +347,17 @@ describe('loadSettingsEnv', () => {
     } finally {
       for (const key of ['SETTINGS_A', 'SETTINGS_B', 'SETTINGS_C', 'SETTINGS_D']) delete process.env[key];
     }
+  });
+});
+
+describe('GitHub token keys', () => {
+  test("an owner's login maps to one key, hyphens as underscores", () => {
+    expect(githubTokenKeyFor('my-org')).toBe('GITHUB_TOKEN_MY_ORG');
+    expect(githubTokenKeyFor('Acme')).toBe('GITHUB_TOKEN_ACME');
+  });
+
+  test('the catch-all and every owner key count as GitHub tokens, nothing else does', () => {
+    expect(['GITHUB_TOKEN', 'GITHUB_TOKEN_ACME'].every(isGitHubTokenKey)).toBe(true);
+    expect(['GITHUB_TOKENS', 'GH_TOKEN', 'MY_GITHUB_TOKEN'].some(isGitHubTokenKey)).toBe(false);
   });
 });

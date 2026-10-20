@@ -16,7 +16,7 @@ export const TOOL_MODULES = [
   'database-fork',
   'focus',
   'github',
-  'github-issues',
+  'github-writes',
   'google-page-speed',
   'google-search-console',
   'helpdesk',

@@ -250,6 +250,26 @@ export const dbConnections = (): DbConnection[] => {
 /** The env key a free-form connection name resolves to: `AGENT_DB_<NAME>`. */
 export const dbEnvKeyFor = (name: string): string => `${DB_ENV_PREFIX}${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 
+/** The catch-all GitHub token, used for any owner without a key of its own. */
+export const GITHUB_TOKEN_KEY = 'GITHUB_TOKEN';
+
+const GITHUB_OWNER_PREFIX = `${GITHUB_TOKEN_KEY}_`;
+
+/** True for `GITHUB_TOKEN` and every per-owner `GITHUB_TOKEN_<OWNER>` key. */
+export const isGitHubTokenKey = (key: string): boolean => key === GITHUB_TOKEN_KEY || key.startsWith(GITHUB_OWNER_PREFIX);
+
+/** The env key an owner's token lives under: `GITHUB_TOKEN_<OWNER>`. Logins are letters, digits and single hyphens, so owners never collide. */
+export const githubTokenKeyFor = (owner: string): string =>
+  `${GITHUB_OWNER_PREFIX}${owner.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+
+/** Names of the per-owner GitHub token keys that hold a value, sorted. */
+export const githubTokenKeys = (): string[] => {
+  loadSecretsEnv();
+  return Object.keys(process.env)
+    .filter((key) => key.startsWith(GITHUB_OWNER_PREFIX) && process.env[key]?.trim())
+    .sort();
+};
+
 /**
  * Exact-match redaction. Replaces every value in `secrets/.env` (≥12 chars, to
  * avoid scrubbing short common strings) with `<REDACTED:KEY_NAME>`. Read and

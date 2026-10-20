@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { classifyFetchFailure, fastForwardBranch, parseGitHubRemote, prListArgs } from './github';
+import { classifyFetchFailure, fastForwardBranch, isPermissionDenied, isRejectedToken, parseGitHubRemote, prListArgs, tokenFor } from './github';
 
 describe('parseGitHubRemote', () => {
   test('SSH remote', () => {
@@ -241,5 +241,61 @@ describe('prListArgs', () => {
   test('a login that is not a GitHub login is refused before gh runs', () => {
     expect(() => prListArgs('acme/app', { author: 'alex --web' })).toThrow('Invalid author');
     expect(() => prListArgs('acme/app', { reviewRequested: 'a b' })).toThrow('Invalid reviewRequested');
+  });
+});
+
+describe('tokenFor', () => {
+  const keys = ['GITHUB_TOKEN', 'GITHUB_TOKEN_MY_ORG'] as const;
+  const saved = keys.map((key) => [key, process.env[key]] as const);
+  afterEach(() => {
+    saved.forEach(([key, value]) => {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    });
+  });
+
+  test("the owner's own key wins over the catch-all", () => {
+    process.env.GITHUB_TOKEN = 'catch-all';
+    process.env.GITHUB_TOKEN_MY_ORG = 'my-org-only';
+    expect(tokenFor('my-org')).toEqual({ key: 'GITHUB_TOKEN_MY_ORG', value: 'my-org-only' });
+  });
+
+  test('an owner without a key falls back to GITHUB_TOKEN', () => {
+    process.env.GITHUB_TOKEN = 'catch-all';
+    delete process.env.GITHUB_TOKEN_MY_ORG;
+    expect(tokenFor('my-org')).toEqual({ key: 'GITHUB_TOKEN', value: 'catch-all' });
+  });
+
+  test("with neither, there is no token and gh uses its own login", () => {
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.GITHUB_TOKEN_MY_ORG;
+    expect(tokenFor('my-org')).toBeUndefined();
+  });
+});
+
+describe('isPermissionDenied', () => {
+  test("a token without the permission reads as denied", () => {
+    expect(isPermissionDenied('GraphQL: Resource not accessible by personal access token (createIssue)')).toBe(true);
+    expect(isPermissionDenied('HTTP 403: Must have admin rights to Repository.')).toBe(true);
+  });
+
+  test('a missing PR or label is not a permission problem', () => {
+    expect(isPermissionDenied('GraphQL: Could not resolve to a PullRequest with the number of 9999.')).toBe(false);
+    expect(isPermissionDenied("could not add label: 'triage' not found")).toBe(false);
+  });
+});
+
+describe('isRejectedToken', () => {
+  test('an expired or revoked token reads as rejected', () => {
+    expect(isRejectedToken('HTTP 401: Bad credentials (https://api.github.com/graphql)')).toBe(true);
+    expect(isRejectedToken("remote: Invalid username or token. Password authentication is not supported for Git operations.")).toBe(true);
+  });
+
+  test('a missing permission or an unseen repo is not a rejected token', () => {
+    expect(isRejectedToken('GraphQL: Resource not accessible by personal access token (createIssue)')).toBe(false);
+    expect(isRejectedToken("GraphQL: Could not resolve to a Repository with the name 'acme/app'. (repository)")).toBe(false);
   });
 });
