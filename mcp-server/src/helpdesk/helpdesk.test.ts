@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { noteHtml, resolveConnector } from './connectors';
+import { safeName, saveToTemp } from './download';
 import { issueFilter, mapIssue, mapMessage } from './pylon';
 import { adminLink, mapThread, mapTicket, supportcandy, toIso, type Lookups } from './supportcandy';
 import type { HelpdeskConnector, HelpdeskName } from './types';
@@ -111,7 +114,10 @@ describe('resolveConnector', () => {
     get: async () => {
       throw new Error('unused');
     },
-    addNote: async () => ''
+    addNote: async () => '',
+    download: async () => {
+      throw new Error('unused');
+    }
   });
 
   test('picks the only configured helpdesk, or the one named', () => {
@@ -129,5 +135,63 @@ describe('resolveConnector', () => {
 describe('noteHtml', () => {
   test('escapes markup and turns blank lines into paragraphs', () => {
     expect(noteHtml('Hi <b>there</b>\n\nLine one\nline two')).toBe('<p>Hi &lt;b&gt;there&lt;/b&gt;</p><p>Line one<br>line two</p>');
+  });
+});
+
+describe('attachments', () => {
+  test('SupportCandy threads list their attachments by id and resolved name', async () => {
+    const message = await mapThread({ id: 1, type: 'report', customer: 77, body: '<p>Log attached</p>', attachments: '12, 13' }, 77, new Map([['12', 'praywatch.log']]));
+    expect(message.attachments).toEqual([
+      { id: '12', name: 'praywatch.log' },
+      { id: '13', name: 'attachment-13' }
+    ]);
+    expect((await mapThread({ id: 2, type: 'reply', attachments: '' }, 77)).attachments).toEqual([]);
+  });
+
+  test('Pylon messages list their files by URL and file name', async () => {
+    const message = await mapMessage({ id: 'm1', file_urls: ['https://files.example.com/a/watch%20shot.png?sig=1'] });
+    expect(message.attachments).toEqual([{ id: 'https://files.example.com/a/watch%20shot.png?sig=1', name: 'watch shot.png' }]);
+  });
+
+  test('a saved attachment lands in a fresh temp folder under a name that cannot climb out', () => {
+    expect(safeName('../../etc/passwd')).toBe('passwd');
+    expect(safeName('.hidden')).toBe('hidden');
+    const path = saveToTemp({ name: '../watch.png', contentType: 'image/png', bytes: new Uint8Array([1, 2, 3]) });
+    expect(path.startsWith(tmpdir())).toBe(true);
+    expect(path.endsWith('watch.png')).toBe(true);
+    expect(readFileSync(path).byteLength).toBe(3);
+  });
+});
+
+describe('SupportCandy downloads', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+  const asked: string[] = [];
+
+  beforeEach(() => {
+    process.env.SUPPORTCANDY_URL = 'https://help.example.com';
+    process.env.SUPPORTCANDY_USERNAME = 'agent-bot';
+    process.env.SUPPORTCANDY_APP_PASSWORD = 'abcd efgh';
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      asked.push(url);
+      return url.includes('/wp-json/supportcandy/v2/attachments/12')
+        ? new Response(JSON.stringify({ id: 12, name: 'praywatch.log', url: 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret' }))
+        : new Response('log line', { headers: { 'content-type': 'text/plain' } });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+    asked.length = 0;
+  });
+
+  test('follows the signed link but returns only the file', async () => {
+    const file = await supportcandy.download('12');
+    expect(asked).toEqual(['https://help.example.com/wp-json/supportcandy/v2/attachments/12', 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret']);
+    expect(file.name).toBe('praywatch.log');
+    expect(new TextDecoder().decode(file.bytes)).toBe('log line');
+    expect(JSON.stringify(file)).not.toContain('auth_code');
   });
 });

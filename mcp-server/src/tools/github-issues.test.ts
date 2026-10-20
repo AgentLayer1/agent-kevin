@@ -1,5 +1,9 @@
-import { describe, expect, test } from 'bun:test';
-import { issueCreateArgs, issueEditArgs } from './github-issues';
+import { afterEach, describe, expect, test } from 'bun:test';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { childEnv } from './github';
+import { attachArgs, issueCreateArgs, issueEditArgs } from './github-issues';
 
 describe('issueCreateArgs', () => {
   test('repeats --label per label and adds the milestone when given', () => {
@@ -23,5 +27,34 @@ describe('issueEditArgs', () => {
 
   test('refuses a call that changes nothing', () => {
     expect(() => issueEditArgs({ repo: 'acme/app', number: 57 })).toThrow(/Nothing to change/);
+  });
+});
+
+describe('attachArgs', () => {
+  test('passes images through and refuses what GitHub rejects', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'attach-'));
+    const shot = join(dir, 'watch.png');
+    writeFileSync(shot, 'png');
+    expect(attachArgs([shot])).toEqual(['--attach', shot]);
+    expect(() => attachArgs([join(dir, 'praywatch.log')])).toThrow(/only/);
+    expect(() => attachArgs([join(dir, 'a#b.png')])).toThrow(/alt text/);
+    expect(() => attachArgs([join(dir, 'missing.png')])).toThrow(/no such file/);
+  });
+});
+
+describe('childEnv', () => {
+  const saved = process.env.GITHUB_TOKEN;
+  afterEach(() => {
+    if (saved === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = saved;
+    }
+  });
+
+  test('an issue write never inherits the read-only token', () => {
+    process.env.GITHUB_TOKEN = 'read-only';
+    expect(childEnv(undefined).GITHUB_TOKEN).toBeUndefined();
+    expect(childEnv('issues').GITHUB_TOKEN).toBe('issues');
   });
 });

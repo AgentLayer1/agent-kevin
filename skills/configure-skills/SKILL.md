@@ -325,6 +325,8 @@ Then surface these steps verbatim:
    GITHUB_TOKEN=github_pat_...
    ```
 
+**No token, already signed in?** When `GITHUB_TOKEN` is absent, the `gh`-based tools use the operator's own `gh auth login` instead (`github_fast_forward` still needs the token). That suits someone who only works with issues; the read-only PAT stays the recommended setup for anyone reviewing code.
+
 **(3) Repo defaulting (no config needed).** When a `github_*` call omits `repo`, Kevin derives `owner/repo` from the `origin` remote of `AGENT_CODE_PATH`, then the first `AGENT_GIT_REPOS` entry — the same codebase pair init writes. An explicit `owner/repo` argument always wins. So scope the PAT to whatever those paths point at (plus any repo you'll name explicitly).
 
 **(4) Summary:**
@@ -346,20 +348,18 @@ Requires the `gh` CLI on PATH (`brew install gh`).
 **(5) Issue writes (optional level).** Ask separately, after the read-only pack is set up:
 
 > **Also let Kevin open and tag issues?**
-> Adds `github_issue_create`, `github_issue_comment` and `github_issue_update` (labels and milestone). They write to GitHub, where everyone with access to the repo sees them, and run on a second token so `GITHUB_TOKEN` stays read-only. Nothing closes an issue, edits someone's text, or touches a pull request.
+> Adds `github_issue_create` and `github_issue_comment` (both can attach screenshots and videos) and `github_issue_update` (labels and milestone). They write to GitHub, where everyone with access to the repo sees them. Nothing closes an issue, edits someone's text, or touches a pull request.
 >
-> - Yes — grant the three tools + mint an Issues-only token
+> - Yes — grant the three tools
 > - No (Recommended unless issues are how this agent hands work to someone)
 
 If yes:
 
-1. Mint a second fine-grained token at [GitHub → Fine-grained tokens](https://github.com/settings/tokens?type=beta): the same **Resource owner**, **Repository access** limited to the repos it may write issues in, and **Repository permissions → Issues: Read and write** (Metadata: Read is added automatically). Nothing else. An organization owner may have to approve it (Organization → Settings → Personal access tokens → Pending requests), and only members can pick an organization as the resource owner.
-2. Have the operator add it in their editor (§D.1):
-   ```
-   GITHUB_ISSUES_TOKEN=github_pat_...
-   ```
+1. **Sign in.** The issue tools run as the operator's own GitHub login, never as the read-only `GITHUB_TOKEN`. Have the operator run `gh auth login` once in a terminal of their own (GitHub.com → HTTPS → log in with a web browser); a browser opens and they approve it. This is the recommended path, and the only easy one that can attach files: GitHub's upload accepts the `gh auth login` token or a classic personal access token, not a fine-grained one. A home that must pin a token instead adds a classic token as `GITHUB_ISSUES_TOKEN=` in `.state/secrets/.env` (§D.1); it wins over the login.
+2. **Repo access.** Opening and labelling issues needs at least the Triage role on the repo; attaching screenshots or videos needs **Write**. The login can do whatever the person's GitHub role allows, so the role is the limit.
 3. Labels and milestones must exist before a tool can apply them; `gh issue create --label` fails on an unknown label. Point the operator at the repo's Labels and Milestones pages.
-4. Grant via §E: `mcp__plugin_agent-kevin_kevin__github_issue_create`, `mcp__plugin_agent-kevin_kevin__github_issue_comment`, `mcp__plugin_agent-kevin_kevin__github_issue_update`.
+4. Attachments take png, jpg, gif, webp, svg, mp4, mov or webm, up to 10 MB each, and need `gh` 2.99.0 or later (`gh --version`). Text such as a log goes in the issue body. In a private repo only people with access can open them.
+5. Grant via §E: `mcp__plugin_agent-kevin_kevin__github_issue_create`, `mcp__plugin_agent-kevin_kevin__github_issue_comment`, `mcp__plugin_agent-kevin_kevin__github_issue_update`.
 
 ### A.2e — API pack walk
 
@@ -575,15 +575,15 @@ Then relaunch Claude Code and check /mcp — `xcode` should be connected.
 
 ### A.2g — Helpdesk pack walk
 
-Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it, and requester names and emails never reach the model. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
+Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, `helpdesk_attachment` downloads a log or screenshot from it into a temp folder, and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it, and requester names and emails never reach the model. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
 
 **(1) Pick the helpdesk(s)** (`AskUserQuestion`, multi-select): SupportCandy · Pylon. With both configured, each call names the one it means.
 
 **(2) Pick the level** (`AskUserQuestion`):
 
 > **What may Kevin do in the helpdesk?**
-> - Read tickets and leave draft notes (Recommended) — grants all three tools
-> - Read only — grants `helpdesk_tickets` and `helpdesk_ticket`; no notes
+> - Read tickets and leave draft notes (Recommended) — grants all four tools
+> - Read only — grants `helpdesk_tickets`, `helpdesk_ticket` and `helpdesk_attachment`; no notes
 
 **(3) SupportCandy** — surface these steps verbatim; they happen on the WordPress site, as an admin:
 
@@ -599,7 +599,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 **(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor. A home that already set up the Pylon pack reuses the same line.
 
-**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
+**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
 **(6) Summary:**
 
@@ -607,7 +607,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 ✅ Helpdesk pack activated.
 
 Helpdesks:              <SupportCandy / Pylon>
-Tool permissions:       helpdesk_tickets, helpdesk_ticket[, helpdesk_note]
+Tool permissions:       helpdesk_tickets, helpdesk_ticket, helpdesk_attachment[, helpdesk_note]
 Settings env:           SUPPORTCANDY_URL, SUPPORTCANDY_USERNAME   (SupportCandy)
 Secret lines to add:    SUPPORTCANDY_APP_PASSWORD and/or PYLON_API_TOKEN  (in .state/secrets/.env)
 
@@ -780,10 +780,10 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove `GITHUB_TOKEN` from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete that line in their editor (§D.1 — Claude can't edit the gated file). If no, leave it (harmless once the perms are revoked).
-- If the issue-write level is on, revoke `github_issue_create`, `github_issue_comment` and `github_issue_update` too, and offer the same removal for `GITHUB_ISSUES_TOKEN`. To drop only that level, revoke those three and remove that one line; the read-only pack stays.
+- If the issue-write level is on, revoke `github_issue_create`, `github_issue_comment` and `github_issue_update` too, and offer to remove `GITHUB_ISSUES_TOKEN` if one was set. To drop only that level, revoke those three; the read-only pack stays. The operator's `gh auth login` is theirs: `gh auth logout` ends it.
 
 **Helpdesk deconfigure:**
-- Revoke `helpdesk_tickets`, `helpdesk_ticket` and `helpdesk_note` from `permissions.allow` (§E remove helper).
+- Revoke `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment` and `helpdesk_note` from `permissions.allow` (§E remove helper).
 - `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` (and `PYLON_API_TOKEN`, unless another pack still uses it) from `.state/secrets/.env` in their editor (§D.1).
 - Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
 

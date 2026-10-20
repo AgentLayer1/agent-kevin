@@ -1,11 +1,12 @@
 /**
  * Helpdesk tools — one surface over every configured helpdesk (SupportCandy,
- * Pylon). Two reads and one write: a note only agents see. Nothing here
+ * Pylon). Reads (tickets, conversations, attachments) and one write: a note only agents see. Nothing here
  * replies to a customer, changes a ticket's fields or closes it; a person
  * sends every reply. Ticket text crosses the trust boundary, so it comes back
  * wrapped as untrusted.
  */
 import { noteHtml, resolveConnector } from '@/helpdesk/connectors';
+import { saveToTemp } from '@/helpdesk/download';
 import { HELPDESKS } from '@/helpdesk/types';
 import { sinceToStartTime } from '@/pylon/format';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -44,7 +45,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_ticket',
     description:
-      "Fetch one helpdesk ticket with its whole conversation, oldest first. Each message is tagged customer, agent, note (agents only) or event (a status change and the like). Read-only. Requester names and emails are never returned.",
+      "Fetch one helpdesk ticket with its whole conversation, oldest first. Each message is tagged customer, agent, note (agents only) or event (a status change and the like) and lists its attachments by id and name; fetch one with helpdesk_attachment. Read-only. Requester names and emails are never returned.",
     inputSchema: {
       helpdesk: HELPDESK,
       id: z.string().min(1).describe('Ticket id as the helpdesk shows it.')
@@ -52,6 +53,20 @@ export const tools: ToolDef[] = [
     handler: async ({ helpdesk, id }) => {
       const connector = resolveConnector(helpdesk);
       return untrusted(`${connector.name}:ticket`, JSON.stringify(await connector.get(id), null, 2));
+    }
+  }),
+  defineTool({
+    name: 'helpdesk_attachment',
+    description:
+      "Download one ticket attachment (a log, a screenshot) by the id helpdesk_ticket listed, into a fresh temp folder outside the home, and return its path. Read-only. Read the file from there or pass the path to github_issue_create's attachments; it is a user's data, so never copy it into the brain.",
+    inputSchema: {
+      helpdesk: HELPDESK,
+      id: z.string().min(1).describe('Attachment id from helpdesk_ticket.')
+    },
+    handler: async ({ helpdesk, id }) => {
+      const connector = resolveConnector(helpdesk);
+      const file = await connector.download(id);
+      return { helpdesk: connector.name, name: file.name, contentType: file.contentType, bytes: file.bytes.byteLength, path: saveToTemp(file) };
     }
   }),
   defineTool({

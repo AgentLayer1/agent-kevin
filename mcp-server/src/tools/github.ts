@@ -7,7 +7,8 @@
  * setup (its macOS build verifies certs via Security.framework/keychain, which the
  * sandbox blocks — OSStatus -26276). The MCP server runs OUTSIDE that sandbox, so the
  * same `gh` invocation works here. Auth is a fine-grained, read-only PAT in
- * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain).
+ * `<data-dir>/secrets/.env` as `GITHUB_TOKEN` (gh honors it and skips the keychain); with no
+ * token set, gh falls back to the operator's own `gh auth login`.
  *
  * Repo resolution when a call omits `repo`: derive `owner/repo` from the `origin` remote
  * of the configured code path, then the first configured git repo, then error asking for one.
@@ -42,10 +43,14 @@ const GH_REMOTE_RE = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/;
 /** gh log/diff output is unbounded; cap text payloads so a giant CI log can't blow up context. */
 const DEFAULT_MAX_CHARS = 100_000;
 
-/** Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. */
-const childEnv = (token: string): NodeJS.ProcessEnv => ({
-  ...process.env,
-  GITHUB_TOKEN: token,
+/**
+ * Suppress gh's pager, colour, and update checks so stdout is clean, parseable text. Secrets are
+ * loaded into process.env, so the inherited GitHub tokens are dropped and only the one meant for
+ * this call is set; with none, gh uses its own `gh auth login`.
+ */
+export const childEnv = (token: string | undefined): NodeJS.ProcessEnv => ({
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== 'GITHUB_TOKEN' && key !== 'GH_TOKEN')),
+  ...(token && { GITHUB_TOKEN: token }),
   GH_PROMPT_DISABLED: '1',
   GH_NO_UPDATE_NOTIFIER: '1',
   GH_PAGER: 'cat',
@@ -53,16 +58,6 @@ const childEnv = (token: string): NodeJS.ProcessEnv => ({
   CLICOLOR: '0'
 });
 
-/** The configured PAT, or a fail-loud error pointing at the pack walk. */
-const requireToken = (): string => {
-  const token = env('GITHUB_TOKEN');
-  if (!token) {
-    throw new Error(
-      `GITHUB_TOKEN not set. Add a fine-grained, read-only PAT to <HOME>/${RUNTIME_DIR}/secrets/.env as GITHUB_TOKEN (run /${PLUGIN_NAME}:configure-skills → GitHub pack for the walk).`
-    );
-  }
-  return token;
-};
 
 /**
  * Run a `gh` subcommand (argv, no shell) outside the sandbox and return stdout.
@@ -73,10 +68,10 @@ const requireToken = (): string => {
  * those, a non-zero exit with stdout present is a normal result, not an error.
  */
 const runGh = async (args: string[], { allowNonZero = false } = {}): Promise<string> =>
-  runGhAs(requireToken(), args, { allowNonZero });
+  runGhAs(env('GITHUB_TOKEN'), args, { allowNonZero });
 
-/** `runGh` under an explicit token, for a tool family that carries its own PAT. */
-export const runGhAs = async (token: string, args: string[], { allowNonZero = false } = {}): Promise<string> => {
+/** `runGh` under an explicit token, or under gh's own login when there is none. */
+export const runGhAs = async (token: string | undefined, args: string[], { allowNonZero = false } = {}): Promise<string> => {
   try {
     const { stdout } = await execFileAsync('gh', args, { env: childEnv(token), maxBuffer: 64 * 1024 * 1024 });
     log.info(`gh ${args.slice(0, 3).join(' ')} → ${stdout.length}b`);
@@ -88,6 +83,11 @@ export const runGhAs = async (token: string, args: string[], { allowNonZero = fa
     }
     if (allowNonZero && failure.stdout) {
       return failure.stdout;
+    }
+    if (!token && /gh auth login/.test(failure.stderr ?? '')) {
+      throw new Error(
+        `GitHub isn't signed in. Run \`gh auth login\` in a terminal, or add a PAT to <HOME>/${RUNTIME_DIR}/secrets/.env (run /${PLUGIN_NAME}:configure-skills → GitHub pack).`
+      );
     }
     throw new Error(`gh ${args[0]} failed: ${(failure.stderr || failure.message || String(error)).trim()}`);
   }
@@ -125,15 +125,8 @@ const resolveDefaultRepo = async (): Promise<string> => {
   );
 };
 
-/**
- * Resolve the target repo for a call. Guards the token FIRST, so a missing token reports
- * before any repo-resolution I/O. An explicit `owner/repo` wins; otherwise fall back to
- * the configured codebase. Every handler awaits this as its first step.
- */
-const resolveRepo = async (repo: string | undefined): Promise<string> => {
-  requireToken();
-  return repoOrDefault(repo);
-};
+/** Resolve the target repo for a call; every handler awaits this as its first step. */
+const resolveRepo = async (repo: string | undefined): Promise<string> => repoOrDefault(repo);
 
 /** An explicit `owner/repo`, validated, or the configured codebase's repo. */
 export const repoOrDefault = async (repo: string | undefined): Promise<string> => {

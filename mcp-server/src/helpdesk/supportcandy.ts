@@ -12,6 +12,7 @@
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { htmlToText } from '@/pylon/format';
+import { fetchFile } from './download';
 import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskMessage, type HelpdeskTicket, type MessageKind } from './types';
 
 const API_PATH = '/wp-json/supportcandy/v2';
@@ -40,7 +41,16 @@ export interface ScThread {
   customer?: number;
   type?: string;
   body?: string | Record<string, unknown>;
+  /** Comma-separated attachment ids, empty when none. */
+  attachments?: string;
   date_created?: string;
+}
+
+/** `GET /attachments/<id>`; the url carries its own auth code, so it never leaves this module. */
+interface ScAttachment {
+  id: number;
+  name?: string;
+  url?: string;
 }
 
 interface ScPage<T> {
@@ -134,11 +144,22 @@ const kindOf = (thread: ScThread, ticketCustomer: number | undefined): MessageKi
   return thread.customer !== undefined && thread.customer === ticketCustomer ? MESSAGE_KINDS.customer : MESSAGE_KINDS.agent;
 };
 
-export const mapThread = async (thread: ScThread, ticketCustomer: number | undefined): Promise<HelpdeskMessage> => ({
+export const attachmentIds = (thread: ScThread): string[] =>
+  String(thread.attachments ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+export const mapThread = async (
+  thread: ScThread,
+  ticketCustomer: number | undefined,
+  attachmentNames: ReadonlyMap<string, string> = new Map()
+): Promise<HelpdeskMessage> => ({
   id: String(thread.id),
   kind: kindOf(thread, ticketCustomer),
   created_at: toIso(thread.date_created),
-  body: typeof thread.body === 'string' ? await htmlToText(thread.body) : JSON.stringify(thread.body ?? {})
+  body: typeof thread.body === 'string' ? await htmlToText(thread.body) : JSON.stringify(thread.body ?? {}),
+  attachments: attachmentIds(thread).map((id) => ({ id, name: attachmentNames.get(id) ?? `attachment-${id}` }))
 });
 
 const lookups = async (): Promise<Lookups> => {
@@ -193,7 +214,10 @@ export const supportcandy: HelpdeskConnector = {
   get: async (id) => {
     const { site } = requireCredentials();
     const [raw, names, threads] = await Promise.all([call<ScTicket>(`/tickets/${encodeURIComponent(id)}`), lookups(), allThreads(id)]);
-    const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer)));
+    const ids = threads.flatMap(attachmentIds);
+    const found = await Promise.all(ids.map((id) => call<ScAttachment>(`/attachments/${encodeURIComponent(id)}`)));
+    const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
+    const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames)));
     const opening = messages.find((message) => message.kind === MESSAGE_KINDS.customer)?.body ?? '';
     return { ticket: mapTicket(raw, names, site, opening), messages };
   },
@@ -203,5 +227,12 @@ export const supportcandy: HelpdeskConnector = {
       form: { type: 'note', body: bodyHtml }
     });
     return String(created.id ?? '');
+  },
+  download: async (attachmentId) => {
+    const attachment = await call<ScAttachment>(`/attachments/${encodeURIComponent(attachmentId)}`);
+    if (!attachment.url) {
+      throw new Error(`SupportCandy attachment ${attachmentId} has no download link`);
+    }
+    return fetchFile(attachment.url, attachment.name ?? `attachment-${attachmentId}`);
   }
 };

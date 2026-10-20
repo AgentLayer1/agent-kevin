@@ -30,11 +30,24 @@ export const MESSAGE_KINDS = {
 } as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[keyof typeof MESSAGE_KINDS];
 
+export interface HelpdeskAttachment {
+  /** What helpdesk_attachment takes to download it. */
+  id: string;
+  name: string;
+}
+
 export interface HelpdeskMessage {
   id: string;
   kind: MessageKind;
   created_at?: string;
   body: string;
+  attachments: HelpdeskAttachment[];
+}
+
+export interface DownloadedFile {
+  name: string;
+  contentType: string;
+  bytes: Uint8Array;
 }
 
 export interface TicketQuery {
@@ -52,4 +65,5 @@ export interface HelpdeskConnector {
   get: (id: string) => Promise<{ ticket: HelpdeskTicket; messages: HelpdeskMessage[] }>;
   /** Adds a note only agents can see; returns the new note's id. */
   addNote: (id: string, bodyHtml: string) => Promise<string>;
+  download: (attachmentId: string) => Promise<DownloadedFile>;
 }

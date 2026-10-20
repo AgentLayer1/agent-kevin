@@ -1,28 +1,37 @@
 /**
  * GitHub issue writes — the opt-in level above the read-only GitHub pack: open an
- * issue, comment on one, change its labels or milestone. Nothing closes, edits
- * someone's text, or touches a pull request.
+ * issue, comment on one, change its labels or milestone, with screenshots or
+ * videos attached. Nothing closes, edits someone's text, or touches a pull request.
  *
- * They run on their own token, `GITHUB_ISSUES_TOKEN` (a fine-grained PAT with
- * Issues read/write on the named repos only), so `GITHUB_TOKEN` stays read-only
- * and turning this level off is deleting one line.
+ * They run as the operator's own `gh auth login`, or as `GITHUB_ISSUES_TOKEN` when
+ * one is set; never as the read-only `GITHUB_TOKEN`. Attaching needs the login or a
+ * classic token (a fine-grained PAT can't upload) and write access to the repo.
  */
-import { PLUGIN_NAME } from '@/config';
-import { RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { defineTool, type ToolDef } from '@/shared/types';
+import { existsSync } from 'node:fs';
+import { extname } from 'node:path';
 import { z } from 'zod';
 import { repoOrDefault, runGhAs } from './github';
 
-const requireIssuesToken = (): string => {
-  const token = env('GITHUB_ISSUES_TOKEN');
-  if (!token) {
-    throw new Error(
-      `GITHUB_ISSUES_TOKEN not set. Add a fine-grained PAT with Issues read/write on the repos it may touch to <HOME>/${RUNTIME_DIR}/secrets/.env as GITHUB_ISSUES_TOKEN (run /${PLUGIN_NAME}:configure-skills → GitHub pack → issue writes).`
-    );
-  }
-  return token;
-};
+const issuesToken = (): string | undefined => env('GITHUB_ISSUES_TOKEN');
+
+/** The file types gh's `--attach` uploads. */
+export const ATTACHABLE = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.mp4', '.mov', '.webm'] as const;
+
+export const attachArgs = (paths: readonly string[] | undefined): string[] =>
+  (paths ?? []).flatMap((path) => {
+    if (!(ATTACHABLE as readonly string[]).includes(extname(path).toLowerCase())) {
+      throw new Error(`Can't attach ${path}: GitHub takes only ${ATTACHABLE.join(' ')}. Put text such as a log in the body instead.`);
+    }
+    if (path.includes('#')) {
+      throw new Error(`Can't attach ${path}: gh reads "#" as the start of alt text.`);
+    }
+    if (!existsSync(path)) {
+      throw new Error(`Can't attach ${path}: no such file.`);
+    }
+    return ['--attach', path];
+  });
 
 export interface IssueCreate {
   repo: string;
@@ -30,9 +39,10 @@ export interface IssueCreate {
   body: string;
   labels?: readonly string[];
   milestone?: string;
+  attachments?: readonly string[];
 }
 
-export const issueCreateArgs = ({ repo, title, body, labels, milestone }: IssueCreate): string[] => [
+export const issueCreateArgs = ({ repo, title, body, labels, milestone, attachments }: IssueCreate): string[] => [
   'issue',
   'create',
   '-R',
@@ -42,7 +52,8 @@ export const issueCreateArgs = ({ repo, title, body, labels, milestone }: IssueC
   '--body',
   body,
   ...(labels ?? []).flatMap((label) => ['--label', label]),
-  ...(milestone ? ['--milestone', milestone] : [])
+  ...(milestone ? ['--milestone', milestone] : []),
+  ...attachArgs(attachments)
 ];
 
 export interface IssueUpdate {
@@ -73,38 +84,46 @@ const repoField = {
     .describe('OWNER/REPO. Defaults to the configured code path repo, then the first configured git repo.')
 };
 const labelList = z.array(z.string().min(1));
+const attachments = z
+  .array(z.string().min(1))
+  .max(50)
+  .optional()
+  .describe('Absolute paths of screenshots or videos to upload (png, jpg, gif, webp, svg, mp4, mov, webm), appended to the body.');
 
 export const tools: ToolDef[] = [
   defineTool({
     name: 'github_issue_create',
     description:
-      'Open a GitHub issue (writes to GitHub, visible to everyone with repo access). Search open issues with github_issue_list first and comment on a match instead of opening a duplicate. Labels and the milestone must already exist in the repo. Returns the new issue URL.',
+      'Open a GitHub issue (writes to GitHub, visible to everyone with repo access). Search open issues with github_issue_list first and comment on a match instead of opening a duplicate. Labels and the milestone must already exist in the repo. Screenshots and videos go in attachments; text such as a log goes in the body. Returns the new issue URL.',
     inputSchema: {
       ...repoField,
       title: z.string().min(1),
       body: z.string().min(1).describe('Markdown body. No personal details of the people it concerns.'),
       labels: labelList.optional(),
-      milestone: z.string().min(1).optional().describe('Milestone title.')
+      milestone: z.string().min(1).optional().describe('Milestone title.'),
+      attachments
     },
-    handler: async ({ repo, title, body, labels, milestone }) => {
-      const token = requireIssuesToken();
+    handler: async ({ repo, title, body, labels, milestone, attachments: files }) => {
       const target = await repoOrDefault(repo);
-      const url = (await runGhAs(token, issueCreateArgs({ repo: target, title, body, labels, milestone }))).trim();
+      const url = (await runGhAs(issuesToken(), issueCreateArgs({ repo: target, title, body, labels, milestone, attachments: files }))).trim();
       return { ok: true, repo: target, url };
     }
   }),
   defineTool({
     name: 'github_issue_comment',
-    description: 'Comment on a GitHub issue (writes to GitHub, visible to everyone with repo access).',
+    description:
+      'Comment on a GitHub issue (writes to GitHub, visible to everyone with repo access), optionally with screenshots or videos attached.',
     inputSchema: {
       ...repoField,
       number: z.number().int().positive().describe('Issue number.'),
-      body: z.string().min(1).describe('Markdown comment.')
+      body: z.string().min(1).describe('Markdown comment.'),
+      attachments
     },
-    handler: async ({ repo, number, body }) => {
-      const token = requireIssuesToken();
+    handler: async ({ repo, number, body, attachments: files }) => {
       const target = await repoOrDefault(repo);
-      const url = (await runGhAs(token, ['issue', 'comment', String(number), '-R', target, '--body', body])).trim();
+      const url = (
+        await runGhAs(issuesToken(), ['issue', 'comment', String(number), '-R', target, '--body', body, ...attachArgs(files)])
+      ).trim();
       return { ok: true, repo: target, number, url };
     }
   }),
@@ -120,10 +139,9 @@ export const tools: ToolDef[] = [
       milestone: z.string().optional().describe("Milestone title to set, or '' to clear it.")
     },
     handler: async ({ repo, number, add_labels, remove_labels, milestone }) => {
-      const token = requireIssuesToken();
       const target = await repoOrDefault(repo);
       const args = issueEditArgs({ repo: target, number, addLabels: add_labels, removeLabels: remove_labels, milestone });
-      const url = (await runGhAs(token, args)).trim();
+      const url = (await runGhAs(issuesToken(), args)).trim();
       return { ok: true, repo: target, number, url };
     }
   })
