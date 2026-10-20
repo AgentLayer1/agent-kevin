@@ -18,4 +18,4 @@ Every response begins with `↩️ PR replies (read-only against GitHub · fixes
 
 No teardown: the worktree is the operator's own branch, where they keep working after the replies go out.
 
-**Reply:** in chat, after the report is saved: the banner, one line on the threads (answered, fixed, pushed back, resolve-only), the fixes left uncommitted with their suggested commit messages, the checks that did not run, and the page path. Nothing else.
+**Reply:** in chat, after the report is saved: the banner, one line on the threads (answered, fixed, pushed back, resolve-only), the fixes left uncommitted with their suggested commit messages, the checks that did not run, and the page path. Nothing else, except one offer: when the fixes leave a sentence of the PR description untrue, draft the corrected description per [handoff](../handoff.md), show the current and the proposed text, and on yes apply it with `github_pr_update`.

@@ -5,7 +5,7 @@
 ## Anchor, then search every source
 
 1. **Pin the target and the question.** If the target is vague, state your reading from the conversation and proceed; the operator can redirect.
-2. **Anchor in code:** file paths and line ranges, key symbols, `git blame -L <start>,<end> <file>`, `git log --follow -p -- <file>`, the last commits touching it, and the PR numbers in their subjects. Pull PR bodies and review threads (the GitHub tools or `gh pr view`).
+2. **Anchor in code:** file paths and line ranges, key symbols, `git blame -L <start>,<end> <file>`, `git log --follow -p -- <file>`, the last commits touching it, and the PR numbers in their subjects. Pull PR bodies and review threads (the GitHub tools).
 3. **Search every evidence source available, in parallel,** one subagent per source:
    - **Source control:** commits, PRs, reviews, code comments, tests. Always.
    - **The home's own record,** which few agents have: `knowledge/raw/sessions/` (the find-session skill searches it), `knowledge/memory/` decisions and their archives, project READMEs, and task threads. The session that made a change often says why in plain words.

@@ -72,7 +72,7 @@ The working method for code: a playbook per kind of task, principles the playboo
 | Test whether a skill or prompt change changes behavior | [eval](references/playbooks/eval.md) |
 | Give a repo a scripted way to prove the app works | [verification skill](references/playbooks/verification-skill.md) |
 
-Pull requests share one [foundation](references/pr/foundation.md) (resolve the PR, prior context, understand the change, a local build in a worktree) and never post to GitHub; the operator pastes. Whose PR it is picks the playbook:
+Pull requests share one [foundation](references/pr/foundation.md) (resolve the PR, prior context, understand the change, a local build in a worktree) and never post to GitHub, with one exception: a new title or description for the operator's own PR, applied with `github_pr_update` once they approve it. Everything else the operator pastes. Whose PR it is picks the playbook:
 
 | Task | Playbook |
 |---|---|

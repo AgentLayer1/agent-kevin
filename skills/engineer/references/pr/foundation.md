@@ -6,7 +6,7 @@ The steps every PR playbook runs first ([pr review](../playbooks/pr-review.md), 
 
 Code review is where a human gates what agents write. Most PRs now arrive faster than anyone can read them, often from an author who cannot fully explain the diff. The PR playbooks exist so the operator walks into that conversation understanding the change better than anyone else in it, holding verified defects rather than impressions, and with the words already written.
 
-Nothing is ever posted. The GitHub pack is read-only by design, so every output is a report the operator pastes from. That is a feature: nothing reaches a teammate without a human deciding it should.
+Nothing is posted without the operator. Every output is a report the operator pastes from, with one exception: a new title or description for the operator's own PR, which the agent applies with `github_pr_update` once they approve it. That is a feature: nothing reaches a teammate without a human deciding it should.
 
 ## Stance
 
@@ -114,7 +114,7 @@ Only a worktree `setup_worktree` created in this session for a **teammate's** PR
 
 ## Boundaries
 
-- Never posts to GitHub or any chat or tracker surface. Never comments, approves, requests changes, resolves threads, or edits a PR body. The operator pastes.
+- Never posts to GitHub or any chat or tracker surface: never comments, approves, requests changes, or resolves threads. The one write is the title or description of the operator's own PR: show the current and the proposed text side by side, and call `github_pr_update` only after they approve it. A teammate's PR is never edited. Everything else the operator pastes.
 - Never commits or pushes. Fixes on the operator's branch stay in the working tree.
 - Never checks out or edits a teammate's branch. A review works on a throwaway operator-namespaced branch at the PR head.
 - Never runs a command that spends money or targets production.

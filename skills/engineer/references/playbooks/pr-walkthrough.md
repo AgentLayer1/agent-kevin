@@ -53,7 +53,7 @@ For every 🟡 and 🔴, find the receipt: the task, the session note, the conce
 - **Simplify**: the hunk does more than the PR needs (speculative flexibility, a second constant, an abstraction with one caller). Name the minimal form, judged by the [simplify](simplify.md) playbook's criteria and the [laziness protocol](../principles/laziness-protocol.md).
 - **Revert**: the hunk is unrelated to the PR's purpose. Name it; unrelated hunks are a defect even when builds pass.
 - **Ask**: the hunk may be right but the reason lives with someone else (a reviewer's suggestion, an external constraint). Name who.
-- **Describe**: the code is right but the PR title, body, or an unanswered thread says otherwise. The room reads the body before the diff, so a stale body is a gap even with a perfect diff. Name the sentence to change or the thread to answer; when the body needs more than a sentence, draft the replacement per [handoff](../handoff.md) → PR description.
+- **Describe**: the code is right but the PR title, body, or an unanswered thread says otherwise. The room reads the body before the diff, so a stale body is a gap even with a perfect diff. Name the sentence to change or the thread to answer; when the body needs more than a sentence, draft the replacement per [handoff](../handoff.md) → PR description. The hand-back offers to apply it.
 
 Do not soften a gap into a 🟡 because the author would prefer it. The gap list is the part of this doc that saves the author at standup.
 
@@ -144,6 +144,6 @@ Report the verdict line and the path in chat. Nothing else.
 
 ## Hand back
 
-In chat, after the report is saved: the banner, the pitch line, the gap count with the first gap named, the scene count with the runtime estimate, and the report path. Then the Step 6 rehearse offer as its `AskUserQuestion`. Do not repeat the report. No teardown: the worktree is the operator's own branch.
+In chat, after the report is saved: the banner, the pitch line, the gap count with the first gap named, the scene count with the runtime estimate, and the report path. When a **Describe** gap drafted a new title or body, offer to apply it first: show the current and the proposed text, and on yes call `github_pr_update` (a token without Pull requests write gets a message naming it; then the operator pastes). Then the Step 6 rehearse offer as its `AskUserQuestion`. Do not repeat the report. No teardown: the worktree is the operator's own branch.
 
-A gap's recommended action is a recommendation; the operator applies it. The operator attaches the video and pastes the one-line body addition themselves; the report's Prep list names any screen where HOME material would show, so the author frames the shot around it.
+A gap's recommended action is a recommendation; the operator applies it, apart from a title or body they approved for `github_pr_update`. The operator attaches the video and pastes the one-line body addition themselves; the report's Prep list names any screen where HOME material would show, so the author frames the shot around it.
