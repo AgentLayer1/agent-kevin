@@ -413,6 +413,8 @@
 
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; overflow-wrap: anywhere; }
+  /* The first column holds short labels: keep them whole instead of letting a long path elsewhere squeeze them mid-word */
+  th:first-child, td:first-child { overflow-wrap: normal; min-width: 7em; }
   code { overflow-wrap: anywhere; }
   th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
 
@@ -563,8 +565,8 @@
   "kind": "review",
   "pr": { "number": 418, "title": "Reserve stock when an order is placed, release it on cancel", "author": "ada", "repo": "acme/shop", "head": "3f9c2e1", "base": "main", "adds": 642, "dels": 188 },
   "stack": [
-    { "number": 417, "title": "Add the reservations table" },
-    { "number": 418, "title": "Reserve on place, release on cancel", "current": true }
+    { "number": 417, "title": "Add the reservations table", "head": "8d1a4b0" },
+    { "number": 418, "title": "Reserve on place, release on cancel", "head": "3f9c2e1", "current": true }
   ],
   "verdict": "changes-requested",
   "risk": "L",
@@ -718,9 +720,9 @@
   const link = (url, ...children) =>
     /^https:\/\//.test(url || "") ? h("a", { href: url, target: "_blank", rel: "noopener" }, ...children) : h("span", {}, ...children);
 
-  const anchorLink = (anchor) => {
+  const anchorLink = (anchor, head = DATA.pr.head) => {
     const match = /^([^:]+)(?::(\d+)(?:-(\d+))?)?$/.exec(anchor || "");
-    const { repo, head } = DATA.pr;
+    const { repo } = DATA.pr;
     if (!match || !repo || !head) { return h("code", {}, anchor); }
     const [, path, start, end] = match;
     const lines = start ? (end ? `#L${start}-L${end}` : `#L${start}`) : "";
@@ -733,6 +735,8 @@
   // A stack's page says which PR each comment goes on; a single PR's page doesn't need to.
   const STACKED = list(DATA.stack).length > 1;
   const prOfUrl = (url) => Number((/\/pull\/(\d+)/.exec(url || "") || [])[1]) || null;
+  // A stacked finding is read at its own PR's head, since that is the diff its comment goes on.
+  const layerHead = (n) => (STACKED && list(DATA.stack).find((layer) => layer.number === n)?.head) || DATA.pr.head;
   const layerPill = (n) => (STACKED && n ? h("span", { class: "pill layer" }, `PR #${n}`) : null);
 
   // GitHub's Files tab names each file's diff by the SHA-256 of its path; until the hash resolves, the link opens the tab.
@@ -821,7 +825,7 @@
   const diffBlock = (source) => h("div", { class: "diff" }, String(source).split("\n").map((line) =>
     h("div", { class: line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : null }, line)));
 
-  const evidenceList = (rows) => h("ul", { class: "evidence" }, rows.map((row) => h("li", {}, row.anchor ? anchorLink(row.anchor) : h("span", { class: "src" }, row.source || ""), h("span", {}, row.fact))));
+  const evidenceList = (rows, head) => h("ul", { class: "evidence" }, rows.map((row) => h("li", {}, row.anchor ? anchorLink(row.anchor, head) : h("span", { class: "src" }, row.source || ""), h("span", {}, row.fact))));
 
   const section = (id, title, sub, ...body) => ({ id, title, node: h("section", { id }, h("h2", {}, title), sub ? h("p", { class: "sub" }, sub) : null, ...body) });
 
@@ -895,12 +899,12 @@
     const badge = badgeOf(finding);
     return item(badge ? "nit" : finding.severity, open, anchorId,
       [h("span", { class: `pill ${badge || finding.severity}` }, badge || SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`), layerPill(finding.pr),
-       h("span", { class: "title" }, finding.title), anchorLink(finding.anchor),
+       h("span", { class: "title" }, finding.title), anchorLink(finding.anchor, layerHead(finding.pr)),
        raised ? link(raised.url, h("span", { class: "raised" }, replied(finding) ? `also raised by @${raised.who}` : `follow-up on @${raised.who}'s thread`)) : null],
       [visual ? [h("div", { class: "lbl" }, "What goes wrong"), scenarioStrip(finding.scenario)] : finding.diagram ? h("div", { class: "lbl" }, "What goes wrong") : field("Failure", finding.failure),
        finding.diagram ? h("div", { class: "diagram" }, h("pre", {}, finding.diagram)) : null,
        finding.snippet ? [h("div", { class: "lbl" }, "The code"), h("div", { class: "snippet" }, h("pre", {}, finding.snippet))] : null,
-       list(finding.proof).length ? [h("div", { class: "lbl" }, "Evidence"), evidenceList(finding.proof)] : field("Evidence", finding.evidence),
+       list(finding.proof).length ? [h("div", { class: "lbl" }, "Evidence"), evidenceList(finding.proof, layerHead(finding.pr))] : field("Evidence", finding.evidence),
        h("div", { class: "finding-meta" }, [list(finding.lanes).join(", "), finding.principle, finding.introduced ? `introduced: ${finding.introduced}` : null].filter(Boolean).join(" · ")),
        paste(pasteLabel(finding), finding.comment)]);
   };

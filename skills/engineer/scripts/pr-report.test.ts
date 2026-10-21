@@ -165,6 +165,17 @@ describe('validate', () => {
     );
   });
 
+  test('a paste with a long run-on paragraph warns, and numbered steps or a fenced block do not', () => {
+    const runOn = Array.from({ length: 70 }, () => 'word').join(' ');
+    const steps = Array.from({ length: 4 }, (_, i) => `${i + 1}. ${Array.from({ length: 20 }, () => 'word').join(' ')}`).join('\n');
+    const fenced = `Short lead.\n\n\`\`\`suggestion\n${runOn}\n\`\`\``;
+    expect(validate(withFinding(sampleReview(), 0, { comment: runOn })).warnings).toEqual([
+      'findings[0].comment has a 70-word paragraph; split a multi-step failure into numbered lines (comment style)'
+    ]);
+    expect(validate(withFinding(sampleReview(), 0, { comment: `Lead.\n\n${steps}` })).warnings).toEqual([]);
+    expect(validate(withFinding(sampleReview(), 0, { comment: fenced })).warnings).toEqual([]);
+  });
+
   test('a scenario is 3 to 5 steps, and each proof line cites one anchor or one source', () => {
     const errors = validate(withFinding(sampleReview(), 0, { scenario: ['a', 'b'], proof: [{ fact: 'x' }, { anchor: 'src/orders/edit.ts:22', source: 'a doc', fact: 'y' }] })).errors;
     expect(errors).toEqual([
@@ -199,7 +210,7 @@ describe('validate', () => {
   });
 
   test('a stacked review can cite a thread on a lower layer, but not on a PR outside the stack', () => {
-    const stacked = { ...sampleReview(), stack: [{ number: 417, title: 'Parent' }, { number: 418, title: 'This', current: true }] };
+    const stacked = { ...sampleReview(), stack: [{ number: 417, title: 'Parent', head: '8d1a4b0' }, { number: 418, title: 'This', head: '3f9c2e1', current: true }] };
     const thread = (number: number) => ({ who: 'grace', kind: 'person', point: 'x', state: 'answered', url: `https://github.com/acme/shop/pull/${number}#discussion_r7` });
     expect(validate(withThreads(stacked, thread(417))).errors).toEqual([]);
     expect(validate(withThreads(stacked, thread(999))).errors).toHaveLength(1);
@@ -214,6 +225,8 @@ describe('validate', () => {
     expect(validate(single).errors).toEqual([]);
     expect(validate(withFinding(single, 0, { pr: 418 })).errors).toEqual(['findings[0].pr is only for a review of a stack with more than one layer']);
     expect(renderCard(single)).not.toContain('PR #418 ·');
+    const headless = { ...stacked, stack: rowsOf(stacked.stack).map(({ head: _head, ...layer }) => layer) };
+    expect(validate(headless).errors).toEqual(['stack[0].head must be non-empty text', 'stack[1].head must be non-empty text']);
   });
 
   test('a finding someone already raised links their thread, so the paste is a reply and not a second comment', () => {

@@ -51,7 +51,7 @@ const KEYS = {
   ],
   replies: ['sinceLast', 'threads', 'ownFindings', 'commits', 'resolveOnly', 'stillOpen'],
   pr: ['number', 'title', 'author', 'repo', 'head', 'base', 'adds', 'dels'],
-  stack: ['number', 'title', 'current'],
+  stack: ['number', 'title', 'head', 'current'],
   check: ['check', 'result', 'notes'],
   look: ['anchor', 'why'],
   decision: ['decision', 'picks', 'anchor'],
@@ -216,7 +216,8 @@ const commonErrors = (data: Row): string[] => {
     ...rowErrors(data.stack, 'stack', KEYS.stack, (row, at) => [
       ...(Number.isInteger(row.number) ? [] : [`${at}.number must be an integer`]),
       ...textErrors(row, ['title'], at),
-      ...oneLineErrors(row, ['title'], at)
+      ...oneLineErrors(row, ['title'], at),
+      ...(data.kind === 'review' && list(data.stack).length > 1 ? textErrors(row, ['head'], at) : [])
     ]),
     ...rowErrors(data.checks, 'checks', KEYS.check, (row, at) => [...textErrors(row, ['check'], at), ...enumErrors(row.result, RESULTS, `${at}.result`)]),
     ...textListErrors(data.prior, 'prior')
@@ -481,8 +482,25 @@ const words = (value: unknown): number => text(value).split(/\s+/).filter(Boolea
 const glance = (value: unknown, path: string, limit: number): string[] =>
   words(value) > limit ? [`${path} has ${words(value)} words; ${limit} at most keeps it readable at a glance`] : [];
 
+// A paste block reads in one pass only when no paragraph or list item runs long; a multi-step failure belongs in numbered lines.
+const PASTE_PARAGRAPH_WORDS = 60;
+const pasteWarnings = (value: unknown, path: string): string[] =>
+  text(value)
+    .replace(/```[\s\S]*?```/g, '')
+    .split(/\n\s*\n/)
+    .flatMap((paragraph) => paragraph.split(/\n(?=\s*(?:[-*]|\d+\.)\s)/))
+    .filter((paragraph) => words(paragraph) > PASTE_PARAGRAPH_WORDS)
+    .map((paragraph) => `${path} has a ${words(paragraph)}-word paragraph; split a multi-step failure into numbered lines (comment style)`);
+
 const glanceWarnings = (data: Row): string[] => [
+  ...rows(data.conversation).flatMap((thread, index) => [
+    ...pasteWarnings(thread.reply, `conversation[${index}].reply`),
+    ...(isText(thread.reply) && rows(data.findings).some((finding) => isRecord(finding.raisedBy) && finding.raisedBy.url === thread.url)
+      ? [`conversation[${index}].reply duplicates the reply a finding already posts on this thread; one paste per thread`]
+      : [])
+  ]),
   ...rows(data.findings).flatMap((finding, index) => [
+    ...pasteWarnings(finding.comment, `findings[${index}].comment`),
     ...list(finding.scenario).flatMap((step, stepIndex) => glance(step, `findings[${index}].scenario[${stepIndex}]`, GLANCE_WORDS)),
     ...rows(finding.proof).flatMap((proof, proofIndex) => glance(proof.fact, `findings[${index}].proof[${proofIndex}].fact`, GLANCE_WORDS))
   ]),

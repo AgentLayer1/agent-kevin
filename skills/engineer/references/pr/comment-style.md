@@ -14,15 +14,48 @@ Everything in a paste block is read by a colleague, on GitHub, out of context, o
 
 One claim per comment. If two things are wrong on one line, two comments.
 
+**A failure that takes more than one step gets steps, not a paragraph.** Most real findings do: a request, then a race, then a job that never looks back. Squeezing that into two sentences produces a run-on nobody can follow, and the author argues with the part they misread. Use this shape instead:
+
+```
+<What the code assumes, and why it doesn't hold, in one sentence.>
+
+1. <What happens first, one line, with file:line.>
+2. <Then, one line, with file:line.>
+3. <Then.>
+
+<The outcome in plain terms: who loses what, or what gets stuck.>
+
+<The fix, naming the existing helper or pattern to reuse, as one question or one sentence.>
+```
+
+- One step per line, one fact per step, each about 20 words or fewer. A step that needs "and then" is two steps.
+- Concrete beats abstract: "a second shopper orders the last two units 300 ms later" beats "a concurrent order for the same stock".
+- Name things the way the author's code does, and introduce any shorthand before using it ("the order's reservation row, R").
+- Cite the line that proves each step, at the head of the PR the comment is posted on.
+- The test: could the operator read it aloud to the author in a meeting and be understood the first time? If a sentence needs rereading, split it.
+
 Open with the outcome, not the code: "A crash between the provider 201 and the local update orphans the record and the retry duplicates it" beats "This should use an idempotency key". The reader gets the stakes first and can stop there.
 
 No severity prefix. `Blocking:`, `Non-blocking:`, `Nit:`, `Question:`, `Suggestion:` all read like a form field, not a person. Open with the issue and let the consequence carry the weight: a comment that says a crash orphans a record is obviously a blocker without the word. Severity belongs in the report, where the operator reads it, not in the box the author reads. If something genuinely must not merge and the stakes are not self-evident, say it in plain words at the end ("this one should land before merge"), and only when it would otherwise be missed.
 
 ## Length
 
-- 30 to 90 words for a finding. Longer means the finding is two findings or the evidence belongs in the report, not the comment.
+- A one-step finding is 30 to 90 words. A multi-step one is as long as its steps need, usually under 150 words, with no paragraph over about 60 words. Longer than that means it is two findings, or the evidence belongs in the report, not the comment.
 - Questions are one or two sentences plus what would settle them.
 - Nits are one line, and grouped: one comment per file listing them, or one line in the summary comment. Never a comment per nit.
+
+### Before and after: a review comment
+
+> Before: Still on 3f9c2e1, and wider than this thread: a missing reservation row doesn't mean the stock was released. If cancel lands while placement is still running it skips the release and marks the order cancelled, then placement writes R anyway, and because the sweep only looks at open orders the units stay held and the product shows sold out. Could cancel lock the order first?
+
+> After: Cancel reads "the order has no reservation row, R" as "its stock is already released", and it can't know that.
+>
+> 1. Cancel runs while placement is still in flight, so R doesn't exist yet (cancel.ts:41).
+> 2. Cancel finds no R, skips the release and marks the order CANCELLED (cancel.ts:58).
+> 3. Placement then finishes and writes R for two units (place.ts:112).
+> 4. The nightly sweep only releases R on open orders, so it skips this one (sweep.ts:30).
+>
+> The two units stay reserved for an order that no longer exists, and the shelf shows them sold out. Could cancel take the order's row lock first, the way `releaseOnExpiry` does?
 
 ## Suggestions GitHub can commit
 
@@ -67,6 +100,8 @@ Never dress a finding as a question to soften it, and never dress a guess as a f
 ## The summary comment
 
 If the operator wants one top-level comment as well as inline ones, it is: the verdict in one line, the blockers as a numbered list with anchors, one line on what was verified clean (so the author knows what was actually checked), and what was not run. Under 120 words. No poem.
+
+On a stack, or when the review proposes an architecture, the top-level comment is the overview the author starts from, so it can run long: the blockers as a short numbered list, a link to each of the operator's own earlier threads with where it stands, grouped by PR, then the direction with the before and after diagrams, the target layout and the code skeleton. See [PR report](report.md) → summaryComment.
 
 ## Replies on your own PR
 

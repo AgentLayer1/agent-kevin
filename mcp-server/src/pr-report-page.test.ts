@@ -154,6 +154,9 @@ describe('pr-report page', () => {
     const commentLink = document.getElementById('finding-2')?.querySelector('.paste .label a');
     expect(commentLink?.getAttribute('href')).toStartWith('https://github.com/acme/shop/pull/417/files');
     expect(commentLink?.textContent).toBe('#417 ↗');
+    // A finding is read at its own layer's head, the diff its comment lands on; the rest of the page reads the edge.
+    expect(document.getElementById('finding-2')?.querySelector('summary a')?.getAttribute('href')).toContain('/blob/8d1a4b0/');
+    expect(document.getElementById('finding-1')?.querySelector('summary a')?.getAttribute('href')).toContain('/blob/3f9c2e1/');
 
     const findingFilter = [...document.querySelectorAll('section#findings .filters button')];
     expect(findingFilter.map((button) => button.textContent)).toEqual(['all PRs 2', '#417 1', '#418 1']);
