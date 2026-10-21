@@ -881,23 +881,17 @@
       button.classList.toggle("done", ok);
       setTimeout(() => { button.textContent = "Copy"; button.classList.remove("done"); }, 1600);
     });
-    const preview = h("button", { type: "button", class: "preview" }, "Preview");
-    const raw = h("pre", {}, value);
-    const box = h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), h("span", { class: "actions" }, preview, button)), raw);
-    const view = { rendered: null };
-    preview.addEventListener("click", (event) => {
+    const toggle = h("button", { type: "button", class: "preview" }, "Raw");
+    const raw = h("pre", { hidden: true }, value);
+    const rendered = markdownView(value);
+    toggle.addEventListener("click", (event) => {
       event.preventDefault();
-      const showing = preview.classList.toggle("on");
-      if (!view.rendered) {
-        view.rendered = markdownView(value);
-        box.append(view.rendered);
-      }
-      raw.hidden = showing;
-      view.rendered.hidden = !showing;
-      preview.textContent = showing ? "Raw" : "Preview";
-      if (showing && view.rendered.querySelector(".diagram")) { loadMermaid().then(drawDiagrams); }
+      const showingRaw = toggle.classList.toggle("on");
+      raw.hidden = !showingRaw;
+      rendered.hidden = showingRaw;
+      toggle.textContent = showingRaw ? "Preview" : "Raw";
     });
-    return box;
+    return h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), h("span", { class: "actions" }, toggle, button)), raw, rendered);
   };
 
   const field = (key, value) => (value ? h("p", {}, h("span", { class: "k" }, key), value) : null);
@@ -1312,17 +1306,12 @@
       }
     }));
   };
-  // Loaded once, on the first page with a diagram or the first preview that holds one.
-  const mermaidLoad = { promise: null };
-  const loadMermaid = () => {
-    mermaidLoad.promise ??= import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
-      .then((module) => { mermaidLib = module.default; })
-      .catch(() => {});
-    return mermaidLoad.promise;
-  };
   if (document.querySelector(".diagram")) {
     window.__renderDone = false;
-    loadMermaid().then(drawDiagrams).finally(() => { window.__renderDone = true; });
+    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; return drawDiagrams(); })
+      .catch(() => {})
+      .finally(() => { window.__renderDone = true; });
   }
 
   document.addEventListener("themechange", drawDiagrams);

@@ -183,7 +183,7 @@ describe('pr-report page', () => {
     expect(document.getElementById('finding-2')?.querySelector('.paste .label')?.textContent).toBe('Comment to paste');
   });
 
-  test('a paste box previews its markdown as GitHub would, and pasted markup stays text', () => {
+  test('a paste box opens on its markdown as GitHub would render it, pasted markup stays text, and Raw shows the exact text', () => {
     const data = sample();
     const summaryComment = [
       'Verdict line with `code` and **bold**.',
@@ -206,11 +206,12 @@ describe('pr-report page', () => {
     const { errors, document } = open(renderPage(TEMPLATE, { ...data, summaryComment }));
     expect(errors).toEqual([]);
     const box = document.querySelector('section#summary .paste');
-    const preview = box?.querySelector('button.preview') as HTMLElement | null;
-    expect(preview?.textContent).toBe('Preview');
-    preview?.click();
-    const view = box?.querySelector('.md');
-    expect(box?.querySelector('pre')?.hidden).toBe(true);
+    const toggle = box?.querySelector('button.preview') as HTMLElement | null;
+    const raw = box?.querySelector(':scope > pre') as HTMLElement | null;
+    const view = box?.querySelector('.md') as HTMLElement | null;
+    expect(toggle?.textContent).toBe('Raw');
+    expect(raw?.hidden).toBe(true);
+    expect(view?.hidden).toBe(false);
     expect(view?.querySelector('.md-h2')?.textContent).toBe('Before merge');
     expect([...(view?.querySelectorAll('ol > li') ?? [])]).toHaveLength(2);
     expect(view?.querySelector('ol a')?.getAttribute('href')).toBe('https://github.com/acme/shop/pull/418#discussion_r1');
@@ -220,9 +221,14 @@ describe('pr-report page', () => {
     expect(view?.querySelector('details li')?.textContent).toBe('a nit');
     expect(view?.querySelector('pre code')?.textContent).toBe('const x = 1;');
     expect(view?.querySelector('p strong')?.textContent).toBe('bold');
-    preview?.click();
-    expect(preview?.textContent).toBe('Preview');
-    expect((view as HTMLElement | null)?.hidden).toBe(true);
+    toggle?.click();
+    expect(toggle?.textContent).toBe('Preview');
+    expect(view?.hidden).toBe(true);
+    expect(raw?.hidden).toBe(false);
+    expect(raw?.textContent).toBe(summaryComment);
+    toggle?.click();
+    expect(toggle?.textContent).toBe('Raw');
+    expect(view?.hidden).toBe(false);
   });
 
   test('the proposed description is folded behind a toggle, with its copy button inside', () => {
@@ -253,10 +259,11 @@ describe('pr-report page', () => {
 
   test('a clean review with no flows and no findings still renders', () => {
     const { flows: _flows, findings: _findings, conversation: _conversation, ...data } = sample();
-    const { errors, document, count } = open(renderPage(TEMPLATE, { ...data, verdict: 'approve' }));
+    const { errors, document } = open(renderPage(TEMPLATE, { ...data, verdict: 'approve' }));
     expect(errors).toEqual([]);
     expect(document.querySelector('section#findings .empty')?.textContent).toBe('No findings.');
-    expect(count('.diagram')).toBe(0);
+    expect([...document.querySelectorAll('.diagram')].filter((diagram) => !diagram.closest('.md'))).toHaveLength(0);
+    expect(document.querySelector('section#description .paste .md .diagram')).not.toBeNull();
   });
 
   test('in a stack, a thread without its own pr still shows, under the main PR', () => {
