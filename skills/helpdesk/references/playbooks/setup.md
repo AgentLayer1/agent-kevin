@@ -1,14 +1,18 @@
-# Profile — the interview that sets up or tunes a queue (`/helpdesk profile [slug]`)
+# Setup — set up or tune a project's support queue (`/helpdesk setup [slug]`)
 
-A queue profile is the operator's own file at `projects/<slug>/helpdesk.md`. Its frontmatter is read by code (this skill and sync's cadence check), so it stays flat. Its body is the queue's own workflow, rules and context, in the operator's words.
+Setting up a queue writes its profile, the operator's own file at `projects/<slug>/helpdesk.md`. Its frontmatter is read by code (this skill and sync's cadence check), so it stays flat. Its body is the queue's own workflow, rules and context, in the operator's words. Run again on a project that has one, setup tunes it.
+
+## Access first
+
+`helpdesk_connections` lists what the home can reach. When nothing is configured, or the project has no connection of its own and there is no default, the queue has nothing to read yet: run the `configure-skills` Helpdesk walk for this project through the Skill tool. The walk ends at a relaunch, because new keys load when the session starts; say so, and that `/helpdesk setup <slug>` picks up from here after it. A tool permission error means the same walk.
 
 ## The interview
 
 Run it in rounds with `AskUserQuestion`, a few questions at a time. Each question shows the plugin's default, and "the default" is always an answer. Write the operator's words, not a paraphrase. A round they skip, or answer with "the default", leaves its section out, so the default applies.
 
 1. **The queue.**
-   - Which project the tickets belong to (`projects/<slug>/` must exist; if not, offer the project skill first). One profile per project.
-   - Which connection: `helpdesk_connections` lists them; the default needs no `connection` line.
+   - Which project the tickets belong to, unless the ask named it (`projects/<slug>/` must exist; if not, offer the project skill first). One profile per project.
+   - Which connection: `helpdesk_connections` lists them. One named after this project's slug is the project's own, so offer it first; the default (the No project connection) needs no `connection` line.
    - Which statuses count as open: SupportCandy's from `helpdesk_lookups` (`kind: statuses`); Pylon's are `new`, `waiting_on_you`, `waiting_on_customer`, `on_hold` and `closed`, plus any custom slugs.
    - How often the pulse runs: daily, weekly, monthly or only when asked.
    - Whether the product ships on the App Store: its link or id becomes `appstore` (the digits after `id` in the link), and the pulse then reads its reviews too. Don't ask about storefronts; the reviews tool picks them. Write `storefronts` only when the operator names countries to pin.

@@ -600,7 +600,12 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 **(1) Pick the helpdesk(s)** (`AskUserQuestion`, multi-select): SupportCandy · Pylon. With both configured, each call names the one it means.
 
-**(1b) Name the connections.** One connection is one SupportCandy site or one Pylon workspace. The first of each kind is the **default** and uses the plain keys below. Each further one gets a name, and every key it uses carries that name as a suffix, uppercased with anything but letters and digits as `_` (`acme-shop` → `SUPPORTCANDY_URL_ACME_SHOP`, `PYLON_API_TOKEN_ACME_SHOP`). A queue profile picks one with `connection:`. A named connection reads only its own keys and never borrows the default's, since those reach a different site. Ask which connections to set up now (`AskUserQuestion`: the default only, or a list of names); re-running this walk adds more and never overwrites a line that exists.
+**(1b) Which project is it for?** One connection is one SupportCandy site or one Pylon workspace, and it usually serves one project's support. For each helpdesk picked in (1), ask (`AskUserQuestion`) which project this connection is for. Offer up to three of the home's projects (`projects/*/README.md`; prefer ones whose README mentions support, a helpdesk or the app, then the most recently updated), plus **No project**; "Other" takes any other project's slug. When the helpdesk skill's setup handed off for a project, that project is the answer: don't ask again.
+
+- **A project** names the connection after its slug, and every key it uses carries that name as a suffix, uppercased with anything but letters and digits as `_` (project `acme-shop` → `SUPPORTCANDY_URL_ACME_SHOP`, `PYLON_API_TOKEN_ACME_SHOP`). Its queue profile gets `connection: <slug>` (step 6), so that project's tickets always come from that site. If the project shares a site or workspace already set up for another project, say which connection to reuse instead, and no new keys are written.
+- **No project** is the **default** connection, on the plain keys below (`SUPPORTCANDY_URL`, `PYLON_API_TOKEN`). Calls and profiles that name no connection use it.
+
+A named connection reads only its own keys and never borrows the default's, since those reach a different site. Then ask whether another project needs a connection, and repeat until the operator says no. Re-running this walk adds more and never overwrites a line that exists.
 
 **(2) Pick the level** (`AskUserQuestion`):
 
@@ -625,7 +630,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 **(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_connections`, `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
-**(6) Offer a queue profile** (`AskUserQuestion`): "Set up a queue profile for a project's tickets?" A profile (`projects/<slug>/helpdesk.md`) is the queue's own workflow: its connection, which statuses count as open, what the pulse does and how often, the bug lifecycle, replies, context and any routines of its own. The helpdesk skill's profile interview writes it and tunes it later. A yes is done after the relaunch, since the interview lists the helpdesk's connections and statuses: carry `/agent-kevin:helpdesk profile` into the summary as the first thing to run.
+**(6) Offer each project its queue profile** (`AskUserQuestion`, one question per project from 1b that has no `projects/<slug>/helpdesk.md` yet): "Set up <slug>'s support queue now?" A profile is the queue's own workflow: its connection, which statuses count as open, what the pulse does and how often, the bug lifecycle, replies, context and any routines of its own. The helpdesk skill's setup interview writes it, with `connection: <slug>` already filled in, and tunes it later. A yes is done after the relaunch, since the interview lists the helpdesk's connections and statuses: carry `/agent-kevin:helpdesk setup <slug>` into the summary for each. A **No project** connection gets no profile here; any project can use it later through setup by leaving `connection` out.
 
 **(7) Summary:**
 
@@ -633,13 +638,13 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 ✅ Helpdesk pack activated.
 
 Helpdesks:              <SupportCandy / Pylon>
-Connections:            <default[, name, …]>
+Connections:            <no project (default) / <slug> for each project, …>
 Tool permissions:       helpdesk_connections, helpdesk_tickets, helpdesk_ticket, helpdesk_attachment, helpdesk_accounts, helpdesk_lookups[, helpdesk_note]
 Settings env:           SUPPORTCANDY_URL[_<NAME>], SUPPORTCANDY_USERNAME[_<NAME>]   (SupportCandy)
 Secret lines to add:    SUPPORTCANDY_APP_PASSWORD[_<NAME>] and/or PYLON_API_TOKEN[_<NAME>]  (in .state/secrets/.env)
 
 Relaunch to load the secrets, then check with: "list helpdesk tickets from the last day".
-Then: /agent-kevin:helpdesk profile to write a queue profile, and /agent-kevin:helpdesk pulse for the queue.
+Then: /agent-kevin:helpdesk setup <slug> for each project's queue, and /agent-kevin:helpdesk pulse <slug> once it's written.
 A 404 means the REST API is off; a 401 means the password, the username, or the user isn't a SupportCandy agent.
 ```
 
@@ -658,7 +663,7 @@ Tool permission:   appstore_reviews
 Keys:              none
 
 Check with: "show the latest App Store reviews for <app link>".
-To watch an app's reviews in a helpdesk pulse, add `appstore: <id>` to its queue profile (/agent-kevin:helpdesk profile).
+To watch an app's reviews in a helpdesk pulse, add `appstore: <id>` to its queue profile (/agent-kevin:helpdesk setup <slug>).
 ```
 
 ---

@@ -9,5 +9,5 @@ Your support queue in SupportCandy or Pylon. I read, sort and draft; you send ev
 | "What's open for <account>?", `/helpdesk account <name>` | **account** | One account's tickets (Pylon) |
 | "Draft a reply for 318", `/helpdesk draft <id>` | **draft** | A reply in your queue's tone, left as a private note once you approve it |
 | "File 318 as a bug", `/helpdesk bug <id>` | **file bug** | A task, or a GitHub card with the repro, log excerpt and screenshots, wherever your profile files bugs |
-| "Set up a queue profile", "tune the pulse", `/helpdesk profile [slug]` | **profile** | An interview that writes or tunes the queue profile: statuses, schedule, the pulse, the bug lifecycle, replies, context and your own routines |
+| "Set up helpdesk for <project>", "tune the pulse", `/helpdesk setup [slug]` | **setup** | Access first if the project has none, then an interview that writes or tunes its queue profile: statuses, schedule, the pulse, the bug lifecycle, replies, context and your own routines |
 | A routine from your profile, `/helpdesk digest [slug]` | **workflow** | Whatever that routine's steps produce, saved when it's scheduled |

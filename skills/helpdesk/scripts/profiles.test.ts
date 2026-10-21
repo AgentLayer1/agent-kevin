@@ -109,7 +109,7 @@ describe("routinesDue", () => {
   test("a broken profile becomes its own item and the rest still report", () => {
     const { projects, reports } = fixture({ broken: profile("schedule: [pulse:weekly]"), ok: profile("statuses: [new]\nschedule: [pulse:daily]") });
     const due = routinesDue(projects, reports, "2026-10-21");
-    expect(due.map((item) => item.invoke)).toEqual(["helpdesk profile broken", "helpdesk pulse ok"]);
+    expect(due.map((item) => item.invoke)).toEqual(["helpdesk setup broken", "helpdesk pulse ok"]);
     expect(due[0]?.label).toContain("Fix the helpdesk profile");
   });
 });

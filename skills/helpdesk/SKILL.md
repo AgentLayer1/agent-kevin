@@ -1,9 +1,9 @@
 ---
 name: helpdesk
 description: >
-  Support tickets (SupportCandy, Pylon): queue pulse, ticket deep-dive, an account's tickets, reply
-  drafted as a private note. Triggers on "support queue", "pull ticket <id>", /helpdesk.
-allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__helpdesk_note, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, mcp__plugin_agent-kevin_kevin__github_issue_create, mcp__plugin_agent-kevin_kevin__github_issue_comment, Read, Write, Edit, Glob, Grep
+  SupportCandy or Pylon tickets: queue setup, pulse, ticket deep-dive, drafted replies. Triggers on
+  "support queue", "pull ticket <id>", "set up helpdesk for <project>".
+allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__helpdesk_note, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, mcp__plugin_agent-kevin_kevin__github_issue_create, mcp__plugin_agent-kevin_kevin__github_issue_comment, Skill(agent-kevin:configure-skills), Read, Write, Edit, Glob, Grep
 ---
 
 # Helpdesk
@@ -20,13 +20,13 @@ Three layers decide how a queue is worked, each read in full before acting:
 
 1. **The playbooks below are the default workflow**, and [lifecycle](references/lifecycle.md) is the default bug lifecycle.
 2. **Org rules.** If `references/org.md` exists beside this file, read it next. It ships with an organisation's own plugin: org defaults, and boundaries that nothing below can loosen.
-3. **The queue profile** at `projects/<slug>/helpdesk.md`, the operator's own (the [profile](references/playbooks/profile.md) interview writes one). A slug in the ask (`/helpdesk pulse acme`) picks it; with exactly one profile in the home, use it; with several, ask which. Its frontmatter sets the call: `helpdesk` and `connection` pass straight to every tool, `statuses` filters the pulse, `appstore` (and `storefronts`, when pinned) adds the app's reviews to it, and `schedule` is what sync nudges. Its body changes the workflow:
+3. **The queue profile** at `projects/<slug>/helpdesk.md`, the operator's own (the [setup](references/playbooks/setup.md) interview writes one). A slug in the ask (`/helpdesk pulse acme`) picks it; with exactly one profile in the home, use it; with several, ask which. Its frontmatter sets the call: `helpdesk` and `connection` pass straight to every tool, `statuses` filters the pulse, `appstore` (and `storefronts`, when pinned) adds the app's reviews to it, and `schedule` is what sync nudges. Its body changes the workflow:
    - `## Pulse` extends the default pulse, or replaces it when its first line is `Replaces the default.`
    - `## Bug lifecycle` replaces the default lifecycle table.
    - `## Workflow: <name>` is a routine of the queue's own, run as `/helpdesk <name> [slug]`.
    - `## Triage`, `## Filing bugs`, `## Tone` and `## Context` are read by every playbook.
 
-   With no profile, use the defaults below and offer the profile interview at the end.
+   With no profile, use the defaults below and offer setup at the end.
 
 Then match the ask to a playbook, or to one of the profile's workflows, and follow it. A tool error that says no helpdesk is configured: point to `/agent-kevin:configure-skills` → Helpdesk and stop. One that says several are: `helpdesk_connections` lists them, and the profile's `connection` should name one.
 
@@ -41,7 +41,7 @@ Defaults with no profile: on Pylon the open statuses are `new` and `waiting_on_y
 | "what's open for <account>", `/helpdesk account <name>` | [account](references/playbooks/account.md) |
 | "draft a reply for 318", `/helpdesk draft <id>` | [draft](references/playbooks/draft.md) |
 | "file 318 as a bug", "open a card for this ticket", `/helpdesk bug <id>` | [file bug](references/playbooks/file-bug.md) |
-| "set up a queue profile", "tune the pulse", "fix the helpdesk profile", `/helpdesk profile [slug]` | [profile](references/playbooks/profile.md) |
+| "set up helpdesk for <project>", "tune the pulse", "fix the helpdesk profile", `/helpdesk setup [slug]` | [setup](references/playbooks/setup.md) |
 | a routine the profile defines (`## Workflow: digest`), `/helpdesk digest [slug]` | [workflow](references/playbooks/workflow.md) |
 
 ## Every time
