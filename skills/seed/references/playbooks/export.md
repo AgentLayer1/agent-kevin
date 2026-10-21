@@ -16,7 +16,7 @@ client names, personal context, and operator-specific material must be caught in
 
 Call `seed_scan`. It returns everything the interview needs: agent name (vs template),
 identity divergence, concepts (template-identical ones flagged — the recipient's own init
-seeds those), projects with README/roadmap, custom skills (symlinked skills.sh installs
+seeds those), projects with README/roadmap/helpdesk queue profile, custom skills (symlinked skills.sh installs
 listed separately — they are NOT exportable; the recipient reinstalls from the registry),
 custom browser flows, custom scripts, rules, HOME `.mcp.json` servers with the env key names they
 reference, active packs, classified permission entries, and settings.local.json env key
@@ -44,13 +44,14 @@ own", so it doesn't mistake them for a leak.
 > - A project slice — one or more projects with their associated knowledge and tooling
 > - Identity only — name, soul, avatar; nothing else
 
-For a **project slice**: `Read` the chosen `projects/<slug>/README.md` (and roadmap if
-present), follow its `[[concepts/...]]` wikilinks into `knowledge/concepts/`, and present
+For a **project slice**: `Read` the chosen `projects/<slug>/README.md` (and roadmap and
+helpdesk queue profile if present), follow its `[[concepts/...]]` wikilinks into `knowledge/concepts/`, and present
 that concept set pre-ticked; the operator adds/removes. Also pre-tick the custom skills,
 browser flows and MCP servers plausibly tied to the project (name/content match — e.g. an
 `acme-logs` skill for the acme project), and the packs the project's files show it uses
 (`grep` its README and tasks for a pack's tools or keys: PRs and CI → github, a database
-→ database, browser captures or web research → browser); the operator confirms.
+→ database, browser captures or web research → browser, a `helpdesk.md` queue profile →
+helpdesk); the operator confirms.
 
 ### 2. Identity
 
@@ -74,7 +75,7 @@ or one like "inspired by <old name>" that needs rewording, goes in as an `extras
 ### 3. Knowledge + surfaces
 
 Multi-select from the scan: concepts (template-identical ones default-unticked, marked
-"comes with init"), project READMEs/roadmaps, root `roadmap.html`.
+"comes with init"), project READMEs/roadmaps/helpdesk queue profiles, root `roadmap.html`.
 
 ### 4. Local setup beyond the scaffold
 
@@ -119,7 +120,9 @@ client names that need `acme`-ing, personal paths, private context — and let t
 IDENTITY.md and SOUL.md are expected and stay; flag only what belongs to someone else.
 Edits happen in the source file or via an `extras` override, never silently. No approval,
 no bundle. A project README always ships without its `## Pinned` section, since the reports
-and files it pins don't travel; say so when showing the README.
+and files it pins don't travel; say so when showing the README. A helpdesk queue profile is
+rules written against real tickets: read its triage, bug and tone sections line by line for
+customer or company names, ticket ids and real quotes, and `acme` or cut each one.
 
 Then a final manifest summary (files by category, permission entries, key names, MCP
 servers) and one last confirm.

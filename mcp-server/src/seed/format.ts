@@ -91,8 +91,8 @@ export const ALLOWED_ROOTS = [
   'scripts/'
 ] as const;
 
-/** Within `projects/`, only READMEs and roadmaps travel — never tasks (clean slate). */
-const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html)$/;
+/** Within `projects/`, only READMEs, roadmaps and queue profiles travel — never tasks (clean slate). */
+const PROJECT_FILE_RE = /^projects\/[^/]+\/(README\.md|roadmap\.html|helpdesk\.md)$/;
 
 /**
  * A browser flow keeps its credentials in its own `.env`; no root may carry one, in any case or
@@ -137,7 +137,7 @@ export const validateSeedPath = (path: string): string | null => {
     return `a bundled flow may not take a built-in flow's name, since it would run in its place: ${path}`;
   }
   if (path.startsWith('projects/') && !PROJECT_FILE_RE.test(path)) {
-    return `only projects/<slug>/README.md and roadmap.html may travel (never tasks): ${path}`;
+    return `only projects/<slug>/README.md, roadmap.html and helpdesk.md may travel (never tasks): ${path}`;
   }
   return null;
 };

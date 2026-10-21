@@ -23,6 +23,7 @@ interface ProjectCandidate {
   slug: string;
   readme: boolean;
   roadmap: boolean;
+  helpdesk: boolean;
 }
 
 interface McpServerCandidate {
@@ -128,7 +129,8 @@ export const scanSeed = (): SeedScanResult => {
         .map((dirent) => ({
           slug: dirent.name,
           readme: existsSync(join(FOLDERS.PROJECTS, dirent.name, 'README.md')),
-          roadmap: existsSync(join(FOLDERS.PROJECTS, dirent.name, 'roadmap.html'))
+          roadmap: existsSync(join(FOLDERS.PROJECTS, dirent.name, 'roadmap.html')),
+          helpdesk: existsSync(join(FOLDERS.PROJECTS, dirent.name, 'helpdesk.md'))
         }))
         .sort((left, right) => left.slug.localeCompare(right.slug))
     : [];

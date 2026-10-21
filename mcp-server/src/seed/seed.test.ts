@@ -145,6 +145,7 @@ describe('validateSeedPath', () => {
     expect(validateSeedPath('AGENTS.md')).toBeNull();
     expect(validateSeedPath('knowledge/concepts/x.md')).toBeNull();
     expect(validateSeedPath('projects/acme/README.md')).toBeNull();
+    expect(validateSeedPath('projects/acme/helpdesk.md')).toBeNull();
     expect(validateSeedPath('.claude/skills/acme-logs/SKILL.md')).toBeNull();
     expect(validateSeedPath('scripts/browser/acme-login/index.ts')).toBeNull();
   });
@@ -191,7 +192,7 @@ describe('scanSeed', () => {
     const concepts = new Map(scan.concepts.map((concept) => [concept.path, concept.templateIdentical]));
     expect(concepts.get('knowledge/concepts/acme-pattern.md')).toBe(false);
     expect(concepts.get('knowledge/concepts/karpathy-wiki.md')).toBe(true);
-    expect(scan.projects).toEqual([{ slug: 'acme', readme: true, roadmap: true }]);
+    expect(scan.projects).toEqual([{ slug: 'acme', readme: true, roadmap: true, helpdesk: false }]);
     expect(scan.rootRoadmap).toBe(true);
     expect(scan.customSkills).toEqual(['acme-logs']);
     expect(scan.customFlows).toEqual(['acme-login']);
@@ -542,6 +543,27 @@ describe('project pins in a bundle', () => {
     inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
     expect(readFileSync(join(recipient, 'projects/beta/README.md'), 'utf-8')).toBe('# Beta\n\n## Code\n\nrepo\n');
     expect(readFileSync(join(sourceHome, 'projects/beta/README.md'), 'utf-8')).toContain('## Pinned');
+  });
+});
+
+describe('queue profiles in a bundle', () => {
+  test("a project's helpdesk queue profile is scanned and travels as written", () => {
+    const profile = '---\nstatuses: [Open]\ncadence: weekly\n---\n\n## Triage\n\n- Ask for the app version first\n';
+    write(sourceHome, 'projects/gamma/README.md', '# Gamma\n');
+    write(sourceHome, 'projects/gamma/helpdesk.md', profile);
+    expect(asSource(() => scanSeed()).projects.find((project) => project.slug === 'gamma')).toEqual({
+      slug: 'gamma',
+      readme: true,
+      roadmap: false,
+      helpdesk: true
+    });
+    const result = asSource(() =>
+      exportSeed({ include: ['projects/gamma/helpdesk.md'], agentName: 'Scout', out: join(sourceHome, 'queue.zip') })
+    );
+    const recipient = makeHome();
+    homes.push(recipient);
+    inHome(recipient, () => importSeed({ bundlePath: result.bundlePath, overwrite: true }));
+    expect(readFileSync(join(recipient, 'projects/gamma/helpdesk.md'), 'utf-8')).toBe(profile);
   });
 });
 
