@@ -13,7 +13,7 @@ import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
-import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type HelpdeskMessage, type HelpdeskTicket, type MessageKind } from './types';
+import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type HelpdeskMessage, type HelpdeskPerson, type HelpdeskTicket, type MessageKind } from './types';
 
 const API_PATH = '/wp-json/supportcandy/v2';
 const PAGE_SIZE = 50;
@@ -31,6 +31,7 @@ export interface ScTicket {
   status?: number;
   category?: number;
   customer?: number;
+  assigned_agent?: number[];
   date_created?: string;
   date_updated?: string;
 }
@@ -63,10 +64,19 @@ interface ScNamed {
   name?: string;
 }
 
+/** `GET /customers/<id>`; an agent caller sees the email too. Agents are customers as well. */
+interface ScCustomer extends ScNamed {
+  email?: string;
+}
+
 export interface Lookups {
   statuses: ReadonlyMap<number, string>;
   categories: ReadonlyMap<number, string>;
+  agents: ReadonlyMap<number, string>;
 }
+
+/** Customer id → the person, for a ticket's requester and each thread's author. */
+export type People = ReadonlyMap<number, HelpdeskPerson>;
 
 const credentials = (): Credentials | null => {
   const site = env('SUPPORTCANDY_URL')?.replace(/\/+$/, '');
@@ -118,17 +128,26 @@ export const toIso = (value: string | undefined): string | undefined =>
 export const adminLink = (site: string, id: number): string =>
   `${site}/wp-admin/admin.php?page=wpsc-tickets&section=ticket-list&id=${id}`;
 
-export const mapTicket = (raw: ScTicket, lookups: Lookups, site: string): HelpdeskTicket => ({
-  id: String(raw.id),
-  helpdesk: 'supportcandy',
-  subject: raw.subject ?? '',
-  status: raw.status === undefined ? '' : (lookups.statuses.get(raw.status) ?? String(raw.status)),
-  ...(raw.category !== undefined && { category: lookups.categories.get(raw.category) ?? String(raw.category) }),
-  tags: [],
-  created_at: toIso(raw.date_created),
-  updated_at: toIso(raw.date_updated),
-  link: adminLink(site, raw.id)
-});
+const personOf = (people: People, id: number | undefined): HelpdeskPerson | undefined =>
+  id === undefined ? undefined : (people.get(id) ?? { id: String(id) });
+
+export const mapTicket = (raw: ScTicket, lookups: Lookups, site: string, people: People = new Map()): HelpdeskTicket => {
+  const [agent] = raw.assigned_agent ?? [];
+  const requester = personOf(people, raw.customer);
+  return {
+    id: String(raw.id),
+    helpdesk: 'supportcandy',
+    subject: raw.subject ?? '',
+    status: raw.status === undefined ? '' : (lookups.statuses.get(raw.status) ?? String(raw.status)),
+    ...(raw.category !== undefined && { category: lookups.categories.get(raw.category) ?? String(raw.category) }),
+    tags: [],
+    ...(requester && { requester }),
+    ...(agent !== undefined && { assignee: { id: String(agent), ...(lookups.agents.get(agent) && { name: lookups.agents.get(agent) }) } }),
+    created_at: toIso(raw.date_created),
+    updated_at: toIso(raw.date_updated),
+    link: adminLink(site, raw.id)
+  };
+};
 
 const kindOf = (thread: ScThread, ticketCustomer: number | undefined): MessageKind => {
   if (thread.type === 'note') {
@@ -149,19 +168,37 @@ export const attachmentIds = (thread: ScThread): string[] =>
 export const mapThread = async (
   thread: ScThread,
   ticketCustomer: number | undefined,
-  attachmentNames: ReadonlyMap<string, string> = new Map()
+  attachmentNames: ReadonlyMap<string, string> = new Map(),
+  people: People = new Map()
 ): Promise<HelpdeskMessage> => ({
   id: String(thread.id),
   kind: kindOf(thread, ticketCustomer),
+  ...(personOf(people, thread.customer) && { author: personOf(people, thread.customer) }),
   created_at: toIso(thread.date_created),
   body: typeof thread.body === 'string' ? await htmlToText(thread.body) : JSON.stringify(thread.body ?? {}),
   attachments: attachmentIds(thread).map((id) => ({ id, name: attachmentNames.get(id) ?? `attachment-${id}` }))
 });
 
 const lookups = async (): Promise<Lookups> => {
-  const [statuses, categories] = await Promise.all([call<ScNamed[]>('/statuses'), call<ScNamed[]>('/categories')]);
+  const [statuses, categories, agents] = await Promise.all([
+    call<ScNamed[]>('/statuses'),
+    call<ScNamed[]>('/categories'),
+    call<ScPage<ScNamed>>('/agents', { query: { per_page: 100 } })
+  ]);
   const toMap = (items: ScNamed[]): Map<number, string> => new Map(items.map((item) => [item.id, item.name ?? String(item.id)]));
-  return { statuses: toMap(statuses), categories: toMap(categories) };
+  return { statuses: toMap(statuses), categories: toMap(categories), agents: toMap(agents.results ?? []) };
+};
+
+const people = async (ids: readonly (number | undefined)[]): Promise<People> => {
+  const unique = [...new Set(ids.filter((id): id is number => id !== undefined))];
+  const found = await Promise.all(
+    unique.map(async (id): Promise<[number, HelpdeskPerson]> => {
+      // A deleted customer shouldn't fail the whole read; the ticket still carries the id.
+      const customer = await call<ScCustomer>(`/customers/${id}`).catch((): ScCustomer => ({ id }));
+      return [id, { id: String(id), ...(customer.name && { name: customer.name }), ...(customer.email && { email: customer.email }) }];
+    })
+  );
+  return new Map(found);
 };
 
 const asLookups = (names: ReadonlyMap<number, string>): HelpdeskLookup[] => [...names].map(([id, name]) => ({ id: String(id), name }));
@@ -188,16 +225,18 @@ export const supportcandy: HelpdeskConnector = {
       query.updatedSince === undefined || Date.parse(toIso(ticket.date_updated) ?? '') >= Date.parse(query.updatedSince);
     const wanted = query.status?.map((status) => status.toLowerCase());
     const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
-    const recent = async (page: number, gathered: HelpdeskTicket[]): Promise<HelpdeskTicket[]> => {
+    const recent = async (page: number, gathered: ScTicket[]): Promise<ScTicket[]> => {
       const result = await call<ScPage<ScTicket>>('/tickets', {
         query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
       });
       const fresh = (result.results ?? []).filter(isFresh);
-      const next = [...gathered, ...fresh.map((raw) => mapTicket(raw, names, site)).filter(matches)];
+      const next = [...gathered, ...fresh.filter((raw) => matches(mapTicket(raw, names, site)))];
       const reachedCutoff = fresh.length < (result.results ?? []).length;
       return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
     };
-    return (await recent(1, [])).slice(0, query.limit);
+    const kept = (await recent(1, [])).slice(0, query.limit);
+    const requesters = await people(kept.map((raw) => raw.customer));
+    return kept.map((raw) => mapTicket(raw, names, site, requesters));
   },
   get: async (id) => {
     const { site } = requireCredentials();
@@ -205,8 +244,9 @@ export const supportcandy: HelpdeskConnector = {
     const ids = threads.flatMap(attachmentIds);
     const found = await Promise.all(ids.map((id) => call<ScAttachment>(`/attachments/${encodeURIComponent(id)}`)));
     const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
-    const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames)));
-    return { ticket: mapTicket(raw, names, site), messages };
+    const everyone = await people([raw.customer, ...threads.map((thread) => thread.customer)]);
+    const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames, everyone)));
+    return { ticket: mapTicket(raw, names, site, everyone), messages };
   },
   addNote: async (id, bodyHtml) => {
     const created = await call<{ id?: number } | ScThread>(`/tickets/${encodeURIComponent(id)}/threads`, {
@@ -224,6 +264,7 @@ export const supportcandy: HelpdeskConnector = {
   },
   lookups: {
     statuses: async () => asLookups((await lookups()).statuses),
-    categories: async () => asLookups((await lookups()).categories)
+    categories: async () => asLookups((await lookups()).categories),
+    teammates: async () => asLookups((await lookups()).agents)
   }
 };

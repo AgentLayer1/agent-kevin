@@ -9,7 +9,8 @@ import type { HelpdeskConnector, HelpdeskName } from './types';
 
 const LOOKUPS: Lookups = {
   statuses: new Map([[1, 'Open'], [4, 'Closed']]),
-  categories: new Map([[2, 'Billing']])
+  categories: new Map([[2, 'Billing']]),
+  agents: new Map([[5, 'Sam']])
 };
 
 describe('SupportCandy mapping', () => {
@@ -18,15 +19,23 @@ describe('SupportCandy mapping', () => {
     expect(toIso('')).toBeUndefined();
   });
 
-  test('a ticket resolves its status and category names and links to the agent view', () => {
+  test('a ticket resolves its status, category, requester and assignee, and links to the agent view', () => {
     const ticket = mapTicket(
-      { id: 318, subject: 'Export does nothing', status: 1, category: 2, customer: 77, date_updated: '2026-10-20 08:15:00' },
+      { id: 318, subject: 'Export does nothing', status: 1, category: 2, customer: 77, assigned_agent: [5], date_updated: '2026-10-20 08:15:00' },
       LOOKUPS,
-      'https://help.example.com'
+      'https://help.example.com',
+      new Map([[77, { id: '77', name: 'Ada', email: 'ada@acme.test' }]])
     );
-    expect(ticket).toMatchObject({ id: '318', status: 'Open', category: 'Billing', updated_at: '2026-10-20T08:15:00Z' });
+    expect(ticket).toMatchObject({
+      id: '318',
+      status: 'Open',
+      category: 'Billing',
+      requester: { id: '77', name: 'Ada', email: 'ada@acme.test' },
+      assignee: { id: '5', name: 'Sam' },
+      updated_at: '2026-10-20T08:15:00Z'
+    });
     expect(ticket.link).toBe(adminLink('https://help.example.com', 318));
-    expect(JSON.stringify(ticket)).not.toContain('77');
+    expect(mapTicket({ id: 319, customer: 78 }, LOOKUPS, 'https://help.example.com').requester).toEqual({ id: '78' });
   });
 
   test('threads are tagged by who wrote them', async () => {
@@ -71,10 +80,9 @@ describe('SupportCandy notes', () => {
 });
 
 describe('Pylon mapping', () => {
-  test('an issue keeps its state and tags and drops the requester', () => {
-    const ticket = mapIssue({ id: 'iss_1', title: 'Export broken', state: 'new', tags: ['bug'], requester: { email: 'ada@acme.test' } });
-    expect(ticket).toMatchObject({ id: 'iss_1', subject: 'Export broken', status: 'new', tags: ['bug'] });
-    expect(JSON.stringify(ticket)).not.toContain('ada@acme.test');
+  test('an issue keeps its state, tags and requester', () => {
+    const ticket = mapIssue({ id: 'iss_1', title: 'Export broken', state: 'new', tags: ['bug'], requester: { id: 'c1', email: 'ada@acme.test' } });
+    expect(ticket).toMatchObject({ id: 'iss_1', subject: 'Export broken', status: 'new', tags: ['bug'], requester: { id: 'c1', email: 'ada@acme.test' } });
   });
 
   test('messages are tagged note, customer or agent', async () => {
@@ -88,23 +96,37 @@ describe('Pylon mapping', () => {
     expect(kinds).toEqual(['note', 'customer', 'agent']);
   });
 
-  test('an issue carries its number, assignee and account ids but no email', () => {
+  test('an issue carries its number, assignee, account, linked issues and CSAT', () => {
     const ticket = mapIssue({
       id: 'iss_2',
       number: 41,
-      title: 'Payout stuck',
+      title: 'Export stuck',
       state: 'waiting_on_you',
-      assignee: { id: 'usr_9', email: 'agent@acme.test' },
+      assignee: { id: 'usr_9', email: 'sam@acme.test' },
       account: { id: 'acc_3' },
-      latest_message_activity_at: '2026-10-20T09:00:00Z'
+      latest_message_activity_at: '2026-10-20T09:00:00Z',
+      external_issues: [{ source: 'github', external_id: '12', link: 'https://github.com/acme/app/issues/12' }],
+      csat_responses: [{ score: 4, comment: 'Quick fix' }]
     });
-    expect(ticket).toMatchObject({ number: 41, assignee: 'usr_9', account: 'acc_3', last_activity_at: '2026-10-20T09:00:00Z' });
-    expect(JSON.stringify(ticket)).not.toContain('agent@acme.test');
+    expect(ticket).toMatchObject({
+      number: 41,
+      assignee: { id: 'usr_9', email: 'sam@acme.test' },
+      account: 'acc_3',
+      last_activity_at: '2026-10-20T09:00:00Z',
+      linked_issues: [{ source: 'github', id: '12', url: 'https://github.com/acme/app/issues/12' }],
+      csat: [{ score: 4, comment: 'Quick fix' }]
+    });
+    expect(mapIssue({ id: 'iss_3' })).not.toHaveProperty('linked_issues');
   });
 
-  test('an account keeps its name, domains and tags but not its owner', () => {
-    const account = mapAccount({ id: 'acc_3', name: 'Acme', primary_domain: 'acme.test', domains: ['acme.test', 'acme.example'], owner: { email: 'owner@acme.test' } });
-    expect(account).toEqual({ id: 'acc_3', name: 'Acme', domains: ['acme.test', 'acme.example'], tags: [] });
+  test('an account keeps its name, domains, tags and owner', () => {
+    const account = mapAccount({ id: 'acc_3', name: 'Acme', primary_domain: 'acme.test', domains: ['acme.test', 'acme.example'], owner: { id: 'usr_9', email: 'sam@acme.test' } });
+    expect(account).toEqual({ id: 'acc_3', name: 'Acme', domains: ['acme.test', 'acme.example'], tags: [], owner: { id: 'usr_9', email: 'sam@acme.test' } });
+  });
+
+  test('a message names its author', async () => {
+    const message = await mapMessage({ id: 'm2', author: { name: 'Ada', contact: { id: 'c1', email: 'ada@acme.test' } } });
+    expect(message.author).toEqual({ id: 'c1', email: 'ada@acme.test', name: 'Ada' });
   });
 
   test('tags, account and assignee become AND-ed leaves; no window and no filter means no filter', () => {
@@ -178,6 +200,12 @@ describe('Pylon lookups', () => {
     process.env.PYLON_API_TOKEN = 'test-token';
     globalThis.fetch = (async (input: string | URL | Request) => {
       const path = new URL(String(input)).pathname;
+      if (path === '/issues/iss_7') {
+        return new Response(JSON.stringify({ data: { id: 'iss_7', title: 'Crash', body_html: '<p>It crashes on launch.</p>' } }));
+      }
+      if (path === '/issues/iss_7/messages') {
+        return new Response(JSON.stringify({ data: [{ id: 'm1', author: { name: 'Sam', user: { id: 'usr_9' } }, message_html: '<p>Looking.</p>' }] }));
+      }
       const data =
         path === '/users'
           ? [{ id: 'usr_9', name: 'Sam', email: 'sam@acme.test' }]
@@ -193,9 +221,15 @@ describe('Pylon lookups', () => {
     process.env = { ...saved };
   });
 
-  test('teammates come back as id and name, never email', async () => {
+  test('teammates come back with their email', async () => {
     const teammates = await pylon.lookups.teammates?.();
-    expect(teammates).toEqual([{ id: 'usr_9', name: 'Sam' }]);
+    expect(teammates).toEqual([{ id: 'usr_9', name: 'Sam', email: 'sam@acme.test' }]);
+  });
+
+  test("a ticket read carries the issue's opening body beside the thread", async () => {
+    const { ticket, messages } = await pylon.get('iss_7');
+    expect(ticket.body).toBe('It crashes on launch.');
+    expect(messages[0]?.author).toEqual({ id: 'usr_9', name: 'Sam' });
   });
 
   test('tags are the issue tags; macros carry plain text', async () => {
@@ -315,11 +349,22 @@ describe('SupportCandy with no window', () => {
     process.env.SUPPORTCANDY_APP_PASSWORD = 'abcd efgh';
     globalThis.fetch = (async (input: string | URL | Request) => {
       const url = new URL(String(input));
-      const body = url.pathname.endsWith('/statuses')
-        ? [{ id: 1, name: 'Open' }]
-        : url.pathname.endsWith('/categories')
-          ? [{ id: 2, name: 'Billing' }]
-          : { has_next_page: false, results: [{ id: 5, status: 1, date_updated: '2025-01-02 03:04:05' }, { id: 6, status: 1 }] };
+      const path = url.pathname.replace('/wp-json/supportcandy/v2', '');
+      const body =
+        path === '/statuses'
+          ? [{ id: 1, name: 'Open' }]
+          : path === '/categories'
+            ? [{ id: 2, name: 'Billing' }]
+            : path === '/agents'
+              ? { results: [{ id: 5, name: 'Sam' }] }
+              : path === '/customers/77'
+                ? { id: 77, name: 'Ada', email: 'ada@acme.test' }
+                : path === '/tickets'
+                  ? { has_next_page: false, results: [{ id: 5, status: 1, customer: 77, date_updated: '2025-01-02 03:04:05' }, { id: 6, status: 1, customer: 404 }] }
+                  : null;
+      if (body === null) {
+        return new Response('{"code":"invalid_id"}', { status: 400 });
+      }
       return new Response(JSON.stringify(body));
     }) as typeof fetch;
   });
@@ -329,14 +374,16 @@ describe('SupportCandy with no window', () => {
     process.env = { ...saved };
   });
 
-  test('an old or undated open ticket still counts', async () => {
+  test('an old or undated open ticket still counts, with its requester resolved or kept as an id', async () => {
     const tickets = await supportcandy.list({ status: ['Open'], limit: 10 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['5', '6']);
+    expect(tickets.map((ticket) => ticket.requester)).toEqual([{ id: '77', name: 'Ada', email: 'ada@acme.test' }, { id: '404' }]);
   });
 
   test('statuses and categories are the lookups', async () => {
     expect(await supportcandy.lookups.statuses?.()).toEqual([{ id: '1', name: 'Open' }]);
     expect(await supportcandy.lookups.categories?.()).toEqual([{ id: '2', name: 'Billing' }]);
+    expect(await supportcandy.lookups.teammates?.()).toEqual([{ id: '5', name: 'Sam' }]);
     expect(supportcandy.lookups.tags).toBeUndefined();
   });
 });

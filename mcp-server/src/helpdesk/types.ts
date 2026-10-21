@@ -1,11 +1,17 @@
 /**
- * The helpdesk shape every connector maps into. Requester identity (name,
- * email, contact ids) is never part of it: tickets reach the model as text to
- * sort and answer, not as personal data.
+ * The helpdesk shape every connector maps into. It carries the people on a
+ * ticket (requester, assignee, each message's author) because finding the
+ * customer and answering them by name is the work.
  */
 
 export const HELPDESKS = ['supportcandy', 'pylon'] as const;
 export type HelpdeskName = (typeof HELPDESKS)[number];
+
+export interface HelpdeskPerson {
+  id?: string;
+  name?: string;
+  email?: string;
+}
 
 export interface HelpdeskTicket {
   id: string;
@@ -15,8 +21,9 @@ export interface HelpdeskTicket {
   status: string;
   category?: string;
   tags: string[];
-  /** Teammate id, never an email; absent when unassigned or the helpdesk has no assignee. */
-  assignee?: string;
+  requester?: HelpdeskPerson;
+  /** Absent when unassigned. */
+  assignee?: HelpdeskPerson;
   /** Account (customer company) id. */
   account?: string;
   created_at?: string;
@@ -24,6 +31,11 @@ export interface HelpdeskTicket {
   last_activity_at?: string;
   /** Agent-side link; never a customer link that carries its own auth. */
   link?: string;
+  /** The opening message, when the helpdesk keeps it apart from the thread (helpdesk_ticket only). */
+  body?: string;
+  /** Engineering issues the ticket is linked to. */
+  linked_issues?: Array<{ source?: string; id?: string; url?: string }>;
+  csat?: Array<{ score?: number; comment?: string }>;
 }
 
 export const MESSAGE_KINDS = {
@@ -43,6 +55,7 @@ export interface HelpdeskAttachment {
 export interface HelpdeskMessage {
   id: string;
   kind: MessageKind;
+  author?: HelpdeskPerson;
   created_at?: string;
   body: string;
   attachments: HelpdeskAttachment[];
@@ -73,6 +86,7 @@ export interface HelpdeskAccount {
   name: string;
   domains: string[];
   tags: string[];
+  owner?: HelpdeskPerson;
 }
 
 export const LOOKUP_KINDS = ['statuses', 'categories', 'tags', 'teammates', 'macros'] as const;
@@ -81,6 +95,8 @@ export type LookupKind = (typeof LOOKUP_KINDS)[number];
 export interface HelpdeskLookup {
   id: string;
   name: string;
+  /** A teammate's email. */
+  email?: string;
   /** A macro's text. */
   text?: string;
 }

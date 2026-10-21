@@ -19,7 +19,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_tickets',
     description:
-      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, assignee and account ids, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for tickets of any age. Works over whichever helpdesk is configured (SupportCandy, Pylon). Requester names and emails are never returned. Read a ticket's conversation with helpdesk_ticket.",
+      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, requester and assignee (name, email where the helpdesk gives them), account id, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for tickets of any age. Works over whichever helpdesk is configured (SupportCandy, Pylon). Read a ticket's conversation with helpdesk_ticket.",
     inputSchema: {
       helpdesk: HELPDESK,
       since: z
@@ -53,7 +53,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_ticket',
     description:
-      "Fetch one helpdesk ticket with its whole conversation, oldest first. Each message is tagged customer, agent, note (agents only) or event (a status change and the like) and lists its attachments by id and name; fetch one with helpdesk_attachment. Read-only. Requester names and emails are never returned.",
+      "Fetch one helpdesk ticket with its whole conversation, oldest first: the ticket's opening body when the helpdesk keeps it apart, linked engineering issues and CSAT (Pylon). Each message is tagged customer, agent, note (agents only) or event (a status change and the like), names its author, and lists its attachments by id and name; fetch one with helpdesk_attachment. Read-only.",
     inputSchema: {
       helpdesk: HELPDESK,
       id: z.string().min(1).describe('Ticket id as the helpdesk shows it.')
@@ -95,7 +95,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_accounts',
     description:
-      "List the helpdesk's accounts (customer companies): id, name, domains and tags. Read-only. search matches name or domain. Pass an id to helpdesk_tickets account to see that account's tickets. Pylon only.",
+      "List the helpdesk's accounts (customer companies): id, name, domains, tags and owner. Read-only. search matches name or domain. Pass an id to helpdesk_tickets account to see that account's tickets. Pylon only.",
     inputSchema: {
       helpdesk: HELPDESK,
       search: z.string().min(1).optional().describe('Case-insensitive match on account name or domain.'),
@@ -114,7 +114,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_lookups',
     description:
-      "List one kind of helpdesk reference data as id + name: statuses and categories (SupportCandy), tags, teammates and macros with their text (Pylon). Read-only. Teammate emails are never returned. Use the names in helpdesk_tickets filters and macros for a draft's house tone.",
+      "List one kind of helpdesk reference data as id + name: statuses and categories (SupportCandy), teammates (both; with email on Pylon), tags and macros with their text (Pylon). Read-only. Use the names in helpdesk_tickets filters and macros for a draft's house tone.",
     inputSchema: {
       helpdesk: HELPDESK,
       kind: z.enum(LOOKUP_KINDS).describe('Which list.')
