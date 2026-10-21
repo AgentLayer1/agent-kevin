@@ -499,6 +499,8 @@
   .group-head { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim);
     margin: 22px 0 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
   .pill.replied, .pill.tests, .pill.lint { color: var(--mech); }
+  .pill.layer { color: var(--brand); }
+  .paste .label a { color: inherit; }
   details.more { margin-top: 12px; }
   details.more > summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center; font-family: "IBM Plex Mono", monospace; font-size: 12px;
     padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-b); color: var(--ink-2); }
@@ -562,8 +564,7 @@
   "pr": { "number": 418, "title": "Reserve stock when an order is placed, release it on cancel", "author": "ada", "repo": "acme/shop", "head": "3f9c2e1", "base": "main", "adds": 642, "dels": 188 },
   "stack": [
     { "number": 417, "title": "Add the reservations table" },
-    { "number": 418, "title": "Reserve on place, release on cancel", "current": true },
-    { "number": 419, "title": "Expire stale reservations" }
+    { "number": 418, "title": "Reserve on place, release on cancel", "current": true }
   ],
   "verdict": "changes-requested",
   "risk": "L",
@@ -625,7 +626,7 @@
   },
   "findings": [
     {
-      "id": 1, "severity": "blocker", "title": "An edit that raises quantity can oversell: stock is read before the row lock",
+      "id": 1, "pr": 418, "severity": "blocker", "title": "An edit that raises quantity can oversell: stock is read before the row lock",
       "anchor": "src/orders/edit.ts:22", "lanes": ["correctness", "case-against", "bot:coderabbitai[bot]"], "principle": "separate before serializing shared state", "introduced": "yes",
       "raisedBy": { "who": "coderabbitai[bot]", "url": "https://github.com/acme/shop/pull/418#discussion_r1000000001" },
       "scenario": ["Two edits raise the last unit's quantity", "Both read 1 available", "Each takes the lock in turn", "The item is held twice"],
@@ -638,11 +639,11 @@
       "comment": "Two edits that raise quantity on the last unit both read 1 available before either takes the row lock, so both hold it and the item oversells.\n\n`availableStock()` at line 22 runs before the transaction that locks at line 31; `reserve()` reads inside its lock. Reading after the lock closes the race:\n\n```diff\n-    const available = await availableStock(item.id);\n     await db.transaction(async (tx) => {\n       await lockStock(tx, item.id);\n+      const available = await availableStock(tx, item.id);\n```"
     },
     {
-      "id": 2, "severity": "nit", "title": "2 nits in errors.ts", "anchor": "src/web/checkout/errors.ts", "lanes": ["conventions"],
+      "id": 2, "pr": 418, "severity": "nit", "title": "2 nits in errors.ts", "anchor": "src/web/checkout/errors.ts", "lanes": ["conventions"],
       "comment": "- line 31: the sold-out copy is duplicated in `messages.ts:12`; import it from there.\n- line 40: `err` is unused."
     },
     {
-      "id": 3, "severity": "question", "title": "Should this layer ship before #419 expires holds?", "anchor": "src/orders/reserve.ts:70", "lanes": ["case-against"],
+      "id": 3, "pr": 418, "severity": "question", "title": "Should this layer ship before #419 expires holds?", "anchor": "src/orders/reserve.ts:70", "lanes": ["case-against"],
       "raisedBy": { "who": "grace", "url": "https://github.com/acme/shop/pull/418#issuecomment-2000000001" },
       "comment": "Does anything expire holds before #419 lands? If this layer ships alone, an abandoned checkout keeps its units held and the item reads as sold out until someone clears it."
     }
@@ -728,6 +729,39 @@
   };
 
   const pathOf = (anchor) => (anchor || "").split(":")[0];
+
+  // A stack's page says which PR each comment goes on; a single PR's page doesn't need to.
+  const STACKED = list(DATA.stack).length > 1;
+  const prOfUrl = (url) => Number((/\/pull\/(\d+)/.exec(url || "") || [])[1]) || null;
+  const layerPill = (n) => (STACKED && n ? h("span", { class: "pill layer" }, `PR #${n}`) : null);
+
+  // GitHub's Files tab names each file's diff by the SHA-256 of its path; until the hash resolves, the link opens the tab.
+  const filesLink = (n, anchor, ...children) => {
+    const node = link(`https://github.com/${DATA.pr.repo}/pull/${n}/files`, ...children);
+    const [, path, start] = /^([^:]+)(?::(\d+))?/.exec(anchor || "") || [];
+    if (path && node.href && globalThis.crypto && crypto.subtle) {
+      crypto.subtle.digest("SHA-256", new TextEncoder().encode(path))
+        .then((hash) => { node.href += `#diff-${[...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("")}${start ? `R${start}` : ""}`; })
+        .catch(() => {});
+    }
+    return node;
+  };
+
+  // Hides the cards of other layers, and any group heading left with nothing under it.
+  const layerFilter = (box, layerOf, items) => {
+    if (!STACKED) { return null; }
+    const count = (n) => items.filter((entry) => layerOf(entry) === n).length;
+    return filterBar([["all", `all PRs ${items.length}`], ...DATA.stack.map((layer) => [layer.number, `#${layer.number} ${count(layer.number)}`])], (pick) => {
+      const nodes = [...box.children];
+      nodes.forEach((node) => { if (node.dataset.pr) { node.style.display = pick === "all" || Number(node.dataset.pr) === pick ? "" : "none"; } });
+      nodes.forEach((node, i) => {
+        if (node.dataset.pr) { return; }
+        const next = nodes.slice(i + 1);
+        const end = next.findIndex((other) => !other.dataset.pr);
+        node.style.display = (end === -1 ? next : next.slice(0, end)).some((other) => other.style.display !== "none") ? "" : "none";
+      });
+    });
+  };
 
   const copyText = async (value) => {
     try {
@@ -860,7 +894,7 @@
     const visual = list(finding.scenario).length > 0;
     const badge = badgeOf(finding);
     return item(badge ? "nit" : finding.severity, open, anchorId,
-      [h("span", { class: `pill ${badge || finding.severity}` }, badge || SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`),
+      [h("span", { class: `pill ${badge || finding.severity}` }, badge || SEVERITY_LABEL[finding.severity]), h("span", { class: "meta" }, `#${finding.id}`), layerPill(finding.pr),
        h("span", { class: "title" }, finding.title), anchorLink(finding.anchor),
        raised ? link(raised.url, h("span", { class: "raised" }, replied(finding) ? `also raised by @${raised.who}` : `follow-up on @${raised.who}'s thread`)) : null],
       [visual ? [h("div", { class: "lbl" }, "What goes wrong"), scenarioStrip(finding.scenario)] : finding.diagram ? h("div", { class: "lbl" }, "What goes wrong") : field("Failure", finding.failure),
@@ -868,7 +902,14 @@
        finding.snippet ? [h("div", { class: "lbl" }, "The code"), h("div", { class: "snippet" }, h("pre", {}, finding.snippet))] : null,
        list(finding.proof).length ? [h("div", { class: "lbl" }, "Evidence"), evidenceList(finding.proof)] : field("Evidence", finding.evidence),
        h("div", { class: "finding-meta" }, [list(finding.lanes).join(", "), finding.principle, finding.introduced ? `introduced: ${finding.introduced}` : null].filter(Boolean).join(" · ")),
-       paste(raised ? `Reply on @${raised.who}'s thread` : (finding.severity === "question" ? "Question to paste" : "Comment to paste"), finding.comment)]);
+       paste(pasteLabel(finding), finding.comment)]);
+  };
+
+  const pasteLabel = (finding) => {
+    const raised = finding.raisedBy;
+    if (!STACKED) { return raised ? `Reply on @${raised.who}'s thread` : (finding.severity === "question" ? "Question to paste" : "Comment to paste"); }
+    if (raised) { return [`Reply on @${raised.who}'s thread · `, link(raised.url, `#${prOfUrl(raised.url) || finding.pr} ↗`)]; }
+    return [finding.severity === "question" ? "Question for " : "Comment for ", filesLink(finding.pr, finding.anchor, `#${finding.pr} ↗`)];
   };
 
   const reviewSections = () => {
@@ -920,14 +961,20 @@
       .flatMap((finding, index, sorted) => {
         const tier = tierOf(finding);
         const head = (index === 0 || tierOf(sorted[index - 1]) !== tier) && GROUP_HEAD[tier] ? h("div", { class: "group-head" }, GROUP_HEAD[tier]) : null;
-        return [head, findingCard(finding, tier === 0, `finding-${finding.id}`)];
+        const card = findingCard(finding, tier === 0, `finding-${finding.id}`);
+        if (STACKED) { card.dataset.pr = finding.pr; }
+        return [head, card];
       });
+    const filtered = (rows) => {
+      const box = h("div", {}, grouped(rows));
+      return [layerFilter(box, (finding) => finding.pr, rows), box];
+    };
 
-    const findingsSection = section("findings", "Findings", issues.length ? "Open a card for the evidence and the comment to paste on that line." : null,
-      issues.length ? grouped(issues) : h("p", { class: "empty" }, "No findings."));
+    const findingsSection = section("findings", "Findings", issues.length ? (STACKED ? "Open a card for the evidence and the comment to paste. The PR badge says which PR in the stack it goes on." : "Open a card for the evidence and the comment to paste on that line.") : null,
+      issues.length ? filtered(issues) : h("p", { class: "empty" }, "No findings."));
 
     const questionsSection = questions.length ? section("questions", "Questions for the author", "Real but unproven: asked, not asserted.",
-      grouped(questions)) : null;
+      filtered(questions)) : null;
 
     const statStrip = (stats) => h("div", { class: "stats" }, stats.map(([value, label, tone]) => h("div", { class: `stat ${tone}` }, h("b", {}, String(value)), h("span", {}, label))));
 
@@ -1003,22 +1050,28 @@
       const threads = DATA.conversation;
       const unanswered = threads.filter((thread) => thread.state === "unanswered");
       const rows = h("div", {});
-      const draw = (filter) => {
+      const view = { filter: "open", layer: "all" };
+      const draw = (filter = view.filter, layer = view.layer) => {
+        Object.assign(view, { filter, layer });
         rows.replaceChildren();
-        const shown = threads.filter((thread) => filter === "all" || (filter === "people" && thread.kind !== "bot") || (filter === "bots" && thread.kind === "bot") || (filter === "open" && ["open", "partly", "unanswered"].includes(thread.state)));
+        const shown = threads
+          .filter((thread) => layer === "all" || prOfUrl(thread.url) === layer)
+          .filter((thread) => filter === "all" || (filter === "people" && thread.kind !== "bot") || (filter === "bots" && thread.kind === "bot") || (filter === "open" && ["open", "partly", "unanswered"].includes(thread.state)));
         shown.forEach((thread) => rows.append(item(thread.state === "open" ? "risk" : thread.state === "fixed" || thread.state === "answered" ? "mechanical" : "logic", false, null,
           [h("span", { class: `pill ${thread.state}` }, thread.state === "wrong" ? "doesn't hold" : thread.state), h("span", { class: "meta" }, `@${thread.who}`),
            h("span", { class: "title" }, thread.point), thread.anchor ? anchorLink(thread.anchor) : null,
            thread.finding ? h("a", { href: `#finding-${thread.finding}`, class: "meta" }, `→ our #${thread.finding}`) : null,
-           thread.url ? link(thread.url, h("span", { class: "meta" }, "thread ↗")) : null],
-          [thread.note ? h("p", {}, thread.note) : null, thread.reply ? paste("Reply to paste on the thread", thread.reply) : null])));
+           thread.url ? link(thread.url, STACKED ? h("span", { class: "pill layer" }, `PR #${prOfUrl(thread.url)} ↗`) : h("span", { class: "meta" }, "thread ↗")) : null],
+          [thread.note ? h("p", {}, thread.note) : null,
+           thread.reply ? paste(STACKED ? ["Reply on the thread · ", link(thread.url, `#${prOfUrl(thread.url)} ↗`)] : "Reply to paste on the thread", thread.reply) : null])));
         if (!shown.length) { rows.append(h("p", { class: "empty" }, "Nothing in this view.")); }
       };
-      draw("open");
+      draw();
       const count = (pred) => threads.filter(pred).length;
       return section("conversation", "Review conversation", "Every thread on the PR, people and bots, checked against the head. A point someone already raised becomes a reply on their thread, never a second comment.",
         unanswered.length ? h("div", { class: "attn" }, h("b", {}, "Waiting on the author: "), unanswered.map((thread) => `@${thread.who}: ${thread.point}`).join(" · ")) : null,
-        filterBar([["open", `open ${count((thread) => ["open", "partly", "unanswered"].includes(thread.state))}`], ["all", `all ${threads.length}`], ["people", `people ${count((thread) => thread.kind !== "bot")}`], ["bots", `bots ${count((thread) => thread.kind === "bot")}`]], draw),
+        filterBar([["open", `open ${count((thread) => ["open", "partly", "unanswered"].includes(thread.state))}`], ["all", `all ${threads.length}`], ["people", `people ${count((thread) => thread.kind !== "bot")}`], ["bots", `bots ${count((thread) => thread.kind === "bot")}`]], (filter) => draw(filter)),
+        STACKED ? filterBar([["all", "all PRs"], ...DATA.stack.map((layer) => [layer.number, `#${layer.number} ${count((thread) => prOfUrl(thread.url) === layer.number)}`])], (layer) => draw(undefined, layer)) : null,
         rows);
     })() : null;
 

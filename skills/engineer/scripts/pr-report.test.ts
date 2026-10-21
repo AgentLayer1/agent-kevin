@@ -205,6 +205,17 @@ describe('validate', () => {
     expect(validate(withThreads(stacked, thread(999))).errors).toHaveLength(1);
   });
 
+  test('a stacked review names the layer each finding is posted on; a single PR names none', () => {
+    const stacked = sampleReview();
+    expect(validate(withFinding(stacked, 0, { pr: 417 })).errors).toEqual([]);
+    expect(validate(withFinding(stacked, 0, { pr: undefined })).errors).toEqual(['findings[0].pr must name the stack layer the comment goes on, one of 417, 418']);
+    expect(validate(withFinding(stacked, 0, { pr: 999 })).errors).toEqual(['findings[0].pr must name the stack layer the comment goes on, one of 417, 418']);
+    const single = { ...stacked, stack: undefined, findings: rowsOf(stacked.findings).map(({ pr: _pr, ...finding }) => finding) };
+    expect(validate(single).errors).toEqual([]);
+    expect(validate(withFinding(single, 0, { pr: 418 })).errors).toEqual(['findings[0].pr is only for a review of a stack with more than one layer']);
+    expect(renderCard(single)).not.toContain('PR #418 ·');
+  });
+
   test('a finding someone already raised links their thread, so the paste is a reply and not a second comment', () => {
     const elsewhere = withFinding(sampleReview(), 0, { raisedBy: { who: 'grace', url: 'https://github.com/acme/shop/pull/418#discussion_r9' } });
     expect(validate(elsewhere).errors).toEqual(['findings[0].raisedBy.url must be a thread in conversation']);
@@ -300,12 +311,12 @@ describe('card', () => {
     const card = renderCard(sampleReview());
     expect(card).toContain('# PR #418: Reserve stock when an order is placed, release it on cancel');
     expect(card).toContain('**Verdict** 🟠 Changes requested · **Risk** L');
-    expect(card).toContain('- 🔴 #1 An edit that raises quantity can oversell: stock is read before the row lock · `src/orders/edit.ts:22`');
-    expect(card).toContain('- 🟡 #2 2 nits in errors.ts · `src/web/checkout/errors.ts`');
+    expect(card).toContain('- 🔴 #1 An edit that raises quantity can oversell: stock is read before the row lock · `src/orders/edit.ts:22` · PR #418');
+    expect(card).toContain('- 🟡 #2 2 nits in errors.ts · `src/web/checkout/errors.ts` · PR #418');
     expect(card).toContain('## Questions for the author\n\n- ❓ #3');
     expect(card).toContain('**PR description** 1 match · 1 partly · 1 wrong · 1 missing from the body');
-    expect(card).toContain('- wrong · @coderabbitai\\[bot\\] · `src/orders/cancel.ts:19`: Holds not deleted on refund failure');
-    expect(card).toContain('- unanswered · @grace · #3: Does this need #419 first?');
+    expect(card).toContain('- wrong · @coderabbitai\\[bot\\] · PR #418 · `src/orders/cancel.ts:19`: Holds not deleted on refund failure');
+    expect(card).toContain('- unanswered · @grace · PR #418 · #3: Does this need #419 first?');
     expect(card).toContain(`[open the review](${PAGE_TOKEN})`);
   });
 

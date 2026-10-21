@@ -93,7 +93,7 @@ describe('pr-report page', () => {
     expect(count('section#how .diff .del')).toBe(1);
     expect(count('section#findings .scenario .step.bad')).toBe(1);
     expect(document.querySelector('#finding-1 .raised')?.textContent).toBe('also raised by @coderabbitai[bot]');
-    expect(document.querySelector('#finding-1 .paste .label')?.textContent).toBe("Reply on @coderabbitai[bot]'s thread");
+    expect(document.querySelector('#finding-1 .paste .label')?.textContent).toBe("Reply on @coderabbitai[bot]'s thread · #418 ↗");
   });
 
   test('an architecture skeleton renders both panes, with hot lines and dim comments', () => {
@@ -137,6 +137,47 @@ describe('pr-report page', () => {
     // The sample's question repeats a point Grace raised and nobody answered, so it is a reply and sits under its own heading.
     expect(document.querySelector('section#questions .group-head')?.textContent).toBe('Already raised, or about tests and lint');
     expect(document.getElementById('finding-4')?.querySelector('.pill')?.textContent).toBe('replied');
+  });
+
+  test('a stack review badges each comment with its PR, links the paste there, and filters by PR', () => {
+    const data = sample();
+    const findings = (Array.isArray(data.findings) ? data.findings : []).filter(isRecord).map((finding) => (finding.id === 2 ? { ...finding, pr: 417 } : finding));
+    const conversation = (Array.isArray(data.conversation) ? data.conversation : [])
+      .filter(isRecord)
+      .map((thread) => (thread.state === 'wrong' ? { ...thread, url: 'https://github.com/acme/shop/pull/417#discussion_r1000000002' } : thread));
+    const { errors, document } = open(renderPage(TEMPLATE, { ...data, findings, conversation }));
+    expect(errors).toEqual([]);
+    expect(document.getElementById('finding-1')?.querySelector('summary .pill.layer')?.textContent).toBe('PR #418');
+    const replyLink = document.getElementById('finding-1')?.querySelector('.paste .label a');
+    expect(replyLink?.getAttribute('href')).toBe('https://github.com/acme/shop/pull/418#discussion_r1000000001');
+    expect(document.getElementById('finding-1')?.querySelector('.paste .label')?.textContent).toBe("Reply on @coderabbitai[bot]'s thread · #418 ↗");
+    const commentLink = document.getElementById('finding-2')?.querySelector('.paste .label a');
+    expect(commentLink?.getAttribute('href')).toStartWith('https://github.com/acme/shop/pull/417/files');
+    expect(commentLink?.textContent).toBe('#417 ↗');
+
+    const findingFilter = [...document.querySelectorAll('section#findings .filters button')];
+    expect(findingFilter.map((button) => button.textContent)).toEqual(['all PRs 2', '#417 1', '#418 1']);
+    (findingFilter[1] as HTMLElement).click();
+    const shown = (id: string) => (document.getElementById(id) as HTMLElement | null)?.style.display !== 'none';
+    expect([shown('finding-1'), shown('finding-2')]).toEqual([false, true]);
+    expect([...document.querySelectorAll('section#findings .group-head')].filter((head) => (head as HTMLElement).style.display !== 'none').map((head) => head.textContent)).toEqual(['Nits']);
+
+    const [views, layers] = [...document.querySelectorAll('section#conversation .filters')];
+    expect([...layers.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['all PRs', '#417 1', '#418 2']);
+    (views.querySelectorAll('button')[1] as HTMLElement).click();
+    (layers.querySelectorAll('button')[1] as HTMLElement).click();
+    expect([...document.querySelectorAll('section#conversation .pill.layer')].map((pill) => pill.textContent)).toEqual(['PR #417 ↗']);
+  });
+
+  test('a single PR shows no PR badges or PR filter', () => {
+    const { stack: _stack, ...data } = sample();
+    const findings = (Array.isArray(data.findings) ? data.findings : []).filter(isRecord).map(({ pr: _pr, ...finding }) => finding);
+    const { errors, count, document } = open(renderPage(TEMPLATE, { ...data, findings }));
+    expect(errors).toEqual([]);
+    expect(count('.pill.layer')).toBe(0);
+    expect(count('section#findings .filters')).toBe(0);
+    expect(count('section#conversation .filters')).toBe(1);
+    expect(document.getElementById('finding-2')?.querySelector('.paste .label')?.textContent).toBe('Comment to paste');
   });
 
   test('the proposed description is folded behind a toggle, with its copy button inside', () => {

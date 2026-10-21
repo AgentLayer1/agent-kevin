@@ -24,6 +24,17 @@ A prior review of the same PR (foundation Step 1) makes this run a **re-review**
 
 The page opens with **Since last review**, and the summary leads with the delta. `--fresh` is for when the PR was rewritten, the prior review is untrustworthy, or the operator asks for it; it still reads the prior report and fills `sinceReview`, so the delta is never lost.
 
+## Stacks
+
+Stacked PRs are reviewed as one solution from the edge (foundation Step 0), so the operator judges the design whole and still posts each comment where it belongs:
+
+1. **One report for the stack**, on the edge PR: `stack` lists every layer parent first, the slug is `pr-<edge>-<topic>-stack`, the title names the stack (`PR #<edge> (author): <verdict> on the <topic> stack`), and the banner adds `· stack #<base>→#<edge>`. It supersedes the edge's prior review and lists every layer's earlier reports in `prior`.
+2. **Every finding names its layer** (`pr`): the layer whose commit introduced the anchored code, from `git blame` mapped onto the layer heads. Its comment is posted on that layer's PR, or as a reply on the thread that raised it, whichever layer that thread is on. Lanes return `pr` with each finding. A defect that only appears when two layers meet goes on the upper one.
+3. **Every layer's conversation**: the thread list covers all of the stack's PRs, each thread keeping its own URL, so the page labels it with its PR.
+4. **The description check covers every body.** Claims are per layer (`#<layer>: …`), and `proposed` describes the edge PR's body as the stack's overview, naming what each layer adds.
+5. **A re-review reads the stack's `range-diff`** against the last reviewed edge (`git range-diff <old base>..<old edge> <new base>..<new edge>`): new commits, rewritten commits and identical ones. A rebase onto a newer base is not a change. The lanes run on the new and rewritten hunks.
+6. **The chat reply groups the top items by layer**, so the operator can work one PR at a time. The page's PR filter does the same on Findings and Review conversation.
+
 ## Steps
 
 1. **Foundation Steps 0–3.** Resolve the target (a teammate's PR, or the operator's own under an explicit `/engineer review`), prior context, check out the head (a throwaway `pr-<n>-review` worktree, or the operator's own branch for a self-review) and understand the change (the **How it works** draft), then the local gates.
@@ -48,6 +59,7 @@ The page opens with **Since last review**, and the summary leads with the delta.
    fix: <the change, as a diff or one sentence>
    introduced: yes | made-worse | pre-existing
    raised: <the thread's link, when a reviewer already raised it, or none>
+   pr: <in a stack, the layer whose commit introduced the line (`git blame` onto the layer heads), or none>
    ```
 
    ```

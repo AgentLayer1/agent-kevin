@@ -74,7 +74,7 @@ const KEYS = {
   pathStep: ['step', 'what'],
   caseAgainst: ['strongest', 'threeMonths', 'cut'],
   finding: [
-    'id', 'priorId', 'severity', 'topic', 'title', 'anchor', 'lanes', 'principle', 'introduced', 'raisedBy', 'scenario', 'failure', 'diagram', 'snippet', 'proof', 'evidence', 'comment'
+    'id', 'priorId', 'pr', 'severity', 'topic', 'title', 'anchor', 'lanes', 'principle', 'introduced', 'raisedBy', 'scenario', 'failure', 'diagram', 'snippet', 'proof', 'evidence', 'comment'
   ],
   proof: ['anchor', 'source', 'fact'],
   raisedBy: ['who', 'url'],
@@ -323,7 +323,16 @@ const reviewErrors = (data: Row): string[] => {
   const priorIds = rows(isRecord(data.sinceReview) ? data.sinceReview.findings : undefined).map((row) => row.id);
   const filePaths = rows(data.files).map((file) => text(file.path));
   const inFiles = (anchor: unknown, at: string): string[] => (isText(anchor) && !filePaths.includes(anchorPath(anchor)) ? [`${at}.anchor names a file missing from files`] : []);
-  const stackNumbers = [pr.number, ...rows(data.stack).map((layer) => layer.number)];
+  const layers = rows(data.stack).map((layer) => layer.number);
+  const stackNumbers = [pr.number, ...layers];
+  const layerErrors = (value: unknown, at: string): string[] =>
+    layers.length > 1
+      ? layers.includes(value)
+        ? []
+        : [`${at}.pr must name the stack layer the comment goes on, one of ${layers.join(', ')}`]
+      : value === undefined
+        ? []
+        : [`${at}.pr is only for a review of a stack with more than one layer`];
   const urlErrors = (value: unknown, at: string): string[] =>
     value === undefined || isThreadUrl(pr, value, stackNumbers)
       ? []
@@ -396,7 +405,8 @@ const reviewErrors = (data: Row): string[] => {
         ...textErrors(raised, ['who', 'url'], `${at}.raisedBy`),
         ...(isText(raised.url) && !threadUrls.includes(raised.url) ? [`${at}.raisedBy.url must be a thread in conversation`] : [])
       ]),
-      ...(row.priorId === undefined || (Number.isInteger(row.priorId) && priorIds.includes(row.priorId)) ? [] : [`${at}.priorId must be an id in sinceReview.findings`])
+      ...(row.priorId === undefined || (Number.isInteger(row.priorId) && priorIds.includes(row.priorId)) ? [] : [`${at}.priorId must be an id in sinceReview.findings`]),
+      ...layerErrors(row.pr, at)
     ]),
     ...(new Set(findingIds).size === findingIds.length ? [] : ['findings ids must be unique']),
     ...(list(data.files).length ? [] : ['files needs every file on the coverage checklist']),
@@ -570,6 +580,11 @@ const md = (value: unknown): string => escapeMd(text(value).replace(/\s*\n\s*/g,
 
 const code = (value: unknown): string | undefined => (isText(value) ? `\`${value}\`` : undefined);
 
+const threadLayer = (url: unknown): string | undefined => {
+  const match = isText(url) ? /\/pull\/(\d+)/.exec(url) : null;
+  return match ? `PR #${match[1]}` : undefined;
+};
+
 const line = (parts: (string | false | undefined)[]): string => parts.filter((part): part is string => Boolean(part)).join(' · ');
 
 const section = (title: string, lines: string[]): string[] => (lines.length ? ['', `## ${title}`, '', ...lines] : []);
@@ -584,8 +599,10 @@ const reviewCard = (data: Row): string[] => {
       .sort((a, b) => tierOf(a, data) - tierOf(b, data) || Number(a.id) - Number(b.id))
       .map((finding) => {
         const tag = finding.severity === 'blocker' ? '' : isReplied(finding, data) ? ' · replied' : finding.topic !== undefined ? ` · ${text(finding.topic)}` : '';
-        return `- ${SEVERITY_ICON[text(finding.severity)]} #${String(finding.id)} ${md(finding.title)} · ${code(finding.anchor)}${tag}`;
+        const layer = finding.pr === undefined ? '' : ` · PR #${String(finding.pr)}`;
+        return `- ${SEVERITY_ICON[text(finding.severity)]} #${String(finding.id)} ${md(finding.title)} · ${code(finding.anchor)}${layer}${tag}`;
       });
+  const stacked = list(data.stack).length > 1;
   const since = isRecord(data.sinceReview) ? data.sinceReview : null;
   const priorRows = rows(since?.findings);
   const priorCount = (status: string) => priorRows.filter((row) => row.status === status).length;
@@ -612,7 +629,7 @@ const reviewCard = (data: Row): string[] => {
       'Review conversation',
       rows(data.conversation).map(
         (thread) =>
-          `- ${line([text(thread.state), `@${md(thread.who)}`, code(thread.anchor), thread.finding === undefined ? undefined : `#${String(thread.finding)}`])}: ${md(thread.point)}`
+          `- ${line([text(thread.state), `@${md(thread.who)}`, stacked ? threadLayer(thread.url) : undefined, code(thread.anchor), thread.finding === undefined ? undefined : `#${String(thread.finding)}`])}: ${md(thread.point)}`
       )
     ),
     ...section('Not checked', bullets(data.notChecked))
