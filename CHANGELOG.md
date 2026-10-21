@@ -58,6 +58,9 @@ and prompts per optional one. The new template files are the source of truth for
 - **Helpdesk tickets carry their people.** The requester, assignee and each message's author come back with name and email where the helpdesk gives them, so the agent can find the account and answer by name; nothing written to GitHub carries a customer's name, email or account.
 - Multi-step review comments are numbered one-fact steps with `file:line`, an outcome and the fix; the PR report warns on a paste paragraph over 60 words and on a thread given two pastes.
 
+### Fixed
+- **A SupportCandy customer's own message came back tagged as an agent's**, and an assignee had no name: the ticket and thread endpoints send ids as numbers or strings, and they were compared as sent. Ids now match either way.
+
 ### Upgrade
 - `settings: mandatory` — upgrade's baseline reconcile adds `Skill(agent-kevin:helpdesk)` to `permissions.allow` when the home hasn't placed it in allow, ask or deny. Applied automatically.
 - `template/AGENTS.md: mandatory` — the reports routing row and the layout tree gain `reports/helpdesk/` and a project's optional `helpdesk.md` queue profile.

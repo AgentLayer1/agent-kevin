@@ -8,9 +8,9 @@ import { adminLink, mapThread, mapTicket, supportcandy, toIso, type Lookups } fr
 import type { HelpdeskConnector, HelpdeskName } from './types';
 
 const LOOKUPS: Lookups = {
-  statuses: new Map([[1, 'Open'], [4, 'Closed']]),
-  categories: new Map([[2, 'Billing']]),
-  agents: new Map([[5, 'Sam']])
+  statuses: new Map([['1', 'Open'], ['4', 'Closed']]),
+  categories: new Map([['2', 'Billing']]),
+  agents: new Map([['5', 'Sam']])
 };
 
 describe('SupportCandy mapping', () => {
@@ -24,7 +24,7 @@ describe('SupportCandy mapping', () => {
       { id: 318, subject: 'Export does nothing', status: 1, category: 2, customer: 77, assigned_agent: [5], date_updated: '2026-10-20 08:15:00' },
       LOOKUPS,
       'https://help.example.com',
-      new Map([[77, { id: '77', name: 'Ada', email: 'ada@acme.test' }]])
+      new Map([['77', { id: '77', name: 'Ada', email: 'ada@acme.test' }]])
     );
     expect(ticket).toMatchObject({
       id: '318',
@@ -45,6 +45,16 @@ describe('SupportCandy mapping', () => {
     const event = await mapThread({ id: 4, type: 'log', body: { prev: '1', new: '4' } }, 77);
     expect([customer.kind, agent.kind, note.kind, event.kind]).toEqual(['customer', 'agent', 'note', 'event']);
     expect(customer.body).toBe('Hi');
+  });
+
+  test('ids match whether an endpoint sends them as numbers or strings', async () => {
+    const people = new Map([['77', { id: '77', name: 'Ada' }]]);
+    const message = await mapThread({ id: '9', type: 'report', customer: '77', body: '<p>Hi</p>' }, 77, new Map(), people);
+    expect(message.kind).toBe('customer');
+    expect(message.author).toEqual({ id: '77', name: 'Ada' });
+    expect((await mapThread({ id: 10, type: 'report', customer: 77, body: '<p>Hi</p>' }, '77')).kind).toBe('customer');
+    const ticket = mapTicket({ id: '318', status: '1', category: 2, customer: 77, assigned_agent: ['5'] }, LOOKUPS, 'https://help.example.com', people);
+    expect(ticket).toMatchObject({ status: 'Open', category: 'Billing', requester: { id: '77', name: 'Ada' }, assignee: { id: '5', name: 'Sam' } });
   });
 });
 
