@@ -101,6 +101,10 @@ export const FOLDERS = {
   get FOCUS_QUEUES() {
     return resolve(dataRoot(), 'focus');
   },
+  /** What App Store review reads have learned about each app's storefronts: <appId>.json. */
+  get APPSTORE() {
+    return resolve(dataRoot(), 'appstore');
+  },
   get CONFIG() {
     return resolve(dataRoot(), 'config');
   },
