@@ -6,6 +6,7 @@
  * `google_auth` tool itself lives in google-search-console.ts.)
  */
 export const TOOL_MODULES = [
+  'appstore',
   'browser',
   'browser-flows',
   'capture',
