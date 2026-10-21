@@ -13,7 +13,7 @@ These steps are the default. A profile's `## Pulse` section adds to them (extra 
 5. **Bug candidates.** List the tickets the profile's `## Filing bugs` says become bugs, then file each on the operator's yes, the way [filing a bug](file-bug.md) says.
 6. **Filed bugs where support has a part.** Take the lifecycle (the profile's `## Bug lifecycle`, else the [default](../lifecycle.md)) and, for each state whose support part isn't "nothing", find the bugs in it:
    - **GitHub cards:** open cards with that state's label (`github_issue_list`), and cards closed since the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`; `state: closed`, then `github_issue_view` for how each closed). Only cards whose title names a ticket (`(ticket <id>)`) count.
-   - **Tasks:** `task_query` for the project's tasks in that status that cite a ticket.
+   - **Tasks:** `task_query` for the project's tasks closed since the last pulse that cite a ticket: `done` takes the closed-as-completed row, `cancelled` the closed-as-not-planned row.
 
    Do that state's support part for each: usually a draft for its ticket through the [draft](draft.md) playbook, or adding the user's answer to the card (`github_issue_comment`) or task (`task_thread`).
 7. **Offer the drafts.** Tickets waiting on a reply, and the replies from step 6, can each get a draft through the [draft](draft.md) playbook. One yes covers the batch: each lands as a private note for a person to edit and send.

@@ -1,6 +1,6 @@
 # Default bug lifecycle
 
-What each state of a filed bug means and what support does about it. A queue profile's `## Bug lifecycle` table replaces this one; the pulse and the file bug playbook read whichever applies. For a GitHub card the state is a label, or how the card was closed; for a task it is the task's status.
+What each state of a filed bug means and what support does about it. A queue profile's `## Bug lifecycle` table replaces this one; the pulse and the file bug playbook read whichever applies. For a GitHub card the state is a label, or how the card was closed. A task has only its status, so two rows apply to it: `done` is closed as completed and `cancelled` is closed as not planned.
 
 | State | Means | Support's part |
 |---|---|---|

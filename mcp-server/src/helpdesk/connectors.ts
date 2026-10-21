@@ -42,12 +42,13 @@ export const resolveConnector = (
       throw new Error(`Both helpdesks have a "${connection}" connection; pass helpdesk to pick one.`);
     }
     const keys = (helpdesk ? [helpdesk] : HELPDESKS).flatMap((kind) => KINDS[kind].make(connection).keys);
-    throw new Error(`The "${connection}" connection has no keys: add ${keys.join(', ')} (${SETUP}).`);
+    throw new Error(`The "${connection}" connection isn't fully set up: it needs ${keys.join(', ')} (${SETUP}).`);
   }
   const defaults = ofKind.filter((connector) => !connector.connection);
-  const [first] = defaults.length > 0 ? defaults : ofKind;
-  if (first && (defaults.length === 1 || (defaults.length === 0 && ofKind.length === 1))) {
-    return first;
+  const pick = defaults.length > 0 ? defaults : ofKind;
+  const [only] = pick;
+  if (pick.length === 1 && only) {
+    return only;
   }
   if (ofKind.length === 0) {
     throw new Error(`No ${helpdesk ?? 'helpdesk'} is configured (${SETUP}).`);

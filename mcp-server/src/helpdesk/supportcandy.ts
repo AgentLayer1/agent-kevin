@@ -76,7 +76,7 @@ export interface Lookups {
 }
 
 /** Customer id → the person, for a ticket's requester and each thread's author. */
-export type People = ReadonlyMap<number, HelpdeskPerson>;
+type People = ReadonlyMap<number, HelpdeskPerson>;
 
 /** The default connection's site key; a named one is `SUPPORTCANDY_URL_<NAME>`, and its other keys follow. */
 export const SUPPORTCANDY_URL_KEY = 'SUPPORTCANDY_URL';

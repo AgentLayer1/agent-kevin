@@ -48,19 +48,22 @@ const fileName = (url: string): string => {
   }
 };
 
-export const mapMessage = async (message: PylonMessage): Promise<HelpdeskMessage> => ({
-  id: message.id,
-  kind: kindOf(message),
-  ...(message.author && {
-    author: {
-      ...person(message.author.user ?? message.author.contact),
-      ...(message.author.name && { name: message.author.name })
-    }
-  }),
-  created_at: message.timestamp,
-  body: await htmlToText(message.message_html),
-  attachments: (message.file_urls ?? []).map((url) => ({ id: url, name: fileName(url) }))
-});
+const authorOf = (author: PylonMessage['author']): HelpdeskPerson | undefined => {
+  const who = { ...person(author?.user ?? author?.contact), ...(author?.name && { name: author.name }) };
+  return Object.keys(who).length > 0 ? who : undefined;
+};
+
+export const mapMessage = async (message: PylonMessage): Promise<HelpdeskMessage> => {
+  const author = authorOf(message.author);
+  return {
+    id: message.id,
+    kind: kindOf(message),
+    ...(author && { author }),
+    created_at: message.timestamp,
+    body: await htmlToText(message.message_html),
+    attachments: (message.file_urls ?? []).map((url) => ({ id: url, name: fileName(url) }))
+  };
+};
 
 /** Documented leaf shapes only (`equals`, `contains`, `time_is_after`), AND-ed; several states are an OR. */
 export const issueFilter = (query: Omit<TicketQuery, 'search' | 'limit'>): IssueFilter | undefined => {

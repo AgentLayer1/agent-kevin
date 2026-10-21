@@ -4,7 +4,7 @@ A queue profile is the operator's own file at `projects/<slug>/helpdesk.md`. Its
 
 ## The interview
 
-Run it in rounds with `AskUserQuestion`, a few questions at a time. Each question shows the plugin's default, and "the default" is always an answer. Write the operator's words, not a paraphrase. A round they skip leaves its section with its prompt line.
+Run it in rounds with `AskUserQuestion`, a few questions at a time. Each question shows the plugin's default, and "the default" is always an answer. Write the operator's words, not a paraphrase. A round they skip, or answer with "the default", leaves its section out, so the default applies.
 
 1. **The queue.**
    - Which project the tickets belong to (`projects/<slug>/` must exist; if not, offer the project skill first). One profile per project.
@@ -57,9 +57,7 @@ schedule: [pulse:daily, digest:weekly]
 
 ## Bug lifecycle
 
-| State | Means | Support's part |
-|---|---|---|
-| triage | Filed, not looked at yet | Nothing |
+<the whole default table from lifecycle.md with the operator's changes, since this table replaces it>
 
 ## Filing bugs
 

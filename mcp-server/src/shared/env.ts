@@ -254,7 +254,7 @@ export const dbEnvKeyFor = (name: string): string => `${DB_ENV_PREFIX}${name.toU
 export const suffixedKey = (prefix: string, name: string): string => `${prefix}_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 
 /** Every named connection of `prefix` that holds a value (`<PREFIX>_<NAME>`), name lowercased, sorted. */
-export const namedKeys = (prefix: string): DbConnection[] => {
+export const namedKeys = (prefix: string): { name: string; envKey: string }[] => {
   loadSecretsEnv();
   const start = `${prefix}_`;
   return Object.keys(process.env)

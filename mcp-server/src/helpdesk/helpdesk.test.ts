@@ -127,6 +127,7 @@ describe('Pylon mapping', () => {
   test('a message names its author', async () => {
     const message = await mapMessage({ id: 'm2', author: { name: 'Ada', contact: { id: 'c1', email: 'ada@acme.test' } } });
     expect(message.author).toEqual({ id: 'c1', email: 'ada@acme.test', name: 'Ada' });
+    expect(await mapMessage({ id: 'm3', author: {} })).not.toHaveProperty('author');
   });
 
   test('tags, account and assignee become AND-ed leaves; no window and no filter means no filter', () => {
@@ -186,7 +187,7 @@ describe('resolveConnector', () => {
       'supportcandy:acme_shop'
     );
     expect(() => resolveConnector({ helpdesk: 'pylon', connection: 'beta' }, [fake('pylon')])).toThrow(
-      'The "beta" connection has no keys: add PYLON_API_TOKEN_BETA'
+      'The "beta" connection isn\'t fully set up: it needs PYLON_API_TOKEN_BETA'
     );
   });
 
