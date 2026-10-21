@@ -602,7 +602,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 **(2) Pick the level** (`AskUserQuestion`):
 
 > **What may Kevin do in the helpdesk?**
-> - Read tickets and leave draft notes (Recommended) — grants all four tools
+> - Read tickets and leave draft notes (Recommended) — grants every helpdesk tool
 > - Read only — grants `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts` and `helpdesk_lookups`; no notes
 
 **(3) SupportCandy** — surface these steps verbatim; they happen on the WordPress site, as an admin:
@@ -617,11 +617,13 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
    SUPPORTCANDY_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
    ```
 
-**(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor. A home that already set up the Pylon pack reuses the same line.
+**(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor.
 
 **(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
-**(6) Summary:**
+**(6) Offer a queue profile** (`AskUserQuestion`): "Set up a queue profile for a project's tickets?" A profile (`projects/<slug>/helpdesk.md`) holds which statuses count as open, how often sync nudges a pulse, and the operator's triage rules and tone; the helpdesk skill reads it. A yes is done after the relaunch, since listing the helpdesk's statuses needs the secrets loaded: carry `/agent-kevin:helpdesk profile` into the summary as the first thing to run.
+
+**(7) Summary:**
 
 ```
 ✅ Helpdesk pack activated.
@@ -632,6 +634,7 @@ Settings env:           SUPPORTCANDY_URL, SUPPORTCANDY_USERNAME   (SupportCandy)
 Secret lines to add:    SUPPORTCANDY_APP_PASSWORD and/or PYLON_API_TOKEN  (in .state/secrets/.env)
 
 Relaunch to load the secrets, then check with: "list helpdesk tickets from the last day".
+Then: /agent-kevin:helpdesk profile to write a queue profile, and /agent-kevin:helpdesk pulse for the queue.
 A 404 means the REST API is off; a 401 means the password, the username, or the user isn't a SupportCandy agent.
 ```
 

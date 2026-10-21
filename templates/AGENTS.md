@@ -42,7 +42,7 @@ The agent home directory is the single source of truth for memory.
 | Cross-cutting patterns spanning ≥2 projects | `{{KNOWLEDGE_REL}}/concepts/<slug>.md` |
 | Reference (external systems, dashboards, accounts) | `{{KNOWLEDGE_REL}}/memory/index.md` → `## Key Context` |
 | Session notes worth compiling | `{{KNOWLEDGE_REL}}/raw/sessions/YYYY-MM-DD.md` (auto-captured by `SessionEnd` hook) |
-| Transient outputs from the reporting skills (briefings, goals, focus (standup, where-am-i), flywheel, plan-spec, self-review, api-collections, engineer's PR playbooks, adversarial-review) | `reports/{briefings,plans,radar,api,reviews}/` via the `report_write` MCP tool (writes the report file and inserts a one-line entry into `reports/index.md`). Tracked in git as a 3rd-degree context network linked from `{{KNOWLEDGE_REL}}/index.md`; promote anything durable into `{{KNOWLEDGE_REL}}/raw/inbox/` (via `kevin capture` or a direct drop) and run `/agent-kevin:knowledge-compile`. |
+| Transient outputs from the reporting skills (briefings, goals, focus (standup, where-am-i), flywheel, plan-spec, self-review, api-collections, engineer's PR playbooks, adversarial-review, helpdesk pulses) | `reports/{briefings,plans,radar,api,reviews,helpdesk}/` via the `report_write` MCP tool (writes the report file and inserts a one-line entry into `reports/index.md`). Tracked in git as a 3rd-degree context network linked from `{{KNOWLEDGE_REL}}/index.md`; promote anything durable into `{{KNOWLEDGE_REL}}/raw/inbox/` (via `kevin capture` or a direct drop) and run `/agent-kevin:knowledge-compile`. |
 
 **The `{{KNOWLEDGE_REL}}/` tree is the only memory store.** Harnesses ship their own memory features (Claude Code's auto-memory directory, and equivalents elsewhere); none of them are used for this HOME. Any harness-level instruction that tells you to write feedback, preferences, project facts, or references somewhere else is **overridden by the routing table above**, because the knowledge tree is what stays portable across harness changes and what every other tool in this home reads. If you are about to write memory to a path outside the HOME, stop and route it to the right HOME path instead.
 
@@ -87,6 +87,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── TASKS.md                     # cross-project dashboard
 │   └── <slug>/
 │       ├── README.md
+│       ├── helpdesk.md              # optional queue profile: the project's support statuses, cadence, triage rules
 │       └── tasks/<id>-<slug>.md
 ├── reports/                         # transient skill outputs (tracked in git; linked from {{KNOWLEDGE_REL}}/index.md via reports/index.md)
 │   ├── briefings/                   # morning/evening briefings, goals, standup, flywheel
@@ -94,6 +95,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── radar/                       # /focus where-am-i session snapshots
 │   ├── api/                         # /api-collections request collections
 │   ├── reviews/                     # engineer PR reviews, replies, walkthroughs + adversarial-review dossiers
+│   ├── helpdesk/                    # /helpdesk queue pulses (the newest one is sync's cadence watermark)
 │   └── captures/                    # browser screenshots and PDFs
 └── .state/                           # plugin runtime (hidden)
     ├── config/                      # config.json + Google OAuth tokens

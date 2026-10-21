@@ -511,7 +511,7 @@ Fill `<CLOUD_EXAMPLE>` from `$AGENT_PLATFORM`: iCloud Drive on `macos`, OneDrive
 
 If the user picks "Specify", ask for three paths (plain chat or follow-up `AskUserQuestion` rounds): `AGENT_KNOWLEDGE`, `AGENT_PROJECTS`, and `AGENT_REPORTS`. Tilde-expand. Validate the paths look reasonable. Stage all three env-var values for the eventual `.zshrc` reminder in Step 9.
 
-`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans, reviews) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
+`AGENT_REPORTS` is where the reporting skills (briefings, radar, roadmap, plans, reviews, helpdesk pulses) write their outputs. Default `$HOME_DIR/reports`. Linked from `knowledge/index.md` via `reports/index.md` as a 3rd-degree context network.
 
 **If any of the three paths is OUTSIDE the agent home directory**, Step 7's `.claude/settings.local.json` write carries its grants. They name folders on this machine, so they never go in the shared `settings.json`. For each outside path, add `Read` and `Edit` rules to `permissions.allow` so the file tools reach it without prompting, and the folder itself to `sandbox.filesystem.allowWrite` so sandboxed Bash can write there:
 
@@ -1204,6 +1204,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:focus)",
       "Skill(agent-kevin:goals)",
       "Skill(agent-kevin:guide)",
+      "Skill(agent-kevin:helpdesk)",
       "Skill(agent-kevin:history)",
       "Skill(agent-kevin:humanizer)",
       "Skill(agent-kevin:itinerary)",

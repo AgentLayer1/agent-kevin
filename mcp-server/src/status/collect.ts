@@ -1520,7 +1520,7 @@ const collectRuntime = (): StatusSnapshot['runtime'] => {
   };
 };
 
-const REPORT_CATEGORIES = ['briefings', 'plans', 'radar', 'api', 'reviews'] as const;
+const REPORT_CATEGORIES = ['briefings', 'plans', 'radar', 'api', 'reviews', 'helpdesk'] as const;
 const REPORT_FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 
 /** Category segment from an href like `reports/plans/2026-…md` → `plans`. */

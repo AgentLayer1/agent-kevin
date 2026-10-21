@@ -358,7 +358,7 @@ const reportChips = (reports: ReportRef[], pinned: number): string => {
     .join('')}</div>`;
 };
 
-const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews'] as const;
+const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews', 'helpdesk'] as const;
 
 /** Dot hue per category — keyed to a representative row chip so the filter and
  *  the list share colors. Briefings uses the briefing skill's hue. */
@@ -367,7 +367,8 @@ const CATEGORY_DOT: Record<string, string> = {
   plans: 'plans',
   radar: 'focus',
   api: 'api-collections',
-  reviews: 'engineer'
+  reviews: 'engineer',
+  helpdesk: 'helpdesk'
 };
 
 // ── focus (Today) ─────────────────────────────────────────────────────
@@ -1270,6 +1271,11 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
     when: 'Taxes and receipts',
     say: `/${plugin}:tax <what’s due | receipt | close | help>`,
     what: 'Tax deadlines as dated tasks, receipts filed to the ledger, monthly close for the accountant; nothing is filed or paid without you.'
+  },
+  {
+    when: 'Support queue',
+    say: `/${plugin}:helpdesk pulse`,
+    what: 'Open tickets ranked, patterns across them and bug candidates, saved to reports/helpdesk/; replies are drafted as private notes, never sent.'
   },
   { when: 'Grab a page', say: '“screenshot https://…”', what: 'Headless-browser PNG into reports/captures/.' },
   {
