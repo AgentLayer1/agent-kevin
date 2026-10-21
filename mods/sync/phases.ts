@@ -40,7 +40,10 @@ export const PHASES: readonly Phase[] = [
     tools: ['task_query', 'task_get', 'task_update', 'task_thread', 'task_close', 'task_create'],
     reports: [{ category: 'briefings', skill: 'flywheel' }]
   }),
-  phase('attention', { tools: ['task_scan'], scripts: ['cadence.ts', 'brain-audit.ts'] }),
+  phase('attention', {
+    tools: ['task_scan', 'helpdesk_connections', 'helpdesk_stats'],
+    scripts: ['cadence.ts', 'brain-audit.ts']
+  }),
   phase('briefing', {
     tools: ['focus_write', 'web_search', 'WebSearch'],
     reports: [{ category: 'briefings' }]

@@ -596,7 +596,7 @@ Then relaunch Claude Code and check /mcp — `xcode` should be connected.
 
 ### A.2g — Helpdesk pack walk
 
-Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_connections` lists the configured helpdesks, `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, `helpdesk_attachment` downloads a log or screenshot from it into a temp folder, `helpdesk_accounts` and `helpdesk_lookups` list accounts and reference data (statuses, categories, tags, teammates, macros), and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it. Tickets come back with the people on them (the customer, the assignee, each message's author) so the agent can find the account and answer by name. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
+Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_connections` lists the configured helpdesks, `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, `helpdesk_attachment` downloads a log or screenshot from it into a temp folder, `helpdesk_accounts` and `helpdesk_lookups` list accounts and reference data (statuses, categories, tags, teammates, macros), `helpdesk_stats` counts the open tickets updated in a window (numbers only, the read sync runs), and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it. Tickets come back with the people on them (the customer, the assignee, each message's author) so the agent can find the account and answer by name. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
 
 **(1) Pick the helpdesk(s)** (`AskUserQuestion`, multi-select): SupportCandy · Pylon. With both configured, each call names the one it means.
 
@@ -611,7 +611,7 @@ A named connection reads only its own keys and never borrows the default's, sinc
 
 > **What may Kevin do in the helpdesk?**
 > - Read tickets and leave draft notes (Recommended) — grants every helpdesk tool
-> - Read only — grants `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts` and `helpdesk_lookups`; no notes
+> - Read only — grants `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups` and `helpdesk_stats`; no notes
 
 **(3) SupportCandy** — surface these steps verbatim; they happen on the WordPress site, as an admin:
 
@@ -628,7 +628,7 @@ A named connection reads only its own keys and never borrows the default's, sinc
 
 **(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor, plus `PYLON_API_TOKEN_<NAME>=…` for each named workspace.
 
-**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_connections`, `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
+**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_connections`, `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, `mcp__plugin_agent-kevin_kevin__helpdesk_stats`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
 **(6) Offer each project its queue profile** (`AskUserQuestion`, one question per project from 1b that has no `projects/<slug>/helpdesk.md` yet): "Set up <slug>'s support queue now?" A profile is the queue's own workflow: its connection, which statuses count as open, what the pulse does and how often, the bug lifecycle, replies, context and any routines of its own. The helpdesk skill's setup interview writes it, with `connection: <slug>` already filled in, and tunes it later. A yes is done after the relaunch, since the interview lists the helpdesk's connections and statuses: carry `/agent-kevin:helpdesk setup <slug>` into the summary for each. A **No project** connection gets no profile here; any project can use it later through setup by leaving `connection` out.
 
@@ -639,7 +639,7 @@ A named connection reads only its own keys and never borrows the default's, sinc
 
 Helpdesks:              <SupportCandy / Pylon>
 Connections:            <no project (default) / <slug> for each project, …>
-Tool permissions:       helpdesk_connections, helpdesk_tickets, helpdesk_ticket, helpdesk_attachment, helpdesk_accounts, helpdesk_lookups[, helpdesk_note]
+Tool permissions:       helpdesk_connections, helpdesk_tickets, helpdesk_ticket, helpdesk_attachment, helpdesk_accounts, helpdesk_lookups, helpdesk_stats[, helpdesk_note]
 Settings env:           SUPPORTCANDY_URL[_<NAME>], SUPPORTCANDY_USERNAME[_<NAME>]   (SupportCandy)
 Secret lines to add:    SUPPORTCANDY_APP_PASSWORD[_<NAME>] and/or PYLON_API_TOKEN[_<NAME>]  (in .state/secrets/.env)
 
@@ -836,7 +836,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - The operator's `gh auth login` is theirs: `gh auth logout` ends it.
 
 **Helpdesk deconfigure:**
-- Revoke `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups` and `helpdesk_note` from `permissions.allow` (§E remove helper).
+- Revoke `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups`, `helpdesk_stats` and `helpdesk_note` from `permissions.allow` (§E remove helper).
 - `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` and every `_<NAME>` variant from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` and `PYLON_API_TOKEN`, with every `_<NAME>` variant, from `.state/secrets/.env` in their editor (§D.1).
 - Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
 - Queue profiles (`projects/*/helpdesk.md`) stay, but a `schedule` in one keeps sync nudging routines the revoked tools can't run. `AskUserQuestion`: "Stop sync's helpdesk nudges?" (Yes/No). If yes, remove the `schedule` line from each profile that has one, and leave the rest of the profile as written.

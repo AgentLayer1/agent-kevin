@@ -79,6 +79,14 @@ export interface TicketQuery {
   assignee?: string;
   account?: string;
   limit: number;
+  /** Look up each requester's name and email. Default true. */
+  people?: boolean;
+}
+
+export interface TicketList {
+  tickets: HelpdeskTicket[];
+  /** The read stopped before the end: at `limit`, or at the page backstop. */
+  more: boolean;
 }
 
 export interface HelpdeskAccount {
@@ -112,7 +120,7 @@ export interface HelpdeskConnector {
   configured: () => boolean;
   /** The TicketQuery filters beyond status and search this helpdesk can apply. */
   filters: ReadonlySet<TicketFilter>;
-  list: (query: TicketQuery) => Promise<HelpdeskTicket[]>;
+  list: (query: TicketQuery) => Promise<TicketList>;
   get: (id: string) => Promise<{ ticket: HelpdeskTicket; messages: HelpdeskMessage[] }>;
   /** Adds a note only agents can see; returns the new note's id. */
   addNote: (id: string, bodyHtml: string) => Promise<string>;

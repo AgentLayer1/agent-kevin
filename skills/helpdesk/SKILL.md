@@ -1,9 +1,9 @@
 ---
 name: helpdesk
 description: >
-  SupportCandy or Pylon tickets: queue setup, pulse, ticket deep-dive, drafted replies. Triggers on
-  "support queue", "pull ticket <id>", "set up helpdesk for <project>".
-allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, Skill(agent-kevin:configure-skills), Read, Write, Edit, Glob, Grep
+  SupportCandy or Pylon tickets: setup, pulse, ticket deep-dive, drafted replies. Triggers on
+  "support queue", "how many tickets", "pull ticket <id>", "set up helpdesk for <project>".
+allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, Skill(agent-kevin:configure-skills), Read, Write, Edit, Glob, Grep
 ---
 
 # Helpdesk
@@ -37,6 +37,7 @@ Defaults with no profile: on Pylon the open statuses are `new` and `waiting_on_y
 | Ask | Playbook |
 |---|---|
 | "what's in the support queue", "triage the queue", `/helpdesk pulse [slug]` | [pulse](references/playbooks/pulse.md) |
+| "how many tickets came in today", "queue stats", `/helpdesk stats [slug] [window]` | [stats](references/playbooks/stats.md) |
 | "pull ticket 318", "what's the customer saying on that ticket", `/helpdesk ticket <id>` | [ticket](references/playbooks/ticket.md) |
 | "what's open for <account>", `/helpdesk account <name>` | [account](references/playbooks/account.md) |
 | "draft a reply for 318", `/helpdesk draft <id>` | [draft](references/playbooks/draft.md) |

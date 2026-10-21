@@ -1,12 +1,13 @@
 /**
  * Helpdesk tools — one surface over every configured helpdesk (SupportCandy,
- * Pylon). Reads (tickets, conversations, attachments, accounts, lookups) and one write: a note only agents see. Nothing here
+ * Pylon). Reads (tickets, counts, conversations, attachments, accounts, lookups) and one write: a note only agents see. Nothing here
  * replies to a customer, changes a ticket's fields or closes it; a person
  * sends every reply. Ticket text crosses the trust boundary, so it comes back
  * wrapped as untrusted.
  */
 import { assertFilters, connectors, labelOf, noteHtml, resolveConnector } from '@/helpdesk/connectors';
 import { saveToTemp } from '@/helpdesk/download';
+import { OPEN_STATUSES, queueStats } from '@/helpdesk/stats';
 import { HELPDESKS, LOOKUP_KINDS } from '@/helpdesk/types';
 import { sinceToStartTime } from '@/shared/date';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -19,6 +20,8 @@ const CONNECTION = z
   .min(1)
   .optional()
   .describe("A named connection from helpdesk_connections (the queue profile's connection); omit for the default.");
+/** Pylon's largest page, so a Pylon count is one request. */
+const STATS_LIMIT = 1000;
 
 export const tools: ToolDef[] = [
   defineTool({
@@ -37,7 +40,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_tickets',
     description:
-      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, requester and assignee (name, email where the helpdesk gives them), account id, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for tickets of any age. Works over whichever helpdesk is configured (SupportCandy, Pylon). Read a ticket's conversation with helpdesk_ticket.",
+      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, requester and assignee (name, email where the helpdesk gives them), account id, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for tickets of any age. Works over whichever helpdesk is configured (SupportCandy, Pylon). more is true when the read stopped at limit with tickets left. Read a ticket's conversation with helpdesk_ticket.",
     inputSchema: {
       helpdesk: HELPDESK,
       connection: CONNECTION,
@@ -57,7 +60,7 @@ export const tools: ToolDef[] = [
       const connector = resolveConnector(args);
       assertFilters(connector, args);
       const since = args.since ?? '7d';
-      const tickets = await connector.list({
+      const { tickets, more } = await connector.list({
         ...(since !== 'any' && { updatedSince: sinceToStartTime(since) }),
         status: args.status,
         search: args.search,
@@ -66,7 +69,29 @@ export const tools: ToolDef[] = [
         account: args.account,
         limit: args.limit ?? 50
       });
-      return untrusted(`${labelOf(connector)}:tickets`, JSON.stringify({ helpdesk: labelOf(connector), count: tickets.length, tickets }, null, 2));
+      return untrusted(`${labelOf(connector)}:tickets`, JSON.stringify({ helpdesk: labelOf(connector), count: tickets.length, more, tickets }, null, 2));
+    }
+  }),
+  defineTool({
+    name: 'helpdesk_stats',
+    description:
+      "Count the helpdesk tickets in the given statuses updated within a window (default the last 24h): total, by status, by tag (by category on SupportCandy; a ticket counts under each tag), unassigned, and how many of them were opened in the window. Counts only, never a subject, message or person, so it is the read to run unattended. Reads up to 1000 tickets; more is true when there were more, so total is a floor. With no status, Pylon counts its open statuses (new, waiting_on_you) and SupportCandy, which names statuses per site, counts every status (statuses: 'all'). Read-only.",
+    inputSchema: {
+      helpdesk: HELPDESK,
+      connection: CONNECTION,
+      since: z
+        .string()
+        .regex(/^\d+[hdwm]$/, 'Use Nh / Nd / Nw / Nm (hours/days/weeks/months)')
+        .optional()
+        .describe('Updated within this window: Nh / Nd / Nw / Nm. Default 24h.'),
+      status: z.array(z.string().min(1)).optional().describe("Status names that count as open, as the helpdesk names them (the queue profile's statuses).")
+    },
+    handler: async ({ helpdesk, connection, since = '24h', status }) => {
+      const connector = resolveConnector({ helpdesk, connection });
+      const statuses = status ?? OPEN_STATUSES[connector.name];
+      const windowStart = sinceToStartTime(since);
+      const { tickets, more } = await connector.list({ updatedSince: windowStart, status: statuses, limit: STATS_LIMIT, people: false });
+      return { helpdesk: labelOf(connector), since, windowStart, statuses: statuses ?? 'all', ...queueStats(tickets, { more, windowStart }) };
     }
   }),
   defineTool({

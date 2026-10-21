@@ -6,7 +6,7 @@ These steps are the default. A profile's `## Pulse` section adds to them (extra 
 
 ## Steps
 
-1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` and `connection` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to put names to assignees.
+1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` and `connection` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. When it returns `more: true` the queue is bigger than the read: the header says `<N>+ open`, and the brief says the oldest open tickets weren't read. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to put names to assignees.
 2. **Apply the rules.** Org rules first, then the profile's `## Triage`: a stream it says to collapse becomes one count line, and a ticket it routes to a known task links that task (find it with `task_query`) instead of being listed as new.
 3. **Rank.** Unassigned first, then by how long the customer has waited: `last_activity_at`, else `updated_at`, oldest on top.
 4. **Look for patterns.** Two or more tickets with the same error, feature, platform or account are the signal; name what they share. Read a ticket's thread (`helpdesk_ticket`) only when its subject can't settle it.

@@ -1,7 +1,7 @@
 ---
 name: sync
 description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh focus and both dashboards, commit the brain's pending changes when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:focus), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:focus), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -171,10 +171,17 @@ Returns a JSON array of `{ invoke, label, lastRun }` for each due item (`invoke`
 - **goals year** — a new calendar quarter has begun since `lastRun`.
 - **tax** — the home has a tax project and an entity with `close: monthly` has no close record for last month. Sync only nudges (`/agent-kevin:tax close`): a close needs the operator's statements and receipts, so it never runs unattended. The close records are its watermark.
 - **roadmap** — not a calendar: due whenever `<HOME>/roadmap.html` doesn't exist.
-- **helpdesk routines** — each `<routine>:<cadence>` in a queue profile's `schedule` (`projects/<slug>/helpdesk.md`; the pulse or the profile's own `## Workflow:` routines) whose newest `reports/helpdesk/*-<routine>-<slug>.md` falls before the current day, ISO week or month (or doesn't exist), as `helpdesk <routine> <slug>`. The report files are its watermark. A profile that won't parse comes back as `helpdesk setup <slug>` with the problem in its label. Sync only nudges: a routine reads untrusted ticket text against tight rate limits, which doesn't belong in an unattended run.
+- **helpdesk routines** — each `<routine>:<cadence>` in a queue profile's `schedule` (`projects/<slug>/helpdesk.md`; the pulse or the profile's own `## Workflow:` routines) whose newest `reports/helpdesk/*-<routine>-<slug>.md` falls before the current day, ISO week or month (or doesn't exist), as `helpdesk <routine> <slug>`. The report files are its watermark. A profile that won't parse comes back as `helpdesk setup <slug>` with the problem in its label. Sync only nudges a routine: it reads untrusted ticket text against tight rate limits, which doesn't belong in an unattended run. The queue counts below are the exception, since they carry no ticket text.
 - **self-review** — the brain pass is monthly: due when `brainLastRun` is 30 or more days old, or absent on a home whose oldest session day-file is a month old (a fresh init stays quiet). The rules pass keeps its feedback rule: new entries in `raw/user/feedback.md` since `lastRun` and that run over 14 days old, or 30 days regardless. `invoke` names what's due (`self-review`, `self-review brain`, `self-review rules`). `snoozeUntil` (Tomorrow) and `skippedOn` (Skip this month) hold it off; step 13 asks it first, on its own.
 
 Watermarks live in `.state/cadence.json` (`goals-week`, `goals-month`, `goals-year` → last-run date, stamped by each goals playbook once its block is written) and `.state/review.json` (`lastRun` and `brainLastRun`, owned by self-review; `snoozeUntil`, `skippedOn` and `skips`, written by step 13). The check creates nothing; a missing watermark just reads as "due". Surface due items in the `📅 Cadence` output block — a nudge with the slash command, nothing more.
+
+**Also count the support queues.** `helpdesk_connections` lists the configured connections; when it lists none, skip this and the `🎫 Support` block. Otherwise call `helpdesk_stats` once per queue, with its default 24-hour window:
+
+1. **Each queue profile** (`projects/<slug>/helpdesk.md`), passing its `helpdesk`, `connection` and `statuses`. The reply's `helpdesk` names the connection that call read (`supportcandy:acme`, or plain `supportcandy` for the default).
+2. **Each listed connection no profile read**: the no-project default, or a project's connection whose setup hasn't run. Pass its `helpdesk` and `connection` and no statuses: Pylon counts its open statuses, and SupportCandy counts every status (`statuses: 'all'`).
+
+A profile whose call errored still claims the connection it names (or the default when it names none), so no queue is counted twice. The tool returns numbers and status and tag names only, never ticket text, and a 24-hour window is a page or two, so this is safe to run unattended. A tool error becomes that queue's line, never a stopped sync. Render each queue per the `🎫 Support` block in Output.
 
 **Also take the brain's inventory.** Read-only, and cheap:
 
@@ -315,6 +322,10 @@ One block, tight. Skip empty sections — don't pad.
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, diverged, or held by a worktree>
 
 🎯 Focus — <n PRs (n ready) · n reviews owed · n replies owed, the last with Slack only | a source it couldn't read, in a few words>
+
+🎫 Support (omit entirely when no helpdesk is configured; one entry per queue)
+  - <project slug | no project | <connection>, no profile yet>, last 24h: <total, or total+ when more is true> <open | all-status> tickets active (<status> <n> · …) · <n> unassigned · <n> opened in the window
+    Tags: <tag> <n> · … (top six, then other <n>)   (omit when the count is zero)
 
 📊 Dashboard — <HOME>/dashboard.html refreshed
 

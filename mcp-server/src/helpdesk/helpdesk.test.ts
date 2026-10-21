@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import { assertFilters, connectors, noteHtml, resolveConnector } from './connectors';
 import { safeName, saveToTemp } from './download';
 import { issueFilter, mapAccount, mapIssue, mapMessage, pylon } from './pylon';
+import { queueStats, UNTAGGED } from './stats';
 import { adminLink, mapThread, mapTicket, supportcandy, toIso, type Lookups } from './supportcandy';
-import type { HelpdeskConnector, HelpdeskName } from './types';
+import type { HelpdeskConnector, HelpdeskName, HelpdeskTicket } from './types';
 
 const LOOKUPS: Lookups = {
   statuses: new Map([['1', 'Open'], ['4', 'Closed']]),
@@ -175,7 +176,7 @@ describe('resolveConnector', () => {
     configured: () => true,
     filters: new Set(),
     lookups: {},
-    list: async () => [],
+    list: async () => ({ tickets: [], more: false }),
     get: async () => {
       throw new Error('unused');
     },
@@ -404,8 +405,20 @@ describe('SupportCandy status filter', () => {
   });
 
   test('keeps paging until it has enough tickets in the wanted status', async () => {
-    const tickets = await supportcandy().list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
+    const { tickets, more } = await supportcandy().list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['3']);
+    expect(more).toBe(false);
+  });
+
+  test('says there is more when it stops at the limit with pages left', async () => {
+    const { tickets, more } = await supportcandy().list({ status: ['Open'], limit: 1 });
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['1']);
+    expect(more).toBe(true);
+  });
+
+  test('reaching the window cutoff is the end, not more', async () => {
+    const { more } = await supportcandy().list({ updatedSince: '2026-10-21T00:00:00Z', status: ['Open'], limit: 5 });
+    expect(more).toBe(false);
   });
 });
 
@@ -445,9 +458,14 @@ describe('SupportCandy with no window', () => {
   });
 
   test('an old or undated open ticket still counts, with its requester resolved or kept as an id', async () => {
-    const tickets = await supportcandy().list({ status: ['Open'], limit: 10 });
+    const { tickets } = await supportcandy().list({ status: ['Open'], limit: 10 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['5', '6']);
     expect(tickets.map((ticket) => ticket.requester)).toEqual([{ id: '77', name: 'Ada', email: 'ada@acme.test' }, { id: '404' }]);
+  });
+
+  test('a count skips the requester lookups', async () => {
+    const { tickets } = await supportcandy().list({ status: ['Open'], limit: 10, people: false });
+    expect(tickets.map((ticket) => ticket.requester)).toEqual([{ id: '77' }, { id: '404' }]);
   });
 
   test('statuses and categories are the lookups', async () => {
@@ -455,5 +473,64 @@ describe('SupportCandy with no window', () => {
     expect(await supportcandy().lookups.categories?.()).toEqual([{ id: '2', name: 'Billing' }]);
     expect(await supportcandy().lookups.teammates?.()).toEqual([{ id: '5', name: 'Sam' }]);
     expect(supportcandy().lookups.tags).toBeUndefined();
+  });
+});
+
+describe('Pylon list', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+  const bodies: Record<string, unknown>[] = [];
+  const page = { data: [{ id: 'a', state: 'new' }], pagination: { cursor: 'c2', has_next_page: true } };
+
+  beforeEach(() => {
+    process.env.PYLON_API_TOKEN = 'test-token';
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
+      return new Response(JSON.stringify(page));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+    bodies.length = 0;
+  });
+
+  test('a next page means there is more, and the window becomes the filter', async () => {
+    const { tickets, more } = await pylon().list({ updatedSince: '2026-10-21T00:00:00.000Z', limit: 1 });
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['a']);
+    expect(more).toBe(true);
+    expect(bodies[0]).toMatchObject({ limit: 1, filter: { field: 'updated_at', operator: 'time_is_after', value: '2026-10-21T00:00:00.000Z' } });
+  });
+});
+
+describe('queueStats', () => {
+  const windowStart = '2026-10-21T00:00:00.000Z';
+  const ticket = (fields: Partial<HelpdeskTicket>): HelpdeskTicket => ({ id: 'x', helpdesk: 'pylon', subject: '', status: 'new', tags: [], ...fields });
+
+  test('counts statuses and tags most first, untagged and unassigned, and what opened in the window', () => {
+    const stats = queueStats(
+      [
+        ticket({ status: 'waiting_on_you', tags: ['Compliance', 'Refund'], assignee: { id: 'usr_9' }, created_at: '2026-10-20T08:00:00Z' }),
+        ticket({ status: 'new', tags: ['Compliance'], created_at: '2026-10-21T08:00:00Z' }),
+        ticket({ status: 'waiting_on_you', created_at: '2026-10-21T09:00:00Z' })
+      ],
+      { more: false, windowStart }
+    );
+    expect(stats).toEqual({
+      total: 3,
+      more: false,
+      byStatus: { waiting_on_you: 2, new: 1 },
+      byTag: { Compliance: 2, Refund: 1, [UNTAGGED]: 1 },
+      unassigned: 2,
+      openedInWindow: 2
+    });
+    expect(Object.keys(stats.byStatus)).toEqual(['waiting_on_you', 'new']);
+  });
+
+  test("a SupportCandy category stands in for tags, and a read that stopped early says there is more", () => {
+    const stats = queueStats([ticket({ helpdesk: 'supportcandy', category: 'Billing', tags: [] })], { more: true, windowStart });
+    expect(stats.byTag).toEqual({ Billing: 1 });
+    expect(stats.more).toBe(true);
   });
 });

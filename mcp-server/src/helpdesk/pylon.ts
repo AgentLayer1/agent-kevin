@@ -98,7 +98,7 @@ export const pylon = (connection?: string): HelpdeskConnector => {
     list: async (query) => {
       const filter = issueFilter(query);
       const page = await searchIssues(token(), { ...(filter && { filter }), ...(query.search && { search_text: query.search }), limit: query.limit });
-      return page.issues.map(mapIssue);
+      return { tickets: page.issues.map(mapIssue), more: page.has_next_page };
     },
     get: async (id) => {
       const [issue, messages] = await Promise.all([getIssue(token(), id), getIssueMessages(token(), id)]);

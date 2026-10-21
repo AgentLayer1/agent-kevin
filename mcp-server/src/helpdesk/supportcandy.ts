@@ -253,18 +253,19 @@ export const supportcandy = (connection?: string): HelpdeskConnector => {
         query.updatedSince === undefined || Date.parse(toIso(ticket.date_updated) ?? '') >= Date.parse(query.updatedSince);
       const wanted = query.status?.map((status) => status.toLowerCase());
       const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
-      const recent = async (page: number, gathered: ScTicket[]): Promise<ScTicket[]> => {
+      const recent = async (page: number, gathered: ScTicket[]): Promise<{ found: ScTicket[]; unread: boolean }> => {
         const result = await call<ScPage<ScTicket>>(creds, '/tickets', {
           query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
         });
         const fresh = (result.results ?? []).filter(isFresh);
         const next = [...gathered, ...fresh.filter((raw) => matches(mapTicket(raw, names, creds.site)))];
-        const reachedCutoff = fresh.length < (result.results ?? []).length;
-        return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
+        const unread = Boolean(result.has_next_page) && fresh.length === (result.results ?? []).length;
+        return unread && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : { found: next, unread };
       };
-      const kept = (await recent(1, [])).slice(0, query.limit);
-      const requesters = await people(creds, kept.map((raw) => raw.customer));
-      return kept.map((raw) => mapTicket(raw, names, creds.site, requesters));
+      const { found, unread } = await recent(1, []);
+      const kept = found.slice(0, query.limit);
+      const requesters: People = query.people === false ? new Map() : await people(creds, kept.map((raw) => raw.customer));
+      return { tickets: kept.map((raw) => mapTicket(raw, names, creds.site, requesters)), more: unread || found.length > query.limit };
     },
     get: async (id) => {
       const creds = requireCredentials(connection);

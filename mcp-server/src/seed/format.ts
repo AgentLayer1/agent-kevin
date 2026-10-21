@@ -274,7 +274,7 @@ export const PACKS: Record<string, PackDef> = {
     settingsEnv: []
   },
   helpdesk: {
-    grants: mcp(['helpdesk_connections', 'helpdesk_tickets', 'helpdesk_ticket', 'helpdesk_attachment', 'helpdesk_accounts', 'helpdesk_lookups', 'helpdesk_note']),
+    grants: mcp(['helpdesk_connections', 'helpdesk_tickets', 'helpdesk_ticket', 'helpdesk_attachment', 'helpdesk_accounts', 'helpdesk_lookups', 'helpdesk_stats', 'helpdesk_note']),
     secretKeys: ['SUPPORTCANDY_APP_PASSWORD', 'PYLON_API_TOKEN'],
     settingsEnv: ['SUPPORTCANDY_URL', 'SUPPORTCANDY_USERNAME']
   },
