@@ -7,15 +7,22 @@
  * Bash sandbox; the MCP server reads it through `shared/env`.
  */
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { env } from '@/shared/env';
+import { env, suffixedKey } from '@/shared/env';
 
 export const PYLON_API_BASE = 'https://api.usepylon.com';
 
-export function pylonToken(): string {
-  const token = env('PYLON_API_TOKEN');
+/** The default connection's key; a named one is `PYLON_API_TOKEN_<NAME>`. */
+export const PYLON_TOKEN_KEY = 'PYLON_API_TOKEN';
+
+export const pylonTokenKey = (connection?: string): string => (connection ? suffixedKey(PYLON_TOKEN_KEY, connection) : PYLON_TOKEN_KEY);
+
+/** A named connection never falls back to the default: that token reaches a different workspace. */
+export function pylonToken(connection?: string): string {
+  const key = pylonTokenKey(connection);
+  const token = env(key);
   if (!token) {
     throw new Error(
-      `PYLON_API_TOKEN not set. Add a Pylon API token to <HOME>/${RUNTIME_DIR}/secrets/.env as PYLON_API_TOKEN ` +
+      `${key} not set. Add a Pylon API token to <HOME>/${RUNTIME_DIR}/secrets/.env as ${key} ` +
         `(run /${pluginName()}:configure-skills → the Helpdesk pack; a Pylon admin mints the token under Settings → API).`
     );
   }

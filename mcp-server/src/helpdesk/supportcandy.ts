@@ -10,7 +10,7 @@
  * numeric ids, dates as UTC `Y-m-d H:i:s`.
  */
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { env } from '@/shared/env';
+import { env, suffixedKey } from '@/shared/env';
 import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
 import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type HelpdeskMessage, type HelpdeskPerson, type HelpdeskTicket, type MessageKind } from './types';
@@ -78,26 +78,37 @@ export interface Lookups {
 /** Customer id → the person, for a ticket's requester and each thread's author. */
 export type People = ReadonlyMap<number, HelpdeskPerson>;
 
-const credentials = (): Credentials | null => {
-  const site = env('SUPPORTCANDY_URL')?.replace(/\/+$/, '');
-  const username = env('SUPPORTCANDY_USERNAME');
-  const password = env('SUPPORTCANDY_APP_PASSWORD');
+/** The default connection's site key; a named one is `SUPPORTCANDY_URL_<NAME>`, and its other keys follow. */
+export const SUPPORTCANDY_URL_KEY = 'SUPPORTCANDY_URL';
+
+const keysFor = (connection?: string) => {
+  const key = (base: string): string => (connection ? suffixedKey(base, connection) : base);
+  return { url: key(SUPPORTCANDY_URL_KEY), username: key('SUPPORTCANDY_USERNAME'), password: key('SUPPORTCANDY_APP_PASSWORD') };
+};
+
+/** A named connection reads only its own keys: the default ones belong to a different site. */
+const credentials = (connection?: string): Credentials | null => {
+  const keys = keysFor(connection);
+  const site = env(keys.url)?.replace(/\/+$/, '');
+  const username = env(keys.username);
+  const password = env(keys.password);
   return site && username && password ? { site, username, password } : null;
 };
 
-const requireCredentials = (): Credentials => {
-  const found = credentials();
+const requireCredentials = (connection?: string): Credentials => {
+  const found = credentials(connection);
   if (!found) {
+    const keys = keysFor(connection);
     throw new Error(
-      `SupportCandy isn't configured. Set SUPPORTCANDY_URL and SUPPORTCANDY_USERNAME in settings.local.json env and ` +
-        `SUPPORTCANDY_APP_PASSWORD in <HOME>/${RUNTIME_DIR}/secrets/.env (run /${pluginName()}:configure-skills → Helpdesk pack).`
+      `SupportCandy${connection ? ` connection "${connection}"` : ''} isn't configured. Set ${keys.url} and ${keys.username} in settings.local.json env and ` +
+        `${keys.password} in <HOME>/${RUNTIME_DIR}/secrets/.env (run /${pluginName()}:configure-skills → Helpdesk pack).`
     );
   }
   return found;
 };
 
-const call = async <T>(path: string, init: { method?: 'GET' | 'POST'; query?: Record<string, string | number>; form?: Record<string, string> } = {}): Promise<T> => {
-  const { site, username, password } = requireCredentials();
+const call = async <T>(creds: Credentials, path: string, init: { method?: 'GET' | 'POST'; query?: Record<string, string | number>; form?: Record<string, string> } = {}): Promise<T> => {
+  const { site, username, password } = creds;
   const url = new URL(`${site}${API_PATH}${path}`);
   Object.entries(init.query ?? {}).forEach(([key, value]) => url.searchParams.set(key, String(value)));
   const response = await fetch(url, {
@@ -179,22 +190,22 @@ export const mapThread = async (
   attachments: attachmentIds(thread).map((id) => ({ id, name: attachmentNames.get(id) ?? `attachment-${id}` }))
 });
 
-const lookups = async (): Promise<Lookups> => {
+const lookups = async (creds: Credentials): Promise<Lookups> => {
   const [statuses, categories, agents] = await Promise.all([
-    call<ScNamed[]>('/statuses'),
-    call<ScNamed[]>('/categories'),
-    call<ScPage<ScNamed>>('/agents', { query: { per_page: 100 } })
+    call<ScNamed[]>(creds, '/statuses'),
+    call<ScNamed[]>(creds, '/categories'),
+    call<ScPage<ScNamed>>(creds, '/agents', { query: { per_page: 100 } })
   ]);
   const toMap = (items: ScNamed[]): Map<number, string> => new Map(items.map((item) => [item.id, item.name ?? String(item.id)]));
   return { statuses: toMap(statuses), categories: toMap(categories), agents: toMap(agents.results ?? []) };
 };
 
-const people = async (ids: readonly (number | undefined)[]): Promise<People> => {
+const people = async (creds: Credentials, ids: readonly (number | undefined)[]): Promise<People> => {
   const unique = [...new Set(ids.filter((id): id is number => id !== undefined))];
   const found = await Promise.all(
     unique.map(async (id): Promise<[number, HelpdeskPerson]> => {
       // A deleted customer shouldn't fail the whole read; the ticket still carries the id.
-      const customer = await call<ScCustomer>(`/customers/${id}`).catch((): ScCustomer => ({ id }));
+      const customer = await call<ScCustomer>(creds, `/customers/${id}`).catch((): ScCustomer => ({ id }));
       return [id, { id: String(id), ...(customer.name && { name: customer.name }), ...(customer.email && { email: customer.email }) }];
     })
   );
@@ -203,9 +214,9 @@ const people = async (ids: readonly (number | undefined)[]): Promise<People> => 
 
 const asLookups = (names: ReadonlyMap<number, string>): HelpdeskLookup[] => [...names].map(([id, name]) => ({ id: String(id), name }));
 
-const allThreads = async (id: string): Promise<ScThread[]> => {
+const allThreads = async (creds: Credentials, id: string): Promise<ScThread[]> => {
   const pages = async (page: number, gathered: ScThread[]): Promise<ScThread[]> => {
-    const result = await call<ScPage<ScThread>>(`/tickets/${encodeURIComponent(id)}/threads`, {
+    const result = await call<ScPage<ScThread>>(creds, `/tickets/${encodeURIComponent(id)}/threads`, {
       query: { page, per_page: PAGE_SIZE, order: 'ASC' }
     });
     const next = [...gathered, ...(result.results ?? [])];
@@ -214,57 +225,69 @@ const allThreads = async (id: string): Promise<ScThread[]> => {
   return pages(1, []);
 };
 
-export const supportcandy: HelpdeskConnector = {
-  name: 'supportcandy',
-  configured: () => credentials() !== null,
-  filters: new Set(),
-  list: async (query) => {
-    const { site } = requireCredentials();
-    const names = await lookups();
-    const isFresh = (ticket: ScTicket): boolean =>
-      query.updatedSince === undefined || Date.parse(toIso(ticket.date_updated) ?? '') >= Date.parse(query.updatedSince);
-    const wanted = query.status?.map((status) => status.toLowerCase());
-    const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
-    const recent = async (page: number, gathered: ScTicket[]): Promise<ScTicket[]> => {
-      const result = await call<ScPage<ScTicket>>('/tickets', {
-        query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
+/** The default connection, or a named one reading `SUPPORTCANDY_*_<NAME>` keys. */
+export const supportcandy = (connection?: string): HelpdeskConnector => {
+  const keys = keysFor(connection);
+  const site = env(keys.url)?.replace(/\/+$/, '');
+  return {
+    name: 'supportcandy',
+    ...(connection && { connection }),
+    keys: [keys.url, keys.username, keys.password],
+    ...(site && { site }),
+    configured: () => credentials(connection) !== null,
+    filters: new Set(),
+    list: async (query) => {
+      const creds = requireCredentials(connection);
+      const names = await lookups(creds);
+      const isFresh = (ticket: ScTicket): boolean =>
+        query.updatedSince === undefined || Date.parse(toIso(ticket.date_updated) ?? '') >= Date.parse(query.updatedSince);
+      const wanted = query.status?.map((status) => status.toLowerCase());
+      const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
+      const recent = async (page: number, gathered: ScTicket[]): Promise<ScTicket[]> => {
+        const result = await call<ScPage<ScTicket>>(creds, '/tickets', {
+          query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
+        });
+        const fresh = (result.results ?? []).filter(isFresh);
+        const next = [...gathered, ...fresh.filter((raw) => matches(mapTicket(raw, names, creds.site)))];
+        const reachedCutoff = fresh.length < (result.results ?? []).length;
+        return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
+      };
+      const kept = (await recent(1, [])).slice(0, query.limit);
+      const requesters = await people(creds, kept.map((raw) => raw.customer));
+      return kept.map((raw) => mapTicket(raw, names, creds.site, requesters));
+    },
+    get: async (id) => {
+      const creds = requireCredentials(connection);
+      const [raw, names, threads] = await Promise.all([
+        call<ScTicket>(creds, `/tickets/${encodeURIComponent(id)}`),
+        lookups(creds),
+        allThreads(creds, id)
+      ]);
+      const ids = threads.flatMap(attachmentIds);
+      const found = await Promise.all(ids.map((id) => call<ScAttachment>(creds, `/attachments/${encodeURIComponent(id)}`)));
+      const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
+      const everyone = await people(creds, [raw.customer, ...threads.map((thread) => thread.customer)]);
+      const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames, everyone)));
+      return { ticket: mapTicket(raw, names, creds.site, everyone), messages };
+    },
+    addNote: async (id, bodyHtml) => {
+      const created = await call<{ id?: number } | ScThread>(requireCredentials(connection), `/tickets/${encodeURIComponent(id)}/threads`, {
+        method: 'POST',
+        form: { type: 'note', body: bodyHtml }
       });
-      const fresh = (result.results ?? []).filter(isFresh);
-      const next = [...gathered, ...fresh.filter((raw) => matches(mapTicket(raw, names, site)))];
-      const reachedCutoff = fresh.length < (result.results ?? []).length;
-      return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
-    };
-    const kept = (await recent(1, [])).slice(0, query.limit);
-    const requesters = await people(kept.map((raw) => raw.customer));
-    return kept.map((raw) => mapTicket(raw, names, site, requesters));
-  },
-  get: async (id) => {
-    const { site } = requireCredentials();
-    const [raw, names, threads] = await Promise.all([call<ScTicket>(`/tickets/${encodeURIComponent(id)}`), lookups(), allThreads(id)]);
-    const ids = threads.flatMap(attachmentIds);
-    const found = await Promise.all(ids.map((id) => call<ScAttachment>(`/attachments/${encodeURIComponent(id)}`)));
-    const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
-    const everyone = await people([raw.customer, ...threads.map((thread) => thread.customer)]);
-    const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames, everyone)));
-    return { ticket: mapTicket(raw, names, site, everyone), messages };
-  },
-  addNote: async (id, bodyHtml) => {
-    const created = await call<{ id?: number } | ScThread>(`/tickets/${encodeURIComponent(id)}/threads`, {
-      method: 'POST',
-      form: { type: 'note', body: bodyHtml }
-    });
-    return String(created.id ?? '');
-  },
-  download: async (attachmentId) => {
-    const attachment = await call<ScAttachment>(`/attachments/${encodeURIComponent(attachmentId)}`);
-    if (!attachment.url) {
-      throw new Error(`SupportCandy attachment ${attachmentId} has no download link`);
+      return String(created.id ?? '');
+    },
+    download: async (attachmentId) => {
+      const attachment = await call<ScAttachment>(requireCredentials(connection), `/attachments/${encodeURIComponent(attachmentId)}`);
+      if (!attachment.url) {
+        throw new Error(`SupportCandy attachment ${attachmentId} has no download link`);
+      }
+      return fetchFile(attachment.url, attachment.name ?? `attachment-${attachmentId}`);
+    },
+    lookups: {
+      statuses: async () => asLookups((await lookups(requireCredentials(connection))).statuses),
+      categories: async () => asLookups((await lookups(requireCredentials(connection))).categories),
+      teammates: async () => asLookups((await lookups(requireCredentials(connection))).agents)
     }
-    return fetchFile(attachment.url, attachment.name ?? `attachment-${attachmentId}`);
-  },
-  lookups: {
-    statuses: async () => asLookups((await lookups()).statuses),
-    categories: async () => asLookups((await lookups()).categories),
-    teammates: async () => asLookups((await lookups()).agents)
-  }
+  };
 };

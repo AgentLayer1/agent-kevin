@@ -103,6 +103,12 @@ export interface HelpdeskLookup {
 
 export interface HelpdeskConnector {
   name: HelpdeskName;
+  /** A named connection (`<KEY>_<NAME>` keys); absent for the default one. */
+  connection?: string;
+  /** The keys this connection reads, for errors and setup. */
+  keys: readonly string[];
+  /** The site it talks to, when that isn't a secret. */
+  site?: string;
   configured: () => boolean;
   /** The TicketQuery filters beyond status and search this helpdesk can apply. */
   filters: ReadonlySet<TicketFilter>;

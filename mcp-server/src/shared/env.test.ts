@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, legacyEnvPrefix, pluginName } from './naming';
-import { agentHomePath, env, githubTokenKeyFor, isAgentHome, isGitHubTokenKey, loadSecretsEnv, readEnvFile } from './env';
+import { agentHomePath, env, githubTokenKeyFor, isAgentHome, isGitHubTokenKey, loadSecretsEnv, namedKeys, readEnvFile, suffixedKey } from './env';
 import { secretsReadBlocked } from './sandbox-probe';
 import { loadSettingsEnv } from './settings-env';
 
@@ -346,6 +346,20 @@ describe('loadSettingsEnv', () => {
       expect(process.env.SETTINGS_D).toBeUndefined();
     } finally {
       for (const key of ['SETTINGS_A', 'SETTINGS_B', 'SETTINGS_C', 'SETTINGS_D']) delete process.env[key];
+    }
+  });
+});
+
+describe('named connection keys', () => {
+  test('a connection name maps to one suffixed key, and every set one is found', () => {
+    expect(suffixedKey('PYLON_API_TOKEN', 'acme-shop')).toBe('PYLON_API_TOKEN_ACME_SHOP');
+    process.env.FIXTURE_HD_KEY_ACME = 'set';
+    process.env.FIXTURE_HD_KEY_BETA = ' ';
+    try {
+      expect(namedKeys('FIXTURE_HD_KEY')).toEqual([{ name: 'acme', envKey: 'FIXTURE_HD_KEY_ACME' }]);
+    } finally {
+      delete process.env.FIXTURE_HD_KEY_ACME;
+      delete process.env.FIXTURE_HD_KEY_BETA;
     }
   });
 });

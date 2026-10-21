@@ -99,8 +99,8 @@ const SENSITIVE_KEYS = [
   'GOOGLE_OAUTH_CLIENT_SECRET'
 ] as const;
 
-/** `GITHUB_TOKEN` and every per-owner `GITHUB_TOKEN_<OWNER>`, whose names aren't known ahead. */
-const SENSITIVE_KEY_RE = /^GITHUB_TOKEN(_|$)/;
+/** Secrets with a per-owner or per-connection suffix (`GITHUB_TOKEN_<OWNER>`, `PYLON_API_TOKEN_<NAME>`), whose names aren't known ahead. */
+const SENSITIVE_KEY_RE = /^(GITHUB_TOKEN|PYLON_API_TOKEN|SUPPORTCANDY_APP_PASSWORD)(_|$)/;
 
 // ── Rotation helpers ──────────────────────────────────────────────────
 

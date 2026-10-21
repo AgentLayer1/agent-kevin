@@ -1,31 +1,58 @@
+import { PYLON_TOKEN_KEY } from '@/pylon/config';
+import { namedKeys } from '@/shared/env';
 import { pluginName } from '@/shared/naming';
 import { pylon } from './pylon';
-import { supportcandy } from './supportcandy';
-import { TICKET_FILTERS, type HelpdeskConnector, type HelpdeskName, type TicketQuery } from './types';
+import { SUPPORTCANDY_URL_KEY, supportcandy } from './supportcandy';
+import { HELPDESKS, TICKET_FILTERS, type HelpdeskConnector, type HelpdeskName, type TicketQuery } from './types';
 
-const CONNECTORS: Record<HelpdeskName, HelpdeskConnector> = { supportcandy, pylon };
+const KINDS: Record<HelpdeskName, { make: (connection?: string) => HelpdeskConnector; prefix: string }> = {
+  supportcandy: { make: supportcandy, prefix: SUPPORTCANDY_URL_KEY },
+  pylon: { make: pylon, prefix: PYLON_TOKEN_KEY }
+};
 
-/** The connector a call means: the one named, or the only one configured. */
+const SETUP = `run /${pluginName()}:configure-skills → Helpdesk pack`;
+
+/** Every configured connection: each helpdesk's default, then one per `<KEY>_<NAME>` it finds. */
+export const connectors = (): HelpdeskConnector[] =>
+  HELPDESKS.flatMap((kind) => {
+    const { make, prefix } = KINDS[kind];
+    return [make(), ...namedKeys(prefix).map(({ name }) => make(name))].filter((connector) => connector.configured());
+  });
+
+const normal = (name: string): string => name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+export const labelOf = (connector: HelpdeskConnector): string => (connector.connection ? `${connector.name}:${connector.connection}` : connector.name);
+
+/**
+ * The connector a call means. A named connection must have keys of its own; no name means the
+ * default, or the only connection there is.
+ */
 export const resolveConnector = (
-  name: HelpdeskName | undefined,
-  connectors: Record<HelpdeskName, HelpdeskConnector> = CONNECTORS
+  { helpdesk, connection }: { helpdesk?: HelpdeskName; connection?: string },
+  available: readonly HelpdeskConnector[] = connectors()
 ): HelpdeskConnector => {
-  if (name) {
-    const named = connectors[name];
-    if (!named.configured()) {
-      throw new Error(`The ${name} helpdesk isn't configured (run /${pluginName()}:configure-skills → Helpdesk pack).`);
+  const ofKind = available.filter((connector) => !helpdesk || connector.name === helpdesk);
+  if (connection) {
+    const named = ofKind.filter((connector) => connector.connection && normal(connector.connection) === normal(connection));
+    const [only] = named;
+    if (named.length === 1 && only) {
+      return only;
     }
-    return named;
+    if (named.length > 1) {
+      throw new Error(`Both helpdesks have a "${connection}" connection; pass helpdesk to pick one.`);
+    }
+    const keys = (helpdesk ? [helpdesk] : HELPDESKS).flatMap((kind) => KINDS[kind].make(connection).keys);
+    throw new Error(`The "${connection}" connection has no keys: add ${keys.join(', ')} (${SETUP}).`);
   }
-  const configured = Object.values(connectors).filter((connector) => connector.configured());
-  const [only] = configured;
-  if (configured.length === 1 && only) {
-    return only;
+  const defaults = ofKind.filter((connector) => !connector.connection);
+  const [first] = defaults.length > 0 ? defaults : ofKind;
+  if (first && (defaults.length === 1 || (defaults.length === 0 && ofKind.length === 1))) {
+    return first;
   }
-  if (configured.length === 0) {
-    throw new Error(`No helpdesk is configured (run /${pluginName()}:configure-skills → Helpdesk pack).`);
+  if (ofKind.length === 0) {
+    throw new Error(`No ${helpdesk ?? 'helpdesk'} is configured (${SETUP}).`);
   }
-  throw new Error(`Several helpdesks are configured (${configured.map((connector) => connector.name).join(', ')}); pass helpdesk to pick one.`);
+  throw new Error(`Several helpdesk connections are configured (${ofKind.map(labelOf).join(', ')}); pass helpdesk and connection to pick one.`);
 };
 
 /** A filter the helpdesk can't apply is refused, never silently dropped. */

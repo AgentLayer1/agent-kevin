@@ -250,6 +250,19 @@ export const dbConnections = (): DbConnection[] => {
 /** The env key a free-form connection name resolves to: `AGENT_DB_<NAME>`. */
 export const dbEnvKeyFor = (name: string): string => `${DB_ENV_PREFIX}${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 
+/** The env key a named connection of `prefix` lives under: `<PREFIX>_<NAME>`, normalised like `AGENT_DB_<NAME>`. */
+export const suffixedKey = (prefix: string, name: string): string => `${prefix}_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+
+/** Every named connection of `prefix` that holds a value (`<PREFIX>_<NAME>`), name lowercased, sorted. */
+export const namedKeys = (prefix: string): DbConnection[] => {
+  loadSecretsEnv();
+  const start = `${prefix}_`;
+  return Object.keys(process.env)
+    .filter((key) => key.startsWith(start) && key.length > start.length && process.env[key]?.trim())
+    .map((envKey) => ({ name: envKey.slice(start.length).toLowerCase(), envKey }))
+    .sort((first, second) => first.name.localeCompare(second.name));
+};
+
 /** The catch-all GitHub token, used for any owner without a key of its own. */
 export const GITHUB_TOKEN_KEY = 'GITHUB_TOKEN';
 

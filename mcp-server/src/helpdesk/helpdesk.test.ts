@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { assertFilters, noteHtml, resolveConnector } from './connectors';
+import { assertFilters, connectors, noteHtml, resolveConnector } from './connectors';
 import { safeName, saveToTemp } from './download';
 import { issueFilter, mapAccount, mapIssue, mapMessage, pylon } from './pylon';
 import { adminLink, mapThread, mapTicket, supportcandy, toIso, type Lookups } from './supportcandy';
@@ -70,7 +70,7 @@ describe('SupportCandy notes', () => {
   });
 
   test('a note is posted as a private note, never a reply', async () => {
-    expect(await supportcandy.addNote('318', '<p>Draft</p>')).toBe('9');
+    expect(await supportcandy().addNote('318', '<p>Draft</p>')).toBe('9');
     const [request] = sent;
     expect(request?.url).toBe('https://help.example.com/wp-json/supportcandy/v2/tickets/318/threads');
     const form = new URLSearchParams(request?.body);
@@ -157,9 +157,11 @@ describe('Pylon mapping', () => {
 });
 
 describe('resolveConnector', () => {
-  const fake = (name: HelpdeskName, configured: boolean): HelpdeskConnector => ({
+  const fake = (name: HelpdeskName, connection?: string): HelpdeskConnector => ({
     name,
-    configured: () => configured,
+    ...(connection && { connection }),
+    keys: [],
+    configured: () => true,
     filters: new Set(),
     lookups: {},
     list: async () => [],
@@ -171,24 +173,81 @@ describe('resolveConnector', () => {
       throw new Error('unused');
     }
   });
+  const label = (connector: HelpdeskConnector): string => `${connector.name}:${connector.connection ?? 'default'}`;
 
-  test('picks the only configured helpdesk, or the one named', () => {
-    expect(resolveConnector(undefined, { supportcandy: fake('supportcandy', true), pylon: fake('pylon', false) }).name).toBe('supportcandy');
-    expect(resolveConnector('pylon', { supportcandy: fake('supportcandy', true), pylon: fake('pylon', true) }).name).toBe('pylon');
+  test('no connection named means the default, or the only connection there is', () => {
+    expect(label(resolveConnector({}, [fake('supportcandy'), fake('supportcandy', 'acme_shop')]))).toBe('supportcandy:default');
+    expect(label(resolveConnector({}, [fake('pylon', 'acme')]))).toBe('pylon:acme');
+    expect(label(resolveConnector({ helpdesk: 'pylon' }, [fake('supportcandy'), fake('pylon')]))).toBe('pylon:default');
   });
 
-  test('refuses to guess between several, and names an unconfigured one', () => {
-    expect(() => resolveConnector(undefined, { supportcandy: fake('supportcandy', true), pylon: fake('pylon', true) })).toThrow(/Several/);
-    expect(() => resolveConnector('pylon', { supportcandy: fake('supportcandy', true), pylon: fake('pylon', false) })).toThrow(/isn't configured/);
-    expect(() => resolveConnector(undefined, { supportcandy: fake('supportcandy', false), pylon: fake('pylon', false) })).toThrow(/No helpdesk/);
+  test('a named connection matches however its name is written, and never falls back to the default', () => {
+    expect(label(resolveConnector({ connection: 'acme-shop' }, [fake('supportcandy'), fake('supportcandy', 'acme_shop')]))).toBe(
+      'supportcandy:acme_shop'
+    );
+    expect(() => resolveConnector({ helpdesk: 'pylon', connection: 'beta' }, [fake('pylon')])).toThrow(
+      'The "beta" connection has no keys: add PYLON_API_TOKEN_BETA'
+    );
+  });
+
+  test('refuses to guess between several, and says when nothing is configured', () => {
+    expect(() => resolveConnector({}, [fake('supportcandy'), fake('pylon')])).toThrow('Several helpdesk connections are configured (supportcandy, pylon)');
+    expect(() => resolveConnector({}, [fake('pylon', 'acme'), fake('pylon', 'beta')])).toThrow('pylon:acme, pylon:beta');
+    expect(() => resolveConnector({ connection: 'acme' }, [fake('pylon', 'acme'), fake('supportcandy', 'acme')])).toThrow('pass helpdesk');
+    expect(() => resolveConnector({}, [])).toThrow('No helpdesk is configured');
+  });
+});
+
+describe('named connections', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+  const auth: string[] = [];
+
+  beforeEach(() => {
+    process.env.PYLON_API_TOKEN = 'default-token';
+    process.env.PYLON_API_TOKEN_ACME = 'acme-token';
+    process.env.SUPPORTCANDY_URL_SHOP = 'https://shop.example.com';
+    process.env.SUPPORTCANDY_USERNAME_SHOP = 'agent-bot';
+    process.env.SUPPORTCANDY_APP_PASSWORD_SHOP = 'shop pass';
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      auth.push(new Headers(init?.headers).get('authorization') ?? '');
+      return new Response(JSON.stringify({ data: [] }));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+    auth.length = 0;
+  });
+
+  test('every configured connection is found, defaults first', () => {
+    expect(connectors().map((connector) => `${connector.name}:${connector.connection ?? 'default'}`)).toEqual([
+      'supportcandy:shop',
+      'pylon:default',
+      'pylon:acme'
+    ]);
+    expect(connectors()[0]?.site).toBe('https://shop.example.com');
+  });
+
+  test("a Pylon call carries its own connection's token", async () => {
+    await pylon('acme').list({ limit: 1 });
+    await pylon().list({ limit: 1 });
+    expect(auth).toEqual(['Bearer acme-token', 'Bearer default-token']);
+  });
+
+  test('a named SupportCandy connection reads only its own keys', () => {
+    expect(supportcandy('shop').configured()).toBe(true);
+    expect(supportcandy().configured()).toBe(false);
+    expect(supportcandy('shop').keys).toEqual(['SUPPORTCANDY_URL_SHOP', 'SUPPORTCANDY_USERNAME_SHOP', 'SUPPORTCANDY_APP_PASSWORD_SHOP']);
   });
 });
 
 describe('assertFilters', () => {
   test('refuses a filter the helpdesk cannot apply, allows one it can', () => {
-    expect(() => assertFilters(supportcandy, { tags: ['bug'] })).toThrow("supportcandy can't filter tickets by tags");
-    expect(() => assertFilters(supportcandy, { tags: [], assignee: undefined })).not.toThrow();
-    expect(() => assertFilters(pylon, { tags: ['bug'], account: 'acc_3', assignee: 'usr_9' })).not.toThrow();
+    expect(() => assertFilters(supportcandy(), { tags: ['bug'] })).toThrow("supportcandy can't filter tickets by tags");
+    expect(() => assertFilters(supportcandy(), { tags: [], assignee: undefined })).not.toThrow();
+    expect(() => assertFilters(pylon(), { tags: ['bug'], account: 'acc_3', assignee: 'usr_9' })).not.toThrow();
   });
 });
 
@@ -222,19 +281,19 @@ describe('Pylon lookups', () => {
   });
 
   test('teammates come back with their email', async () => {
-    const teammates = await pylon.lookups.teammates?.();
+    const teammates = await pylon().lookups.teammates?.();
     expect(teammates).toEqual([{ id: 'usr_9', name: 'Sam', email: 'sam@acme.test' }]);
   });
 
   test("a ticket read carries the issue's opening body beside the thread", async () => {
-    const { ticket, messages } = await pylon.get('iss_7');
+    const { ticket, messages } = await pylon().get('iss_7');
     expect(ticket.body).toBe('It crashes on launch.');
     expect(messages[0]?.author).toEqual({ id: 'usr_9', name: 'Sam' });
   });
 
   test('tags are the issue tags; macros carry plain text', async () => {
-    expect(await pylon.lookups.tags?.()).toEqual([{ id: 't1', name: 'bug' }]);
-    expect(await pylon.lookups.macros?.()).toEqual([{ id: 'mac_1', name: 'Refund', text: 'We have refunded you.' }]);
+    expect(await pylon().lookups.tags?.()).toEqual([{ id: 't1', name: 'bug' }]);
+    expect(await pylon().lookups.macros?.()).toEqual([{ id: 'mac_1', name: 'Refund', text: 'We have refunded you.' }]);
   });
 });
 
@@ -294,7 +353,7 @@ describe('SupportCandy downloads', () => {
   });
 
   test('follows the signed link but returns only the file', async () => {
-    const file = await supportcandy.download('12');
+    const file = await supportcandy().download('12');
     expect(asked).toEqual(['https://help.example.com/wp-json/supportcandy/v2/attachments/12', 'https://help.example.com/?wpsc_attachment=12&user=3&auth_code=secret']);
     expect(file.name).toBe('acme.log');
     expect(new TextDecoder().decode(file.bytes)).toBe('log line');
@@ -334,7 +393,7 @@ describe('SupportCandy status filter', () => {
   });
 
   test('keeps paging until it has enough tickets in the wanted status', async () => {
-    const tickets = await supportcandy.list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
+    const tickets = await supportcandy().list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['3']);
   });
 });
@@ -375,15 +434,15 @@ describe('SupportCandy with no window', () => {
   });
 
   test('an old or undated open ticket still counts, with its requester resolved or kept as an id', async () => {
-    const tickets = await supportcandy.list({ status: ['Open'], limit: 10 });
+    const tickets = await supportcandy().list({ status: ['Open'], limit: 10 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['5', '6']);
     expect(tickets.map((ticket) => ticket.requester)).toEqual([{ id: '77', name: 'Ada', email: 'ada@acme.test' }, { id: '404' }]);
   });
 
   test('statuses and categories are the lookups', async () => {
-    expect(await supportcandy.lookups.statuses?.()).toEqual([{ id: '1', name: 'Open' }]);
-    expect(await supportcandy.lookups.categories?.()).toEqual([{ id: '2', name: 'Billing' }]);
-    expect(await supportcandy.lookups.teammates?.()).toEqual([{ id: '5', name: 'Sam' }]);
-    expect(supportcandy.lookups.tags).toBeUndefined();
+    expect(await supportcandy().lookups.statuses?.()).toEqual([{ id: '1', name: 'Open' }]);
+    expect(await supportcandy().lookups.categories?.()).toEqual([{ id: '2', name: 'Billing' }]);
+    expect(await supportcandy().lookups.teammates?.()).toEqual([{ id: '5', name: 'Sam' }]);
+    expect(supportcandy().lookups.tags).toBeUndefined();
   });
 });

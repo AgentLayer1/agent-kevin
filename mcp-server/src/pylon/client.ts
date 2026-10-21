@@ -13,7 +13,7 @@
  * via `pagination.cursor` / `has_next_page`.
  */
 import { log as baseLog } from '@/shared/log';
-import { PYLON_API_BASE, pylonToken } from './config';
+import { PYLON_API_BASE } from './config';
 import type { PylonAccount, PylonEnvelope, PylonIssue, PylonMacro, PylonMessage, PylonTag, PylonUser } from './types';
 
 const log = baseLog.pylon.with('client');
@@ -26,8 +26,7 @@ interface CallOptions {
   body?: unknown;
 }
 
-async function call<T>(method: 'GET' | 'POST', path: string, options: CallOptions = {}): Promise<PylonEnvelope<T>> {
-  const token = pylonToken();
+async function call<T>(token: string, method: 'GET' | 'POST', path: string, options: CallOptions = {}): Promise<PylonEnvelope<T>> {
   const url = new URL(`${PYLON_API_BASE}${path}`);
   for (const [key, value] of Object.entries(options.query ?? {})) url.searchParams.set(key, String(value));
 
@@ -105,8 +104,8 @@ export interface IssuePage {
   has_next_page: boolean;
 }
 
-export async function searchIssues(body: IssueSearchBody): Promise<IssuePage> {
-  const envelope = await call<PylonIssue[]>('POST', '/issues/search', { body });
+export async function searchIssues(token: string, body: IssueSearchBody): Promise<IssuePage> {
+  const envelope = await call<PylonIssue[]>(token, 'POST', '/issues/search', { body });
   return {
     issues: envelope.data ?? [],
     cursor: envelope.pagination?.cursor,
@@ -114,43 +113,43 @@ export async function searchIssues(body: IssueSearchBody): Promise<IssuePage> {
   };
 }
 
-export async function getIssue(id: string): Promise<PylonIssue> {
-  const envelope = await call<PylonIssue>('GET', `/issues/${encodeURIComponent(id)}`);
+export async function getIssue(token: string, id: string): Promise<PylonIssue> {
+  const envelope = await call<PylonIssue>(token, 'GET', `/issues/${encodeURIComponent(id)}`);
   if (!envelope.data) throw new Error(`Pylon issue ${id} returned no data`);
   return envelope.data;
 }
 
-export async function getIssueMessages(id: string): Promise<PylonMessage[]> {
+export async function getIssueMessages(token: string, id: string): Promise<PylonMessage[]> {
   return paginate((cursor) =>
-    call<PylonMessage[]>('GET', `/issues/${encodeURIComponent(id)}/messages`, {
+    call<PylonMessage[]>(token, 'GET', `/issues/${encodeURIComponent(id)}/messages`, {
       query: { limit: 1000, ...(cursor && { cursor }) }
     })
   );
 }
 
-export async function listAccounts(): Promise<PylonAccount[]> {
-  return paginate((cursor) => call<PylonAccount[]>('GET', '/accounts', { query: cursor ? { cursor } : {} }));
+export async function listAccounts(token: string): Promise<PylonAccount[]> {
+  return paginate((cursor) => call<PylonAccount[]>(token, 'GET', '/accounts', { query: cursor ? { cursor } : {} }));
 }
 
-export async function listTags(): Promise<PylonTag[]> {
-  return paginate((cursor) => call<PylonTag[]>('GET', '/tags', { query: cursor ? { cursor } : {} }));
+export async function listTags(token: string): Promise<PylonTag[]> {
+  return paginate((cursor) => call<PylonTag[]>(token, 'GET', '/tags', { query: cursor ? { cursor } : {} }));
 }
 
-export async function listUsers(): Promise<PylonUser[]> {
-  return paginate((cursor) => call<PylonUser[]>('GET', '/users', { query: cursor ? { cursor } : {} }));
+export async function listUsers(token: string): Promise<PylonUser[]> {
+  return paginate((cursor) => call<PylonUser[]>(token, 'GET', '/users', { query: cursor ? { cursor } : {} }));
 }
 
-export async function listMacros(groupId?: string): Promise<PylonMacro[]> {
+export async function listMacros(token: string, groupId?: string): Promise<PylonMacro[]> {
   return paginate((cursor) =>
-    call<PylonMacro[]>('GET', '/macros', {
+    call<PylonMacro[]>(token, 'GET', '/macros', {
       query: { ...(groupId && { macro_group_id: groupId }), ...(cursor && { cursor }) }
     })
   );
 }
 
 /** Posts an internal note on an issue; Pylon never shows it to the requester. */
-export async function addNote(id: string, bodyHtml: string): Promise<PylonMessage> {
-  const envelope = await call<PylonMessage>('POST', `/issues/${encodeURIComponent(id)}/note`, {
+export async function addNote(token: string, id: string, bodyHtml: string): Promise<PylonMessage> {
+  const envelope = await call<PylonMessage>(token, 'POST', `/issues/${encodeURIComponent(id)}/note`, {
     body: { body_html: bodyHtml }
   });
   if (!envelope.data) throw new Error(`Pylon note on issue ${id} returned no data`);

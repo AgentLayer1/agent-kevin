@@ -3,6 +3,7 @@
  * helpdesk shape.
  */
 import { addNote, getIssue, getIssueMessages, listAccounts, listMacros, listTags, listUsers, searchIssues, type IssueFilter } from '@/pylon/client';
+import { pylonToken, pylonTokenKey } from '@/pylon/config';
 import { env } from '@/shared/env';
 import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
@@ -82,37 +83,43 @@ export const mapAccount = (account: PylonAccount): HelpdeskAccount => ({
   ...(person(account.owner) && { owner: person(account.owner) })
 });
 
-export const pylon: HelpdeskConnector = {
-  name: 'pylon',
-  configured: () => Boolean(env('PYLON_API_TOKEN')),
-  filters: new Set(['tags', 'assignee', 'account']),
-  list: async (query) => {
-    const filter = issueFilter(query);
-    const page = await searchIssues({ ...(filter && { filter }), ...(query.search && { search_text: query.search }), limit: query.limit });
-    return page.issues.map(mapIssue);
-  },
-  get: async (id) => {
-    const [issue, messages] = await Promise.all([getIssue(id), getIssueMessages(id)]);
-    const body = await htmlToText(issue.body_html);
-    return { ticket: { ...mapIssue(issue), ...(body && { body }) }, messages: await Promise.all(messages.map(mapMessage)) };
-  },
-  addNote: async (id, bodyHtml) => (await addNote(id, bodyHtml)).id,
-  download: async (attachmentId) => {
-    if (!attachmentId.startsWith('https://')) {
-      throw new Error('A Pylon attachment id is the https file URL helpdesk_ticket listed.');
+/** The default connection, or a named one reading `PYLON_API_TOKEN_<NAME>`. */
+export const pylon = (connection?: string): HelpdeskConnector => {
+  const token = (): string => pylonToken(connection);
+  return {
+    name: 'pylon',
+    ...(connection && { connection }),
+    keys: [pylonTokenKey(connection)],
+    configured: () => Boolean(env(pylonTokenKey(connection))),
+    filters: new Set(['tags', 'assignee', 'account']),
+    list: async (query) => {
+      const filter = issueFilter(query);
+      const page = await searchIssues(token(), { ...(filter && { filter }), ...(query.search && { search_text: query.search }), limit: query.limit });
+      return page.issues.map(mapIssue);
+    },
+    get: async (id) => {
+      const [issue, messages] = await Promise.all([getIssue(token(), id), getIssueMessages(token(), id)]);
+      const body = await htmlToText(issue.body_html);
+      return { ticket: { ...mapIssue(issue), ...(body && { body }) }, messages: await Promise.all(messages.map(mapMessage)) };
+    },
+    addNote: async (id, bodyHtml) => (await addNote(token(), id, bodyHtml)).id,
+    download: async (attachmentId) => {
+      if (!attachmentId.startsWith('https://')) {
+        throw new Error('A Pylon attachment id is the https file URL helpdesk_ticket listed.');
+      }
+      return fetchFile(attachmentId, fileName(attachmentId));
+    },
+    accounts: async (search) => {
+      const accounts = (await listAccounts(token())).map(mapAccount);
+      const needle = search?.toLowerCase();
+      return needle ? accounts.filter((account) => [account.name, ...account.domains].some((field) => field.toLowerCase().includes(needle))) : accounts;
+    },
+    lookups: {
+      tags: async () =>
+        (await listTags(token())).filter((tag) => !tag.object_type || tag.object_type === 'issue').map((tag) => ({ id: tag.id, name: tag.value ?? tag.id })),
+      teammates: async () => (await listUsers(token())).map((user) => ({ id: user.id, name: user.name ?? user.id, ...(user.email && { email: user.email }) })),
+      macros: async () =>
+        Promise.all((await listMacros(token())).map(async (macro) => ({ id: macro.id, name: macro.name ?? macro.id, text: await htmlToText(macro.text_html) })))
     }
-    return fetchFile(attachmentId, fileName(attachmentId));
-  },
-  accounts: async (search) => {
-    const accounts = (await listAccounts()).map(mapAccount);
-    const needle = search?.toLowerCase();
-    return needle ? accounts.filter((account) => [account.name, ...account.domains].some((field) => field.toLowerCase().includes(needle))) : accounts;
-  },
-  lookups: {
-    tags: async () =>
-      (await listTags()).filter((tag) => !tag.object_type || tag.object_type === 'issue').map((tag) => ({ id: tag.id, name: tag.value ?? tag.id })),
-    teammates: async () => (await listUsers()).map((user) => ({ id: user.id, name: user.name ?? user.id, ...(user.email && { email: user.email }) })),
-    macros: async () =>
-      Promise.all((await listMacros()).map(async (macro) => ({ id: macro.id, name: macro.name ?? macro.id, text: await htmlToText(macro.text_html) })))
-  }
+  };
 };

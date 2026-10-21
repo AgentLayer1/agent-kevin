@@ -93,9 +93,9 @@ describe('file logging', () => {
 });
 
 describe('redaction', () => {
-  test("a per-owner GitHub token's value never reaches the log file", async () => {
+  test.each(['GITHUB_TOKEN_ACME', 'PYLON_API_TOKEN_ACME', 'SUPPORTCANDY_APP_PASSWORD_ACME'])("a suffixed secret's value never reaches the log file (%s)", async (key) => {
     const secret = 'fixture-owner-token-0000';
-    process.env.GITHUB_TOKEN_ACME = secret;
+    process.env[key] = secret;
     try {
       await withHome(
         (home) => {
@@ -111,7 +111,7 @@ describe('redaction', () => {
         }
       );
     } finally {
-      delete process.env.GITHUB_TOKEN_ACME;
+      delete process.env[key];
     }
   });
 });
