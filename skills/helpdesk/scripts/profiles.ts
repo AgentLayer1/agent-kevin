@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { HELPDESKS, type HelpdeskName } from "../../../mcp-server/src/helpdesk/types";
 import { isoWeekOf } from "../../../mcp-server/src/tasks/horizon";
-import { frontmatterOf } from "../../tax/scripts/calendar";
 
 /**
  * Queue profiles: `projects/<slug>/helpdesk.md`, one per support queue, written by the operator.
@@ -26,6 +25,16 @@ export interface PulseDue {
   label: string;
   lastRun: string | null;
 }
+
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+const frontmatterOf = (raw: string): Record<string, unknown> | null => {
+  const block = raw.match(FRONTMATTER_RE)?.[1];
+  const data: unknown = block === undefined ? null : Bun.YAML.parse(block);
+  return isRecord(data) ? data : null;
+};
 
 const isHelpdesk = (value: unknown): value is HelpdeskName => HELPDESKS.some((name) => name === value);
 const isCadence = (value: unknown): value is Cadence => CADENCES.some((name) => name === value);
