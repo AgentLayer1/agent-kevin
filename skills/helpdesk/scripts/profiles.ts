@@ -1,11 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { STOREFRONT_RE } from "../../../mcp-server/src/appstore/types";
 import { HELPDESKS, type HelpdeskName } from "../../../mcp-server/src/helpdesk/types";
 import { isoWeekOf } from "../../../mcp-server/src/tasks/horizon";
 
 /**
  * Queue profiles: `projects/<slug>/helpdesk.md`, one per support queue, written by the operator.
- * Flat frontmatter is what code reads (helpdesk, connection, statuses, schedule); the body is the
+ * Flat frontmatter is what code reads (helpdesk, connection, statuses, schedule, and the App Store
+ * app and storefronts a pulse reads reviews for); the body is the
  * queue's own workflow, rules and context for the model.
  */
 
@@ -28,6 +30,10 @@ export interface QueueProfile {
   connection?: string;
   statuses: string[];
   schedule: Scheduled[];
+  /** The App Store app id whose reviews the pulse reads. */
+  appstore?: string;
+  /** Storefronts to pin the review read to; absent lets the reviews tool choose. */
+  storefronts?: string[];
 }
 
 export interface RoutineDue {
@@ -78,12 +84,39 @@ const parseSchedule = (file: string, raw: string, value: unknown): Scheduled[] =
   });
 };
 
+const parseAppStore = (file: string, value: unknown): string | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const id = typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? String(value) : typeof value === "string" ? value.trim() : "";
+  if (!/^\d+$/.test(id)) {
+    throw new Error(`${file}: appstore must be the app's numeric App Store id (the digits after "id" in its link)`);
+  }
+  return id;
+};
+
+const parseStorefronts = (file: string, value: unknown, appstore: string | undefined): string[] | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (appstore === undefined) {
+    throw new Error(`${file}: storefronts needs appstore, the app they belong to`);
+  }
+  const codes = isStringList(value) ? value.map((code) => code.trim().toLowerCase()) : [];
+  if (codes.length === 0 || !codes.every((code) => STOREFRONT_RE.test(code))) {
+    throw new Error(`${file}: storefronts must list two-letter storefront codes, such as [us, gb], or be left out`);
+  }
+  return codes;
+};
+
 export const parseProfile = (file: string, slug: string, raw: string): QueueProfile => {
   const data = frontmatterOf(raw);
   if (!data) {
     throw new Error(`${file}: no frontmatter; it needs at least statuses: [<status>, …]`);
   }
   const { helpdesk, connection, statuses, schedule } = data;
+  const appstore = parseAppStore(file, data.appstore);
+  const storefronts = parseStorefronts(file, data.storefronts, appstore);
   if (helpdesk !== undefined && !isHelpdesk(helpdesk)) {
     throw new Error(`${file}: helpdesk must be one of ${HELPDESKS.join(", ")}`);
   }
@@ -99,6 +132,8 @@ export const parseProfile = (file: string, slug: string, raw: string): QueueProf
     ...(typeof connection === "string" && { connection: connection.trim() }),
     statuses,
     schedule: parseSchedule(file, raw, schedule),
+    ...(appstore && { appstore }),
+    ...(storefronts && { storefronts }),
   };
 };
 

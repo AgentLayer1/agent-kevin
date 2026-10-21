@@ -11,6 +11,7 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
    - Which connection: `helpdesk_connections` lists them; the default needs no `connection` line.
    - Which statuses count as open: SupportCandy's from `helpdesk_lookups` (`kind: statuses`); Pylon's are `new`, `waiting_on_you`, `waiting_on_customer`, `on_hold` and `closed`, plus any custom slugs.
    - How often the pulse runs: daily, weekly, monthly or only when asked.
+   - Whether the product ships on the App Store: its link or id becomes `appstore` (the digits after `id` in the link), and the pulse then reads its reviews too. Don't ask about storefronts; the reviews tool picks them. Write `storefronts` only when the operator names countries to pin.
 2. **The pulse.** The default is the [pulse](pulse.md) playbook. Ask:
    - what needs a person first;
    - which streams to collapse into a count;
@@ -45,6 +46,7 @@ helpdesk: supportcandy
 connection: shop
 statuses: [Open, Awaiting agent reply]
 schedule: [pulse:daily, digest:weekly]
+appstore: 1234567890
 ---
 
 ## Pulse
@@ -76,7 +78,7 @@ schedule: [pulse:daily, digest:weekly]
 1. <the routine's steps>
 ```
 
-Drop `helpdesk` when only one kind is configured, `connection` for the default, `schedule` when the operator wants no nudges, and any section they left to the default (a missing `## Bug lifecycle` means the default table).
+Drop `helpdesk` when only one kind is configured, `connection` for the default, `schedule` when the operator wants no nudges, `appstore` when the product isn't on the App Store, and any section they left to the default (a missing `## Bug lifecycle` means the default table).
 
 ## Tune one
 
@@ -88,5 +90,6 @@ Sync's nudge `Fix the helpdesk profile: <file>: <problem>` names what failed. Re
 - `statuses` must be a list of names.
 - `helpdesk` must be one of the helpdesks.
 - Every `schedule` entry must be `<routine>:<daily|weekly|monthly>`, where the routine is `pulse` or has its own `## Workflow:` section.
+- `appstore` must be the app's numeric id; `storefronts`, when present, needs `appstore` and two-letter codes.
 
 Leave the rest of the body alone.

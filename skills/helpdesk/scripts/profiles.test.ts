@@ -54,6 +54,20 @@ describe("parseProfile", () => {
     expect(bad("statuses: [new]\nschedule: [digest:weekly]")).toThrow('no "## Workflow: digest" section');
     expect(bad("statuses: [new]\nschedule: [draft:weekly]", "## Workflow: draft\n")).toThrow("isn't ticket, account, draft");
     expect(bad("statuses: [new]\nschedule: [week-digest:weekly]")).toThrow("letters and digits");
+    expect(bad("statuses: [new]\nappstore: acme")).toThrow("appstore must be the app's numeric App Store id");
+    expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [usa]")).toThrow("two-letter storefront codes");
+    expect(bad("statuses: [new]\nstorefronts: [us]")).toThrow("storefronts needs appstore");
+  });
+
+  test("reads the App Store app as text, and storefronts lowercased", () => {
+    expect(parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\nappstore: 1234567890\nstorefronts: [US, gb]"))).toEqual({
+      slug: "acme",
+      statuses: ["new"],
+      schedule: [],
+      appstore: "1234567890",
+      storefronts: ["us", "gb"],
+    });
+    expect(parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\nappstore: '1234567890'")).appstore).toBe("1234567890");
   });
 });
 
