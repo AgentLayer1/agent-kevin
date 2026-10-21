@@ -1,10 +1,10 @@
 ## 🎫 Helpdesk: what I can do
 
-Your support queue in SupportCandy or Pylon. I read, sort and draft; you send every reply. The Helpdesk pack unlocks it (`/agent-kevin:configure-skills` → Helpdesk). A queue profile (`projects/<slug>/helpdesk.md`) holds your queue's own workflow: what the pulse does, how a bug moves, your routines, rules, tone and context.
+Your support queue in SupportCandy or Pylon. I read, sort and draft; you send every reply. The Helpdesk pack unlocks it (`/agent-kevin:configure-skills` → Helpdesk), and the App Store pack adds an app's reviews to the pulse. A queue profile (`projects/<slug>/helpdesk.md`) holds your queue's own workflow: what the pulse does, how a bug moves, your routines, rules, tone and context.
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "What's in the support queue?", `/helpdesk pulse [slug]` | **pulse** | Open tickets ranked (unassigned and longest-waiting first), patterns across them, bug candidates, bugs fixed since last time with a reply to send, and a saved report |
+| "What's in the support queue?", `/helpdesk pulse [slug]` | **pulse** | Open tickets ranked (unassigned and longest-waiting first), patterns across them, bug candidates, bugs fixed since last time with a reply to send, the app's App Store reviews when the profile names it, and a saved report |
 | "Pull ticket 318", `/helpdesk ticket <id>` | **ticket** | The story so far: what the customer asked, what support said, internal notes apart, what's still open |
 | "What's open for <account>?", `/helpdesk account <name>` | **account** | One account's tickets (Pylon) |
 | "Draft a reply for 318", `/helpdesk draft <id>` | **draft** | A reply in your queue's tone, left as a private note once you approve it |
