@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), B
 > **Plugin root.** Claude Code fills in `CLAUDE_PLUGIN_ROOT`; Codex leaves it unset. Under Codex, read every `CLAUDE_PLUGIN_ROOT` path in this skill and its playbooks as this skill's base directory two levels up (the `<skill>` block's `<path>`).
 
 This skill manages Kevin's optional capabilities. Use it to:
-1. **Configure a pack** (SEO, Browser, Database, GitHub, API, Xcode, or Helpdesk) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
+1. **Configure a pack** (SEO, Browser, Database, GitHub, API, Xcode, Helpdesk, or App Store) — writes API keys, registers MCP servers, sets up database connections, seeds coding rules, grants tool permissions
 2. **Deconfigure a pack** — revokes keys/MCP/permissions (the pack's SKILL.md files stay; they ship with the plugin)
 3. **Author a brand-new custom skill** — writes a new SKILL.md to your `<HOME>/.claude/skills/`
 
@@ -54,7 +54,7 @@ The data dir is the marker; it is the same one the resolver and every runtime gu
 `AskUserQuestion`:
 
 > **What would you like to do?**
-> - Configure a skill pack (SEO / Browser / Database / GitHub / API / Xcode / Helpdesk — Xcode on macOS only)
+> - Configure a skill pack (SEO / Browser / Database / GitHub / API / Xcode / Helpdesk / App Store — Xcode on macOS only)
 > - Register an external remote MCP server (hardened wrapper → `<HOME>/.mcp.json`)
 > - Install third-party skill libraries (via skills.sh)
 > - Deconfigure a skill pack
@@ -79,11 +79,12 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ API — draft API requests as file-based collections you fire yourself (Bruno or Postman visual clients, or plain curl scripts). No keys or permissions; this walks the adapter setup.
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Helpdesk — read support tickets and leave private draft notes in SupportCandy or Pylon (`helpdesk_*`); a person sends every reply
+> - ☐ App Store — read any app's App Store reviews (`appstore_reviews`); no key, read-only, never replies
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
 **Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$AGENT_PLATFORM` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Helpdesk (A.2g) → Third-party (Section F).
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Helpdesk (A.2g) → App Store (A.2h) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
@@ -642,6 +643,24 @@ Then: /agent-kevin:helpdesk profile to write a queue profile, and /agent-kevin:h
 A 404 means the REST API is off; a 401 means the password, the username, or the user isn't a SupportCandy agent.
 ```
 
+### A.2h — App Store pack walk
+
+Gives Kevin `appstore_reviews`: any app's App Store reviews by its link or id, newest first, with rating counts, the app version and the storefront. It reads Apple's public review feed, so there is no key and no Apple account involved, and it never replies to a review. Reviews are kept per country storefront; the tool picks storefronts itself, starting with every one and learning where an app's reviews come from (`.state/appstore/<id>.json`). Apple's feed keeps about the 500 most recent reviews per storefront and now and then comes back blank: the tool says what it read, and a read where nothing came back gives no count rather than zero.
+
+**(1) Grant** via §E: `mcp__plugin_agent-kevin_kevin__appstore_reviews`.
+
+**(2) Summary:**
+
+```
+✅ App Store pack activated.
+
+Tool permission:   appstore_reviews
+Keys:              none
+
+Check with: "show the latest App Store reviews for <app link>".
+To watch an app's reviews in a helpdesk pulse, add `appstore: <id>` to its queue profile (/agent-kevin:helpdesk profile).
+```
+
 ---
 
 ## Section B — Register an external remote MCP server
@@ -783,6 +802,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - Database (revokes the db tool permissions; optionally removes the `AGENT_DB_*` connection keys)
 > - GitHub (revokes the `github_*` tool permissions; optionally removes the `GITHUB_TOKEN*` lines)
 > - Helpdesk (revokes the `helpdesk_*` tool permissions; optionally removes the helpdesk keys)
+> - App Store (revokes `appstore_reviews`; the learned storefront files in `.state/appstore/` can stay)
 > - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
 
 ### C.2 Deconfigure actions
@@ -814,6 +834,9 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups` and `helpdesk_note` from `permissions.allow` (§E remove helper).
 - `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` and every `_<NAME>` variant from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` and `PYLON_API_TOKEN`, with every `_<NAME>` variant, from `.state/secrets/.env` in their editor (§D.1).
 - Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
+
+**App Store deconfigure:**
+- Revoke `appstore_reviews` from `permissions.allow` (§E remove helper). There are no keys. `.state/appstore/` holds only what the tool learned about storefronts; leave it unless the operator asks.
 
 **Xcode deconfigure:**
 - Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.

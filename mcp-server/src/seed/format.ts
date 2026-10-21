@@ -277,6 +277,11 @@ export const PACKS: Record<string, PackDef> = {
     grants: mcp(['helpdesk_connections', 'helpdesk_tickets', 'helpdesk_ticket', 'helpdesk_attachment', 'helpdesk_accounts', 'helpdesk_lookups', 'helpdesk_note']),
     secretKeys: ['SUPPORTCANDY_APP_PASSWORD', 'PYLON_API_TOKEN'],
     settingsEnv: ['SUPPORTCANDY_URL', 'SUPPORTCANDY_USERNAME']
+  },
+  appstore: {
+    grants: mcp(['appstore_reviews']),
+    secretKeys: [],
+    settingsEnv: []
   }
 };
 
