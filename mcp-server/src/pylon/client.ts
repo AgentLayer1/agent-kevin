@@ -1,9 +1,9 @@
 /**
  * Pylon REST client — reads, plus one write: an internal note.
  *
- * Endpoints: `GET /me`, `POST /issues/search`, `GET /issues/{id}`,
- * `GET /issues/{id}/messages`, `GET /accounts`, `GET /accounts/{id}`,
- * `GET /tags`, `GET /users`, `GET /macros`, and `POST /issues/{id}/note`,
+ * Endpoints: `POST /issues/search`, `GET /issues/{id}`,
+ * `GET /issues/{id}/messages`, `GET /accounts`, `GET /tags`, `GET /users`,
+ * `GET /macros`, and `POST /issues/{id}/note`,
  * which Pylon documents as not visible to the requester. The search POST is
  * semantically a read; nothing that replies to a customer or edits an issue
  * is wrapped.
@@ -84,17 +84,6 @@ async function paginate<T>(fetchPage: (cursor?: string) => Promise<PylonEnvelope
   return all;
 }
 
-export interface PylonMe {
-  id?: string;
-  name?: string;
-  email?: string;
-}
-
-export async function me(): Promise<PylonMe> {
-  const envelope = await call<PylonMe>('GET', '/me');
-  return envelope.data ?? {};
-}
-
 /** Leaf comparison or `and`/`or` composite (max depth 3, per Pylon docs). */
 export interface IssueFilter {
   field?: string;
@@ -141,12 +130,6 @@ export async function getIssueMessages(id: string): Promise<PylonMessage[]> {
 
 export async function listAccounts(): Promise<PylonAccount[]> {
   return paginate((cursor) => call<PylonAccount[]>('GET', '/accounts', { query: cursor ? { cursor } : {} }));
-}
-
-export async function getAccount(id: string): Promise<PylonAccount> {
-  const envelope = await call<PylonAccount>('GET', `/accounts/${encodeURIComponent(id)}`);
-  if (!envelope.data) throw new Error(`Pylon account ${id} returned no data`);
-  return envelope.data;
 }
 
 export async function listTags(): Promise<PylonTag[]> {

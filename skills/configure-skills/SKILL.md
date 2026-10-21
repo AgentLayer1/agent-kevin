@@ -595,7 +595,7 @@ Then relaunch Claude Code and check /mcp — `xcode` should be connected.
 
 ### A.2g — Helpdesk pack walk
 
-Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, `helpdesk_attachment` downloads a log or screenshot from it into a temp folder, and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it, and requester names and emails never reach the model. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
+Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it is: `helpdesk_tickets` lists tickets updated in a window, `helpdesk_ticket` reads one ticket's whole conversation, `helpdesk_attachment` downloads a log or screenshot from it into a temp folder, `helpdesk_accounts` and `helpdesk_lookups` list accounts and reference data (statuses, categories, tags, teammates, macros), and `helpdesk_note` adds a **private note** that agents see and the customer never does. The note is the pack's one write, there so Kevin can leave a draft reply for a person to edit and send. No tool replies to a customer, changes a ticket's fields or closes it, and requester names and emails never reach the model. Two connectors ship: **SupportCandy** (the WordPress helpdesk plugin) and **Pylon**.
 
 **(1) Pick the helpdesk(s)** (`AskUserQuestion`, multi-select): SupportCandy · Pylon. With both configured, each call names the one it means.
 
@@ -603,7 +603,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 > **What may Kevin do in the helpdesk?**
 > - Read tickets and leave draft notes (Recommended) — grants all four tools
-> - Read only — grants `helpdesk_tickets`, `helpdesk_ticket` and `helpdesk_attachment`; no notes
+> - Read only — grants `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts` and `helpdesk_lookups`; no notes
 
 **(3) SupportCandy** — surface these steps verbatim; they happen on the WordPress site, as an admin:
 
@@ -619,7 +619,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 **(4) Pylon** — a Pylon admin mints an API token under Settings → API. The token reads the whole workspace, and notes are posted as the token's user. Ensure the secret store (§D.1) and have the operator add `PYLON_API_TOKEN=…` in their editor. A home that already set up the Pylon pack reuses the same line.
 
-**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
+**(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
 **(6) Summary:**
 
@@ -627,7 +627,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 ✅ Helpdesk pack activated.
 
 Helpdesks:              <SupportCandy / Pylon>
-Tool permissions:       helpdesk_tickets, helpdesk_ticket, helpdesk_attachment[, helpdesk_note]
+Tool permissions:       helpdesk_tickets, helpdesk_ticket, helpdesk_attachment, helpdesk_accounts, helpdesk_lookups[, helpdesk_note]
 Settings env:           SUPPORTCANDY_URL, SUPPORTCANDY_USERNAME   (SupportCandy)
 Secret lines to add:    SUPPORTCANDY_APP_PASSWORD and/or PYLON_API_TOKEN  (in .state/secrets/.env)
 
@@ -804,7 +804,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - The operator's `gh auth login` is theirs: `gh auth logout` ends it.
 
 **Helpdesk deconfigure:**
-- Revoke `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment` and `helpdesk_note` from `permissions.allow` (§E remove helper).
+- Revoke `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups` and `helpdesk_note` from `permissions.allow` (§E remove helper).
 - `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` (and `PYLON_API_TOKEN`, unless another pack still uses it) from `.state/secrets/.env` in their editor (§D.1).
 - Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
 

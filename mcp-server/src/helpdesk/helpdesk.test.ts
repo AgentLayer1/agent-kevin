@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { noteHtml, resolveConnector } from './connectors';
+import { assertFilters, noteHtml, resolveConnector } from './connectors';
 import { safeName, saveToTemp } from './download';
-import { issueFilter, mapIssue, mapMessage } from './pylon';
+import { issueFilter, mapAccount, mapIssue, mapMessage, pylon } from './pylon';
 import { adminLink, mapThread, mapTicket, supportcandy, toIso, type Lookups } from './supportcandy';
 import type { HelpdeskConnector, HelpdeskName } from './types';
 
@@ -88,6 +88,39 @@ describe('Pylon mapping', () => {
     expect(kinds).toEqual(['note', 'customer', 'agent']);
   });
 
+  test('an issue carries its number, assignee and account ids but no email', () => {
+    const ticket = mapIssue({
+      id: 'iss_2',
+      number: 41,
+      title: 'Payout stuck',
+      state: 'waiting_on_you',
+      assignee: { id: 'usr_9', email: 'agent@acme.test' },
+      account: { id: 'acc_3' },
+      latest_message_activity_at: '2026-10-20T09:00:00Z'
+    });
+    expect(ticket).toMatchObject({ number: 41, assignee: 'usr_9', account: 'acc_3', last_activity_at: '2026-10-20T09:00:00Z' });
+    expect(JSON.stringify(ticket)).not.toContain('agent@acme.test');
+  });
+
+  test('an account keeps its name, domains and tags but not its owner', () => {
+    const account = mapAccount({ id: 'acc_3', name: 'Acme', primary_domain: 'acme.test', domains: ['acme.test', 'acme.example'], owner: { email: 'owner@acme.test' } });
+    expect(account).toEqual({ id: 'acc_3', name: 'Acme', domains: ['acme.test', 'acme.example'], tags: [] });
+  });
+
+  test('tags, account and assignee become AND-ed leaves; no window and no filter means no filter', () => {
+    expect(issueFilter({})).toBeUndefined();
+    expect(issueFilter({ status: ['new'] })).toEqual({ field: 'state', operator: 'equals', value: 'new' });
+    expect(issueFilter({ tags: ['bug', 'ios'], account: 'acc_3', assignee: 'usr_9' })).toEqual({
+      operator: 'and',
+      subfilters: [
+        { field: 'tags', operator: 'contains', value: 'bug' },
+        { field: 'tags', operator: 'contains', value: 'ios' },
+        { field: 'account_id', operator: 'equals', value: 'acc_3' },
+        { field: 'assignee_id', operator: 'equals', value: 'usr_9' }
+      ]
+    });
+  });
+
   test('the filter bounds on update time and ORs the states', () => {
     expect(issueFilter({ updatedSince: '2026-10-13T00:00:00.000Z' })).toEqual({
       field: 'updated_at',
@@ -105,6 +138,8 @@ describe('resolveConnector', () => {
   const fake = (name: HelpdeskName, configured: boolean): HelpdeskConnector => ({
     name,
     configured: () => configured,
+    filters: new Set(),
+    lookups: {},
     list: async () => [],
     get: async () => {
       throw new Error('unused');
@@ -124,6 +159,48 @@ describe('resolveConnector', () => {
     expect(() => resolveConnector(undefined, { supportcandy: fake('supportcandy', true), pylon: fake('pylon', true) })).toThrow(/Several/);
     expect(() => resolveConnector('pylon', { supportcandy: fake('supportcandy', true), pylon: fake('pylon', false) })).toThrow(/isn't configured/);
     expect(() => resolveConnector(undefined, { supportcandy: fake('supportcandy', false), pylon: fake('pylon', false) })).toThrow(/No helpdesk/);
+  });
+});
+
+describe('assertFilters', () => {
+  test('refuses a filter the helpdesk cannot apply, allows one it can', () => {
+    expect(() => assertFilters(supportcandy, { tags: ['bug'] })).toThrow("supportcandy can't filter tickets by tags");
+    expect(() => assertFilters(supportcandy, { tags: [], assignee: undefined })).not.toThrow();
+    expect(() => assertFilters(pylon, { tags: ['bug'], account: 'acc_3', assignee: 'usr_9' })).not.toThrow();
+  });
+});
+
+describe('Pylon lookups', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    process.env.PYLON_API_TOKEN = 'test-token';
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const path = new URL(String(input)).pathname;
+      const data =
+        path === '/users'
+          ? [{ id: 'usr_9', name: 'Sam', email: 'sam@acme.test' }]
+          : path === '/tags'
+            ? [{ id: 't1', value: 'bug', object_type: 'issue' }, { id: 't2', value: 'vip', object_type: 'account' }]
+            : [{ id: 'mac_1', name: 'Refund', text_html: '<p>We have refunded you.</p>' }];
+      return new Response(JSON.stringify({ data }));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+  });
+
+  test('teammates come back as id and name, never email', async () => {
+    const teammates = await pylon.lookups.teammates?.();
+    expect(teammates).toEqual([{ id: 'usr_9', name: 'Sam' }]);
+  });
+
+  test('tags are the issue tags; macros carry plain text', async () => {
+    expect(await pylon.lookups.tags?.()).toEqual([{ id: 't1', name: 'bug' }]);
+    expect(await pylon.lookups.macros?.()).toEqual([{ id: 'mac_1', name: 'Refund', text: 'We have refunded you.' }]);
   });
 });
 
@@ -225,5 +302,41 @@ describe('SupportCandy status filter', () => {
   test('keeps paging until it has enough tickets in the wanted status', async () => {
     const tickets = await supportcandy.list({ updatedSince: '2026-10-13T00:00:00Z', status: ['Closed'], limit: 2 });
     expect(tickets.map((ticket) => ticket.id)).toEqual(['3']);
+  });
+});
+
+describe('SupportCandy with no window', () => {
+  const saved = { ...process.env };
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    process.env.SUPPORTCANDY_URL = 'https://help.example.com';
+    process.env.SUPPORTCANDY_USERNAME = 'agent-bot';
+    process.env.SUPPORTCANDY_APP_PASSWORD = 'abcd efgh';
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      const body = url.pathname.endsWith('/statuses')
+        ? [{ id: 1, name: 'Open' }]
+        : url.pathname.endsWith('/categories')
+          ? [{ id: 2, name: 'Billing' }]
+          : { has_next_page: false, results: [{ id: 5, status: 1, date_updated: '2025-01-02 03:04:05' }, { id: 6, status: 1 }] };
+      return new Response(JSON.stringify(body));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+  });
+
+  test('an old or undated open ticket still counts', async () => {
+    const tickets = await supportcandy.list({ status: ['Open'], limit: 10 });
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['5', '6']);
+  });
+
+  test('statuses and categories are the lookups', async () => {
+    expect(await supportcandy.lookups.statuses?.()).toEqual([{ id: '1', name: 'Open' }]);
+    expect(await supportcandy.lookups.categories?.()).toEqual([{ id: '2', name: 'Billing' }]);
+    expect(supportcandy.lookups.tags).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 import { pluginName } from '@/shared/naming';
 import { pylon } from './pylon';
 import { supportcandy } from './supportcandy';
-import type { HelpdeskConnector, HelpdeskName } from './types';
+import { TICKET_FILTERS, type HelpdeskConnector, type HelpdeskName, type TicketQuery } from './types';
 
 const CONNECTORS: Record<HelpdeskName, HelpdeskConnector> = { supportcandy, pylon };
 
@@ -26,6 +26,17 @@ export const resolveConnector = (
     throw new Error(`No helpdesk is configured (run /${pluginName()}:configure-skills → Helpdesk pack).`);
   }
   throw new Error(`Several helpdesks are configured (${configured.map((connector) => connector.name).join(', ')}); pass helpdesk to pick one.`);
+};
+
+/** A filter the helpdesk can't apply is refused, never silently dropped. */
+export const assertFilters = (connector: HelpdeskConnector, query: Pick<TicketQuery, (typeof TICKET_FILTERS)[number]>): void => {
+  const missing = TICKET_FILTERS.filter((filter) => {
+    const asked = query[filter];
+    return (typeof asked === 'string' ? asked.length > 0 : (asked?.length ?? 0) > 0) && !connector.filters.has(filter);
+  });
+  if (missing.length > 0) {
+    throw new Error(`${connector.name} can't filter tickets by ${missing.join(' or ')}.`);
+  }
 };
 
 const escapeHtml = (text: string): string =>

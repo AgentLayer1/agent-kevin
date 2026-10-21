@@ -13,7 +13,7 @@ import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { env } from '@/shared/env';
 import { htmlToText } from '@/shared/html-to-markdown';
 import { fetchFile } from './download';
-import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskMessage, type HelpdeskTicket, type MessageKind } from './types';
+import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type HelpdeskMessage, type HelpdeskTicket, type MessageKind } from './types';
 
 const API_PATH = '/wp-json/supportcandy/v2';
 const PAGE_SIZE = 50;
@@ -164,6 +164,8 @@ const lookups = async (): Promise<Lookups> => {
   return { statuses: toMap(statuses), categories: toMap(categories) };
 };
 
+const asLookups = (names: ReadonlyMap<number, string>): HelpdeskLookup[] => [...names].map(([id, name]) => ({ id: String(id), name }));
+
 const allThreads = async (id: string): Promise<ScThread[]> => {
   const pages = async (page: number, gathered: ScThread[]): Promise<ScThread[]> => {
     const result = await call<ScPage<ScThread>>(`/tickets/${encodeURIComponent(id)}/threads`, {
@@ -178,17 +180,19 @@ const allThreads = async (id: string): Promise<ScThread[]> => {
 export const supportcandy: HelpdeskConnector = {
   name: 'supportcandy',
   configured: () => credentials() !== null,
+  filters: new Set(),
   list: async (query) => {
     const { site } = requireCredentials();
     const names = await lookups();
-    const cutoff = Date.parse(query.updatedSince);
+    const isFresh = (ticket: ScTicket): boolean =>
+      query.updatedSince === undefined || Date.parse(toIso(ticket.date_updated) ?? '') >= Date.parse(query.updatedSince);
     const wanted = query.status?.map((status) => status.toLowerCase());
     const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
     const recent = async (page: number, gathered: HelpdeskTicket[]): Promise<HelpdeskTicket[]> => {
       const result = await call<ScPage<ScTicket>>('/tickets', {
         query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
       });
-      const fresh = (result.results ?? []).filter((ticket) => Date.parse(toIso(ticket.date_updated) ?? '') >= cutoff);
+      const fresh = (result.results ?? []).filter(isFresh);
       const next = [...gathered, ...fresh.map((raw) => mapTicket(raw, names, site)).filter(matches)];
       const reachedCutoff = fresh.length < (result.results ?? []).length;
       return result.has_next_page && !reachedCutoff && next.length < query.limit && page < MAX_PAGES ? recent(page + 1, next) : next;
@@ -217,5 +221,9 @@ export const supportcandy: HelpdeskConnector = {
       throw new Error(`SupportCandy attachment ${attachmentId} has no download link`);
     }
     return fetchFile(attachment.url, attachment.name ?? `attachment-${attachmentId}`);
+  },
+  lookups: {
+    statuses: async () => asLookups((await lookups()).statuses),
+    categories: async () => asLookups((await lookups()).categories)
   }
 };

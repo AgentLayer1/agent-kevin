@@ -10,12 +10,18 @@ export type HelpdeskName = (typeof HELPDESKS)[number];
 export interface HelpdeskTicket {
   id: string;
   helpdesk: HelpdeskName;
+  number?: number;
   subject: string;
   status: string;
   category?: string;
   tags: string[];
+  /** Teammate id, never an email; absent when unassigned or the helpdesk has no assignee. */
+  assignee?: string;
+  /** Account (customer company) id. */
+  account?: string;
   created_at?: string;
   updated_at?: string;
+  last_activity_at?: string;
   /** Agent-side link; never a customer link that carries its own auth. */
   link?: string;
 }
@@ -48,20 +54,47 @@ export interface DownloadedFile {
   bytes: Uint8Array;
 }
 
+export const TICKET_FILTERS = ['tags', 'assignee', 'account'] as const;
+export type TicketFilter = (typeof TICKET_FILTERS)[number];
+
 export interface TicketQuery {
-  /** ISO time; tickets updated at or after it. */
-  updatedSince: string;
+  /** ISO time; tickets updated at or after it. Absent means any age. */
+  updatedSince?: string;
   status?: readonly string[];
   search?: string;
+  tags?: readonly string[];
+  assignee?: string;
+  account?: string;
   limit: number;
+}
+
+export interface HelpdeskAccount {
+  id: string;
+  name: string;
+  domains: string[];
+  tags: string[];
+}
+
+export const LOOKUP_KINDS = ['statuses', 'categories', 'tags', 'teammates', 'macros'] as const;
+export type LookupKind = (typeof LOOKUP_KINDS)[number];
+
+export interface HelpdeskLookup {
+  id: string;
+  name: string;
+  /** A macro's text. */
+  text?: string;
 }
 
 export interface HelpdeskConnector {
   name: HelpdeskName;
   configured: () => boolean;
+  /** The TicketQuery filters beyond status and search this helpdesk can apply. */
+  filters: ReadonlySet<TicketFilter>;
   list: (query: TicketQuery) => Promise<HelpdeskTicket[]>;
   get: (id: string) => Promise<{ ticket: HelpdeskTicket; messages: HelpdeskMessage[] }>;
   /** Adds a note only agents can see; returns the new note's id. */
   addNote: (id: string, bodyHtml: string) => Promise<string>;
   download: (attachmentId: string) => Promise<DownloadedFile>;
+  accounts?: (search?: string) => Promise<HelpdeskAccount[]>;
+  lookups: Partial<Record<LookupKind, () => Promise<HelpdeskLookup[]>>>;
 }
