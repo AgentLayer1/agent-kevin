@@ -71,7 +71,7 @@ describe('pr-report page', () => {
     expect(document.getElementById('finding-1')?.tagName).toBe('DETAILS');
     expect(document.querySelector('section#conversation a[href="#finding-1"]')).not.toBeNull();
     // Three comment cards, the same three inside their files, the summary comment and the proposed description.
-    expect(count('.paste button')).toBe(8);
+    expect(count('.paste button.copy')).toBe(8);
     expect(document.querySelector('.riskwhy')?.textContent).toStartWith('Risk L: ');
   });
 
@@ -183,6 +183,48 @@ describe('pr-report page', () => {
     expect(document.getElementById('finding-2')?.querySelector('.paste .label')?.textContent).toBe('Comment to paste');
   });
 
+  test('a paste box previews its markdown as GitHub would, and pasted markup stays text', () => {
+    const data = sample();
+    const summaryComment = [
+      'Verdict line with `code` and **bold**.',
+      '',
+      '## Before merge',
+      '',
+      '1. First, see [the thread](https://github.com/acme/shop/pull/418#discussion_r1).',
+      '2. Second, [not a link](javascript:alert(1)) <img src=x onerror=alert(1)>',
+      '',
+      '<details><summary>More</summary>',
+      '',
+      '- a nit',
+      '',
+      '</details>',
+      '',
+      '```ts',
+      'const x = 1;',
+      '```'
+    ].join('\n');
+    const { errors, document } = open(renderPage(TEMPLATE, { ...data, summaryComment }));
+    expect(errors).toEqual([]);
+    const box = document.querySelector('section#summary .paste');
+    const preview = box?.querySelector('button.preview') as HTMLElement | null;
+    expect(preview?.textContent).toBe('Preview');
+    preview?.click();
+    const view = box?.querySelector('.md');
+    expect(box?.querySelector('pre')?.hidden).toBe(true);
+    expect(view?.querySelector('.md-h2')?.textContent).toBe('Before merge');
+    expect([...(view?.querySelectorAll('ol > li') ?? [])]).toHaveLength(2);
+    expect(view?.querySelector('ol a')?.getAttribute('href')).toBe('https://github.com/acme/shop/pull/418#discussion_r1');
+    expect(view?.querySelectorAll('a')).toHaveLength(1);
+    expect(view?.querySelector('img')).toBeNull();
+    expect(view?.querySelector('details summary')?.textContent).toBe('More');
+    expect(view?.querySelector('details li')?.textContent).toBe('a nit');
+    expect(view?.querySelector('pre code')?.textContent).toBe('const x = 1;');
+    expect(view?.querySelector('p strong')?.textContent).toBe('bold');
+    preview?.click();
+    expect(preview?.textContent).toBe('Preview');
+    expect((view as HTMLElement | null)?.hidden).toBe(true);
+  });
+
   test('the proposed description is folded behind a toggle, with its copy button inside', () => {
     const { document } = open(TEMPLATE);
     const fold = document.querySelector('section#description details.more');
@@ -229,7 +271,7 @@ describe('pr-report page', () => {
     const { errors, document, count } = open(renderPage(TEMPLATE, replies));
     expect(errors).toEqual([]);
     expect(count('section#threads details.item')).toBe(2);
-    expect(count('.paste button')).toBe(2);
+    expect(count('.paste button.copy')).toBe(2);
     expect(document.querySelectorAll('a[href^="javascript:"]')).toHaveLength(0);
     expect(document.querySelector('a[href="https://github.com/acme/shop/pull/52#discussion_r1"]')).not.toBeNull();
   });

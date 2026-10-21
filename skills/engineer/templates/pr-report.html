@@ -503,6 +503,21 @@
   .pill.replied, .pill.tests, .pill.lint { color: var(--mech); }
   .pill.layer { color: var(--brand); }
   .paste .label a { color: inherit; }
+  .paste .bar .actions { display: flex; gap: 6px; }
+  .paste .bar button.preview.on { border-color: var(--brand); color: var(--ink); }
+  .md { padding: 12px 14px; font-size: 14px; line-height: 1.55; color: var(--ink); background: var(--panel-a); }
+  .md > :last-child, .md details > :last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol, .md pre, .md details, .md .diagram { margin: 0 0 10px; }
+  .md ul, .md ol { padding-left: 22px; }
+  .md li + li { margin-top: 3px; }
+  .md code { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--line) 45%, transparent); }
+  .md pre { padding: 10px 12px; border-radius: 6px; background: color-mix(in srgb, var(--line) 30%, transparent); white-space: pre-wrap; word-break: break-word; }
+  .md pre code { padding: 0; background: none; }
+  .md .md-h { font-weight: 600; margin: 14px 0 6px; }
+  .md .md-h:first-child { margin-top: 0; }
+  .md .md-h1 { font-size: 17px; } .md .md-h2 { font-size: 15.5px; } .md .md-h3 { font-size: 14.5px; }
+  .md .md-label { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+  .md summary { cursor: pointer; margin-bottom: 8px; }
   details.more { margin-top: 12px; }
   details.more > summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center; font-family: "IBM Plex Mono", monospace; font-size: 12px;
     padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-b); color: var(--ink-2); }
@@ -782,8 +797,83 @@
     }
   };
 
+  // A preview the way GitHub renders a comment, built as nodes so pasted text never becomes markup. Links stay https-only through link().
+  const inline = (text) => {
+    const parts = [];
+    let last = 0;
+    [...String(text).matchAll(/`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g)].forEach((match) => {
+      parts.push(text.slice(last, match.index));
+      parts.push(match[1] !== undefined ? h("code", {}, match[1]) : match[2] !== undefined ? h("strong", {}, inline(match[2])) : link(match[4], inline(match[3])));
+      last = match.index + match[0].length;
+    });
+    parts.push(text.slice(last));
+    return parts.filter((part) => part !== "");
+  };
+
+  const markdownView = (source) => {
+    const root = h("div", { class: "md" });
+    const stack = [root];
+    const top = () => stack[stack.length - 1];
+    const lines = String(source).split("\n");
+    const state = { paragraph: [], list: null };
+    const endParagraph = () => {
+      if (state.paragraph.length) {
+        top().append(h("p", {}, state.paragraph.flatMap((line, i) => [i ? h("br", {}) : null, ...inline(line)])));
+      }
+      state.paragraph = [];
+    };
+    const endBlock = () => { endParagraph(); state.list = null; };
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const fence = /^\s*```(\w*)\s*$/.exec(line);
+      const details = /^\s*<details>\s*(?:<summary>(.*)<\/summary>)?\s*$/.exec(line);
+      const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+      const item = /^(\s*)([-*]|\d+\.)\s+(.*)$/.exec(line);
+      if (fence) {
+        endBlock();
+        const body = [];
+        for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++) { body.push(lines[i]); }
+        const code = body.join("\n");
+        if (fence[1] === "mermaid") {
+          top().append(h("div", { class: "diagram" }, h("pre", {}, code)));
+        } else {
+          if (fence[1] === "suggestion") { top().append(h("div", { class: "md-label" }, "Suggested change")); }
+          top().append(h("pre", {}, h("code", {}, code)));
+        }
+      } else if (details) {
+        endBlock();
+        const block = h("details", {}, h("summary", {}, inline(details[1] || "Details")));
+        top().append(block);
+        stack.push(block);
+      } else if (/^\s*<\/details>\s*$/.test(line)) {
+        endBlock();
+        if (stack.length > 1) { stack.pop(); }
+      } else if (heading) {
+        endBlock();
+        top().append(h("div", { class: `md-h md-h${Math.min(heading[1].length, 3)}` }, inline(heading[2])));
+      } else if (item) {
+        endParagraph();
+        const ordered = /\d/.test(item[2]);
+        if (!state.list || state.list.tagName !== (ordered ? "OL" : "UL")) {
+          state.list = h(ordered ? "ol" : "ul", {});
+          top().append(state.list);
+        }
+        state.list.append(h("li", {}, inline(item[3])));
+      } else if (!line.trim()) {
+        endBlock();
+      } else if (state.list && /^\s+\S/.test(line)) {
+        state.list.lastElementChild?.append(h("br", {}), ...inline(line.trim()));
+      } else {
+        state.list = null;
+        state.paragraph.push(line);
+      }
+    }
+    endBlock();
+    return root;
+  };
+
   const paste = (label, value) => {
-    const button = h("button", { type: "button" }, "Copy");
+    const button = h("button", { type: "button", class: "copy" }, "Copy");
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       const ok = await copyText(value);
@@ -791,7 +881,23 @@
       button.classList.toggle("done", ok);
       setTimeout(() => { button.textContent = "Copy"; button.classList.remove("done"); }, 1600);
     });
-    return h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), button), h("pre", {}, value));
+    const preview = h("button", { type: "button", class: "preview" }, "Preview");
+    const raw = h("pre", {}, value);
+    const box = h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), h("span", { class: "actions" }, preview, button)), raw);
+    const view = { rendered: null };
+    preview.addEventListener("click", (event) => {
+      event.preventDefault();
+      const showing = preview.classList.toggle("on");
+      if (!view.rendered) {
+        view.rendered = markdownView(value);
+        box.append(view.rendered);
+      }
+      raw.hidden = showing;
+      view.rendered.hidden = !showing;
+      preview.textContent = showing ? "Raw" : "Preview";
+      if (showing && view.rendered.querySelector(".diagram")) { loadMermaid().then(drawDiagrams); }
+    });
+    return box;
   };
 
   const field = (key, value) => (value ? h("p", {}, h("span", { class: "k" }, key), value) : null);
@@ -1206,12 +1312,17 @@
       }
     }));
   };
+  // Loaded once, on the first page with a diagram or the first preview that holds one.
+  const mermaidLoad = { promise: null };
+  const loadMermaid = () => {
+    mermaidLoad.promise ??= import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; })
+      .catch(() => {});
+    return mermaidLoad.promise;
+  };
   if (document.querySelector(".diagram")) {
     window.__renderDone = false;
-    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
-      .then((module) => { mermaidLib = module.default; return drawDiagrams(); })
-      .catch(() => {})
-      .finally(() => { window.__renderDone = true; });
+    loadMermaid().then(drawDiagrams).finally(() => { window.__renderDone = true; });
   }
 
   document.addEventListener("themechange", drawDiagrams);
