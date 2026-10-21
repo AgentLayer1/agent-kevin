@@ -24,7 +24,7 @@ cadence: weekly
 
 ## Filing bugs
 
-<when a ticket becomes a task, in which project, and what it must carry>
+<when a ticket becomes a bug, and where it goes: a task in a project here, or a GitHub card on <owner>/<repo> with its labels, including the one that means development has a question for the user>
 
 ## Tone
 

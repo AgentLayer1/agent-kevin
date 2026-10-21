@@ -4,12 +4,16 @@ What needs a person now, ranked, with the patterns across tickets. A queue with 
 
 ## Steps
 
-1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to name assignees.
+1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to put names to assignees.
 2. **Apply the rules.** Org rules first, then the profile's `## Triage`: a stream it says to collapse becomes one count line, and a ticket it routes to a known task links that task (find it with `task_query`) instead of being listed as new.
 3. **Rank.** Unassigned first, then by how long the customer has waited: `last_activity_at`, else `updated_at`, oldest on top.
 4. **Look for patterns.** Two or more tickets with the same error, feature, platform or account are the signal; name what they share. Read a ticket's thread (`helpdesk_ticket`) only when its subject can't settle it.
-5. **Bug candidates.** Where the profile's `## Filing bugs` says a ticket becomes a task, list the candidates. Create each with `task_create` only on the operator's yes: one task per bug, the ticket id in the description, and repro steps taken from the thread.
-6. **Save.** Write the report, then show it in chat:
+5. **Bug candidates.** List the tickets the profile's `## Filing bugs` says become bugs, then file each on the operator's yes, the way [filing a bug](file-bug.md) says.
+6. **Cards that need the customer or are done.** When the profile files bugs as GitHub cards:
+   - **Questions:** open cards carrying the label the profile names for a question to the user (such as `needs info`) and a ticket in their title get the card's question drafted as a reply to that ticket. When the user has answered on the ticket, offer to add the answer to the card with `github_issue_comment`.
+   - **Closed:** `github_issue_list` that repo with `state: closed` and keep the cards updated since the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`) whose title names a ticket (`(ticket <id>)`). Read each with `github_issue_view`: a card closed as completed gets an "it's fixed" draft offered for its ticket (naming the release from its milestone), and one closed as not planned gets a draft that explains the decision from the card. Drafts go through the [draft](draft.md) playbook.
+7. **Offer the drafts.** Tickets waiting on a reply, and the replies from step 6, can each get a draft through the [draft](draft.md) playbook. One yes covers the batch: each lands as a private note for a person to edit and send.
+8. **Save.** Write the report, then show it in chat:
 
 ```
 mcp__plugin_agent-kevin_kevin__report_write({
@@ -43,6 +47,9 @@ The report file is the cadence watermark, so write it only for a complete scan: 
 
 Patterns: <only when two or more tickets share a cause; else omit>
 Bug candidates: <only when the profile files bugs; else omit>
+Questions from development: <cards asking the user something, each with its ticket; else omit>
+Fixed since last pulse: <cards closed since the last pulse, each with its ticket; else omit>
+Drafts: <the replies offered, or left as notes>
 ```
 
 A quiet queue is one line: `🎫 <slug> — queue clear (nothing in <statuses>).`
