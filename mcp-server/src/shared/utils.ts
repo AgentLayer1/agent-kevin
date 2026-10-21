@@ -4,6 +4,14 @@ import { randomUUID } from 'node:crypto';
 import { chmodSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { dirname, relative } from 'path';
 
+// ── Async helpers ─────────────────────────────────────────────────────
+
+/** `run` over `items`, `size` at a time, in order: a cap on how many requests one call puts in flight. */
+export const inChunks = async <T, R>(items: readonly T[], size: number, run: (item: T) => Promise<R>): Promise<R[]> => {
+  const chunks = Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
+  return chunks.reduce<Promise<R[]>>(async (done, chunk) => [...(await done), ...(await Promise.all(chunk.map(run)))], Promise.resolve([]));
+};
+
 // ── Path helpers ──────────────────────────────────────────────────────
 
 /**

@@ -52,10 +52,13 @@ describe("parseProfile", () => {
     expect(bad("statuses: [new]\nconnection: ''")).toThrow("connection must be");
     expect(bad("statuses: [new]\nschedule: [pulse:hourly]")).toThrow('"pulse:hourly" needs a cadence');
     expect(bad("statuses: [new]\nschedule: [digest:weekly]")).toThrow('no "## Workflow: digest" section');
-    expect(bad("statuses: [new]\nschedule: [draft:weekly]", "## Workflow: draft\n")).toThrow("isn't ticket, account, draft");
+    expect(bad("statuses: [new]\nschedule: [draft:weekly]")).toThrow("isn't ticket, account, draft");
     expect(bad("statuses: [new]\nschedule: [week-digest:weekly]")).toThrow("letters and digits");
     expect(bad("statuses: [new]\nappstore: acme")).toThrow("appstore must be the app's numeric App Store id");
-    expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [usa]")).toThrow("two-letter storefront codes");
+    expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [usa]")).toThrow("App Store storefront codes");
+    expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [xx]")).toThrow("App Store storefront codes");
+    expect(bad("statuses: [new]", "## Workflow: ticket\n")).toThrow('"## Workflow: ticket" needs a name');
+    expect(bad("statuses: [new]", "## Workflow: pulse\n")).toThrow('"## Workflow: pulse" needs a name');
     expect(bad("statuses: [new]\nstorefronts: [us]")).toThrow("storefronts needs appstore");
   });
 

@@ -6,7 +6,7 @@ These steps are the default. A profile's `## Pulse` section adds to them (extra 
 
 ## Steps
 
-1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to put names to assignees.
+1. **Fetch.** `helpdesk_tickets` with the profile's `helpdesk` and `connection` (when set), `status` from its `statuses`, `since: "any"` (an open ticket matters whatever its age) and `limit: 200`. On Pylon, also `helpdesk_lookups` with `kind: teammates` once, to put names to assignees.
 2. **Apply the rules.** Org rules first, then the profile's `## Triage`: a stream it says to collapse becomes one count line, and a ticket it routes to a known task links that task (find it with `task_query`) instead of being listed as new.
 3. **Rank.** Unassigned first, then by how long the customer has waited: `last_activity_at`, else `updated_at`, oldest on top.
 4. **Look for patterns.** Two or more tickets with the same error, feature, platform or account are the signal; name what they share. Read a ticket's thread (`helpdesk_ticket`) only when its subject can't settle it.
@@ -17,10 +17,10 @@ These steps are the default. A profile's `## Pulse` section adds to them (extra 
    - Never reply to a review. Nothing in the plugin can, and an App Store reply is public.
 6. **Bug candidates.** List the tickets the profile's `## Filing bugs` says become bugs, then file each on the operator's yes, the way [filing a bug](file-bug.md) says.
 7. **Filed bugs where support has a part.** Take the lifecycle (the profile's `## Bug lifecycle`, else the [default](../lifecycle.md)) and, for each state whose support part isn't "nothing", find the bugs in it:
-   - **GitHub cards:** open cards with that state's label (`github_issue_list`), and cards closed since the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`; `state: closed`, then `github_issue_view` for how each closed). Only cards whose title names a ticket (`(ticket <id>)`) count.
-   - **Tasks:** `task_query` for the project's tasks closed since the last pulse that cite a ticket: `done` takes the closed-as-completed row, `cancelled` the closed-as-not-planned row.
+   - **GitHub cards:** `github_issue_list` with `repo` from `## Filing bugs` and `limit: 100`, once with `state: open` and once with `state: closed`; it can't filter, so pick the cards out of what it returns. Open cards carry the state's label. Closed ones count when their `updatedAt` is after the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`), and `github_issue_view` says how each closed and its milestone. Only cards whose title names a ticket (`(ticket <id>)`) count.
+   - **Tasks:** `task_query` with the project and `includeClosed: true` (closed tasks are hidden otherwise), keeping tasks whose title names a ticket and whose `updated` is after the last pulse: `done` takes the closed-as-completed row, `cancelled` the closed-as-not-planned row.
 
-   Do that state's support part for each: usually a draft for its ticket through the [draft](draft.md) playbook, or adding the user's answer to the card (`github_issue_comment`) or task (`task_thread`).
+   Before acting, read the ticket (`helpdesk_ticket`): skip it when a private note or a customer reply already came after the card's question or close, so a pulse never drafts the same reply twice. Then do that state's support part: usually a draft through the [draft](draft.md) playbook. Adding the user's answer to the card (`github_issue_comment`) or task (`task_thread`) waits for the operator's yes, with the answer's text shown and no contact details in it.
 8. **Offer the drafts.** Tickets waiting on a reply, and the replies from step 7, can each get a draft through the [draft](draft.md) playbook. One yes covers the batch: each lands as a private note for a person to edit and send.
 9. **Save.** Write the report, then show it in chat:
 

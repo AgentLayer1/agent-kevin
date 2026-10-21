@@ -12,12 +12,15 @@
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
 import { env, suffixedKey } from '@/shared/env';
 import { htmlToText } from '@/shared/html-to-markdown';
+import { inChunks } from '@/shared/utils';
 import { fetchFile } from './download';
 import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type HelpdeskMessage, type HelpdeskPerson, type HelpdeskTicket, type MessageKind } from './types';
 
 const API_PATH = '/wp-json/supportcandy/v2';
 const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
+/** Lookups one read puts in flight at once, so a big list doesn't flood the WordPress site. */
+const CONCURRENCY = 8;
 
 interface Credentials {
   site: string;
@@ -202,12 +205,14 @@ const lookups = async (creds: Credentials): Promise<Lookups> => {
 
 const people = async (creds: Credentials, ids: readonly (number | undefined)[]): Promise<People> => {
   const unique = [...new Set(ids.filter((id): id is number => id !== undefined))];
-  const found = await Promise.all(
-    unique.map(async (id): Promise<[number, HelpdeskPerson]> => {
+  const found = await inChunks(
+    unique,
+    CONCURRENCY,
+    async (id): Promise<[number, HelpdeskPerson]> => {
       // A deleted customer shouldn't fail the whole read; the ticket still carries the id.
       const customer = await call<ScCustomer>(creds, `/customers/${id}`).catch((): ScCustomer => ({ id }));
       return [id, { id: String(id), ...(customer.name && { name: customer.name }), ...(customer.email && { email: customer.email }) }];
-    })
+    }
   );
   return new Map(found);
 };
@@ -264,7 +269,7 @@ export const supportcandy = (connection?: string): HelpdeskConnector => {
         allThreads(creds, id)
       ]);
       const ids = threads.flatMap(attachmentIds);
-      const found = await Promise.all(ids.map((id) => call<ScAttachment>(creds, `/attachments/${encodeURIComponent(id)}`)));
+      const found = await inChunks(ids, CONCURRENCY, (id) => call<ScAttachment>(creds, `/attachments/${encodeURIComponent(id)}`));
       const attachmentNames = new Map(found.map((attachment) => [String(attachment.id), attachment.name ?? `attachment-${attachment.id}`]));
       const everyone = await people(creds, [raw.customer, ...threads.map((thread) => thread.customer)]);
       const messages = await Promise.all(threads.map((thread) => mapThread(thread, raw.customer, attachmentNames, everyone)));

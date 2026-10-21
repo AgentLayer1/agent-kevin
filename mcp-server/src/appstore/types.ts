@@ -7,9 +7,6 @@
 export const REVIEW_SOURCES = ['feed'] as const;
 export type ReviewSourceName = (typeof REVIEW_SOURCES)[number];
 
-/** A storefront is a two-letter lowercase country code; an adapter maps its own codes onto it. */
-export const STOREFRONT_RE = /^[a-z]{2}$/;
-
 export interface AppStoreReview {
   id: string;
   storefront: string;

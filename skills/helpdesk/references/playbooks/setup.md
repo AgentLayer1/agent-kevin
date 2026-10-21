@@ -12,8 +12,8 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
 
 1. **The queue.**
    - Which project the tickets belong to, unless the ask named it (`projects/<slug>/` must exist; if not, offer the project skill first). One profile per project.
-   - Which connection: `helpdesk_connections` lists them. One named after this project's slug is the project's own, so offer it first; the default (the No project connection) needs no `connection` line.
-   - Which statuses count as open: SupportCandy's from `helpdesk_lookups` (`kind: statuses`); Pylon's are `new`, `waiting_on_you`, `waiting_on_customer`, `on_hold` and `closed`, plus any custom slugs.
+   - Which connection: `helpdesk_connections` lists them. One named after this project's slug is the project's own (it lists `acme_shop` for project `acme-shop`; the two match), so offer it first; the default (the No project connection) needs no `connection` line.
+   - Which statuses count as open. This one is always written, since the pulse needs it: on Pylon, "the default" is `[new, waiting_on_you]` (the others are `waiting_on_customer`, `on_hold`, `closed` and any custom slugs); on SupportCandy, list the site's own with `helpdesk_lookups` (`kind: statuses`) and the operator picks.
    - How often the pulse runs: daily, weekly, monthly or only when asked.
    - Whether the product ships on the App Store: its link or id becomes `appstore` (the digits after `id` in the link), and the pulse then reads its reviews too. Don't ask about storefronts; the reviews tool picks them. Write `storefronts` only when the operator names countries to pin.
 2. **The pulse.** The default is the [pulse](pulse.md) playbook. Ask:
@@ -24,7 +24,7 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
 
    Then ask whether this adds to the default or replaces it.
 3. **Bugs.**
-   - Where they go: nowhere, a task in a project here, or a card on a GitHub repo, and which labels it carries.
+   - Where they go: nowhere, a task in a project here, or a card on a GitHub repo, and which labels it carries. For cards, the lifecycle's state labels must already exist on the repo (cards can only carry existing labels): name the ones to create there.
    - The lifecycle: show the [default table](../lifecycle.md) and ask what to rename, add or change about support's part.
    - What a card must carry and must never carry, and how duplicates are handled.
 4. **Replies.**
@@ -38,7 +38,7 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
    - Known issues.
    - The team and who does what.
    - Who to escalate to.
-6. **More routines.** Any other recurring support job: a weekly digest, a review sweep, a monthly feature-request count. Each becomes a `## Workflow: <name>` section (a name of letters and digits, not one of the skill's own playbooks), and its steps are the operator's. Ask how often each runs, for `schedule`.
+6. **More routines.** Any other recurring support job: a weekly digest, a review sweep, a monthly feature-request count. Each becomes a `## Workflow: <name>` section (a name of letters and digits, not `pulse` or one of the skill's own playbooks), and its steps are the operator's. Ask how often each runs, for `schedule`.
 
 Write the file, show it, and confirm.
 
@@ -92,8 +92,9 @@ Read the profile, show what it holds round by round, ask which parts to change, 
 
 Sync's nudge `Fix the helpdesk profile: <file>: <problem>` names what failed. Read the file and fix only the key it names:
 - `statuses` must be a list of names.
-- `helpdesk` must be one of the helpdesks.
+- `helpdesk` must be one of the helpdesks, and `connection` a connection's name or left out.
 - Every `schedule` entry must be `<routine>:<daily|weekly|monthly>`, where the routine is `pulse` or has its own `## Workflow:` section.
-- `appstore` must be the app's numeric id; `storefronts`, when present, needs `appstore` and two-letter codes.
+- Every `## Workflow: <name>` needs a name of letters and digits that isn't `pulse` or one of the skill's playbooks (`ticket`, `account`, `draft`, `bug`, `setup`, `help`, `workflow`).
+- `appstore` must be the app's numeric id; `storefronts`, when present, needs `appstore` and App Store storefront codes.
 
 Leave the rest of the body alone.

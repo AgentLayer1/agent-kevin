@@ -839,6 +839,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - Revoke `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups` and `helpdesk_note` from `permissions.allow` (§E remove helper).
 - `AskUserQuestion`: "Also remove the helpdesk keys?" (Yes/No). If yes, delete `SUPPORTCANDY_URL` and `SUPPORTCANDY_USERNAME` and every `_<NAME>` variant from `$SETTINGS_FILE` `env` (§D.2), and tell the user to delete `SUPPORTCANDY_APP_PASSWORD` and `PYLON_API_TOKEN`, with every `_<NAME>` variant, from `.state/secrets/.env` in their editor (§D.1).
 - Remind them the WordPress user and its application password still exist on the site: revoke the password under Users → that user → Application Passwords.
+- Queue profiles (`projects/*/helpdesk.md`) stay, but a `schedule` in one keeps sync nudging routines the revoked tools can't run. `AskUserQuestion`: "Stop sync's helpdesk nudges?" (Yes/No). If yes, remove the `schedule` line from each profile that has one, and leave the rest of the profile as written.
 
 **App Store deconfigure:**
 - Revoke `appstore_reviews` from `permissions.allow` (§E remove helper). There are no keys. `.state/appstore/` holds only what the tool learned about storefronts; leave it unless the operator asks.

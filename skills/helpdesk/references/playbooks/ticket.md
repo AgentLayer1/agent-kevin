@@ -2,7 +2,7 @@
 
 ## Steps
 
-1. `helpdesk_ticket` with the id (and the profile's `helpdesk` when several are configured).
+1. `helpdesk_ticket` with the id, and the profile's `helpdesk` and `connection`.
 2. Summarise, in this order:
    - **The ask:** what the customer needs, in your words.
    - **What support said**, each reply in a line.

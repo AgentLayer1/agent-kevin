@@ -5,6 +5,7 @@
  * reviews), so a blank page is asked again at the other address before it counts as blank.
  */
 import { isRecord } from '@/shared/json-block';
+import { inChunks } from '@/shared/utils';
 import type { AppStoreReview, ReviewBatch, ReviewSource, StorefrontCoverage } from './types';
 
 const BASE = 'https://itunes.apple.com';
@@ -119,11 +120,6 @@ const readStorefront = async (storefront: string, app: string, cutoff: number | 
 };
 
 /** A few storefronts at a time, pages within each one after another, to stay gentle on the feed. */
-const inChunks = async <T, R>(items: readonly T[], size: number, run: (item: T) => Promise<R>): Promise<R[]> => {
-  const chunks = Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
-  return chunks.reduce<Promise<R[]>>(async (done, chunk) => [...(await done), ...(await Promise.all(chunk.map(run)))], Promise.resolve([]));
-};
-
 export const feed: ReviewSource = {
   name: 'feed',
   keys: [],

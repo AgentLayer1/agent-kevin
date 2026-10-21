@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { STOREFRONT_RE } from "../../../mcp-server/src/appstore/types";
+import { STOREFRONTS } from "../../../mcp-server/src/appstore/storefronts";
 import { HELPDESKS, type HelpdeskName } from "../../../mcp-server/src/helpdesk/types";
 import { isoWeekOf } from "../../../mcp-server/src/tasks/horizon";
 
@@ -15,7 +15,7 @@ const PROFILE_FILE = "helpdesk.md";
 const CADENCES = ["daily", "weekly", "monthly"] as const;
 export type Cadence = (typeof CADENCES)[number];
 /** Playbook names a profile workflow can't take; `pulse` is scheduled by name and extended in place. */
-const BUILT_INS = ["ticket", "account", "draft", "bug", "setup", "help"];
+const BUILT_INS = ["ticket", "account", "draft", "bug", "setup", "help", "workflow"];
 /** No hyphens, so `<routine>-<slug>` in a report name reads one way only. */
 const ROUTINE_RE = /^[a-z][a-z0-9]*$/;
 
@@ -58,17 +58,23 @@ const isCadence = (value: unknown): value is Cadence => CADENCES.some((name) => 
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string" && item.trim() !== "");
 
-/** The routines a profile's body defines: one per `## Workflow: <name>` heading. */
-const workflowsIn = (raw: string): string[] => [...raw.matchAll(/^## Workflow:\s*(\S+)\s*$/gim)].map((match) => (match[1] ?? "").toLowerCase());
+/** The routines a profile's body defines, one per `## Workflow: <name>` heading, each named so `/helpdesk <name>` reaches it. */
+const parseWorkflows = (file: string, raw: string): string[] =>
+  [...raw.matchAll(/^## Workflow:\s*(\S+)\s*$/gim)].map((match) => {
+    const name = (match[1] ?? "").toLowerCase();
+    if (!ROUTINE_RE.test(name) || name === "pulse" || BUILT_INS.includes(name)) {
+      throw new Error(`${file}: "## Workflow: ${name}" needs a name of letters and digits that isn't pulse, ${BUILT_INS.join(", ")}`);
+    }
+    return name;
+  });
 
-const parseSchedule = (file: string, raw: string, value: unknown): Scheduled[] => {
+const parseSchedule = (file: string, workflows: readonly string[], value: unknown): Scheduled[] => {
   if (value === undefined) {
     return [];
   }
   if (!isStringList(value)) {
     throw new Error(`${file}: schedule must list <routine>:<cadence> entries, such as [pulse:weekly]`);
   }
-  const workflows = workflowsIn(raw);
   return value.map((entry): Scheduled => {
     const [routine = "", cadence] = entry.trim().toLowerCase().split(":");
     if (!isCadence(cadence)) {
@@ -103,8 +109,8 @@ const parseStorefronts = (file: string, value: unknown, appstore: string | undef
     throw new Error(`${file}: storefronts needs appstore, the app they belong to`);
   }
   const codes = isStringList(value) ? value.map((code) => code.trim().toLowerCase()) : [];
-  if (codes.length === 0 || !codes.every((code) => STOREFRONT_RE.test(code))) {
-    throw new Error(`${file}: storefronts must list two-letter storefront codes, such as [us, gb], or be left out`);
+  if (codes.length === 0 || !codes.every((code) => STOREFRONTS.includes(code))) {
+    throw new Error(`${file}: storefronts must list App Store storefront codes, such as [us, gb], or be left out`);
   }
   return codes;
 };
@@ -131,7 +137,7 @@ export const parseProfile = (file: string, slug: string, raw: string): QueueProf
     ...(isHelpdesk(helpdesk) && { helpdesk }),
     ...(typeof connection === "string" && { connection: connection.trim() }),
     statuses,
-    schedule: parseSchedule(file, raw, schedule),
+    schedule: parseSchedule(file, parseWorkflows(file, raw), schedule),
     ...(appstore && { appstore }),
     ...(storefronts && { storefronts }),
   };

@@ -2,7 +2,7 @@
 
 ## Steps
 
-1. `helpdesk_ticket` for the whole thread.
+1. `helpdesk_ticket` for the whole thread, with the profile's `helpdesk` and `connection`.
 2. **House voice.** Take the tone from the profile's `## Tone`. On Pylon, `helpdesk_lookups` with `kind: macros` lists the team's canned replies; start from the closest one and adapt it.
 3. **Write it.** Answer the customer's latest question first, in the ticket's language. Promise nothing the profile and the thread don't support: no fix dates, no refunds, no features. Org rules decide what never appears in text a team or customer sees.
 4. **Show it** in chat, beside the customer's last message, and ask for changes.
