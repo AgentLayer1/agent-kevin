@@ -45,19 +45,20 @@ export interface AppStats {
 
 export interface StorefrontPlan {
   storefronts: string[];
-  full: boolean;
-  active: number;
-  discovery: number;
+  read: 'every storefront' | 'learned' | 'named';
+  /** The learned plan's split: storefronts with reviews, then the discovery slice. */
+  active?: number;
+  discovery?: number;
 }
 
 const rank = (storefront: string): number => STOREFRONTS.indexOf(storefront);
 
-const fullSweep = (): StorefrontPlan => ({ storefronts: [...STOREFRONTS], full: true, active: 0, discovery: 0 });
+export const fullSweep = (): StorefrontPlan => ({ storefronts: [...STOREFRONTS], read: 'every storefront' });
 
 /** Every storefront when nothing is known or the last full sweep is a month old; else where reviews come from, plus a discovery slice. */
 export const planStorefronts = (stats: AppStats | undefined, now: Date): StorefrontPlan => {
   const swept = stats?.lastFullSweep ? Date.parse(stats.lastFullSweep) : Number.NaN;
-  if (!stats || !(now.getTime() - swept <= FULL_SWEEP_MS)) {
+  if (!stats || Number.isNaN(swept) || now.getTime() - swept > FULL_SWEEP_MS) {
     return fullSweep();
   }
   const seen = (storefront: string): StorefrontStats | undefined => stats.storefronts[storefront];
@@ -68,7 +69,7 @@ export const planStorefronts = (stats: AppStats | undefined, now: Date): Storefr
   const discovery = STOREFRONTS.filter((storefront) => !active.includes(storefront))
     .toSorted((left, right) => checkedAt(left) - checkedAt(right) || rank(left) - rank(right))
     .slice(0, DISCOVERY);
-  return { storefronts: [...active, ...discovery], full: false, active: active.length, discovery: discovery.length };
+  return { storefronts: [...active, ...discovery], read: 'learned', active: active.length, discovery: discovery.length };
 };
 
 /** Folds one read into the stats. A read where nothing came back teaches nothing: the feed may simply have been blank. */

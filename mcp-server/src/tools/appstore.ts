@@ -5,7 +5,7 @@
  */
 import { parseAppId } from '@/appstore/feed';
 import { resolveSource, summarize } from '@/appstore/sources';
-import { planStorefronts, readStats, STOREFRONTS, updateStats, writeStats, type AppStats } from '@/appstore/storefronts';
+import { fullSweep, planStorefronts, readStats, STOREFRONTS, updateStats, writeStats, type AppStats, type StorefrontPlan } from '@/appstore/storefronts';
 import { REVIEW_SOURCES, type ReviewSource } from '@/appstore/types';
 import { sinceToStartTime } from '@/shared/date';
 import { log } from '@/shared/log';
@@ -43,25 +43,11 @@ const namedStorefronts = (storefronts: readonly string[]): string[] => {
   return codes;
 };
 
-interface Plan {
-  storefronts: string[];
-  full: boolean;
-  read: 'named' | 'every storefront' | 'learned';
-  active?: number;
-  discovery?: number;
-}
-
-const choosePlan = (storefronts: readonly string[] | undefined, stats: AppStats | undefined, now: Date): Plan => {
+const choosePlan = (storefronts: readonly string[] | undefined, stats: AppStats | undefined, now: Date): StorefrontPlan => {
   if (storefronts?.length === 1 && storefronts[0]?.toLowerCase() === 'all') {
-    return { storefronts: [...STOREFRONTS], full: true, read: 'every storefront' };
+    return fullSweep();
   }
-  if (storefronts) {
-    return { storefronts: namedStorefronts(storefronts), full: false, read: 'named' };
-  }
-  const learned = planStorefronts(stats, now);
-  return learned.full
-    ? { storefronts: learned.storefronts, full: true, read: 'every storefront' }
-    : { storefronts: learned.storefronts, full: false, read: 'learned', active: learned.active, discovery: learned.discovery };
+  return storefronts ? { storefronts: namedStorefronts(storefronts), read: 'named' } : planStorefronts(stats, now);
 };
 
 export const readReviews = async (args: ReviewsArgs, source: ReviewSource, now: Date = new Date()): Promise<string> => {
@@ -71,7 +57,7 @@ export const readReviews = async (args: ReviewsArgs, source: ReviewSource, now: 
   const stats = readStats(app);
   const plan = choosePlan(args.storefronts, stats, now);
   const batch = await source.reviews({ app, storefronts: plan.storefronts, cutoff });
-  writeStats(app, updateStats(stats, batch.coverage, batch.reviews, { full: plan.full, now }));
+  writeStats(app, updateStats(stats, batch.coverage, batch.reviews, { full: plan.read === 'every storefront', now }));
   const summary = summarize(batch, { minRating: args.min_rating, maxRating: args.max_rating, limit: args.limit ?? 100 }, plan.read === 'named');
   log.info(`appstore ${app} source=${source.name} storefronts=${plan.storefronts.length} reviews=${summary.total ?? 'none read'}`);
   const read = {
@@ -88,7 +74,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'appstore_reviews',
     description:
-      "Read App Store reviews for any app, newest first: rating, title, text, the reviewer's nickname, app version, date and storefront, with rating counts. Read-only; no key; it never replies to a review. Reviews are per country storefront: name storefronts to narrow the read, pass ['all'] for every one, or leave it out and the tool picks them, learning over time where the app's reviews come from. Apple's public feed keeps about the 500 most recent per storefront and sometimes comes back blank: coverage says what was read, and a read where nothing came back gives no count, never zero.",
+      "Read App Store reviews for any app, newest first: rating, title, text, the reviewer's nickname, app version, date and storefront, with rating counts. Read-only; no key; it never replies to a review. Reviews are per country storefront: name storefronts to narrow the read, pass ['all'] for every one, or leave it out and the tool picks them, learning over time where the app's reviews come from. Apple's public feed keeps about the 500 most recent per storefront and sometimes comes back blank: coverage says what was read, and a read where nothing came back gives no count, never zero. A long window can come back short, since a blank page past a storefront's first reads as the end of its reviews.",
     inputSchema: {
       source: z.enum(REVIEW_SOURCES).optional().describe('Which review source; omit to use the first one set up.'),
       app: z.string().min(1).describe('The App Store link (apps.apple.com/…/id<digits>) or the numeric app id.'),

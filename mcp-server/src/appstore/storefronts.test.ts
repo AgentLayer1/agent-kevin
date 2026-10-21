@@ -19,8 +19,9 @@ describe('STOREFRONTS', () => {
 
 describe('planStorefronts', () => {
   test('nothing known, or a month since the last full sweep, reads every storefront US first', () => {
-    expect(planStorefronts(undefined, NOW)).toMatchObject({ full: true, storefronts: [...STOREFRONTS] });
-    expect(planStorefronts({ lastFullSweep: DAYS(31), storefronts: { gb: { reviews: 3 } } }, NOW).full).toBe(true);
+    expect(planStorefronts(undefined, NOW)).toEqual({ read: 'every storefront', storefronts: [...STOREFRONTS] });
+    expect(planStorefronts({ lastFullSweep: DAYS(31), storefronts: { gb: { reviews: 3 } } }, NOW).read).toBe('every storefront');
+    expect(planStorefronts({ storefronts: { gb: { reviews: 3 } } }, NOW).read).toBe('every storefront');
   });
 
   test('otherwise the active storefronts, US first then by reviews, plus fifteen to discover', () => {
@@ -29,7 +30,7 @@ describe('planStorefronts', () => {
       storefronts: { gb: { reviews: 9 }, my: { reviews: 20 }, us: { reviews: 2 }, fr: { reviews: 0, lastChecked: DAYS(1) } }
     };
     const plan = planStorefronts(stats, NOW);
-    expect(plan.full).toBe(false);
+    expect(plan.read).toBe('learned');
     expect(plan.storefronts.slice(0, 3)).toEqual(['us', 'my', 'gb']);
     expect(plan.active).toBe(3);
     expect(plan.discovery).toBe(15);
