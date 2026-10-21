@@ -5,7 +5,7 @@ import { FILES, FOLDERS } from "../../../mcp-server/src/config";
 import { todayDate } from "../../../mcp-server/src/shared/date";
 import { dataDirOf } from "../../../mcp-server/src/shared/naming";
 import { agentHomePath, isAgentHome } from "../../../mcp-server/src/shared/env";
-import { pulsesDue } from "../../helpdesk/scripts/profiles";
+import { routinesDue } from "../../helpdesk/scripts/profiles";
 import { loadEntities, pendingCloses } from "../../tax/scripts/calendar";
 import { type ReviewWatermark, selfReviewDue } from "./self-review-due";
 
@@ -109,7 +109,7 @@ if (existsSync(join(taxDir, "entities"))) {
   }
 }
 
-// Each queue profile with a cadence; its newest pulse report is the watermark.
-due.push(...pulsesDue(FOLDERS.PROJECTS, join(FOLDERS.REPORTS, "helpdesk"), todayDate()));
+// Each routine a queue profile schedules; its newest report is the watermark.
+due.push(...routinesDue(FOLDERS.PROJECTS, join(FOLDERS.REPORTS, "helpdesk"), todayDate()));
 
 console.log(JSON.stringify(due));

@@ -87,7 +87,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── TASKS.md                     # cross-project dashboard
 │   └── <slug>/
 │       ├── README.md
-│       ├── helpdesk.md              # optional queue profile: the project's support statuses, cadence, triage rules
+│       ├── helpdesk.md              # optional queue profile: the project's support connection, schedule, workflow and rules
 │       └── tasks/<id>-<slug>.md
 ├── reports/                         # transient skill outputs (tracked in git; linked from {{KNOWLEDGE_REL}}/index.md via reports/index.md)
 │   ├── briefings/                   # morning/evening briefings, goals, standup, flywheel
@@ -95,7 +95,7 @@ The agent home directory is the single source of truth for memory.
 │   ├── radar/                       # /focus where-am-i session snapshots
 │   ├── api/                         # /api-collections request collections
 │   ├── reviews/                     # engineer PR reviews, replies, walkthroughs + adversarial-review dossiers
-│   ├── helpdesk/                    # /helpdesk queue pulses (the newest one is sync's cadence watermark)
+│   ├── helpdesk/                    # /helpdesk pulses and routines (the newest of each is sync's cadence watermark)
 │   └── captures/                    # browser screenshots and PDFs
 └── .state/                           # plugin runtime (hidden)
     ├── config/                      # config.json + Google OAuth tokens

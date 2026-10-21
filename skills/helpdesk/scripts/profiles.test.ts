@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lastPulse, parseProfile, pulsesDue } from "./profiles";
+import { lastRun, parseProfile, routinesDue } from "./profiles";
 
 const dirs: string[] = [];
 afterAll(() => {
@@ -24,58 +24,77 @@ const fixture = (profiles: Record<string, string>, reports: string[] = []): { pr
   return { projects, reports: reportsDir };
 };
 
-const profile = (frontmatter: string): string => `---\n${frontmatter}\n---\n\n## Triage\n- Ask for the app version first\n`;
+const profile = (frontmatter: string, body = "## Triage\n- Ask for the app version first\n"): string => `---\n${frontmatter}\n---\n\n${body}`;
+const DIGEST = "## Workflow: digest\n1. Sum up the week for the team.\n";
 
 describe("parseProfile", () => {
-  test("reads helpdesk, statuses and cadence", () => {
-    expect(parseProfile("acme/helpdesk.md", "acme", profile("helpdesk: supportcandy\nstatuses: [Open, Awaiting agent reply]\ncadence: weekly"))).toEqual({
+  test("reads helpdesk, connection, statuses and the schedule", () => {
+    expect(
+      parseProfile("acme/helpdesk.md", "acme", profile("helpdesk: supportcandy\nconnection: shop\nstatuses: [Open, Awaiting agent reply]\nschedule: [pulse:daily, Digest:Weekly]", DIGEST))
+    ).toEqual({
       slug: "acme",
       helpdesk: "supportcandy",
+      connection: "shop",
       statuses: ["Open", "Awaiting agent reply"],
-      cadence: "weekly",
+      schedule: [
+        { routine: "pulse", cadence: "daily" },
+        { routine: "digest", cadence: "weekly" },
+      ],
     });
-    expect(parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]"))).toEqual({ slug: "acme", statuses: ["new"] });
+    expect(parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]"))).toEqual({ slug: "acme", statuses: ["new"], schedule: [] });
   });
 
-  test("refuses missing statuses and unknown helpdesks or cadences, naming the file", () => {
+  test("refuses a bad profile, naming the file and the problem", () => {
+    const bad = (frontmatter: string, body?: string) => () => parseProfile("acme/helpdesk.md", "acme", profile(frontmatter, body));
     expect(() => parseProfile("acme/helpdesk.md", "acme", "# no frontmatter")).toThrow("acme/helpdesk.md: no frontmatter");
-    expect(() => parseProfile("acme/helpdesk.md", "acme", profile("cadence: weekly"))).toThrow("statuses must list");
-    expect(() => parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\nhelpdesk: zendesk"))).toThrow("helpdesk must be one of");
-    expect(() => parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\ncadence: hourly"))).toThrow("cadence must be one of");
+    expect(bad("schedule: [pulse:weekly]")).toThrow("statuses must list");
+    expect(bad("statuses: [new]\nhelpdesk: zendesk")).toThrow("helpdesk must be one of");
+    expect(bad("statuses: [new]\nconnection: ''")).toThrow("connection must be");
+    expect(bad("statuses: [new]\nschedule: [pulse:hourly]")).toThrow('"pulse:hourly" needs a cadence');
+    expect(bad("statuses: [new]\nschedule: [digest:weekly]")).toThrow('no "## Workflow: digest" section');
+    expect(bad("statuses: [new]\nschedule: [draft:weekly]", "## Workflow: draft\n")).toThrow("isn't ticket, account, draft");
+    expect(bad("statuses: [new]\nschedule: [week-digest:weekly]")).toThrow("letters and digits");
   });
 });
 
-describe("lastPulse", () => {
-  test("is the newest pulse for that queue only, never a queue whose slug extends it", () => {
-    const { reports } = fixture({}, ["2026-10-05-0900-pulse-acme.md", "2026-10-12-0900-pulse-acme.md", "2026-10-19-0800-pulse-acme-2.md", "2026-10-20-0800-pulse-acme-web.md", "2026-10-21-0800-other.md"]);
-    expect(lastPulse(reports, "acme")).toBe("2026-10-12");
-    expect(lastPulse(reports, "acme-2")).toBe("2026-10-19");
-    expect(lastPulse(reports, "zeta")).toBeNull();
+describe("lastRun", () => {
+  test("is the newest report for that routine and queue only, never a queue whose slug extends it", () => {
+    const { reports } = fixture({}, [
+      "2026-10-05-0900-pulse-acme.md",
+      "2026-10-12-0900-pulse-acme.md",
+      "2026-10-19-0800-pulse-acme-2.md",
+      "2026-10-20-0800-digest-acme.md",
+      "2026-10-21-0800-other.md",
+    ]);
+    expect(lastRun(reports, "pulse", "acme")).toBe("2026-10-12");
+    expect(lastRun(reports, "pulse", "acme-2")).toBe("2026-10-19");
+    expect(lastRun(reports, "digest", "acme")).toBe("2026-10-20");
+    expect(lastRun(reports, "pulse", "zeta")).toBeNull();
   });
 });
 
-describe("pulsesDue", () => {
-  test("a weekly queue is due until it has a pulse this ISO week; no cadence never nudges", () => {
+describe("routinesDue", () => {
+  test("each scheduled routine is due until it has a report in its period; nothing scheduled never nudges", () => {
     const { projects, reports } = fixture(
-      { acme: profile("statuses: [new]\ncadence: weekly"), quiet: profile("statuses: [new]") },
-      ["2026-10-16-0900-pulse-acme.md"]
+      { acme: profile("statuses: [new]\nschedule: [pulse:daily, digest:weekly]", DIGEST), quiet: profile("statuses: [new]") },
+      ["2026-10-21-0700-pulse-acme.md", "2026-10-16-0900-digest-acme.md"]
     );
-    expect(pulsesDue(projects, reports, "2026-10-21")).toEqual([{ invoke: "helpdesk pulse acme", label: "Helpdesk pulse: acme (weekly)", lastRun: "2026-10-16" }]);
-    expect(pulsesDue(projects, reports, "2026-10-18")).toEqual([]);
+    expect(routinesDue(projects, reports, "2026-10-21")).toEqual([{ invoke: "helpdesk digest acme", label: "Helpdesk digest: acme (weekly)", lastRun: "2026-10-16" }]);
+    expect(routinesDue(projects, reports, "2026-10-22").map((item) => item.invoke)).toEqual(["helpdesk pulse acme", "helpdesk digest acme"]);
   });
 
-  test("daily and monthly buckets, and a never-run queue is due", () => {
+  test("monthly buckets, and a never-run routine is due", () => {
     const { projects, reports } = fixture(
-      { day: profile("statuses: [new]\ncadence: daily"), month: profile("statuses: [new]\ncadence: monthly"), fresh: profile("statuses: [new]\ncadence: weekly") },
-      ["2026-10-21-0700-pulse-day.md", "2026-10-01-0700-pulse-month.md"]
+      { month: profile("statuses: [new]\nschedule: [pulse:monthly]"), fresh: profile("statuses: [new]\nschedule: [pulse:weekly]") },
+      ["2026-10-01-0700-pulse-month.md"]
     );
-    expect(pulsesDue(projects, reports, "2026-10-21").map((item) => item.invoke)).toEqual(["helpdesk pulse fresh"]);
-    expect(pulsesDue(projects, reports, "2026-11-01").map((item) => item.invoke)).toEqual(["helpdesk pulse day", "helpdesk pulse fresh", "helpdesk pulse month"]);
+    expect(routinesDue(projects, reports, "2026-10-21").map((item) => item.invoke)).toEqual(["helpdesk pulse fresh"]);
+    expect(routinesDue(projects, reports, "2026-11-01").map((item) => item.invoke)).toEqual(["helpdesk pulse fresh", "helpdesk pulse month"]);
   });
 
   test("a broken profile becomes its own item and the rest still report", () => {
-    const { projects, reports } = fixture({ broken: profile("cadence: weekly"), ok: profile("statuses: [new]\ncadence: daily") });
-    const due = pulsesDue(projects, reports, "2026-10-21");
+    const { projects, reports } = fixture({ broken: profile("schedule: [pulse:weekly]"), ok: profile("statuses: [new]\nschedule: [pulse:daily]") });
+    const due = routinesDue(projects, reports, "2026-10-21");
     expect(due.map((item) => item.invoke)).toEqual(["helpdesk profile broken", "helpdesk pulse ok"]);
     expect(due[0]?.label).toContain("Fix the helpdesk profile");
   });

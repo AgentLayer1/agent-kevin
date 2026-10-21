@@ -1,6 +1,8 @@
 # Pulse — the queue at a glance (`/helpdesk pulse [slug]`)
 
-What needs a person now, ranked, with the patterns across tickets. A queue with a `cadence` in its profile is nudged by sync until this playbook has written its report for the day, week or month.
+What needs a person now, ranked, with the patterns across tickets. A queue whose profile schedules `pulse` is nudged by sync until this playbook has written its report for the day, week or month.
+
+These steps are the default. A profile's `## Pulse` section adds to them (extra checks, a different order, what the summary must say), or replaces them when its first line is `Replaces the default.`
 
 ## Steps
 
@@ -9,9 +11,11 @@ What needs a person now, ranked, with the patterns across tickets. A queue with 
 3. **Rank.** Unassigned first, then by how long the customer has waited: `last_activity_at`, else `updated_at`, oldest on top.
 4. **Look for patterns.** Two or more tickets with the same error, feature, platform or account are the signal; name what they share. Read a ticket's thread (`helpdesk_ticket`) only when its subject can't settle it.
 5. **Bug candidates.** List the tickets the profile's `## Filing bugs` says become bugs, then file each on the operator's yes, the way [filing a bug](file-bug.md) says.
-6. **Cards that need the customer or are done.** When the profile files bugs as GitHub cards:
-   - **Questions:** open cards carrying the label the profile names for a question to the user (such as `needs info`) and a ticket in their title get the card's question drafted as a reply to that ticket. When the user has answered on the ticket, offer to add the answer to the card with `github_issue_comment`.
-   - **Closed:** `github_issue_list` that repo with `state: closed` and keep the cards updated since the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`) whose title names a ticket (`(ticket <id>)`). Read each with `github_issue_view`: a card closed as completed gets an "it's fixed" draft offered for its ticket (naming the release from its milestone), and one closed as not planned gets a draft that explains the decision from the card. Drafts go through the [draft](draft.md) playbook.
+6. **Filed bugs where support has a part.** Take the lifecycle (the profile's `## Bug lifecycle`, else the [default](../lifecycle.md)) and, for each state whose support part isn't "nothing", find the bugs in it:
+   - **GitHub cards:** open cards with that state's label (`github_issue_list`), and cards closed since the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`; `state: closed`, then `github_issue_view` for how each closed). Only cards whose title names a ticket (`(ticket <id>)`) count.
+   - **Tasks:** `task_query` for the project's tasks in that status that cite a ticket.
+
+   Do that state's support part for each: usually a draft for its ticket through the [draft](draft.md) playbook, or adding the user's answer to the card (`github_issue_comment`) or task (`task_thread`).
 7. **Offer the drafts.** Tickets waiting on a reply, and the replies from step 6, can each get a draft through the [draft](draft.md) playbook. One yes covers the batch: each lands as a private note for a person to edit and send.
 8. **Save.** Write the report, then show it in chat:
 

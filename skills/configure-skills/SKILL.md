@@ -624,7 +624,7 @@ Gives Kevin a support helpdesk through one tool surface, whichever helpdesk it i
 
 **(5) Grant** via §E: `mcp__plugin_agent-kevin_kevin__helpdesk_connections`, `mcp__plugin_agent-kevin_kevin__helpdesk_tickets`, `mcp__plugin_agent-kevin_kevin__helpdesk_ticket`, `mcp__plugin_agent-kevin_kevin__helpdesk_attachment`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts`, `mcp__plugin_agent-kevin_kevin__helpdesk_lookups`, and, at the recommended level, `mcp__plugin_agent-kevin_kevin__helpdesk_note`.
 
-**(6) Offer a queue profile** (`AskUserQuestion`): "Set up a queue profile for a project's tickets?" A profile (`projects/<slug>/helpdesk.md`) holds which statuses count as open, how often sync nudges a pulse, and the operator's triage rules and tone; the helpdesk skill reads it. A yes is done after the relaunch, since listing the helpdesk's statuses needs the secrets loaded: carry `/agent-kevin:helpdesk profile` into the summary as the first thing to run.
+**(6) Offer a queue profile** (`AskUserQuestion`): "Set up a queue profile for a project's tickets?" A profile (`projects/<slug>/helpdesk.md`) is the queue's own workflow: its connection, which statuses count as open, what the pulse does and how often, the bug lifecycle, replies, context and any routines of its own. The helpdesk skill's profile interview writes it and tunes it later. A yes is done after the relaunch, since the interview lists the helpdesk's connections and statuses: carry `/agent-kevin:helpdesk profile` into the summary as the first thing to run.
 
 **(7) Summary:**
 

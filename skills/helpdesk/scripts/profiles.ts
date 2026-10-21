@@ -5,22 +5,32 @@ import { isoWeekOf } from "../../../mcp-server/src/tasks/horizon";
 
 /**
  * Queue profiles: `projects/<slug>/helpdesk.md`, one per support queue, written by the operator.
- * Flat frontmatter is what code reads (helpdesk, statuses, cadence); the body is triage rules
- * and tone for the model.
+ * Flat frontmatter is what code reads (helpdesk, connection, statuses, schedule); the body is the
+ * queue's own workflow, rules and context for the model.
  */
 
 const PROFILE_FILE = "helpdesk.md";
 const CADENCES = ["daily", "weekly", "monthly"] as const;
 export type Cadence = (typeof CADENCES)[number];
+/** Playbook names a profile workflow can't take; `pulse` is scheduled by name and extended in place. */
+const BUILT_INS = ["ticket", "account", "draft", "bug", "profile", "help"];
+/** No hyphens, so `<routine>-<slug>` in a report name reads one way only. */
+const ROUTINE_RE = /^[a-z][a-z0-9]*$/;
+
+export interface Scheduled {
+  routine: string;
+  cadence: Cadence;
+}
 
 export interface QueueProfile {
   slug: string;
   helpdesk?: HelpdeskName;
+  connection?: string;
   statuses: string[];
-  cadence?: Cadence;
+  schedule: Scheduled[];
 }
 
-export interface PulseDue {
+export interface RoutineDue {
   invoke: string;
   label: string;
   lastRun: string | null;
@@ -42,26 +52,53 @@ const isCadence = (value: unknown): value is Cadence => CADENCES.some((name) => 
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string" && item.trim() !== "");
 
+/** The routines a profile's body defines: one per `## Workflow: <name>` heading. */
+const workflowsIn = (raw: string): string[] => [...raw.matchAll(/^## Workflow:\s*(\S+)\s*$/gim)].map((match) => (match[1] ?? "").toLowerCase());
+
+const parseSchedule = (file: string, raw: string, value: unknown): Scheduled[] => {
+  if (value === undefined) {
+    return [];
+  }
+  if (!isStringList(value)) {
+    throw new Error(`${file}: schedule must list <routine>:<cadence> entries, such as [pulse:weekly]`);
+  }
+  const workflows = workflowsIn(raw);
+  return value.map((entry): Scheduled => {
+    const [routine = "", cadence] = entry.trim().toLowerCase().split(":");
+    if (!isCadence(cadence)) {
+      throw new Error(`${file}: schedule entry "${entry}" needs a cadence of ${CADENCES.join(", ")}`);
+    }
+    if (!ROUTINE_RE.test(routine) || BUILT_INS.includes(routine)) {
+      throw new Error(`${file}: schedule entry "${entry}" needs a routine name of letters and digits that isn't ${BUILT_INS.join(", ")}`);
+    }
+    if (routine !== "pulse" && !workflows.includes(routine)) {
+      throw new Error(`${file}: schedule names "${routine}", but there is no "## Workflow: ${routine}" section`);
+    }
+    return { routine, cadence };
+  });
+};
+
 export const parseProfile = (file: string, slug: string, raw: string): QueueProfile => {
   const data = frontmatterOf(raw);
   if (!data) {
     throw new Error(`${file}: no frontmatter; it needs at least statuses: [<status>, …]`);
   }
-  const { helpdesk, statuses, cadence } = data;
+  const { helpdesk, connection, statuses, schedule } = data;
   if (helpdesk !== undefined && !isHelpdesk(helpdesk)) {
     throw new Error(`${file}: helpdesk must be one of ${HELPDESKS.join(", ")}`);
+  }
+  if (connection !== undefined && (typeof connection !== "string" || connection.trim() === "")) {
+    throw new Error(`${file}: connection must be a connection name, or left out for the default`);
   }
   if (!isStringList(statuses)) {
     throw new Error(`${file}: statuses must list the status names the pulse keeps, as the helpdesk names them`);
   }
-  if (cadence !== undefined && !isCadence(cadence)) {
-    throw new Error(`${file}: cadence must be one of ${CADENCES.join(", ")}`);
-  }
   return {
     slug,
     ...(isHelpdesk(helpdesk) && { helpdesk }),
+    ...(typeof connection === "string" && { connection: connection.trim() }),
     statuses,
-    ...(isCadence(cadence) && { cadence }),
+    schedule: parseSchedule(file, raw, schedule),
   };
 };
 
@@ -73,9 +110,9 @@ const loadProfile = (projectsDir: string, slug: string): QueueProfile => {
   return parseProfile(file, slug, readFileSync(file, "utf8"));
 };
 
-/** The date of the newest pulse report for a queue: report_write names it `YYYY-MM-DD-HHMM-pulse-<slug>.md`. */
-export const lastPulse = (reportsDir: string, slug: string): string | null => {
-  const pattern = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})-\\d{4}-pulse-${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.md$`);
+/** The date of a routine's newest report for a queue: report_write names it `YYYY-MM-DD-HHMM-<routine>-<slug>.md`. */
+export const lastRun = (reportsDir: string, routine: string, slug: string): string | null => {
+  const pattern = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})-\\d{4}-${routine}-${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.md$`);
   const dates = (existsSync(reportsDir) ? readdirSync(reportsDir) : [])
     .map((name) => name.match(pattern)?.[1])
     .filter((date): date is string => date !== undefined)
@@ -90,19 +127,19 @@ const BUCKETS: Record<Cadence, (date: string) => string> = {
 };
 
 /**
- * Every queue whose cadence has no pulse in the current day, ISO week or month. A profile that
+ * Every scheduled routine with no report in its current day, ISO week or month. A profile that
  * fails to parse comes back as its own item, so one bad file never hides the others.
  */
-export const pulsesDue = (projectsDir: string, reportsDir: string, today: string): PulseDue[] =>
-  profileSlugs(projectsDir).flatMap((slug): PulseDue[] => {
+export const routinesDue = (projectsDir: string, reportsDir: string, today: string): RoutineDue[] =>
+  profileSlugs(projectsDir).flatMap((slug): RoutineDue[] => {
     try {
-      const { cadence } = loadProfile(projectsDir, slug);
-      if (!cadence) {
-        return [];
-      }
-      const last = lastPulse(reportsDir, slug);
-      const bucket = BUCKETS[cadence];
-      return last !== null && bucket(last) === bucket(today) ? [] : [{ invoke: `helpdesk pulse ${slug}`, label: `Helpdesk pulse: ${slug} (${cadence})`, lastRun: last }];
+      return loadProfile(projectsDir, slug).schedule.flatMap(({ routine, cadence }): RoutineDue[] => {
+        const last = lastRun(reportsDir, routine, slug);
+        const bucket = BUCKETS[cadence];
+        return last !== null && bucket(last) === bucket(today)
+          ? []
+          : [{ invoke: `helpdesk ${routine} ${slug}`, label: `Helpdesk ${routine}: ${slug} (${cadence})`, lastRun: last }];
+      });
     } catch (error) {
       return [{ invoke: `helpdesk profile ${slug}`, label: `Fix the helpdesk profile: ${error instanceof Error ? error.message : String(error)}`, lastRun: null }];
     }

@@ -1,6 +1,6 @@
 ## 🎫 Helpdesk: what I can do
 
-Your support queue in SupportCandy or Pylon. I read, sort and draft; you send every reply. The Helpdesk pack unlocks it (`/agent-kevin:configure-skills` → Helpdesk), and a queue profile (`projects/<slug>/helpdesk.md`) holds your own triage rules and tone.
+Your support queue in SupportCandy or Pylon. I read, sort and draft; you send every reply. The Helpdesk pack unlocks it (`/agent-kevin:configure-skills` → Helpdesk). A queue profile (`projects/<slug>/helpdesk.md`) holds your queue's own workflow: what the pulse does, how a bug moves, your routines, rules, tone and context.
 
 | Ask | Playbook | You get |
 |---|---|---|
@@ -9,4 +9,5 @@ Your support queue in SupportCandy or Pylon. I read, sort and draft; you send ev
 | "What's open for <account>?", `/helpdesk account <name>` | **account** | One account's tickets (Pylon) |
 | "Draft a reply for 318", `/helpdesk draft <id>` | **draft** | A reply in your queue's tone, left as a private note once you approve it |
 | "File 318 as a bug", `/helpdesk bug <id>` | **file bug** | A task, or a GitHub card with the repro, log excerpt and screenshots, wherever your profile files bugs |
-| "Set up a queue profile", `/helpdesk profile [slug]` | **profile** | A queue profile: which statuses count, how often sync nudges a pulse, your triage rules |
+| "Set up a queue profile", "tune the pulse", `/helpdesk profile [slug]` | **profile** | An interview that writes or tunes the queue profile: statuses, schedule, the pulse, the bug lifecycle, replies, context and your own routines |
+| A routine from your profile, `/helpdesk digest [slug]` | **workflow** | Whatever that routine's steps produce, saved when it's scheduled |
