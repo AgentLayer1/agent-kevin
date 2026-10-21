@@ -43,6 +43,27 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.4] - 2026-10-21
+
+### Added
+- **helpdesk skill.** Works a project's support queue through the Helpdesk pack: a pulse (open tickets ranked, patterns, bug candidates, saved to `reports/helpdesk/`), a ticket deep-dive, an account view, a drafted reply left as a private note once approved, and bug filing into a task or a GitHub card (repro, log excerpt, screenshots, never the customer's contact details) after a duplicate check. The pulse closes the loop: it drafts questions from cards waiting on the user and offers replies for cards fixed or declined since the last pulse. Every write (a note, a card, a comment, an answer added to a task) is shown and waits for a yes, and the skill pre-grants no write tool, so the home's permissions decide what it may write.
+- **Queue profiles.** A project's `projects/<slug>/helpdesk.md` is its queue's own workflow, written by `/agent-kevin:helpdesk setup <slug>` (or "set up helpdesk for <project>") in six rounds (queue, pulse, bugs, replies, context, routines): its connection, which statuses count as open, reply rules and context, a pulse and bug lifecycle that extend or replace the plugin's defaults, and routines of its own run as `/agent-kevin:helpdesk <routine> <slug>`. Setup checks access first and runs the configure-skills walk when there's no connection it can read. Sync nudges each routine in the profile's `schedule` (`pulse:daily`, `digest:weekly`) when its newest report falls before the current day, week or month; it never runs one. Seed bundles carry a project's profile.
+- **Named helpdesk connections.** One SupportCandy site or Pylon workspace per connection. The configure-skills walk asks which project each one is for: a project's connection is named after it and carries that name as a key suffix (`SUPPORTCANDY_URL_<NAME>`, `PYLON_API_TOKEN_<NAME>`), and **No project** is the default on the plain keys. A named connection reads only its own keys and never falls back to the default. `helpdesk_connections` lists what is configured without a credential, every helpdesk tool takes `connection`, and suffixed secrets are masked in logs like the plain ones.
+- **More helpdesk reads.** `helpdesk_accounts` lists Pylon accounts; `helpdesk_lookups` lists SupportCandy statuses and categories and Pylon tags, teammates and macros. `helpdesk_tickets` takes `since: 'any'` and, on Pylon, tag, assignee and account filters (a helpdesk that can't apply a filter refuses it), up to 1000 tickets. `helpdesk_ticket` adds a Pylon issue's opening body, linked engineering issues and CSAT.
+- **App Store pack.** `appstore_reviews` reads any app's App Store reviews by link or id from Apple's public feed (no key, read-only, never replies), learns which country storefronts an app's reviews come from (`.state/appstore/<id>.json`), and reports what it read: a blank feed gives no count, never zero. A queue profile can name its app, and the pulse then reads the reviews since the last complete read and files review bugs without a reply.
+- **Stacked PR reviews.** The engineer skill reviews a stack from its edge PR in one report: each finding names its layer, is read at that layer's head and anchored in its diff, and the page badges and filters findings and threads by PR. The summary comment becomes a stack overview (blockers, earlier threads, before/after diagrams, target layout, code skeleton). `--layer` keeps the single-layer review.
+- **Paste boxes show the rendered comment.** Every paste box on a PR report opens on its markdown as GitHub renders it (Mermaid drawn), with a Raw toggle; Copy still copies the exact text.
+
+### Changed
+- **Helpdesk tickets carry their people.** The requester, assignee and each message's author come back with name and email where the helpdesk gives them, so the agent can find the account and answer by name; nothing written to GitHub carries a customer's name, email or account.
+- Multi-step review comments are numbered one-fact steps with `file:line`, an outcome and the fix; the PR report warns on a paste paragraph over 60 words and on a thread given two pastes.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds `Skill(agent-kevin:helpdesk)` to `permissions.allow` when the home hasn't placed it in allow, ask or deny. Applied automatically.
+- `template/AGENTS.md: mandatory` — the reports routing row and the layout tree gain `reports/helpdesk/` and a project's optional `helpdesk.md` queue profile.
+- `settings: optional` — only in a home with the Helpdesk pack: add `mcp__plugin_agent-kevin_kevin__helpdesk_connections`, `mcp__plugin_agent-kevin_kevin__helpdesk_accounts` and `mcp__plugin_agent-kevin_kevin__helpdesk_lookups` to `permissions.allow`. Skip and each asks on first use.
+- `manual: optional` — to read App Store reviews, run `/agent-kevin:configure-skills` → App Store. To work a project's support queue, run `/agent-kevin:helpdesk setup <slug>` or say "set up helpdesk for <project>".
+
 ## [0.8.3] - 2026-10-21
 
 ### Added
