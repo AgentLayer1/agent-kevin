@@ -19,7 +19,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_tickets',
     description:
-      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, assignee and account ids, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for every open ticket whatever its age. Works over whichever helpdesk is configured (SupportCandy, Pylon). Requester names and emails are never returned. Read a ticket's conversation with helpdesk_ticket.",
+      "List helpdesk tickets updated within a lookback window, newest first: id, number, subject, status, category or tags, assignee and account ids, dates and an agent link. Read-only. Filter by status names and free-text search; Pylon also filters by tags, assignee and account. since 'any' drops the window, for tickets of any age. Works over whichever helpdesk is configured (SupportCandy, Pylon). Requester names and emails are never returned. Read a ticket's conversation with helpdesk_ticket.",
     inputSchema: {
       helpdesk: HELPDESK,
       since: z

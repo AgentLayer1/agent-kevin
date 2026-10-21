@@ -37,19 +37,19 @@ describe("parseProfile", () => {
     expect(parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]"))).toEqual({ slug: "acme", statuses: ["new"] });
   });
 
-  test("refuses missing statuses, nested values, and unknown helpdesks or cadences, naming the file", () => {
+  test("refuses missing statuses and unknown helpdesks or cadences, naming the file", () => {
     expect(() => parseProfile("acme/helpdesk.md", "acme", "# no frontmatter")).toThrow("acme/helpdesk.md: no frontmatter");
     expect(() => parseProfile("acme/helpdesk.md", "acme", profile("cadence: weekly"))).toThrow("statuses must list");
-    expect(() => parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\nrouting:\n  bug: pw"))).toThrow("must be flat (routing)");
     expect(() => parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\nhelpdesk: zendesk"))).toThrow("helpdesk must be one of");
     expect(() => parseProfile("acme/helpdesk.md", "acme", profile("statuses: [new]\ncadence: hourly"))).toThrow("cadence must be one of");
   });
 });
 
 describe("lastPulse", () => {
-  test("is the newest pulse for that queue only, collision suffixes included", () => {
-    const { reports } = fixture({}, ["2026-10-05-0900-pulse-acme.md", "2026-10-19-0800-pulse-acme-2.md", "2026-10-20-0800-pulse-acme-web.md", "2026-10-21-0800-other.md"]);
-    expect(lastPulse(reports, "acme")).toBe("2026-10-19");
+  test("is the newest pulse for that queue only, never a queue whose slug extends it", () => {
+    const { reports } = fixture({}, ["2026-10-05-0900-pulse-acme.md", "2026-10-12-0900-pulse-acme.md", "2026-10-19-0800-pulse-acme-2.md", "2026-10-20-0800-pulse-acme-web.md", "2026-10-21-0800-other.md"]);
+    expect(lastPulse(reports, "acme")).toBe("2026-10-12");
+    expect(lastPulse(reports, "acme-2")).toBe("2026-10-19");
     expect(lastPulse(reports, "zeta")).toBeNull();
   });
 });

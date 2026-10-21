@@ -30,10 +30,7 @@ export const resolveConnector = (
 
 /** A filter the helpdesk can't apply is refused, never silently dropped. */
 export const assertFilters = (connector: HelpdeskConnector, query: Pick<TicketQuery, (typeof TICKET_FILTERS)[number]>): void => {
-  const missing = TICKET_FILTERS.filter((filter) => {
-    const asked = query[filter];
-    return (typeof asked === 'string' ? asked.length > 0 : (asked?.length ?? 0) > 0) && !connector.filters.has(filter);
-  });
+  const missing = TICKET_FILTERS.filter((filter) => (query[filter]?.length ?? 0) > 0 && !connector.filters.has(filter));
   if (missing.length > 0) {
     throw new Error(`${connector.name} can't filter tickets by ${missing.join(' or ')}.`);
   }

@@ -9,8 +9,8 @@ import { isoWeekOf } from "../../../mcp-server/src/tasks/horizon";
  * and tone for the model.
  */
 
-export const PROFILE_FILE = "helpdesk.md";
-export const CADENCES = ["daily", "weekly", "monthly"] as const;
+const PROFILE_FILE = "helpdesk.md";
+const CADENCES = ["daily", "weekly", "monthly"] as const;
 export type Cadence = (typeof CADENCES)[number];
 
 export interface QueueProfile {
@@ -47,12 +47,6 @@ export const parseProfile = (file: string, slug: string, raw: string): QueueProf
   if (!data) {
     throw new Error(`${file}: no frontmatter; it needs at least statuses: [<status>, …]`);
   }
-  const nested = Object.entries(data).filter(
-    ([, value]) => (typeof value === "object" && value !== null && !Array.isArray(value)) || (Array.isArray(value) && value.some((item) => typeof item === "object"))
-  );
-  if (nested.length > 0) {
-    throw new Error(`${file}: frontmatter values must be flat (${nested.map(([key]) => key).join(", ")})`);
-  }
   const { helpdesk, statuses, cadence } = data;
   if (helpdesk !== undefined && !isHelpdesk(helpdesk)) {
     throw new Error(`${file}: helpdesk must be one of ${HELPDESKS.join(", ")}`);
@@ -71,20 +65,17 @@ export const parseProfile = (file: string, slug: string, raw: string): QueueProf
   };
 };
 
-export const profileSlugs = (projectsDir: string): string[] =>
+const profileSlugs = (projectsDir: string): string[] =>
   (existsSync(projectsDir) ? readdirSync(projectsDir) : []).filter((slug) => existsSync(join(projectsDir, slug, PROFILE_FILE))).sort();
 
-export const loadProfile = (projectsDir: string, slug: string): QueueProfile => {
+const loadProfile = (projectsDir: string, slug: string): QueueProfile => {
   const file = join(projectsDir, slug, PROFILE_FILE);
   return parseProfile(file, slug, readFileSync(file, "utf8"));
 };
 
-/** The report_write slug a pulse for this queue uses; its files are the cadence watermark. */
-export const pulseSlug = (slug: string): string => `pulse-${slug}`;
-
-/** The date of the newest pulse report for a queue, from `YYYY-MM-DD-HHMM-pulse-<slug>[-N].md`. */
+/** The date of the newest pulse report for a queue: report_write names it `YYYY-MM-DD-HHMM-pulse-<slug>.md`. */
 export const lastPulse = (reportsDir: string, slug: string): string | null => {
-  const pattern = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})-\\d{4}-${pulseSlug(slug).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(-\\d+)?\\.md$`);
+  const pattern = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})-\\d{4}-pulse-${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.md$`);
   const dates = (existsSync(reportsDir) ? readdirSync(reportsDir) : [])
     .map((name) => name.match(pattern)?.[1])
     .filter((date): date is string => date !== undefined)
