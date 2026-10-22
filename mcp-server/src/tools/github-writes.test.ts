@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { childEnv } from './github';
-import { attachArgs, issueCreateArgs, issueEditArgs, prEditArgs } from './github-writes';
+import { attachArgs, issueCreateArgs, issueEditArgs, prCreateArgs, prEditArgs } from './github-writes';
 
 describe('issueCreateArgs', () => {
   test('repeats --label per label and adds the milestone when given', () => {
@@ -33,6 +33,17 @@ describe('issueEditArgs', () => {
 
   test('refuses a call that changes nothing', () => {
     expect(() => issueEditArgs({ repo: 'acme/app', number: 57 })).toThrow(/Nothing to change/);
+  });
+});
+
+describe('prCreateArgs', () => {
+  test('leaves base and draft to gh unless given', () => {
+    expect(prCreateArgs({ repo: 'acme/app', head: 'feat/export', title: 'Export to CSV', body: 'Why' })).toEqual([
+      'pr', 'create', '-R', 'acme/app', '--head', 'feat/export', '--title', 'Export to CSV', '--body', 'Why'
+    ]);
+    expect(prCreateArgs({ repo: 'acme/app', head: 'feat/export', base: 'dev', title: 'Export to CSV', body: 'Why', draft: true })).toEqual([
+      'pr', 'create', '-R', 'acme/app', '--head', 'feat/export', '--title', 'Export to CSV', '--body', 'Why', '--base', 'dev', '--draft'
+    ]);
   });
 });
 

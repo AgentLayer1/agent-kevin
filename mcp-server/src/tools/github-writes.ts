@@ -1,6 +1,6 @@
 /**
  * GitHub writes: open an issue, comment on one, change its labels or milestone (with
- * screenshots or videos attached), and change a pull request's title or description.
+ * screenshots or videos attached), open a pull request, and change its title or description.
  * Nothing closes, merges, or edits someone else's comment.
  *
  * They run on the repo owner's token, the same one the read tools use, so its permissions
@@ -77,6 +77,30 @@ export const issueEditArgs = ({ repo, number, title, body, addLabels, removeLabe
   }
   return ['issue', 'edit', String(number), '-R', repo, ...changes];
 };
+
+interface PrCreate {
+  repo: string;
+  head: string;
+  base?: string;
+  title: string;
+  body: string;
+  draft?: boolean;
+}
+
+export const prCreateArgs = ({ repo, head, base, title, body, draft }: PrCreate): string[] => [
+  'pr',
+  'create',
+  '-R',
+  repo,
+  '--head',
+  head,
+  '--title',
+  title,
+  '--body',
+  body,
+  ...(base ? ['--base', base] : []),
+  ...(draft ? ['--draft'] : [])
+];
 
 interface PrUpdate {
   repo: string;
@@ -162,6 +186,25 @@ export const tools: ToolDef[] = [
       const args = issueEditArgs({ repo: target, number, title, body, addLabels: add_labels, removeLabels: remove_labels, milestone });
       const url = (await runGh(target, args)).trim();
       return { ok: true, repo: target, number, url };
+    }
+  }),
+  defineTool({
+    name: 'github_pr_create',
+    description:
+      "Open a pull request from a branch already pushed (writes to GitHub, visible to everyone with repo access). Only for a branch the operator asked to open a PR from: show them the title and description first. Returns the new PR URL.",
+    inputSchema: {
+      ...repoField,
+      head: z.string().min(1).describe('The pushed branch to merge from.'),
+      base: z.string().min(1).optional().describe("The branch to merge into. Defaults to the repo's default branch."),
+      title: z.string().min(1),
+      body: z.string().min(1).describe('Markdown description.'),
+      draft: z.boolean().optional().describe('Open it as a draft.')
+    },
+    askOnly: true,
+    handler: async ({ repo, head, base, title, body, draft }) => {
+      const target = await resolveRepo(repo);
+      const url = (await runGh(target, prCreateArgs({ repo: target, head, base, title, body, draft }))).trim();
+      return { ok: true, repo: target, url };
     }
   }),
   defineTool({

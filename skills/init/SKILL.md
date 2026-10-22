@@ -975,6 +975,7 @@ Baseline `permissions.ask` — **always written** (unioned with whatever the ope
   "Bash(gh pr merge *)",
   "Bash(gh release create *)",
   "mcp__plugin_agent-kevin_kevin__curl_run",
+  "mcp__plugin_agent-kevin_kevin__github_pr_create",
   "mcp__plugin_agent-kevin_kevin__seed_import"
 ]
 ```
@@ -984,6 +985,8 @@ Baseline `permissions.ask` — **always written** (unioned with whatever the ope
 The list is deliberately short. Every entry is an action that publishes something outside the machine; volume is what trains operators to blind-click, so resist growing it. Force-push and `reset --hard` stay in `deny` rather than `ask` — those are unrecoverable, and `deny` is the only tier nothing overrides.
 
 `curl_run` is the one sanctioned execution path in the `api-collections` skill and is deliberately never granted into `permissions.allow` by any pack walk, precisely so it always prompts. The `ask` entry is what keeps that promise once auto mode is deciding — without it, the classifier can approve an outbound request on its own.
+
+`github_pr_create` follows the same rule: no pack walk grants it, so opening a pull request always waits for the operator. It also takes over from `Bash(gh pr create *)`, which never fires in a home with the GitHub pack, since the pack denies `gh` in the shell; the Bash entry stays for homes without the pack.
 
 `seed_import` is the one entry that doesn't publish anything — it's here because it overwrites identity files (SOUL.md, IDENTITY.md) and merges permission grants and MCP server registrations into this home from a foreign bundle. A confirm per call is the right cost for that; its read-only siblings `seed_scan`/`seed_export` stay in `allow`.
 

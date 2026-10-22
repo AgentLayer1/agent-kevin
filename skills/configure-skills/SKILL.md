@@ -269,7 +269,7 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin GitHub access through fifteen MCP tools. Reads: list and view PRs and issues, review threads, diffs, and failing GitHub Actions runs with their failed-step logs. `github_fast_forward` fast-forwards the operator's local checkouts during sync, strictly forward-only, reporting rather than resolving anything dirty, diverged, or held by a worktree. Writes: open, edit, comment on and label issues (with screenshots or videos), and replace a PR's title or description. The `engineer` skill's PR playbooks and the `adversarial-review` skill run on these tools. Nothing merges, closes, re-runs a workflow, or edits someone else's comment. The walk grants every tool; the token decides what a write may do, and a call the token isn't allowed gets a message naming the permission to add.
+Gives Kevin GitHub access through sixteen MCP tools. Reads: list and view PRs and issues, review threads, diffs, and failing GitHub Actions runs with their failed-step logs. `github_fast_forward` fast-forwards the operator's local checkouts during sync, strictly forward-only, reporting rather than resolving anything dirty, diverged, or held by a worktree. Writes: open, edit, comment on and label issues (with screenshots or videos), open a PR from a pushed branch, and replace a PR's title or description. The `engineer` skill's PR playbooks and the `adversarial-review` skill run on these tools. Nothing merges, closes, re-runs a workflow, or edits someone else's comment. The walk grants every tool except `github_pr_create`, which always asks; the token decides what a write may do, and a call the token isn't allowed gets a message naming the permission to add.
 
 **Why tokens, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail), and a fine-grained token reaches the repos of **one** owner (an org or a user) only, while a `gh` login holds one active account at a time. So the tokens live in `.state/secrets/.env`, one per owner, and every tool picks the one for the repo it is called on:
 
@@ -281,7 +281,7 @@ Each is a **secret**, so it follows the same editor-fill rule as every other cre
 
 > **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.state/secrets/.env` exists, and surfaces one `GITHUB_TOKEN_<OWNER>=` line per owner + minting steps. The user fills the values in their editor.
 
-**(1) Grant the GitHub tool permissions.** Add all fifteen to `permissions.allow` via §E:
+**(1) Grant the GitHub tool permissions.** Add these fifteen to `permissions.allow` via §E (not `github_pr_create`, which init lists in `permissions.ask`):
 
 - `mcp__plugin_agent-kevin_kevin__github_fast_forward`
 - `mcp__plugin_agent-kevin_kevin__github_pr_list`
@@ -310,7 +310,7 @@ The tools are the capability surface: each exposes what the pack chose to expose
 **(2) Surface the PAT minting steps.** `AskUserQuestion`:
 
 > **Activate GitHub?**
-> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Writes (issues, a PR's title and description) work only where your token allows them. Denies `gh` in Kevin's own shell, so GitHub goes through these tools. Ensures `.state/secrets/.env` exists. You add one token line per repo owner via your editor after this completes. Until you do, the tools use your own `gh auth login` if you have one, and `github_fast_forward` reports the repo as not configured.
+> Grants the `github_pr_*` / `github_issue_*` / `github_run_*` tool permissions, plus `github_fast_forward` — which fast-forwards your local checkouts' default branches during `/agent-kevin:sync` (forward-only; never resolves a dirty, diverged, or worktree-held branch). Writes (issues, a PR's title and description) work only where your token allows them. Opening a PR asks you every time. Denies `gh` in Kevin's own shell, so GitHub goes through these tools. Ensures `.state/secrets/.env` exists. You add one token line per repo owner via your editor after this completes. Until you do, the tools use your own `gh auth login` if you have one, and `github_fast_forward` reports the repo as not configured.
 >
 > - Yes — grant permissions + ensure placeholder
 > - Skip (no permission grant, no placeholder)
@@ -371,6 +371,7 @@ Tool permissions granted:  github_pr_list, github_pr_view, github_pr_comments, g
                            github_pr_checks, github_run_list, github_run_view, github_run_log,
                            github_issue_list, github_issue_view, github_fast_forward,
                            github_issue_create, github_issue_comment, github_issue_update, github_pr_update
+Asks every time:           github_pr_create  (from init's permissions.ask)
 Denied:                    Bash(gh), Bash(gh *)  (GitHub goes through the tools)
 Secret lines to add:       GITHUB_TOKEN_<OWNER> per owner, e.g. GITHUB_TOKEN_MY_ORG  (add to .state/secrets/.env)
                            GITHUB_TOKEN  optional, for any owner without its own line

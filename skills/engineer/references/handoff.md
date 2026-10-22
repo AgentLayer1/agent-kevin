@@ -20,7 +20,9 @@ The description is a briefing a reviewer reads in under a minute. It often becom
 
 Attach screenshots or video when they prove a claim. Leave out SHA lists, file-by-file essays, raw logs, "Summary" and "Test plan" boilerplate, and self-graded verdicts. Link to an artifact instead.
 
-Write it the way a person writes to a colleague: [technical writing](technical-writing.md) for the sentences, and the humanizer skill's patterns for the tells. The operator pastes it, so it should need no edits.
+Write it the way a person writes to a colleague: [technical writing](technical-writing.md) for the sentences, and the humanizer skill's patterns for the tells. It should need no edits.
+
+When the operator asks for the PR once the branch is pushed, open it with `github_pr_create`: show the title and description in chat first, then call it with the branch as `head`. The call always stops for the operator's approval. A token without Pull requests write gets an error naming it; then hand over the compare link (`https://github.com/<owner>/<repo>/pull/new/<branch>`) instead.
 
 ---
 
