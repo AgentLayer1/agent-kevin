@@ -41,8 +41,8 @@ export const PHASES: readonly Phase[] = [
     reports: [{ category: 'briefings', skill: 'flywheel' }]
   }),
   phase('attention', {
-    tools: ['task_scan', 'helpdesk_connections', 'helpdesk_stats'],
-    scripts: ['cadence.ts', 'brain-audit.ts']
+    tools: ['task_scan', 'helpdesk_connections', 'helpdesk_stats', 'appstore_reviews'],
+    scripts: ['cadence.ts', 'review-reads.ts', 'brain-audit.ts']
   }),
   phase('briefing', {
     tools: ['focus_write', 'web_search', 'WebSearch'],

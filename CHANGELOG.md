@@ -47,6 +47,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Added
 - **`/helpdesk reviews [slug]` turns App Store bug reports into one card each.** It reads the reviews since the last complete read at every rating (a 5★ review can report a bug), clusters them by break, and gathers each bug's open and closed cards, tickets (`helpdesk_tickets` search), older reviews and planned tasks. Then it offers a card that carries them all, or a comment on the card already open. The pulse sends its review patterns through the same steps.
+- **Sync counts App Store reviews.** Each queue profile with an App Store app gets a `Reviews, last 24h` line with every star bucket under its ticket counts. New reviews since the last read offer `/helpdesk reviews <slug>`. Both reads pass `limit: 0`, which `appstore_reviews` now accepts: counts and coverage only, no review text.
 
 ### Fixed
 - **A reviews read is incomplete when Apple's feed drops a storefront that has reviews.** The feed sometimes returns an empty first page for a storefront it served minutes earlier. `appstore_reviews` used to call such a read `complete` whenever any other storefront answered, so a pulse or reviews run could record its `reviews_through` past reviews it never saw. A storefront with reviews seen before that comes back blank now leaves the read incomplete and is named in the warnings.
