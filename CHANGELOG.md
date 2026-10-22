@@ -43,17 +43,18 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.8.5] - 2026-10-22
 
 ### Changed
 - **Helpdesk raises a ticket as a bug, a feature or a task.** `/agent-kevin:helpdesk raise <id>` (or "raise 318") proposes the kind with a one-line reason, then files it wherever the queue profile sends that kind: a task of the matching type (`bug`, `idea`, `task`) or a GitHub card, after the same duplicate check and with the ticket in the title, so the pulse still drafts the reply when it closes. `/agent-kevin:helpdesk bug <id>` stays as the shortcut for a bug. A profile's `## Filing bugs` section is now `## Raising`, with a destination per kind; a kind it doesn't name goes where bugs go, and one it sends nowhere is never raised. The pulse lists the tickets to raise with their kind.
+- **`database_query` checks a secret column with aggregates only.** The tool's description now says a key, token or password column is checked with `count`, a null-count filter or `min(length(…))`, never selected, grouped by or cut with `substring`, so its values never reach the transcript.
 
 ### Fixed
 - **SupportCandy status reads reach old tickets.** A ticket list filtered by status read only the 1,000 most recently updated tickets across every status, so older open tickets never reached the pulse, a profile's routines or the queue counts. The list now reads 500 tickets a page, so the same 20 requests reach 10,000.
 
 ### Upgrade
 - `template/AGENTS.md: mandatory` — Platform's scratch-files paragraph is shorter, says nothing may follow the X's in a `mktemp` template (macOS keeps a suffix literal), and keeps the printed path in a variable inside the same command that uses it. Workflow's verify-before-claim line says a claim about this machine's state is checked in the same turn as the claim.
-- `template/rules/xcode.md: optional` — Ground rules gain "Set the run destination after every scheme switch"; an operator's edited copy is diffed first.
+- `manual: optional` — Xcode pack homes only: `.claude/rules/xcode.md` gains the Ground rules bullet "Set the run destination after every scheme switch" after "Compiles is not verified". Add it by hand; homes without the pack skip this.
 - `manual: optional` — in a home with a queue profile (`projects/<slug>/helpdesk.md`), rename its `## Filing bugs` section to `## Raising`, and say there where feature requests and tasks go when they shouldn't follow bugs. The skill no longer reads the old heading.
 
 ## [0.8.4] - 2026-10-21
