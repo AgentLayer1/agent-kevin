@@ -17,7 +17,7 @@ Ask in plain words, or name the playbook: `/engineer <playbook> <target>`. It re
 |---|---|---|
 | "the export writes two rows after a retry" | **bug fix** | Reproduced first, root cause found, a failing test before the fix when cheap |
 | "add CSV export to reports" | **feature** | The data shape named first, then the real feature path proven |
-| `/engineer simplify src/billing` | **simplify** | An audit against eight criteria, findings ranked, nothing changed until you pick |
+| `/engineer simplify` | **simplify** | This session's changes (or a named target) audited, built, tested and caller-checked; clear fixes applied, judgment calls held for you |
 | "refactor the parser into stages" | **refactoring** | Behavior pinned first, removals before reshapes, equivalence proven |
 | "try both layouts and show me" | **prototype** | A throwaway behind one switch, then a recommendation |
 

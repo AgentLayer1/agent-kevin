@@ -57,7 +57,7 @@ The working method for code: a playbook per kind of task, principles the playboo
 | Why is X like this; where did this number come from | [why](references/playbooks/why.md) |
 | A defect to reproduce, root-cause, and fix | [bug fix](references/playbooks/bug-fix.md) |
 | New or changed behavior | [feature](references/playbooks/feature.md) |
-| Simplify, clean up, "is this over-engineered?", `/engineer simplify <target>` | [simplify](references/playbooks/simplify.md) |
+| Simplify, clean up, double-check, "simplify and review", "review the changes", "is this over-engineered?", `/engineer simplify [target]` (no target: this session's changes) | [simplify](references/playbooks/simplify.md) |
 | Same behavior, better structure: a refactor or reshape | [refactoring](references/playbooks/refactoring.md) |
 | A measured slowness | [performance](references/playbooks/perf.md) |
 | Push one metric toward a target | [hillclimb](references/playbooks/hillclimb.md) |
