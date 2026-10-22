@@ -48,13 +48,15 @@ const newestFirst = (left: AppStoreReview, right: AppStoreReview): number => Dat
 /**
  * One read's reviews and coverage, made safe to report. A storefront with no reviews looks the
  * same as a blank feed, so only a read where nothing at all came back is called a blank feed, and
- * then no count is given: blank is never zero.
+ * then no count is given: blank is never zero. The feed always serves a storefront's latest reviews,
+ * so one in `reviewed` (reviews seen there before) that comes back blank is the feed failing.
  */
-export const summarize = (batch: ReviewBatch, filters: ReviewFilters, named: boolean): ReviewSummary => {
+export const summarize = (batch: ReviewBatch, filters: ReviewFilters, named: boolean, reviewed: ReadonlySet<string> = new Set()): ReviewSummary => {
   const ok = batch.coverage.filter((entry) => entry.state === 'ok');
   const blank = batch.coverage.filter((entry) => entry.state === 'blank').map((entry) => entry.storefront);
   const errors = batch.coverage.flatMap((entry) => (entry.state === 'error' ? [{ storefront: entry.storefront, error: entry.error ?? 'failed' }] : []));
   const capped = ok.filter((entry) => entry.stop === 'cap').map((entry) => entry.storefront);
+  const missed = blank.filter((storefront) => reviewed.has(storefront));
   const coverage: CoverageSummary = {
     read: batch.coverage.length,
     with_reviews: Object.fromEntries(ok.filter((entry) => entry.reviews > 0).map((entry) => [entry.storefront, entry.reviews])),
@@ -67,9 +69,12 @@ export const summarize = (batch: ReviewBatch, filters: ReviewFilters, named: boo
       ? [`Apple's review feed came back empty for every storefront read (${batch.coverage.length}). It does this now and then; this is not zero reviews. Try again later.`]
       : []),
     ...(errors.length > 0 ? [`Not read: ${errors.map((entry) => `${entry.storefront} (${entry.error})`).join(', ')}.`] : []),
-    ...(capped.length > 0 ? [`${capped.join(', ')} reached the most recent reviews the source keeps before the window began; older reviews there aren't covered.`] : [])
+    ...(capped.length > 0 ? [`${capped.join(', ')} reached the most recent reviews the source keeps before the window began; older reviews there aren't covered.`] : []),
+    ...(ok.length > 0 && missed.length > 0
+      ? [`${missed.join(', ')} came back empty though reviews were seen there before: Apple's feed does this now and then. Their reviews aren't in this read; try again later.`]
+      : [])
   ];
-  const complete = ok.length > 0 && errors.length === 0;
+  const complete = ok.length > 0 && errors.length === 0 && missed.length === 0;
   if (ok.length === 0) {
     return { complete, coverage, warnings };
   }

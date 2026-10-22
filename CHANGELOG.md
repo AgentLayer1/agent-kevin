@@ -45,6 +45,9 @@ and prompts per optional one. The new template files are the source of truth for
 
 ## [Unreleased]
 
+### Fixed
+- **A reviews read is incomplete when Apple's feed drops a storefront that has reviews.** The feed sometimes returns an empty first page for a storefront it served minutes earlier. `appstore_reviews` used to call such a read `complete` whenever any other storefront answered, so a pulse or reviews run could record its `reviews_through` past reviews it never saw. A storefront with reviews seen before that comes back blank now leaves the read incomplete and is named in the warnings.
+
 ### Changed
 - **The Xcode pack grants `DocumentationSearch` by name.** `/agent-kevin:configure-skills` adds `mcp__xcode__DocumentationSearch` to `permissions.allow` beside `mcp__xcode__*`, so Apple's documentation lookup keeps its grant if the glob is narrowed, and deconfigure revokes both.
 

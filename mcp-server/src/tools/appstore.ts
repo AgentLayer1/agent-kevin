@@ -58,7 +58,8 @@ export const readReviews = async (args: ReviewsArgs, source: ReviewSource, now: 
   const plan = choosePlan(args.storefronts, stats, now);
   const batch = await source.reviews({ app, storefronts: plan.storefronts, cutoff });
   writeStats(app, updateStats(stats, batch.coverage, batch.reviews, { full: plan.read === 'every storefront', now }));
-  const summary = summarize(batch, { minRating: args.min_rating, maxRating: args.max_rating, limit: args.limit ?? 100 }, plan.read === 'named');
+  const reviewed = new Set(Object.entries(stats?.storefronts ?? {}).flatMap(([storefront, seen]) => (seen.reviews > 0 ? [storefront] : [])));
+  const summary = summarize(batch, { minRating: args.min_rating, maxRating: args.max_rating, limit: args.limit ?? 100 }, plan.read === 'named', reviewed);
   log.info(`appstore ${app} source=${source.name} storefronts=${plan.storefronts.length} reviews=${summary.total ?? 'none read'}`);
   const read = {
     read: plan.read,

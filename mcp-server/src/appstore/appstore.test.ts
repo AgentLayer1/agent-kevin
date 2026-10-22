@@ -183,6 +183,15 @@ describe('summarize', () => {
     expect(summarize(batch, { limit: 100 }, true).coverage.blank).toEqual(['gb', 'ca']);
   });
 
+  test('a storefront known to have reviews that comes back blank leaves the read incomplete, named', () => {
+    const batch = { reviews: [review('a', 5, '2026-10-02T00:00:00Z', 'sa')], coverage: [covered('us', 'blank'), covered('sa', 'ok', 1), covered('gb', 'blank')] };
+    const summary = summarize(batch, { limit: 100 }, false, new Set(['us', 'sa']));
+    expect(summary.complete).toBe(false);
+    expect(summary.total).toBe(1);
+    expect(summary.warnings.join(' ')).toMatch(/^us came back empty/);
+    expect(summarize(batch, { limit: 100 }, false, new Set(['sa'])).complete).toBe(true);
+  });
+
   test('errors and caps are always named', () => {
     const batch = { reviews: [], coverage: [covered('us', 'ok', 500, { stop: 'cap' }), covered('gb', 'error', 0, { error: 'HTTP 503' })] };
     const summary = summarize(batch, { limit: 100 }, false);
