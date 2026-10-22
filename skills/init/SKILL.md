@@ -987,6 +987,8 @@ The list is deliberately short. Every entry is an action that publishes somethin
 
 `seed_import` is the one entry that doesn't publish anything — it's here because it overwrites identity files (SOUL.md, IDENTITY.md) and merges permission grants and MCP server registrations into this home from a foreign bundle. A confirm per call is the right cost for that; its read-only siblings `seed_scan`/`seed_export` stay in `allow`.
 
+The MCP entries above are also marked ask-only in the plugin: the server refuses a call while the tool is missing from `permissions.ask` (a home that hasn't run the upgrade that added it, or one that removed it), since auto mode would approve it unseen. A Codex home gets the same entries as `approval_mode = "prompt"` on each tool in `.codex/config.toml`.
+
 **Auto mode cannot be configured from here.** `permissions.defaultMode: "auto"` and the whole `autoMode` block are **ignored** in `.claude/settings.json` and `.claude/settings.local.json` (since v2.1.142 and v2.1.207 respectively) — both files live in a repo, so a checked-in settings file could otherwise inject its own classifier allow rules. They only take effect from `~/.claude/settings.json` or managed settings. Init must **not** write either key, and must not touch the operator's user-global settings to set them: auto mode is already the built-in default for the plans that support it, and a global write would reach every project on their machine, not just this home.
 
 ### Offer the auto-mode knowledge-base exception (print only, never write)

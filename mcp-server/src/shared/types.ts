@@ -200,6 +200,11 @@ export interface ToolDef<Shape extends z.ZodRawShape = z.ZodRawShape> {
   inputSchema: Shape;
   /** MCP `_meta` published with the tool; `anthropic/maxResultSizeChars` lifts Claude Code's per-result cap. */
   meta?: Record<string, unknown>;
+  /**
+   * Runs only behind an approval prompt: the server refuses the call while the home's
+   * `permissions.ask` lacks the tool, since auto mode would otherwise approve it unseen.
+   */
+  askOnly?: true;
   handler: (args: z.infer<z.ZodObject<Shape>>) => Promise<unknown>;
 }
 

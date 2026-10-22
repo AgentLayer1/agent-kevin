@@ -585,6 +585,33 @@ describe('codex-setup pack servers', () => {
     expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
   });
 
+  test("prompts for every MCP tool permissions.ask names, keeps the operator's own approvals, and is idempotent", () => {
+    const home = scratch();
+    registerMcp(home, { xcode });
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(
+      join(home, '.claude', 'settings.json'),
+      JSON.stringify({
+        permissions: {
+          ask: [`mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__curl_run`, 'mcp__xcode__InvokeDebuggerCommand', 'mcp__xcode__*']
+        }
+      })
+    );
+    seed(
+      home,
+      'config.toml',
+      `[mcp_servers.${AGENT_SLUG}.tools.task_query]\napproval_mode = "approve"\n\n[mcp_servers.${AGENT_SLUG}.tools.curl_run]\napproval_mode = "approve"\noutput_token_limit = 4000\n`
+    );
+    const { json } = run('--home', home, '--plugin-root', PLUGIN, '--write');
+    const config = Bun.TOML.parse(readFileSync(json.mcp.path, 'utf-8')) as Record<string, any>;
+    expect(config.mcp_servers[AGENT_SLUG].tools).toEqual({
+      task_query: { approval_mode: 'approve' },
+      curl_run: { approval_mode: 'prompt', output_token_limit: 4000 }
+    });
+    expect(config.mcp_servers.xcode.tools).toEqual({ InvokeDebuggerCommand: { approval_mode: 'prompt' } });
+    expect(run('--home', home, '--plugin-root', PLUGIN, '--write').json.mcp.changed).toBe(false);
+  });
+
   test("mirrors a home's own server once Claude approved it, never a disabled one, and is idempotent", () => {
     const home = scratch();
     const logs = { command: 'sh', args: ['-c', 'exec acme-logs'], env: { ACME_REGION: 'eu' } };

@@ -123,6 +123,7 @@ export const tools: ToolDef[] = [
         ),
       timeoutSeconds: z.number().int().min(1).max(300).default(30).describe('curl --max-time, default 30')
     },
+    askOnly: true,
     handler: async ({ args, envFile, timeoutSeconds }) => {
       const blocked = findBlockedFlag(args);
       if (blocked) {

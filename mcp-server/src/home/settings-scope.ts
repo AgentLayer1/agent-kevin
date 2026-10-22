@@ -31,6 +31,10 @@ export const readMergedSettings = (home: string): { shared: Json; merged: Json }
   return { shared, merged: mergeSettings(shared, local) };
 };
 
+/** Whether `rule` is in `permissions.ask`, so Claude Code stops for the operator before the call it names. */
+export const asks = (settings: Json, rule: string): boolean =>
+  isObject(settings.permissions) && Array.isArray(settings.permissions.ask) && settings.permissions.ask.includes(rule);
+
 /** Keys Claude Code replaces whole rather than merging: the status line, and one marketplace's entry. */
 const replacedWhole = (key: string, parent: string | undefined): boolean =>
   key === 'statusLine' || parent === 'extraKnownMarketplaces';

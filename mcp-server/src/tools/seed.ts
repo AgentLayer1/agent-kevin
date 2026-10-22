@@ -85,6 +85,7 @@ export const tools: ToolDef[] = [
         .optional()
         .describe('Report the full plan (writes, conflicts, merges) without touching anything.')
     },
+    askOnly: true,
     handler: async (args) => importSeed(args)
   })
 ];

@@ -12,7 +12,7 @@
  * files. The posture is read from the home's Claude settings so the two hosts never
  * drift: the runtime secrets store is denied, the code path and additional directories
  * become workspace roots with `.git` writable, and every `permissions.ask` shell pattern
- * becomes a rule that prompts. An MCP server a pack registered in the home's `.mcp.json`
+ * becomes a rule that prompts, as does every MCP tool it names, through that tool's `approval_mode`. An MCP server a pack registered in the home's `.mcp.json`
  * (the Xcode pack's `xcode`), or one Claude has approved there, is mirrored into its own
  * `[mcp_servers.<name>]` table, owned the same way, so a server set up before Codex was
  * wired still reaches it and a deconfigured pack's leaves. The config also carries the
@@ -401,6 +401,28 @@ const keptEntries = (path: string[], own: string[]): string[] =>
     .filter(([key]) => !own.includes(key))
     .map(([key, value]) => tomlScalar(key, value));
 
+/**
+ * A server's per-tool tables: the operator's own kept (Codex writes `approve` there for "Always allow"),
+ * and every tool `permissions.ask` names set to prompt, since Claude Code's ask beats its allow too.
+ */
+const toolTables = (server: string, rulePrefix: string): string[] => {
+  const asked = settingList('ask')
+    .filter((rule) => rule.startsWith(rulePrefix))
+    .map((rule) => rule.slice(rulePrefix.length))
+    .filter((tool) => /^[A-Za-z0-9_-]+$/.test(tool));
+  const existing = lookup(existingTables, ['mcp_servers', server, 'tools']);
+  const own = isRecord(existing) ? existing : {};
+  return [...new Set([...Object.keys(own), ...asked])].flatMap((tool) => {
+    const kept = isRecord(own[tool]) ? own[tool] : {};
+    const entries = asked.includes(tool) ? { ...kept, approval_mode: 'prompt' } : kept;
+    return [
+      `[mcp_servers.${server}.tools.${/^[A-Za-z0-9_-]+$/.test(tool) ? tool : tomlString(tool)}]`,
+      ...Object.entries(entries).map(([key, value]) => tomlScalar(key, value)),
+      ''
+    ];
+  });
+};
+
 /** The agent's own env for the model's shell: `AGENT_HOME` plus the home's `AGENT_*` settings, never a credential. */
 const shellEnv: Record<string, string> = {
   ...Object.fromEntries(
@@ -436,9 +458,10 @@ const serverTables = Object.entries(mirroredServers).flatMap(([name, server]) =>
     `[mcp_servers.${name}]`,
     `command = ${tomlString(server.command)}`,
     `args = [${server.args.map(tomlString).join(', ')}]`,
-    ...keptEntries(['mcp_servers', name], ['command', 'args', 'env']),
+    ...keptEntries(['mcp_servers', name], ['command', 'args', 'env', 'tools']),
     ...(envLines.length > 0 ? ['', `[mcp_servers.${name}.env]`, ...envLines] : []),
-    ''
+    '',
+    ...toolTables(name, `mcp__${name}__`)
   ];
 });
 
@@ -446,13 +469,14 @@ const agentTables = [
   `[mcp_servers.${agent}]`,
   'command = "bun"',
   `args = [${tomlString(resolve(pluginRoot, 'mcp-server', 'src', 'server.ts'))}]`,
-  ...keptEntries(['mcp_servers', agent], ['command', 'args', 'env']),
+  ...keptEntries(['mcp_servers', agent], ['command', 'args', 'env', 'tools']),
   '',
   `[mcp_servers.${agent}.env]`,
   `AGENT_HOME = ${tomlString(homeDir)}`,
   'PLAYWRIGHT_BROWSERS_PATH = "0"',
   ...keptEntries(['mcp_servers', agent, 'env'], ['AGENT_HOME', `${legacyPrefix}HOME`, 'PLAYWRIGHT_BROWSERS_PATH']),
   '',
+  ...toolTables(agent, `mcp__plugin_${pluginName}_${agent}__`),
   ...serverTables,
   // The posture: write the home and its repos, commit in them, reach the network, never read the
   // secrets store. An approved escalation does not lift a profile (verified on 0.153), so every

@@ -9,7 +9,8 @@
  * plugins must not touch disk.
  */
 import '@/bootstrap';
-import { AGENT_SLUG, FILES, FOLDERS, isInitialized, PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, FILES, FOLDERS, isInitialized, MCP_PREFIX, PLUGIN_NAME } from '@/config';
+import { asks, readMergedSettings } from '@/home/settings-scope';
 import { log } from '@/shared/log';
 import { RUNTIME_DIR } from '@/shared/naming';
 import { existsSync } from 'node:fs';
@@ -77,6 +78,12 @@ for (const tool of TOOLS) {
             ],
             isError: true
           };
+        }
+        const rule = `${MCP_PREFIX}${tool.name}`;
+        if (tool.askOnly && !asks(readMergedSettings(FOLDERS.HOME).merged, rule)) {
+          throw new Error(
+            `${tool.name} runs only behind an approval prompt, and this home's settings don't have one. Run /${PLUGIN_NAME}:upgrade (it adds "${rule}" to permissions.ask in .claude/settings.json), then try again.`
+          );
         }
         const result = await tool.handler(args);
         return {

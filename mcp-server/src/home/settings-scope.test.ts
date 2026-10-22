@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mergeSettings } from '@/home/settings-scope';
+import { asks, mergeSettings } from '@/home/settings-scope';
 
 describe('mergeSettings', () => {
   test('combines lists, lets a local scalar win, and replaces the status line and a marketplace entry whole', () => {
@@ -23,5 +23,13 @@ describe('mergeSettings', () => {
       statusLine: { type: 'command', command: 'y' },
       extraKnownMarketplaces: { dev: { source: { source: 'directory', path: '/p' } } }
     });
+  });
+});
+
+describe('asks', () => {
+  test('holds only for a rule in permissions.ask', () => {
+    expect(asks({ permissions: { ask: ['Bash(git push *)', 'mcp__acme__send'] } }, 'mcp__acme__send')).toBe(true);
+    expect(asks({ permissions: { allow: ['mcp__acme__send'], ask: [] } }, 'mcp__acme__send')).toBe(false);
+    expect(asks({}, 'mcp__acme__send')).toBe(false);
   });
 });
