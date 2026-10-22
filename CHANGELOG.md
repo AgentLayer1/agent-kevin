@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Changed
+- **Helpdesk raises a ticket as a bug, a feature or a task.** `/agent-kevin:helpdesk raise <id>` (or "raise 318") proposes the kind with a one-line reason, then files it wherever the queue profile sends that kind: a task of the matching type (`bug`, `idea`, `task`) or a GitHub card, after the same duplicate check and with the ticket in the title, so the pulse still drafts the reply when it closes. `/agent-kevin:helpdesk bug <id>` stays as the shortcut for a bug. A profile's `## Filing bugs` section is now `## Raising`, with a destination per kind; a kind it doesn't name goes where bugs go, and one it sends nowhere is never raised. The pulse lists the tickets to raise with their kind.
+
+### Upgrade
+- `manual: optional` — in a home with a queue profile (`projects/<slug>/helpdesk.md`), rename its `## Filing bugs` section to `## Raising`, and say there where feature requests and tasks go when they shouldn't follow bugs. The skill no longer reads the old heading.
+
 ## [0.8.4] - 2026-10-21
 
 ### Added

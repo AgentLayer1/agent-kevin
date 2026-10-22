@@ -58,6 +58,7 @@ describe("parseProfile", () => {
     expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [usa]")).toThrow("App Store storefront codes");
     expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [xx]")).toThrow("App Store storefront codes");
     expect(bad("statuses: [new]", "## Workflow: ticket\n")).toThrow('"## Workflow: ticket" needs a name');
+    expect(bad("statuses: [new]", "## Workflow: raise\n")).toThrow('"## Workflow: raise" needs a name');
     expect(bad("statuses: [new]", "## Workflow: pulse\n")).toThrow('"## Workflow: pulse" needs a name');
     expect(bad("statuses: [new]\nstorefronts: [us]")).toThrow("storefronts needs appstore");
   });

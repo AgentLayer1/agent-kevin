@@ -15,7 +15,7 @@ const PROFILE_FILE = "helpdesk.md";
 const CADENCES = ["daily", "weekly", "monthly"] as const;
 export type Cadence = (typeof CADENCES)[number];
 /** Playbook names a profile workflow can't take; `pulse` is scheduled by name and extended in place. */
-const BUILT_INS = ["ticket", "account", "draft", "bug", "setup", "help", "workflow", "stats"];
+const BUILT_INS = ["ticket", "account", "draft", "raise", "bug", "setup", "help", "workflow", "stats"];
 /** No hyphens, so `<routine>-<slug>` in a report name reads one way only. */
 const ROUTINE_RE = /^[a-z][a-z0-9]*$/;
 

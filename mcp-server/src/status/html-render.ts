@@ -1275,7 +1275,7 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   {
     when: 'Support queue',
     say: `/${plugin}:helpdesk pulse`,
-    what: 'Open tickets ranked, patterns across them and bug candidates, saved to reports/helpdesk/; replies are drafted as private notes, never sent.'
+    what: 'Open tickets ranked, patterns across them and tickets to raise, saved to reports/helpdesk/; replies are drafted as private notes, never sent.'
   },
   { when: 'Grab a page', say: '“screenshot https://…”', what: 'Headless-browser PNG into reports/captures/.' },
   {

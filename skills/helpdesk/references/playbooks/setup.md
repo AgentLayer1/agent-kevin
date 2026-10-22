@@ -23,8 +23,8 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
    - who reads it, and what the summary must say.
 
    Then ask whether this adds to the default or replaces it.
-3. **Bugs.**
-   - Where they go: nowhere, a task in a project here, or a card on a GitHub repo, and which labels it carries. For cards, the lifecycle's state labels must already exist on the repo (cards can only carry existing labels): name the ones to create there.
+3. **Raising.**
+   - Where each kind goes (a bug, a feature request, a task): nowhere, a task in a project here, or a card on a GitHub repo, and which labels it carries. A kind left unsaid goes where bugs go. For cards, the lifecycle's state labels must already exist on the repo (cards can only carry existing labels): name the ones to create there.
    - The lifecycle: show the [default table](../lifecycle.md) and ask what to rename, add or change about support's part.
    - What a card must carry and must never carry, and how duplicates are handled.
 4. **Replies.**
@@ -65,9 +65,9 @@ appstore: 1234567890
 
 <the whole default table from lifecycle.md with the operator's changes, since this table replaces it>
 
-## Filing bugs
+## Raising
 
-<where a bug goes (a task in a project here, or a card on <owner>/<repo>), its labels, what a card carries and never carries>
+<where a bug, a feature request and a task each go (nowhere, a task in a project here, or a card on <owner>/<repo>), their labels, what a card carries and never carries>
 
 ## Tone
 
@@ -94,7 +94,7 @@ Sync's nudge `Fix the helpdesk profile: <file>: <problem>` names what failed. Re
 - `statuses` must be a list of names.
 - `helpdesk` must be one of the helpdesks, and `connection` a connection's name or left out.
 - Every `schedule` entry must be `<routine>:<daily|weekly|monthly>`, where the routine is `pulse` or has its own `## Workflow:` section.
-- Every `## Workflow: <name>` needs a name of letters and digits that isn't `pulse` or one of the skill's playbooks (`ticket`, `account`, `draft`, `bug`, `setup`, `help`, `workflow`).
+- Every `## Workflow: <name>` needs a name of letters and digits that isn't `pulse` or one of the skill's playbooks (`ticket`, `account`, `draft`, `raise`, `bug`, `setup`, `help`, `workflow`, `stats`).
 - `appstore` must be the app's numeric id; `storefronts`, when present, needs `appstore` and App Store storefront codes.
 
 Leave the rest of the body alone.

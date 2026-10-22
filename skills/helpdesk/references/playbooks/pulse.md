@@ -12,12 +12,12 @@ These steps are the default. A profile's `## Pulse` section adds to them (extra 
 4. **Look for patterns.** Two or more tickets with the same error, feature, platform or account are the signal; name what they share. Read a ticket's thread (`helpdesk_ticket`) only when its subject can't settle it.
 5. **Reviews**, only when the profile has `appstore`. `appstore_reviews` with `app` from `appstore`, `storefronts` when the profile pins them, `limit: 200`, and `since` set to the `reviews_through` in the newest `reports/helpdesk/*-pulse-<slug>.md` that carries one, else `7d`.
    - Give the rating counts, and group 1–3-star reviews that describe the same break (a crash, a sync failure, one version) into patterns, matched against the ticket patterns from step 4.
-   - A review that describes a real bug joins the bug candidates in step 6, filed the way [filing a bug](file-bug.md) says for a review.
+   - A review that describes a real bug, or asks for a feature the profile raises, joins the candidates in step 6, raised the way [raise](raise.md) says for a review.
    - Relay the tool's coverage as it gives it: storefronts that errored by name, storefronts with no reviews as a count. When it read nothing at all, the line is "Apple's feed was blank; reviews not read this time", never "no new reviews".
    - Never reply to a review. Nothing in the plugin can, and an App Store reply is public.
-6. **Bug candidates.** List the tickets the profile's `## Filing bugs` says become bugs, then file each on the operator's yes, the way [filing a bug](file-bug.md) says.
-7. **Filed bugs where support has a part.** Take the lifecycle (the profile's `## Bug lifecycle`, else the [default](../lifecycle.md)) and, for each state whose support part isn't "nothing", find the bugs in it:
-   - **GitHub cards:** `github_issue_list` with `repo` from `## Filing bugs` and `limit: 100`, once with `state: open` and once with `state: closed`; it can't filter, so pick the cards out of what it returns. Open cards carry the state's label. Closed ones count when their `updatedAt` is after the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`), and `github_issue_view` says how each closed and its milestone. Only cards whose title names a ticket (`(ticket <id>)`) count.
+6. **To raise.** List the tickets that need work beyond a reply, each with its kind (bug, feature or task), leaving out any kind the profile's `## Raising` or `## Triage` sends nowhere. Raise each on the operator's yes, the way [raise](raise.md) says.
+7. **Raised work where support has a part.** Take the lifecycle (the profile's `## Bug lifecycle`, else the [default](../lifecycle.md)) and, for each state whose support part isn't "nothing", find the cards and tasks in it:
+   - **GitHub cards:** `github_issue_list` with `repo` from `## Raising` and `limit: 100`, once with `state: open` and once with `state: closed`; it can't filter, so pick the cards out of what it returns. Open cards carry the state's label. Closed ones count when their `updatedAt` is after the last pulse (the newest `reports/helpdesk/*-pulse-<slug>.md`), and `github_issue_view` says how each closed and its milestone. Only cards whose title names a ticket (`(ticket <id>)`) count.
    - **Tasks:** `task_query` with the project and `includeClosed: true` (closed tasks are hidden otherwise), keeping tasks whose title names a ticket and whose `updated` is after the last pulse: `done` takes the closed-as-completed row, `cancelled` the closed-as-not-planned row.
 
    Before acting, read the ticket (`helpdesk_ticket`): skip it when a private note or a customer reply already came after the card's question or close, so a pulse never drafts the same reply twice. Then do that state's support part: usually a draft through the [draft](draft.md) playbook. Adding the user's answer to the card (`github_issue_comment`) or task (`task_thread`) waits for the operator's yes, with the answer's text shown and no contact details in it.
@@ -56,7 +56,7 @@ The report file is the cadence watermark, so write it only for a complete scan: 
 
 Reviews: <total> since <since> (★1 <n> · ★2 <n> · ★3 <n> · ★4 <n> · ★5 <n>); <review patterns>; <coverage gaps>   (only with appstore; "Apple's feed was blank" when nothing was read)
 Patterns: <only when two or more tickets share a cause; else omit>
-Bug candidates: <only when the profile files bugs; else omit>
+To raise: <tickets with their kind, only when the profile raises them; else omit>
 Questions from development: <cards asking the user something, each with its ticket; else omit>
 Fixed since last pulse: <cards closed since the last pulse, each with its ticket; else omit>
 Drafts: <the replies offered, or left as notes>
