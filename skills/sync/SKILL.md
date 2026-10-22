@@ -183,6 +183,8 @@ Watermarks live in `.state/cadence.json` (`goals-week`, `goals-month`, `goals-ye
 
 A profile whose call errored still claims the connection it names (or the default when it names none), so no queue is counted twice. The tool returns numbers and status and tag names only, never ticket text, and a 24-hour window is a page or two, so this is safe to run unattended. A tool error becomes that queue's line, never a stopped sync. Render each queue per the `🎫 Support` block in Output.
 
+**Also check the handed-off issues.** A task handed off to the team (the project skill's handoff playbook) carries its GitHub issue's URL in `issue`. From `task_query`, take each task whose `issue` is set and group them by the URL's repo. Per repo, in one batch, call `github_issue_list` with `state: open` and `limit: 100`: a task whose issue number is in the list is still open. Only for the numbers it didn't return, call `github_issue_view` and read just `state` and `stateReason`, since the body and comments are the team's text and stay out of the output. A closed issue renders as the `↗ Handed off` line in Output, and step 13 offers to close the task. A failed call (no token for that owner, no access) is one `can't read <owner/repo>` line per repo, never a "still open".
+
 **Also take the brain's inventory.** Read-only, and cheap:
 
 ```bash
@@ -262,7 +264,7 @@ Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` sta
 
 ### 13. Closing interview — what's next (only when something's actionable)
 
-After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no stalled task from the flywheel, no priority bump, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
+After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no stalled task from the flywheel, no priority bump, no closed handed-off issue, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
 
 **Self-review first, on its own.** When step 6's cadence check listed a `self-review…` item, ask about it before anything else, in its own `AskUserQuestion`: "<label> is due (last run <lastRun, or never>; <the 🧹 Brain counts> waiting)", with **Run it now** · **Tomorrow** · **Skip this month**.
 
@@ -273,7 +275,7 @@ Self-review is never one of question 1's options.
 
 When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions, plus one per stalled task (questions 3 and 4 below). When stalled tasks are the only thing surfaced, ask just those.
 
-1. **"What do you want to tackle next?"** (`multiSelect: true`, so the operator can pick several) — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, a line from the flywheel's Untracked work ("File a task for <stream>"), the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/roadmap`, `/helpdesk <routine> <slug>`), or the pending `/upgrade`. Each label is the action itself ("Nudge X on ticket Y", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one. A due `roadmap` always takes the first slot, and stands in for a due `goals year` when the Yearly Goals block is missing or from an earlier year, since its build runs that interview first. A stalled task is never an option here; it gets its own question below.
+1. **"What do you want to tackle next?"** (`multiSelect: true`, so the operator can pick several) — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, a line from the flywheel's Untracked work ("File a task for <stream>"), a task whose handed-off issue closed ("Close <id>: <owner/repo>#<n> closed as completed"; with **Act now**, `task_close` for completed and `task_update` to `cancelled` for not planned), the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/roadmap`, `/helpdesk <routine> <slug>`), or the pending `/upgrade`. Each label is the action itself ("Nudge X on ticket Y", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one. A due `roadmap` always takes the first slot, and stands in for a due `goals year` when the Yearly Goals block is missing or from an earlier year, since its build runs that interview first. A stalled task is never an option here; it gets its own question below.
 
    **Freshness gate — verify every candidate against current ground truth before offering it (do NOT skip).** The failure mode here is offering something the operator *already did*, often in the very sessions this sync just compiled. The Pending list in `memory/index.md`, the cadence watermarks, and even today's briefing are lagging views — a task can be closed, a bug already fixed, or a chore already handled between when that state was written and now. So for each candidate, confirm it's still open against the freshest source before it earns a slot:
    - **Task-backed candidate** → re-read the task's frontmatter `status` (a `done`/`cancelled`/`blocked`-on-someone-else task is not a "tackle next"). Prefer items whose status/thread you touched *this run* (flywheel step 5) over anything read only from the stale Pending list.
@@ -315,6 +317,7 @@ One block, tight. Skip empty sections — don't pad.
   - 👉 Needs attention:
       - <overdue/stale items with suggested action — max 3>
       - <priority bumps if any>
+  - ↗ Handed off: <id> ← <owner/repo>#<n> closed (<completed | not planned>) · <can't read owner/repo>   (omit when no handed-off issue closed or failed)
 
 🧹 Brain — <n> stale tasks (<n> dormant) · <n> dormant projects · <n> memory lines · <n> stale articles · <n> broken pins (<their titles>) · <n> stale surfaces · oldest waiting since <date>   (omit when every count is 0)
 
