@@ -23,6 +23,7 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_run_view
   - mcp__plugin_agent-kevin_kevin__github_run_log
   - mcp__plugin_agent-kevin_kevin__github_issue_view
+  - mcp__plugin_agent-kevin_kevin__github_issue_update
   - mcp__plugin_agent-kevin_kevin__github_fast_forward
   - mcp__plugin_agent-kevin_kevin__setup_worktree
   - mcp__plugin_agent-kevin_kevin__list_worktrees
@@ -45,6 +46,7 @@ The working method for code: a playbook per kind of task, principles the playboo
 1. Read the repo's `AGENTS.md` and, when it has one, its `.claude/CLAUDE.md`. The repo's build loop and conventions beat anything here, and the home manual's Engineering Standards beat the playbooks. A repo's agent docs follow one layout: a full `AGENTS.md` at the root and a `.claude/CLAUDE.md` holding `@../AGENTS.md`, no symlinks, each harness file in its own dot-folder.
 2. Match the task to a playbook, open it, and copy its steps into your todo list verbatim. A step you choose to skip stays in the list as `skip: <reason>`. A new task in a long conversation gets re-matched, not folded into the last playbook.
 3. Read a principle's file before applying it. Name a principle in your reply only when it changed a decision, and name the decision it changed.
+4. Work that starts from a GitHub issue labelled `accepted`, the helpdesk lifecycle's go-ahead, moves the issue to `in progress` before the first edit: offer `github_issue_update` with `add_labels: ["in progress"]` and `remove_labels: ["accepted"]`, and apply it on a yes. A repo without the label returns an error; relay it and carry on.
 
 ## Playbooks
 
