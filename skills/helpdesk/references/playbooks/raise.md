@@ -32,7 +32,7 @@ A review is raised the same way, with three differences:
 - **The body** quotes the review's title and text in a blockquote, with its rating, app version, storefront and date. It never carries the reviewer's nickname.
 - **No trail and no reply.** There's no ticket to note, and nothing in the plugin replies to a review.
 
-The duplicate check is the same: a matching card or task gets the review added as a comment instead of a second card.
+The duplicate check is the same: a matching card or task gets the review added as a comment instead of a second card. Several reviews of one break, with the tickets and cards around them, go through [reviews](reviews.md) instead, which gathers them into one card.
 
 ## Output
 

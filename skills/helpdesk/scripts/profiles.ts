@@ -15,7 +15,7 @@ const PROFILE_FILE = "helpdesk.md";
 const CADENCES = ["daily", "weekly", "monthly"] as const;
 export type Cadence = (typeof CADENCES)[number];
 /** Playbook names a profile workflow can't take; `pulse` is scheduled by name and extended in place. */
-const BUILT_INS = ["ticket", "account", "draft", "raise", "bug", "setup", "help", "workflow", "stats"];
+const BUILT_INS = ["ticket", "account", "draft", "raise", "bug", "reviews", "setup", "help", "workflow", "stats"];
 /** No hyphens, so `<routine>-<slug>` in a report name reads one way only. */
 const ROUTINE_RE = /^[a-z][a-z0-9]*$/;
 
@@ -160,6 +160,45 @@ export const lastRun = (reportsDir: string, routine: string, slug: string): stri
     .sort();
   return dates.at(-1) ?? null;
 };
+
+/**
+ * Where the next App Store read starts: the `reviews_through` of the newest pulse or reviews report
+ * for the queue that carries one. A report without it read reviews incompletely, so it's passed over.
+ */
+export const reviewsSince = (reportsDir: string, slug: string): string | null => {
+  const pattern = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-\\d{4}-(?:pulse|reviews)-${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.md$`);
+  const through = (existsSync(reportsDir) ? readdirSync(reportsDir) : [])
+    .filter((name) => pattern.test(name))
+    .sort()
+    .reverse()
+    .map((name) => {
+      try {
+        return frontmatterOf(readFileSync(join(reportsDir, name), "utf8"))?.reviews_through;
+      } catch {
+        return undefined;
+      }
+    })
+    .find((value): value is string => typeof value === "string" && value !== "");
+  return through ?? null;
+};
+
+export interface ReviewRead {
+  slug: string;
+  app: string;
+  storefronts?: string[];
+  since: string;
+}
+
+/** One App Store read per queue profile with `appstore`, from its watermark, else the last week. A broken profile surfaces through `routinesDue`. */
+export const reviewReads = (projectsDir: string, reportsDir: string): ReviewRead[] =>
+  profileSlugs(projectsDir).flatMap((slug): ReviewRead[] => {
+    try {
+      const { appstore, storefronts } = loadProfile(projectsDir, slug);
+      return appstore === undefined ? [] : [{ slug, app: appstore, ...(storefronts && { storefronts }), since: reviewsSince(reportsDir, slug) ?? "7d" }];
+    } catch {
+      return [];
+    }
+  });
 
 const BUCKETS: Record<Cadence, (date: string) => string> = {
   daily: (date) => date,

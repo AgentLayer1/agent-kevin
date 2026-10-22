@@ -2,13 +2,15 @@
 name: helpdesk
 description: >
   SupportCandy or Pylon tickets. Triggers on "support queue", "how many tickets", "pull ticket <id>",
-  "draft a reply", "raise ticket <id>", "set up helpdesk for <project>".
-allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, Skill(agent-kevin:configure-skills), Read, Write, Edit, Glob, Grep
+  "draft a reply", "raise ticket <id>", "App Store bugs", "set up helpdesk".
+allowed-tools: mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_tickets, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__helpdesk_ticket, mcp__plugin_agent-kevin_kevin__helpdesk_attachment, mcp__plugin_agent-kevin_kevin__helpdesk_accounts, mcp__plugin_agent-kevin_kevin__helpdesk_lookups, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__github_issue_list, mcp__plugin_agent-kevin_kevin__github_issue_view, Skill(agent-kevin:configure-skills), Bash(bun *review-reads.ts*), Read, Write, Edit, Glob, Grep
 ---
 
 # Helpdesk
 
 Support queues through the Helpdesk pack's tools, whichever helpdesk serves them. Kevin reads, sorts and drafts; a person sends every reply.
+
+> **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
 
 ## Help
 
@@ -20,7 +22,7 @@ Three layers decide how a queue is worked, each read in full before acting:
 
 1. **The playbooks below are the default workflow**, and [lifecycle](references/lifecycle.md) is the default bug lifecycle.
 2. **Org rules.** If `references/org.md` exists beside this file, read it next. It ships with an organisation's own plugin: org defaults, and boundaries that nothing below can loosen.
-3. **The queue profile** at `projects/<slug>/helpdesk.md`, the operator's own (the [setup](references/playbooks/setup.md) interview writes one). A slug in the ask (`/helpdesk pulse acme`) picks it; with exactly one profile in the home, use it; with several, ask which. Its frontmatter sets the call: `helpdesk` and `connection` pass straight to every tool, `statuses` filters the pulse, `appstore` (and `storefronts`, when pinned) adds the app's reviews to it, and `schedule` is what sync nudges. Its body changes the workflow:
+3. **The queue profile** at `projects/<slug>/helpdesk.md`, the operator's own (the [setup](references/playbooks/setup.md) interview writes one). A slug in the ask (`/helpdesk pulse acme`) picks it; with exactly one profile in the home, use it; with several, ask which. Its frontmatter sets the call: `helpdesk` and `connection` pass straight to every tool, `statuses` filters the pulse, `appstore` (and `storefronts`, when pinned) adds the app's reviews to it and to the reviews playbook, and `schedule` is what sync nudges. Its body changes the workflow:
    - `## Pulse` extends the default pulse, or replaces it when its first line is `Replaces the default.`
    - `## Bug lifecycle` replaces the default lifecycle table.
    - `## Workflow: <name>` is a routine of the queue's own, run as `/helpdesk <name> [slug]`.
@@ -41,6 +43,7 @@ Defaults with no profile: on Pylon the open statuses are `new` and `waiting_on_y
 | "pull ticket 318", "what's the customer saying on that ticket", `/helpdesk ticket <id>` | [ticket](references/playbooks/ticket.md) |
 | "what's open for <account>", `/helpdesk account <name>` | [account](references/playbooks/account.md) |
 | "draft a reply for 318", `/helpdesk draft <id>` | [draft](references/playbooks/draft.md) |
+| "any App Store bug reports", "turn the reviews into issues", `/helpdesk reviews [slug]` | [reviews](references/playbooks/reviews.md) |
 | "raise 318", "file 318 as a bug", "open a card for this ticket", `/helpdesk raise <id>`, `/helpdesk bug <id>` | [raise](references/playbooks/raise.md) |
 | "set up helpdesk for <project>", "tune the pulse", "fix the helpdesk profile", `/helpdesk setup [slug]` | [setup](references/playbooks/setup.md) |
 | a routine the profile defines (`## Workflow: digest`), `/helpdesk digest [slug]` | [workflow](references/playbooks/workflow.md) |

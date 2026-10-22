@@ -9,6 +9,7 @@ Your support queue in SupportCandy or Pylon. I read, sort and draft; you send ev
 | "Pull ticket 318", `/helpdesk ticket <id>` | **ticket** | The story so far: what the customer asked, what support said, internal notes apart, what's still open |
 | "What's open for <account>?", `/helpdesk account <name>` | **account** | One account's tickets (Pylon) |
 | "Draft a reply for 318", `/helpdesk draft <id>` | **draft** | A reply in your queue's tone, left as a private note once you approve it |
+| "Any App Store bug reports?", `/helpdesk reviews [slug]` | **reviews** | New App Store reviews read for bug reports at every rating (a 5★ review can report one), each bug with its matching cards, tickets and older reviews gathered into one card or a comment on the card already open. Sync counts new reviews and offers it |
 | "Raise 318", `/helpdesk raise <id>` (`/helpdesk bug <id>` for a bug) | **raise** | The ticket as a bug, a feature or a task, wherever your profile sends that kind: a task here, or a GitHub card with the repro, log excerpt and screenshots |
 | "Set up helpdesk for <project>", "tune the pulse", `/helpdesk setup [slug]` | **setup** | Access first when there's no connection it can read, then an interview that writes or tunes its queue profile: statuses, schedule, the pulse, the bug lifecycle, replies, context and your own routines |
 | A routine from your profile, `/helpdesk digest [slug]` | **workflow** | Whatever that routine's steps produce, saved when it's scheduled |

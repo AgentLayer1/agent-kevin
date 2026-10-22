@@ -2,14 +2,14 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lastRun, parseProfile, routinesDue } from "./profiles";
+import { lastRun, parseProfile, reviewReads, reviewsSince, routinesDue } from "./profiles";
 
 const dirs: string[] = [];
 afterAll(() => {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 });
 
-const fixture = (profiles: Record<string, string>, reports: string[] = []): { projects: string; reports: string } => {
+const fixture = (profiles: Record<string, string>, reports: (string | [name: string, content: string])[] = []): { projects: string; reports: string } => {
   const root = mkdtempSync(join(tmpdir(), "helpdesk-profiles-"));
   dirs.push(root);
   const projects = join(root, "projects");
@@ -20,7 +20,10 @@ const fixture = (profiles: Record<string, string>, reports: string[] = []): { pr
     writeFileSync(join(projects, slug, "helpdesk.md"), raw);
   }
   mkdirSync(join(projects, "no-queue"), { recursive: true });
-  for (const name of reports) writeFileSync(join(reportsDir, name), "");
+  for (const report of reports) {
+    const [name, content] = typeof report === "string" ? [report, ""] : report;
+    writeFileSync(join(reportsDir, name), content);
+  }
   return { projects, reports: reportsDir };
 };
 
@@ -53,6 +56,7 @@ describe("parseProfile", () => {
     expect(bad("statuses: [new]\nschedule: [pulse:hourly]")).toThrow('"pulse:hourly" needs a cadence');
     expect(bad("statuses: [new]\nschedule: [digest:weekly]")).toThrow('no "## Workflow: digest" section');
     expect(bad("statuses: [new]\nschedule: [draft:weekly]")).toThrow("isn't ticket, account, draft");
+    expect(bad("statuses: [new]\nschedule: [reviews:daily]")).toThrow('"reviews:daily" needs a routine name');
     expect(bad("statuses: [new]\nschedule: [week-digest:weekly]")).toThrow("letters and digits");
     expect(bad("statuses: [new]\nappstore: acme")).toThrow("appstore must be the app's numeric App Store id");
     expect(bad("statuses: [new]\nappstore: 1234567890\nstorefronts: [usa]")).toThrow("App Store storefront codes");
@@ -60,6 +64,7 @@ describe("parseProfile", () => {
     expect(bad("statuses: [new]", "## Workflow: ticket\n")).toThrow('"## Workflow: ticket" needs a name');
     expect(bad("statuses: [new]", "## Workflow: raise\n")).toThrow('"## Workflow: raise" needs a name');
     expect(bad("statuses: [new]", "## Workflow: pulse\n")).toThrow('"## Workflow: pulse" needs a name');
+    expect(bad("statuses: [new]", "## Workflow: reviews\n")).toThrow('"## Workflow: reviews" needs a name');
     expect(bad("statuses: [new]\nstorefronts: [us]")).toThrow("storefronts needs appstore");
   });
 
@@ -88,6 +93,41 @@ describe("lastRun", () => {
     expect(lastRun(reports, "pulse", "acme-2")).toBe("2026-10-19");
     expect(lastRun(reports, "digest", "acme")).toBe("2026-10-20");
     expect(lastRun(reports, "pulse", "zeta")).toBeNull();
+  });
+});
+
+const watermark = (through?: string): string => `---\ntitle: "Helpdesk pulse"\n${through ? `reviews_through: "${through}"\n` : ""}---\nbody\n`;
+
+describe("reviewsSince", () => {
+  test("is the newest pulse or reviews report's through, passing over a report that has none", () => {
+    const { reports } = fixture({}, [
+      ["2026-10-05-0900-pulse-acme.md", watermark("2026-10-05T01:00:00.000Z")],
+      ["2026-10-12-0900-reviews-acme.md", watermark("2026-10-12T01:00:00.000Z")],
+      ["2026-10-14-0900-pulse-acme.md", watermark()],
+      ["2026-10-15-0900-digest-acme.md", watermark("2026-10-15T01:00:00.000Z")],
+      ["2026-10-16-0900-pulse-acme-2.md", watermark("2026-10-16T01:00:00.000Z")],
+    ]);
+    expect(reviewsSince(reports, "acme")).toBe("2026-10-12T01:00:00.000Z");
+    expect(reviewsSince(reports, "acme-2")).toBe("2026-10-16T01:00:00.000Z");
+    expect(reviewsSince(reports, "zeta")).toBeNull();
+  });
+});
+
+describe("reviewReads", () => {
+  test("one read per profile with an App Store app, from its watermark or the last week", () => {
+    const { projects, reports } = fixture(
+      {
+        app: profile("statuses: [new]\nappstore: 1234567890\nstorefronts: [us]"),
+        fresh: profile("statuses: [new]\nappstore: 1234567891"),
+        quiet: profile("statuses: [new]"),
+        broken: profile("appstore: 1234567892"),
+      },
+      [["2026-10-20-0900-pulse-app.md", watermark("2026-10-20T01:00:00.000Z")]]
+    );
+    expect(reviewReads(projects, reports)).toEqual([
+      { slug: "app", app: "1234567890", storefronts: ["us"], since: "2026-10-20T01:00:00.000Z" },
+      { slug: "fresh", app: "1234567891", since: "7d" },
+    ]);
   });
 });
 
