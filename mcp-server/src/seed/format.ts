@@ -26,7 +26,7 @@
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
  * anything else in the home.
  */
-import { AGENT_SLUG, FOLDERS, PLUGIN_NAME } from '@/config';
+import { FOLDERS, MCP_PREFIX, PLUGIN_NAME } from '@/config';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -149,8 +149,6 @@ export const validateSeedPath = (path: string): string | null => {
  * NAME instead, filled by the recipient in `.state/secrets/.env`.
  */
 export const CREDENTIAL_KEY_RE = /(_TOKEN|_KEY|_SECRET|_PASSWORD|_CREDENTIALS?)($|_)/;
-
-const MCP_PREFIX = `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__`;
 
 const mcp = (names: string[]): string[] => names.map((name) => `${MCP_PREFIX}${name}`);
 

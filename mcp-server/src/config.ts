@@ -73,6 +73,10 @@ export const PLUGIN_NAME = 'agent-kevin';
  *  manifest, and the agent's handle in task frontmatter and threads. */
 export const AGENT_SLUG = PLUGIN_NAME.replace(/^agent-/, '');
 
+/** How Claude Code names this plugin's MCP tools in permission rules:
+ *  `${MCP_PREFIX}<tool>`. */
+export const MCP_PREFIX = `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__`;
+
 /** Plugin version from `.claude-plugin/plugin.json`, read once at module load.
  *  Falls back to `0.0.0` if the manifest is missing or unparseable. */
 export const PLUGIN_VERSION = ((): string => {
