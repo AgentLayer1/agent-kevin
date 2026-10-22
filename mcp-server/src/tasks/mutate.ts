@@ -205,14 +205,14 @@ export const updateTask = (id: string, { description, ...requested }: UpdateTask
 };
 
 // ── Close ─────────────────────────────────────────────────────────────
-// Schema disallows open -> done directly (the active step encodes "work
-// happened"). For a fresh task being closed in one shot, walk through active
-// so the invariant holds without forcing every caller to do it manually.
+// Schema disallows open -> done and blocked -> done directly (the active step
+// encodes "work happened"). For a task being closed in one shot, walk through
+// active so the invariant holds without forcing every caller to do it manually.
 
 export const closeTask = (id: string): void => {
   const task = findTaskById(id);
   if (!task) throw new Error(`Task not found: ${id}`);
-  if (task.frontmatter.status === 'open') {
+  if (task.frontmatter.status === 'open' || task.frontmatter.status === 'blocked') {
     updateTask(id, { status: 'active' });
   }
   updateTask(id, { status: 'done' });

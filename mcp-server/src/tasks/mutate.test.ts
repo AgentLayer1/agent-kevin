@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { FOLDERS } from '@/config';
-import { appendThread, createTask, updateTask } from './mutate';
+import { appendThread, closeTask, createTask, updateTask } from './mutate';
 import { findTaskById } from './scan';
 
 const newTask = (extra: { parent?: string; checklist?: string[] } = {}) => {
@@ -33,6 +33,16 @@ describe('parent, depends_on and checklist', () => {
     updateTask(id, { parent: '', depends_on: [epic.frontmatter.id] });
     expect(findTaskById(id)?.frontmatter.parent).toBe('');
     expect(findTaskById(id)?.frontmatter.depends_on).toEqual([epic.frontmatter.id]);
+  });
+});
+
+describe('closeTask', () => {
+  test('a blocked task closes as done', () => {
+    const id = newTask().frontmatter.id;
+    updateTask(id, { status: 'blocked' });
+
+    closeTask(id);
+    expect(findTaskById(id)?.frontmatter.status).toBe('done');
   });
 });
 
