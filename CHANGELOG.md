@@ -52,6 +52,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **SupportCandy status reads reach old tickets.** A ticket list filtered by status read only the 1,000 most recently updated tickets across every status, so older open tickets never reached the pulse, a profile's routines or the queue counts. The list now reads 500 tickets a page, so the same 20 requests reach 10,000.
 
 ### Upgrade
+- `template/AGENTS.md: mandatory` — Platform's scratch-files paragraph is shorter, says nothing may follow the X's in a `mktemp` template (macOS keeps a suffix literal), and keeps the printed path in a variable inside the same command that uses it. Workflow's verify-before-claim line says a claim about this machine's state is checked in the same turn as the claim.
+- `template/rules/xcode.md: optional` — Ground rules gain "Set the run destination after every scheme switch"; an operator's edited copy is diffed first.
 - `manual: optional` — in a home with a queue profile (`projects/<slug>/helpdesk.md`), rename its `## Filing bugs` section to `## Raising`, and say there where feature requests and tasks go when they shouldn't follow bugs. The skill no longer reads the old heading.
 
 ## [0.8.4] - 2026-10-21

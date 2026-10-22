@@ -57,6 +57,9 @@ MCP client, then `XcodeOpenWorkspace` again. Workspace identifiers do not surviv
 - **"Compiles" is not "verified."** Build every affected scheme, run the tests, launch and look at
   it. Widgets, complications and notifications are undersold by the simulator and need device
   dogfood before release; say so in the handoff instead of implying they were verified.
+- **Set the run destination after every scheme switch.** `XcodeSwitchScheme` can quietly move the
+  destination (to "My Mac (Designed for iPad)" for an iOS scheme), and a test run there uses stale
+  products and can report a fixed test as failing. Read the destination it returns.
 - **Verify the build, do not trust the timing.** A second scheme that builds in seconds is equally
   consistent with a warm cache and with a no-op. Read the build log for the target platform and a
   real compile count before claiming a platform built.
