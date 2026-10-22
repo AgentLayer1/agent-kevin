@@ -167,6 +167,15 @@ describe('summarize', () => {
     expect(summary.complete).toBe(true);
   });
 
+  test('limit 0 keeps every count and returns no review text', () => {
+    const batch = { reviews: [review('a', 5, '2026-10-01T00:00:00Z'), review('b', 1, '2026-10-03T00:00:00Z')], coverage: [covered('us', 'ok', 2)] };
+    const summary = summarize(batch, { limit: 0 }, false);
+    expect(summary.ratings).toEqual({ '1': 1, '2': 0, '3': 0, '4': 0, '5': 1 });
+    expect(summary.total).toBe(2);
+    expect(summary.reviews).toEqual([]);
+    expect(summary.returned).toBe(0);
+  });
+
   test('nothing read is a blank feed: a warning and no counts, never zero', () => {
     const summary = summarize({ reviews: [], coverage: [covered('us', 'blank'), covered('gb', 'blank')] }, { limit: 100 }, false);
     expect(summary.complete).toBe(false);

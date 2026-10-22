@@ -90,7 +90,13 @@ export const tools: ToolDef[] = [
         .describe("Reviews newer than this: Nh / Nd / Nw / Nm, 'any', or an ISO date (a previous read's through). Default 30d."),
       min_rating: z.number().int().min(1).max(5).optional(),
       max_rating: z.number().int().min(1).max(5).optional(),
-      limit: z.number().int().positive().max(2000).optional().describe('Max reviews returned (counts cover all). Default 100.')
+      limit: z
+        .number()
+        .int()
+        .nonnegative()
+        .max(2000)
+        .optional()
+        .describe('Max reviews returned (counts cover all). Default 100. 0 returns the counts and coverage with no review text, the read to run unattended.')
     },
     handler: async (args) => readReviews(args, resolveSource(args.source))
   })
