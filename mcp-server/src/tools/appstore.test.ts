@@ -54,7 +54,7 @@ describe('readReviews', () => {
   test('named storefronts are checked and read as given', async () => {
     const source = fakeSource(async ({ storefronts }) => ({ reviews: [], coverage: storefronts.map((storefront) => ({ storefront, state: 'blank' as const, reviews: 0 })) }));
     const result = parse(await readReviews({ app: '1234567892', storefronts: ['GB', 'my'], since: '2026-10-01T00:00:00Z' }, source, NOW));
-    expect(source.asked[0]).toEqual({ app: '1234567892', storefronts: ['gb', 'my'], cutoff: Date.parse('2026-10-01T00:00:00Z') });
+    expect(source.asked[0]).toEqual({ app: '1234567892', storefronts: ['gb', 'my'], cutoff: Date.parse('2026-10-01T00:00:00Z'), expected: new Set() });
     expect(result.total).toBeUndefined();
     await expect(readReviews({ app: '1234567892', storefronts: ['zz'] }, source, NOW)).rejects.toThrow(/Not App Store storefronts: zz/);
   });

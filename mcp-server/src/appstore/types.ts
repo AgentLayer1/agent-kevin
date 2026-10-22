@@ -37,6 +37,8 @@ export interface ReviewQuery {
   storefronts: readonly string[];
   /** Epoch ms; reviews older than this are left out. Absent means any age. */
   cutoff?: number;
+  /** Storefronts with reviews seen before: a blank page there is the source failing, so it is asked again harder. */
+  expected?: ReadonlySet<string>;
 }
 
 export interface ReviewBatch {

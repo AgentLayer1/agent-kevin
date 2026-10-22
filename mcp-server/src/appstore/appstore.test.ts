@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { feed, feedUrl, parseAppId, parseFeed } from './feed';
+import { feed, feedSource, feedUrl, parseAppId, parseFeed } from './feed';
 import { resolveSource, summarize } from './sources';
 import type { AppStoreReview, ReviewSource, StorefrontCoverage } from './types';
 
@@ -111,14 +111,31 @@ describe('feed adapter', () => {
     expect(capped.coverage[0]).toMatchObject({ state: 'ok', stop: 'cap', reviews: 500 });
   });
 
-  test("a blank page is asked again at the ?cc= address before it counts", async () => {
-    respond = (url) => new Response(url.includes('?cc=') ? page(reviewsFrom(1, 3, '2026-10-20T00:00:00Z')) : blank);
+  test('a blank page is asked again past the cache, with a fresh nonce, before it counts', async () => {
+    respond = (url) => new Response(url.includes('?nonce=') ? page(reviewsFrom(1, 3, '2026-10-20T00:00:00Z')) : blank);
     const batch = await feed.reviews({ app: APP, storefronts: ['gb'] });
-    expect(asked).toEqual([feedUrl('gb', APP, 1), feedUrl('gb', APP, 1, true)]);
+    expect(asked[0]).toBe(feedUrl('gb', APP, 1));
+    expect(asked[1]).toStartWith(`${feedUrl('gb', APP, 1)}?nonce=`);
+    expect(asked.length).toBe(2);
     expect(batch.coverage[0]).toMatchObject({ state: 'ok', reviews: 3 });
   });
 
-  test('blank at both addresses is blank; a failure is an error that keeps what was read', async () => {
+  test('a storefront with reviews seen before is asked three more times, a pause apart after the first', async () => {
+    const waits: number[] = [];
+    const patient = feedSource(async (ms) => {
+      waits.push(ms);
+    });
+    respond = () => new Response(blank);
+    const batch = await patient.reviews({ app: APP, storefronts: ['us', 'gb'], expected: new Set(['us']) });
+    const nonces = asked.filter((url) => url.includes('/us/')).slice(1).map((url) => url.split('?nonce=')[1]);
+    expect(nonces.length).toBe(3);
+    expect(new Set(nonces).size).toBe(3);
+    expect(asked.filter((url) => url.includes('/gb/')).length).toBe(2);
+    expect(waits).toEqual([4000, 4000]);
+    expect(batch.coverage.map((entry) => entry.state)).toEqual(['blank', 'blank']);
+  });
+
+  test('blank on every ask is blank; a failure is an error that keeps what was read', async () => {
     respond = () => new Response(blank);
     expect((await feed.reviews({ app: APP, storefronts: ['us'] })).coverage[0]).toEqual({ storefront: 'us', state: 'blank', reviews: 0 });
     respond = (url) => (pageOf(url) === 1 ? new Response(page(reviewsFrom(1, 50, '2026-10-20T00:00:00Z'))) : new Response('down', { status: 503 }));

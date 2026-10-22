@@ -1,8 +1,9 @@
 /**
  * The public feed adapter: Apple's customer-reviews feed, no key. One storefront per request,
- * 50 reviews a page, ten pages at most. The feed serves stale blank pages from its CDN now and
- * then (seen live: a storefront's path address blank while its `?cc=` address returned the same
- * reviews), so a blank page is asked again at the other address before it counts as blank.
+ * 50 reviews a page, ten pages at most. The feed answers most requests with a blank page, and its
+ * CDN caches each URL's answer for minutes, so a blank page is asked again with a fresh `nonce`
+ * that reaches the origin: three more times, a pause apart, where reviews were seen before
+ * (the approach in https://github.com/AsoBeast/asobeast/pull/109).
  */
 import { isRecord } from '@/shared/json-block';
 import { inChunks } from '@/shared/utils';
@@ -13,6 +14,10 @@ const PAGE_SIZE = 50;
 const MAX_PAGES = 10;
 const CONCURRENCY = 4;
 const TIMEOUT_MS = 15_000;
+const RE_ASKS = { expected: 3, other: 1 };
+const RE_ASK_PAUSE_MS = 4_000;
+
+type Wait = (ms: number) => Promise<unknown>;
 
 /** An App Store link (`apps.apple.com/…/id123`), `id123`, or the bare number → the numeric id. */
 export const parseAppId = (input: string): string => {
@@ -24,10 +29,8 @@ export const parseAppId = (input: string): string => {
   return id;
 };
 
-export const feedUrl = (storefront: string, app: string, page: number, alternate = false): string =>
-  alternate
-    ? `${BASE}/rss/customerreviews/page=${page}/id=${app}/sortby=mostrecent/json?cc=${storefront}`
-    : `${BASE}/${storefront}/rss/customerreviews/page=${page}/id=${app}/sortby=mostrecent/json`;
+export const feedUrl = (storefront: string, app: string, page: number): string =>
+  `${BASE}/${storefront}/rss/customerreviews/page=${page}/id=${app}/sortby=mostrecent/json`;
 
 export type FeedPage = { state: 'blank' } | { state: 'ok'; reviews: AppStoreReview[] };
 
@@ -84,18 +87,32 @@ const getPage = async (url: string, storefront: string): Promise<FeedPage> => {
   return parseFeed(await response.text(), storefront);
 };
 
-const fetchPage = async (storefront: string, app: string, page: number): Promise<FeedPage> => {
-  const first = await getPage(feedUrl(storefront, app, page), storefront);
-  return first.state === 'blank' ? getPage(feedUrl(storefront, app, page, true), storefront) : first;
+const fetchPage = async (storefront: string, app: string, page: number, reAsks: number, wait: Wait): Promise<FeedPage> => {
+  const url = feedUrl(storefront, app, page);
+  const ask = async (attempt: number): Promise<FeedPage> => {
+    if (attempt > 1) {
+      await wait(RE_ASK_PAUSE_MS);
+    }
+    const result = await getPage(`${url}?nonce=${crypto.randomUUID()}`, storefront);
+    return result.state === 'blank' && attempt < reAsks ? ask(attempt + 1) : result;
+  };
+  const first = await getPage(url, storefront);
+  return first.state === 'blank' && reAsks > 0 ? ask(1) : first;
 };
 
-const readStorefront = async (storefront: string, app: string, cutoff: number | undefined): Promise<{ reviews: AppStoreReview[]; coverage: StorefrontCoverage }> => {
+const readStorefront = async (
+  storefront: string,
+  app: string,
+  cutoff: number | undefined,
+  reAsks: number,
+  wait: Wait
+): Promise<{ reviews: AppStoreReview[]; coverage: StorefrontCoverage }> => {
   const done = (reviews: AppStoreReview[], coverage: Omit<StorefrontCoverage, 'storefront' | 'reviews'>) => ({
     reviews,
     coverage: { storefront, reviews: reviews.length, ...coverage }
   });
   const pages = async (page: number, gathered: AppStoreReview[]): Promise<{ reviews: AppStoreReview[]; coverage: StorefrontCoverage }> => {
-    const result = await fetchPage(storefront, app, page).then(
+    const result = await fetchPage(storefront, app, page, reAsks, wait).then(
       (feedPage) => ({ feedPage }),
       (error: unknown) => ({ error: error instanceof Error ? error.message : String(error) })
     );
@@ -120,12 +137,16 @@ const readStorefront = async (storefront: string, app: string, cutoff: number | 
 };
 
 /** A few storefronts at a time, pages within each one after another, to stay gentle on the feed. */
-export const feed: ReviewSource = {
+export const feedSource = (wait: Wait = Bun.sleep): ReviewSource => ({
   name: 'feed',
   keys: [],
   configured: () => true,
-  reviews: async ({ app, storefronts, cutoff }): Promise<ReviewBatch> => {
-    const results = await inChunks(storefronts, CONCURRENCY, (storefront) => readStorefront(storefront, app, cutoff));
+  reviews: async ({ app, storefronts, cutoff, expected }): Promise<ReviewBatch> => {
+    const results = await inChunks(storefronts, CONCURRENCY, (storefront) =>
+      readStorefront(storefront, app, cutoff, expected?.has(storefront) ? RE_ASKS.expected : RE_ASKS.other, wait)
+    );
     return { reviews: results.flatMap((result) => result.reviews), coverage: results.map((result) => result.coverage) };
   }
-};
+});
+
+export const feed = feedSource();
