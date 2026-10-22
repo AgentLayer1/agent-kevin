@@ -1,7 +1,7 @@
 /**
  * GitHub writes: open an issue, comment on one, change its labels or milestone (with
- * screenshots or videos attached), open a pull request, and change its title or description.
- * Nothing closes, merges, or edits someone else's comment.
+ * screenshots or videos attached), open a pull request, change its title or description, and
+ * edit your own comment. Nothing closes, merges, or edits someone else's comment.
  *
  * They run on the repo owner's token, the same one the read tools use, so its permissions
  * decide what they may do: Issues or Pull requests write. Attaching needs no more on the token,
@@ -120,6 +120,31 @@ export const prEditArgs = ({ repo, number, title, body }: PrUpdate): string[] =>
   return ['api', '-X', 'PATCH', `repos/${repo}/pulls/${number}`, '--silent', ...changes];
 };
 
+interface CommentUpdate {
+  repo: string;
+  commentId: number;
+  body: string;
+}
+
+export const commentEditArgs = ({ repo, commentId, body }: CommentUpdate): string[] => [
+  'api',
+  '-X',
+  'PATCH',
+  `repos/${repo}/issues/comments/${commentId}`,
+  '--silent',
+  '-f',
+  `body=${body}`
+];
+
+/**
+ * A repo owner's token can edit anyone's comment, so authorship is checked here rather than left to GitHub.
+ */
+export const assertOwnComment = (author: string, login: string, commentId: number): void => {
+  if (author.toLowerCase() !== login.toLowerCase()) {
+    throw new Error(`Comment ${commentId} was written by ${author}, not ${login}: only your own comments are edited.`);
+  }
+};
+
 const repoField = {
   repo: z
     .string()
@@ -221,6 +246,27 @@ export const tools: ToolDef[] = [
       const target = await resolveRepo(repo);
       await runGh(target, prEditArgs({ repo: target, number, title, body }));
       return { ok: true, repo: target, number, url: `https://github.com/${target}/pull/${number}` };
+    }
+  }),
+  defineTool({
+    name: 'github_comment_update',
+    description:
+      "Replace the text of your own comment on an issue or a pull request's conversation (writes to GitHub; the old text is gone). The id is the number after #issuecomment- in the comment's URL. Refuses a comment someone else wrote; inline review comments aren't covered. Only on a comment the operator asked to change: show them the old and new text before calling.",
+    inputSchema: {
+      ...repoField,
+      comment_id: z.number().int().positive().describe('The number after #issuecomment- in the comment URL.'),
+      body: z.string().min(1).describe('The whole new comment, in Markdown.')
+    },
+    handler: async ({ repo, comment_id, body }) => {
+      const target = await resolveRepo(repo);
+      const [comment, viewer] = await Promise.all([
+        runGh(target, ['api', `repos/${target}/issues/comments/${comment_id}`, '--jq', '.user.login, .html_url']),
+        runGh(target, ['api', 'user', '--jq', '.login'])
+      ]);
+      const [author = '', url = ''] = comment.trim().split('\n');
+      assertOwnComment(author, viewer.trim(), comment_id);
+      await runGh(target, commentEditArgs({ repo: target, commentId: comment_id, body }));
+      return { ok: true, repo: target, comment_id, url };
     }
   })
 ];

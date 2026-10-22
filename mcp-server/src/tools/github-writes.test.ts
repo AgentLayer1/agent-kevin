@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { childEnv } from './github';
-import { attachArgs, issueCreateArgs, issueEditArgs, prCreateArgs, prEditArgs } from './github-writes';
+import { assertOwnComment, attachArgs, commentEditArgs, issueCreateArgs, issueEditArgs, prCreateArgs, prEditArgs } from './github-writes';
 
 describe('issueCreateArgs', () => {
   test('repeats --label per label and adds the milestone when given', () => {
@@ -56,6 +56,24 @@ describe('prEditArgs', () => {
 
   test('refuses a call that changes nothing', () => {
     expect(() => prEditArgs({ repo: 'acme/app', number: 9 })).toThrow(/Nothing to change/);
+  });
+});
+
+describe('commentEditArgs', () => {
+  test('patches the comment through the issues endpoint, which serves PR conversations too', () => {
+    expect(commentEditArgs({ repo: 'acme/app', commentId: 4242, body: 'Use `announce.<name>.time`' })).toEqual([
+      'api', '-X', 'PATCH', 'repos/acme/app/issues/comments/4242', '--silent', '-f', 'body=Use `announce.<name>.time`'
+    ]);
+  });
+});
+
+describe('assertOwnComment', () => {
+  test("passes your own comment, whatever the login's case", () => {
+    expect(() => assertOwnComment('Jane-Doe', 'jane-doe', 4242)).not.toThrow();
+  });
+
+  test("refuses someone else's comment", () => {
+    expect(() => assertOwnComment('octo-bot', 'jane-doe', 4242)).toThrow(/only your own comments/);
   });
 });
 

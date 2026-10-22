@@ -265,7 +265,8 @@ export const PACKS: Record<string, PackDef> = {
       'github_issue_create',
       'github_issue_comment',
       'github_issue_update',
-      'github_pr_update'
+      'github_pr_update',
+      'github_comment_update'
     ]),
     denies: ['Bash(gh)', 'Bash(gh *)'],
     secretKeys: ['GITHUB_TOKEN'],

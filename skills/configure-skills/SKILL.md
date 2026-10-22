@@ -269,7 +269,7 @@ Add more connections any time by re-running this walk.
 
 ### A.2d — GitHub pack walk
 
-Gives Kevin GitHub access through sixteen MCP tools. Reads: list and view PRs and issues, review threads, diffs, and failing GitHub Actions runs with their failed-step logs. `github_fast_forward` fast-forwards the operator's local checkouts during sync, strictly forward-only, reporting rather than resolving anything dirty, diverged, or held by a worktree. Writes: open, edit, comment on and label issues (with screenshots or videos), open a PR from a pushed branch, and replace a PR's title or description. The `engineer` skill's PR playbooks and the `adversarial-review` skill run on these tools. Nothing merges, closes, re-runs a workflow, or edits someone else's comment. The walk grants every tool except `github_pr_create`, which always asks; the token decides what a write may do, and a call the token isn't allowed gets a message naming the permission to add.
+Gives Kevin GitHub access through seventeen MCP tools. Reads: list and view PRs and issues, review threads, diffs, and failing GitHub Actions runs with their failed-step logs. `github_fast_forward` fast-forwards the operator's local checkouts during sync, strictly forward-only, reporting rather than resolving anything dirty, diverged, or held by a worktree. Writes: open, edit, comment on and label issues (with screenshots or videos), open a PR from a pushed branch, replace a PR's title or description, and edit your own comments. The `engineer` skill's PR playbooks and the `adversarial-review` skill run on these tools. Nothing merges, closes, re-runs a workflow, or edits someone else's comment. The walk grants every tool except `github_pr_create`, which always asks; the token decides what a write may do, and a call the token isn't allowed gets a message naming the permission to add.
 
 **Why tokens, not `gh auth login`:** the tools shell out to `gh` from inside the MCP server (which runs outside the Claude Code sandbox, where `gh`'s keychain TLS would otherwise fail), and a fine-grained token reaches the repos of **one** owner (an org or a user) only, while a `gh` login holds one active account at a time. So the tokens live in `.state/secrets/.env`, one per owner, and every tool picks the one for the repo it is called on:
 
@@ -298,6 +298,7 @@ Each is a **secret**, so it follows the same editor-fill rule as every other cre
 - `mcp__plugin_agent-kevin_kevin__github_issue_comment`
 - `mcp__plugin_agent-kevin_kevin__github_issue_update`
 - `mcp__plugin_agent-kevin_kevin__github_pr_update`
+- `mcp__plugin_agent-kevin_kevin__github_comment_update`
 
 And add to `permissions.deny` (§E deny helper), so GitHub is reached only through these tools and never through `gh` in the agent's own shell:
 
@@ -370,7 +371,8 @@ Then surface these steps verbatim, once per owner:
 Tool permissions granted:  github_pr_list, github_pr_view, github_pr_comments, github_pr_diff,
                            github_pr_checks, github_run_list, github_run_view, github_run_log,
                            github_issue_list, github_issue_view, github_fast_forward,
-                           github_issue_create, github_issue_comment, github_issue_update, github_pr_update
+                           github_issue_create, github_issue_comment, github_issue_update, github_pr_update,
+                           github_comment_update
 Asks every time:           github_pr_create  (from init's permissions.ask)
 Denied:                    Bash(gh), Bash(gh *)  (GitHub goes through the tools)
 Secret lines to add:       GITHUB_TOKEN_<OWNER> per owner, e.g. GITHUB_TOKEN_MY_ORG  (add to .state/secrets/.env)
@@ -835,7 +837,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove your `AGENT_DB_*` connection lines from `.state/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `AGENT_DB_*` lines they no longer want from `.state/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
-- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`. Always-on core stays.
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`, `github_comment_update`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove the GitHub tokens from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete `GITHUB_TOKEN` and every `GITHUB_TOKEN_<OWNER>` line in their editor (§D.1 — Claude can't edit the gated file). If no, leave them (harmless once the perms are revoked).
 - `AskUserQuestion`: "Let Kevin run `gh` in its own shell again?" (No, keep it denied (Recommended) / Yes). Only on yes, remove `Bash(gh)` and `Bash(gh *)` from `permissions.deny` (§E deny helper, remove), then run `codex_setup` if `<HOME>/.codex/hooks.json` exists so Codex's forbidden rule goes too; removing a deny widens what the agent can run, so it is never the default.

@@ -628,7 +628,7 @@ describe('scanSeed with the GitHub pack', () => {
     homes.push(home);
     const github = [
       'fast_forward', 'pr_list', 'pr_view', 'pr_comments', 'pr_diff', 'pr_checks', 'run_list', 'run_view', 'run_log',
-      'issue_list', 'issue_view', 'issue_create', 'issue_comment', 'issue_update', 'pr_update'
+      'issue_list', 'issue_view', 'issue_create', 'issue_comment', 'issue_update', 'pr_update', 'comment_update'
     ].map((tool) => `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__github_${tool}`);
     write(home, '.claude/settings.json', JSON.stringify({ permissions: { allow: github, deny: ['Bash(gh)', 'Bash(gh *)'] } }));
     const scan = inHome(home, () => scanSeed());

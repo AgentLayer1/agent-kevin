@@ -53,6 +53,7 @@ and prompts per optional one. The new template files are the source of truth for
 - **Sync counts App Store reviews.** Each queue profile with an App Store app gets a `Reviews, last 24h` line with every star bucket under its ticket counts. New reviews since the last read offer `/helpdesk reviews <slug>`. Both reads pass `limit: 0`, which `appstore_reviews` now accepts: counts and coverage only, no review text.
 - **A finished fix gets the release it ships in.** Once a fix that started from an `accepted` issue is proven, the engineer skill offers to set the issue's milestone to that version and drop `in progress`, and writes `Fixes #<n>` in the commit message or PR description, so GitHub closes the issue as completed when it lands. A closed issue with an unreleased milestone is fixed but not shipped; the helpdesk pulse drafts the "it's fixed" replies once that version is live. Nothing in the plugin closes an issue itself. These steps and the `in progress` one apply only to issues on a repo a helpdesk queue's `## Raising` names; issues on any other repo are left to whoever runs them.
 - **The agent can open a pull request, and it always asks first.** `github_pr_create` opens a PR from a pushed branch (`head`, optional `base` and `draft`) on the repo owner's token, which needs Pull requests Read and write. No pack grants it: init's baseline `permissions.ask` lists it, so every call stops for the operator in every mode, auto included.
+- **The agent can fix its own GitHub comment.** `github_comment_update` replaces the text of a comment on an issue or a pull request's conversation, by the id after `#issuecomment-` in its URL. It edits only a comment the token's own account wrote: a repo owner's token could edit anyone's, so the tool checks the author first and refuses someone else's. Inline review comments aren't covered.
 
 ### Fixed
 - **`task_close` closes a blocked task.** A blocked task went straight to `done`, which the status rules refuse, so closing it failed with "Invalid status transition". It now steps through `active` the way an open task does.
@@ -69,6 +70,7 @@ and prompts per optional one. The new template files are the source of truth for
 ### Upgrade
 - `settings: mandatory` — add `mcp__plugin_agent-kevin_kevin__github_pr_create` to `permissions.ask` in `.claude/settings.json`, in every home (the tool is gated even where the GitHub pack is off).
 - `settings: optional` — only in a home with the Xcode pack: add `mcp__xcode__DocumentationSearch` to `permissions.allow` in `.claude/settings.json`.
+- `settings: optional` — only in a home with the GitHub pack: add `mcp__plugin_agent-kevin_kevin__github_comment_update` to `permissions.allow` in `.claude/settings.json`.
 
 ## [0.8.5] - 2026-10-22
 
