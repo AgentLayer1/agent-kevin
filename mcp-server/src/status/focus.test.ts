@@ -31,6 +31,7 @@ const task = (id: string, overrides: Partial<TaskFrontmatter> = {}): TaskFile =>
     depends_on: [],
     blocked_by: '',
     parent: '',
+    issue: '',
     closed: '',
     ...overrides
   },

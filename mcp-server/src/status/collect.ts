@@ -325,6 +325,10 @@ export interface TaskRef {
   updated: string;
   dependsOn: string[];
   blockedBy: string;
+  /**
+   * URL of the GitHub issue the task was handed off to, '' when none.
+   */
+  issue: string;
   /** Thread entry count — the comment counter (all entries, including
    *  automated status-change markers). */
   comments: number;
@@ -804,6 +808,7 @@ const toRef = (task: TaskFile): TaskRef => ({
   updated: task.frontmatter.updated,
   dependsOn: task.frontmatter.depends_on,
   blockedBy: task.frontmatter.blocked_by,
+  issue: task.frontmatter.issue,
   comments: task.thread.length,
   path: relative(FOLDERS.HOME, task.filePath)
 });

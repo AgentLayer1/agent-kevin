@@ -20,6 +20,7 @@ const task = (id: string, project: string, updated: string): TaskFile => {
     depends_on: [],
     blocked_by: '',
     parent: '',
+    issue: '',
     closed: ''
   };
   return { frontmatter, description: '', checklist: [], thread: [], filePath: `/tasks/${id}-slug.md` };
@@ -44,5 +45,19 @@ describe('formatDashboard Stale section', () => {
 
   test('an empty section says none', () => {
     expect(staleSection([])).toBe('## Stale (0)\n\n_(none)_');
+  });
+});
+
+describe('formatDashboard task lines', () => {
+  test('a handed-off task links its issue after the title', () => {
+    const handedOff = task('lo-003', 'life-os', '2026-07-24');
+    const linked = {
+      ...handedOff,
+      frontmatter: { ...handedOff.frontmatter, issue: 'https://github.com/acme/widgets/issues/42' }
+    };
+    const markdown = formatDashboard({ active: [linked], blocked: [], overdue: [], stale: [], closedRecent: [] }, '');
+    expect(markdown).toContain(
+      '**Title of lo-003** ↗ [acme/widgets#42](https://github.com/acme/widgets/issues/42) _(priority: P2'
+    );
   });
 });

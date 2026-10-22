@@ -43,6 +43,7 @@ export const defaultFrontmatter = (project: string, title: string, assignee: str
   depends_on: [],
   blocked_by: '',
   parent: '',
+  issue: '',
   closed: ''
 });
 
@@ -210,6 +211,7 @@ const parseFrontmatterFull = (raw: string): ParsedFrontmatter | null => {
     depends_on: arr('depends_on'),
     blocked_by: str('blocked_by'),
     parent: str('parent'),
+    issue: str('issue'),
     closed: str('closed')
   };
 
@@ -327,6 +329,7 @@ export const FRONTMATTER_FIELDS: (keyof TaskFrontmatter)[] = [
   'depends_on',
   'blocked_by',
   'parent',
+  'issue',
   'closed'
 ];
 

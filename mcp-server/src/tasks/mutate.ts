@@ -15,6 +15,7 @@ import { existsSync, readFileSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { withDashboardBatch, writeDashboardSafe } from './dashboard';
 import { normalizeHorizon } from './horizon';
+import { issueLabel } from './issue';
 import { buildTaskMap, rewriteLinks } from './link';
 import type { ScanResult } from './resolve';
 import { findTaskById, getNextId } from './scan';
@@ -163,6 +164,11 @@ export const createTask = (opts: CreateTaskOptions): TaskFile => {
 export const updateTask = (id: string, { description, ...requested }: UpdateTaskOptions): void => {
   const task = findTaskById(id);
   if (!task) throw new Error(`Task not found: ${id}`);
+  if (requested.issue && !issueLabel(requested.issue)) {
+    throw new Error(
+      `Not a GitHub issue URL: ${requested.issue} (expected https://github.com/<owner>/<repo>/issues/<number>)`
+    );
+  }
   const fields =
     requested.horizon === undefined ? requested : { ...requested, horizon: normalizeHorizon(requested.horizon) };
 

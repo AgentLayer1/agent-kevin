@@ -21,6 +21,7 @@ const task = (id: string, due: string, status: TaskStatus = 'open'): TaskFile =>
     depends_on: [],
     blocked_by: '',
     parent: '',
+    issue: '',
     closed: status === 'done' ? daysAgoDate(0) : ''
   };
   return { frontmatter, description: '', checklist: [], thread: [], filePath: `/tasks/${id}-slug.md` };

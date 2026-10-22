@@ -115,6 +115,7 @@ export interface TaskFrontmatter {
   depends_on: string[];
   blocked_by: string;
   parent: string;
+  issue: string;
   closed: string;
 }
 

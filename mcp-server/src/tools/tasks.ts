@@ -13,6 +13,11 @@ const StatusEnum = z.enum(['open', 'active', 'blocked', 'done', 'cancelled']);
 const PriorityEnum = z.enum(['P0', 'P1', 'P2', 'P3']);
 const TypeEnum = z.enum(['task', 'bug', 'idea', 'epic']);
 const ThreadKindEnum = z.enum(['quote', 'info', 'warning']);
+const IssueInput = z
+  .string()
+  .describe(
+    'URL of the GitHub issue the task was handed off to (https://github.com/<owner>/<repo>/issues/<n>). Empty clears.'
+  );
 const HorizonInput = z
   .string()
   .describe('today, week, next-week, month, later, or a period (2026-09-28, 2026-W40, 2026-10); stored as the period. Empty clears.');
@@ -29,6 +34,7 @@ const slim = (t: TaskFile) => ({
   horizon: t.frontmatter.horizon,
   depends_on: t.frontmatter.depends_on,
   blocked_by: t.frontmatter.blocked_by,
+  issue: t.frontmatter.issue,
   updated: t.frontmatter.updated,
   filePath: t.filePath
 });
@@ -125,6 +131,7 @@ export const tools: ToolDef[] = [
       blocked_by: z.string().optional(),
       depends_on: z.array(z.string()).optional(),
       parent: z.string().optional(),
+      issue: IssueInput.optional(),
       labels: z.array(z.string()).optional(),
       description: z
         .string()

@@ -12,6 +12,7 @@ import type { TaskFile, TaskFrontmatter } from '@/shared/types';
 import { daysAgoDate, todayDate } from '@/shared/date';
 import { readFileSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
+import { issueLabel } from './issue';
 import { scanAllTasks, scanMalformedTasks } from './scan';
 
 // ── Section building ──────────────────────────────────────────────────
@@ -88,8 +89,13 @@ const fmtMeta = (t: TaskFile, fields: MetaField[]): string => {
   return parts.length === 0 ? '' : ` _(${parts.join(' · ')})_`;
 };
 
+const issueLink = (t: TaskFile): string => {
+  const label = issueLabel(t.frontmatter.issue);
+  return label ? ` ↗ [${label}](${t.frontmatter.issue})` : '';
+};
+
 const taskLine = (t: TaskFile, fields: MetaField[]): string =>
-  `- ${taskLink(t)} **${t.frontmatter.title}**${fmtMeta(t, fields)}`;
+  `- ${taskLink(t)} **${t.frontmatter.title}**${issueLink(t)}${fmtMeta(t, fields)}`;
 
 const groupByProject = (tasks: TaskFile[]): [string, TaskFile[]][] => {
   const map = new Map<string, TaskFile[]>();

@@ -32,6 +32,7 @@ import { daysBetween } from '@/shared/date';
 import { jsonBlock } from '@/shared/json-block';
 import { RUNTIME_DIR } from '@/shared/naming';
 import { THEME_BLOCK } from '@/shared/theme';
+import { issueLabel } from '@/tasks/issue';
 import type {
   ContextGroup,
   ProfileSection,
@@ -244,6 +245,7 @@ const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {
     : '';
   const metaItem = (key: string, valueHtml: string): string =>
     `<span class="tb-item"><span class="tb-k">${esc(key)}</span><span class="tb-v">${valueHtml}</span></span>`;
+  const issue = issueLabel(ref.issue);
   // `depends on` ids link to their task files when the id resolves (live or
   // archived); unknown ids fall back to plain text.
   const depsHtml = ref.dependsOn
@@ -253,7 +255,8 @@ const taskRow = (ref: TaskRef, snap: StatusSnapshot, options: TaskRowOptions = {
     metaItem('status', esc(ref.status)),
     ref.due && metaItem('due', esc(ref.due)),
     ref.updated && metaItem('updated', esc(ref.updated)),
-    ref.dependsOn.length && metaItem('depends on', depsHtml)
+    ref.dependsOn.length && metaItem('depends on', depsHtml),
+    issue && metaItem('issue', extLink(ref.issue, issue))
   ].filter((part): part is string => Boolean(part));
   const note = ref.blockedBy
     ? `<div class="tb-note"><span class="tb-note-k">blocked by</span>${esc(ref.blockedBy)}</div>`

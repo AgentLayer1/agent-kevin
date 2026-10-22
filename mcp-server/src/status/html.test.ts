@@ -34,6 +34,7 @@ const taskRef = (overrides: Partial<TaskRef> = {}): TaskRef => ({
   updated: '2026-06-10',
   dependsOn: [],
   blockedBy: '',
+  issue: '',
   comments: 0,
   path: 'projects/life-os/tasks/lo-001-a-perfectly-normal-task.md',
   ...overrides
@@ -407,6 +408,7 @@ describe('renderDashboardHtml', () => {
         depends_on: [],
         blocked_by: '',
         parent: '',
+        issue: '',
         closed: ''
       },
       description: '',
@@ -755,7 +757,9 @@ describe('renderDashboardHtml', () => {
         operator: { ...base.operator, name: '<b>Alex</b>' },
         tasks: {
           ...base.tasks,
-          activeList: [taskRef({ title: hostile, blockedBy: '<img src=x onerror=alert(1)>' })],
+          activeList: [
+            taskRef({ title: hostile, blockedBy: '<img src=x onerror=alert(1)>', issue: 'javascript:alert(1)' })
+          ],
           queue: [taskRef({ title: hostile, path: 'projects/x/tasks/"onmouseover="alert(1)' })]
         }
       })
@@ -763,6 +767,7 @@ describe('renderDashboardHtml', () => {
     expect(html).not.toContain(hostile);
     expect(html).not.toContain('<img src=x');
     expect(html).not.toContain('<b>Alex</b>');
+    expect(html).not.toContain('javascript:');
     expect(html).toContain('Fix &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; co');
   });
 

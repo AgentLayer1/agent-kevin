@@ -36,6 +36,38 @@ describe('parent, depends_on and checklist', () => {
   });
 });
 
+describe('issue', () => {
+  const url = 'https://github.com/acme/widgets/issues/42';
+
+  test('a hand-off link is written, read back and cleared', () => {
+    const id = newTask().frontmatter.id;
+    expect(findTaskById(id)?.frontmatter.issue).toBe('');
+
+    updateTask(id, { issue: url });
+    expect(findTaskById(id)?.frontmatter.issue).toBe(url);
+
+    updateTask(id, { issue: '' });
+    expect(findTaskById(id)?.frontmatter.issue).toBe('');
+  });
+
+  test('anything but a GitHub issue URL is refused before the write', () => {
+    const created = newTask();
+    const before = readFileSync(created.filePath, 'utf-8');
+
+    expect(() => updateTask(created.frontmatter.id, { issue: 'https://github.com/acme/widgets/pull/42' })).toThrow(
+      'Not a GitHub issue URL'
+    );
+    expect(() => updateTask(created.frontmatter.id, { issue: 'acme/widgets#42' })).toThrow('Not a GitHub issue URL');
+    expect(readFileSync(created.filePath, 'utf-8')).toBe(before);
+  });
+
+  test('a task file written before the field existed reads as not handed off', () => {
+    const created = newTask();
+    writeFileSync(created.filePath, readFileSync(created.filePath, 'utf-8').replace(/^issue:.*\n/m, ''));
+    expect(findTaskById(created.frontmatter.id)?.frontmatter.issue).toBe('');
+  });
+});
+
 describe('closeTask', () => {
   test('a blocked task closes as done', () => {
     const id = newTask().frontmatter.id;
