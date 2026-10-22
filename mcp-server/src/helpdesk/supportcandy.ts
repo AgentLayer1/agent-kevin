@@ -18,6 +18,8 @@ import { MESSAGE_KINDS, type HelpdeskConnector, type HelpdeskLookup, type Helpde
 
 const API_PATH = '/wp-json/supportcandy/v2';
 const PAGE_SIZE = 50;
+/** The ticket list has no status filter, so a status read pages through every status; big pages reach old open tickets in few requests. */
+const LIST_PAGE_SIZE = 500;
 const MAX_PAGES = 20;
 /** Lookups one read puts in flight at once, so a big list doesn't flood the WordPress site. */
 const CONCURRENCY = 8;
@@ -255,7 +257,7 @@ export const supportcandy = (connection?: string): HelpdeskConnector => {
       const matches = (ticket: HelpdeskTicket): boolean => !wanted || wanted.includes(ticket.status.toLowerCase());
       const recent = async (page: number, gathered: ScTicket[]): Promise<{ found: ScTicket[]; unread: boolean }> => {
         const result = await call<ScPage<ScTicket>>(creds, '/tickets', {
-          query: { page, per_page: PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
+          query: { page, per_page: LIST_PAGE_SIZE, orderby: 'date_updated', order: 'DESC', ...(query.search && { search: query.search }) }
         });
         const fresh = (result.results ?? []).filter(isFresh);
         const next = [...gathered, ...fresh.filter((raw) => matches(mapTicket(raw, names, creds.site)))];

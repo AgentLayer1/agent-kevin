@@ -48,6 +48,9 @@ and prompts per optional one. The new template files are the source of truth for
 ### Changed
 - **Helpdesk raises a ticket as a bug, a feature or a task.** `/agent-kevin:helpdesk raise <id>` (or "raise 318") proposes the kind with a one-line reason, then files it wherever the queue profile sends that kind: a task of the matching type (`bug`, `idea`, `task`) or a GitHub card, after the same duplicate check and with the ticket in the title, so the pulse still drafts the reply when it closes. `/agent-kevin:helpdesk bug <id>` stays as the shortcut for a bug. A profile's `## Filing bugs` section is now `## Raising`, with a destination per kind; a kind it doesn't name goes where bugs go, and one it sends nowhere is never raised. The pulse lists the tickets to raise with their kind.
 
+### Fixed
+- **SupportCandy status reads reach old tickets.** A ticket list filtered by status read only the 1,000 most recently updated tickets across every status, so older open tickets never reached the pulse, a profile's routines or the queue counts. The list now reads 500 tickets a page, so the same 20 requests reach 10,000.
+
 ### Upgrade
 - `manual: optional` — in a home with a queue profile (`projects/<slug>/helpdesk.md`), rename its `## Filing bugs` section to `## Raising`, and say there where feature requests and tasks go when they shouldn't follow bugs. The skill no longer reads the old heading.
 

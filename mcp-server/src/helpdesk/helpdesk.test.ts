@@ -420,6 +420,23 @@ describe('SupportCandy status filter', () => {
     const { more } = await supportcandy().list({ updatedSince: '2026-10-21T00:00:00Z', status: ['Open'], limit: 5 });
     expect(more).toBe(false);
   });
+
+  test('finds an old ticket in the wanted status past the first thousand updated', async () => {
+    const site = Array.from({ length: 1200 }, (_, index) => ({ id: 1200 - index, status: index === 1199 ? 1 : 4, date_updated: '2026-10-20 08:00:00' }));
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (!url.pathname.endsWith('/tickets')) {
+        return new Response(JSON.stringify(url.pathname.endsWith('/statuses') ? [{ id: 1, name: 'Open' }, { id: 4, name: 'Closed' }] : []));
+      }
+      const perPage = Number(url.searchParams.get('per_page'));
+      const page = Number(url.searchParams.get('page'));
+      const results = site.slice((page - 1) * perPage, page * perPage);
+      return new Response(JSON.stringify({ has_next_page: page * perPage < site.length, results }));
+    }) as typeof fetch;
+    const { tickets, more } = await supportcandy().list({ status: ['Open'], limit: 50, people: false });
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['1']);
+    expect(more).toBe(false);
+  });
 });
 
 describe('SupportCandy with no window', () => {
