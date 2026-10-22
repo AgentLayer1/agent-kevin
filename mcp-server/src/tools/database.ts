@@ -227,7 +227,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'database_query',
     description:
-      'Run a read-only SQL query against a configured Postgres connection. Executes inside a READ ONLY transaction with a statement timeout — writes (INSERT/UPDATE/DELETE/DDL) are rejected by Postgres. Returns rows + column metadata as JSON.',
+      'Run a read-only SQL query against a configured Postgres connection. Executes inside a READ ONLY transaction with a statement timeout — writes (INSERT/UPDATE/DELETE/DDL) are rejected by Postgres. Returns rows + column metadata as JSON. To check a secret column (keys, tokens, passwords), use aggregates only (count(col), count(*) FILTER (WHERE col IS NULL), min(length(col))); never select, group by, or substring it.',
     inputSchema: {
       connection: z.string().describe('Connection name from database_list (e.g. "app").'),
       sql: z.string().describe('The SQL statement. Read-only — DML/DDL is rejected by the transaction.'),
