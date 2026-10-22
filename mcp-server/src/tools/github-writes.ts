@@ -85,12 +85,15 @@ interface PrUpdate {
   body?: string;
 }
 
+/**
+ * REST, not `gh pr edit`: that first asks for org and team fields, which a classic token can't read without `read:org`.
+ */
 export const prEditArgs = ({ repo, number, title, body }: PrUpdate): string[] => {
-  const changes = [...(title === undefined ? [] : ['--title', title]), ...(body === undefined ? [] : ['--body', body])];
+  const changes = Object.entries({ title, body }).flatMap(([field, text]) => (text === undefined ? [] : ['-f', `${field}=${text}`]));
   if (changes.length === 0) {
     throw new Error('Nothing to change: pass title or body.');
   }
-  return ['pr', 'edit', String(number), '-R', repo, ...changes];
+  return ['api', '-X', 'PATCH', `repos/${repo}/pulls/${number}`, '--silent', ...changes];
 };
 
 const repoField = {

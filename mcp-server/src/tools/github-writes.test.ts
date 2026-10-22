@@ -39,7 +39,7 @@ describe('issueEditArgs', () => {
 describe('prEditArgs', () => {
   test('sets only what was given', () => {
     expect(prEditArgs({ repo: 'acme/app', number: 9, body: 'New description' })).toEqual([
-      'pr', 'edit', '9', '-R', 'acme/app', '--body', 'New description'
+      'api', '-X', 'PATCH', 'repos/acme/app/pulls/9', '--silent', '-f', 'body=New description'
     ]);
   });
 
