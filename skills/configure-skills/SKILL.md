@@ -379,6 +379,8 @@ Default repo:              resolved from AGENT_CODE_PATH / AGENT_GIT_REPOS; over
 
 Mint one fine-grained PAT per owner: read-only PRs·Issues·Metadata·Actions·Contents (NOT Workflows; no Checks exists),
 plus Read and write on Issues · Pull requests only for the writes you want,
+An org that holds fine-grained tokens for approval: a classic token under that owner's key instead,
+with repo, read:org, read:user and user:email, and an expiry date. It reaches every repo your account can.
 add each to <HOME>/.state/secrets/.env — never paste one into chat. Relaunch Claude Code to load them.
 Requires the `gh` CLI on PATH (`brew install gh`).
 ```
