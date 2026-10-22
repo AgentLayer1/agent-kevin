@@ -1,12 +1,13 @@
 ---
 name: project
 description: >
-  Start or retire a project. Create stands up projects/<slug>/ with a README and a tasks folder (the
-  2-letter task prefix derives from the slug, no config edit). Archive retires a finished or
-  cancelled project: moves it to archive/, strips references from active docs and schedules, adds a
-  final-thoughts banner, logs it, and recompiles the project index. Triggers on "create a new
-  project called X", "start a project for Y", a new multi-artefact initiative worth its own folder,
-  "archive <project>", "retire <project>", a project declared done or cancelled, or /project.
+  Start, retire, or hand off project work. Create stands up projects/<slug>/ with a README and a
+  tasks folder. Archive moves a finished or cancelled project to archive/, strips active
+  references, adds a final-thoughts banner, and recompiles the index. Handoff opens a GitHub issue
+  on the project's repo for a task and links the task to it. Triggers on "create a new project
+  called X", "start a project for Y", a new multi-artefact initiative, "archive <project>",
+  "retire <project>", a project declared done or cancelled, "hand off <task>", "push this task to
+  GitHub", or /project.
 ---
 
 # Project
@@ -29,11 +30,12 @@ Match the ask to a playbook below, open it, and follow its steps. The word after
 |---|---|
 | "create a new project called X", "start a project for Y", `/project create <name>` | [create](references/playbooks/create.md) |
 | "archive <project>", "retire <project>", a project declared done or cancelled, `/project archive <slug>` | [archive](references/playbooks/archive.md) |
+| "hand off <task>", "push this task to GitHub", "share this task with the team", `/project handoff <id>` | [handoff](references/playbooks/handoff.md) |
 
 ## Every time
 
 - **One-off work isn't a project.** A single task goes in an existing project's `tasks/`, and a quick note goes to `<HOME>/knowledge/raw/inbox/`.
-- **Nothing moves without a yes.** Create confirms the name and slug, and archive confirms the project and the move before touching anything.
+- **Nothing moves without a yes.** Create confirms the name and slug, archive confirms the project and the move, and handoff shows the issue's draft before touching anything.
 - **Paused isn't finished.** A blocked or paused project gets `blocked_by` on its tasks, never an archive.
 
 ## Reply
