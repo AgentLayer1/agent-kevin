@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Changed
+- **The Xcode pack grants `DocumentationSearch` by name.** `/agent-kevin:configure-skills` adds `mcp__xcode__DocumentationSearch` to `permissions.allow` beside `mcp__xcode__*`, so Apple's documentation lookup keeps its grant if the glob is narrowed, and deconfigure revokes both.
+
+### Upgrade
+- `settings: optional` — only in a home with the Xcode pack: add `mcp__xcode__DocumentationSearch` to `permissions.allow` in `.claude/settings.json`.
+
 ## [0.8.5] - 2026-10-22
 
 ### Changed

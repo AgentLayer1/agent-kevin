@@ -454,11 +454,12 @@ bun -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); console.
 
 **(3) Grant the MCP tool permissions** via §E, using the plain `mcp__xcode__<tool>` form (a server registered in `<HOME>/.mcp.json` gets no plugin namespace prefix).
 
-Two entries, not a tool-by-tool list:
+Three entries, not a tool-by-tool list:
 
 ```jsonc
 // permissions.allow
 "mcp__xcode__*"
+"mcp__xcode__DocumentationSearch"
 
 // permissions.ask
 "mcp__xcode__InvokeDebuggerCommand"
@@ -475,6 +476,8 @@ Two entries, not a tool-by-tool list:
 `RunCodeSnippet` stays under the glob by the same argument as the project-surgery tools. It runs model-written Swift outside the seatbelt, but so do `RunSomeTests` and `RunProject` on Swift the agent can already write into the code root. Gating it removes no capability, and it is the tool for checking a value while debugging logic, so a prompt there fires often and pushes the agent toward throwaway test files in the repo.
 
 The bare server form `mcp__xcode` grants exactly the same set and behaves identically against the `ask` rule. Prefer the glob purely for legibility: it shares a namespace shape with the `ask` entries beside it, so a reader scanning `permissions.allow` sees at a glance that the pack's rules are all about one server.
+
+`DocumentationSearch` is also named on its own. It only reads Apple's documentation, and it is the call an agent makes most while planning, so it keeps its grant if the operator narrows the glob.
 
 **(4) Grant the Bash patterns** via §E. Add to `permissions.allow`:
 
@@ -566,7 +569,7 @@ On yes, ask for the repo path. If it sits outside the code root init granted, sa
 ✅ Xcode pack activated (macOS, Xcode <version>, headless).
 
 MCP server registered:     xcode → xcrun mcpbridge  (in <HOME>/.mcp.json)
-Tool permissions granted:  mcp__xcode__*  (the whole server)
+Tool permissions granted:  mcp__xcode__*  (the whole server), mcp__xcode__DocumentationSearch
 Gated (ask):               InvokeDebuggerCommand  ← LLDB can shell out, outside the sandbox
 Bash allowed:              xcodebuild *, xcrun simctl *, xcrun mcp-server status
 Bash gated (ask):          simctl delete/erase, -exportArchive, altool, notarytool  ← uploads need your tap
@@ -846,7 +849,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 **Xcode deconfigure:**
 - Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.
-- Revoke `mcp__xcode__*` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)` and `Bash(xcrun mcp-server status)`.
+- Revoke `mcp__xcode__*` and `mcp__xcode__DocumentationSearch` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)` and `Bash(xcrun mcp-server status)`.
 - **Leave every `permissions.ask` entry in place** — the two `mcp__xcode__` ones and the five Bash ones. They gate arbitrary code execution, simulator destruction and the upload path; keeping them costs nothing once the server is gone, and removing them is the one change here that *widens* what can happen silently. Say so rather than asking.
 - `AskUserQuestion`: "Also delete the seeded rules `.claude/rules/xcode.md` and `xcode-project.md`?" (Yes/No). Default to keeping them — they're instruction-only and harmless without the server, and the operator may have edited them.
 - Tell the operator the two steps they own are also theirs to undo, and that neither is done for them: remove `"xcrun simctl *"` and `"xcodebuild *"` from `sandbox.excludedCommands` in `.claude/settings.json`, and, to revoke this harness's access to the headless server, `sudo xcrun mcp-server deny <id>` with the agent id that `xcrun mcp-server status` lists (Claude Code and Codex are separate ids). `sudo xcrun mcp-server disable` is the wider switch: it turns headless mode off for every agent on the box, not just this home.
