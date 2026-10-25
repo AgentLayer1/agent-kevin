@@ -156,8 +156,8 @@ async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> 
   await waitForDiagrams(page);
 }
 
-// Explainer and PR report pages draw Mermaid after `load`; they hold __renderDone at false until every
-// diagram is drawn or has failed, so a page that never sets it is captured at once.
+// Explainer and PR report pages draw Mermaid and highlight code after `load`; they hold __renderDone at false
+// until both have finished or failed, so a page that never sets it is captured at once.
 async function waitForDiagrams(page: PageLike): Promise<void> {
   try {
     await page.waitForFunction(() => (globalThis as { __renderDone?: boolean }).__renderDone !== false, {

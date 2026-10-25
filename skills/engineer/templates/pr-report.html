@@ -535,6 +535,14 @@
   ul.evidence li code { color: var(--brand-bright); }
   .snippet { margin: 6px 0 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--panel-a); overflow-x: auto; }
   .snippet pre { margin: 0; padding: 8px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink); white-space: pre; }
+  .hljs-keyword, .hljs-built_in, .hljs-literal { color: var(--brand-bright); }
+  .hljs-string, .hljs-regexp { color: var(--ok); }
+  .hljs-number, .hljs-type, .hljs-attr, .hljs-property { color: var(--logic); }
+  .hljs-title, .hljs-symbol { color: var(--cool); }
+  .hljs-comment { color: var(--ink-dim); font-style: italic; }
+  .hljs-meta, .hljs-operator, .hljs-punctuation { color: var(--ink-2); }
+  .hljs-addition { color: var(--ok); }
+  .hljs-deletion { color: var(--risk); }
   .finding-meta { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-dim); margin-top: 6px; }
   .raised { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--cool); color: var(--cool); white-space: nowrap; }
 
@@ -719,7 +727,7 @@
   const CLASSES = ["risk", "logic", "mechanical"];
   const list = (value) => (Array.isArray(value) ? value : []);
 
-  // Every string from the PR is untrusted: nodes are built from text, and the only innerHTML is Mermaid's SVG under securityLevel strict.
+  // Every string from the PR is untrusted: nodes are built from text, and the only innerHTML is Mermaid's SVG under securityLevel strict and highlight.js's escaped markup.
   const h = (tag, attrs, ...children) => {
     const node = document.createElement(tag);
     Object.entries(attrs || {}).forEach(([key, val]) => {
@@ -838,7 +846,7 @@
           top().append(h("div", { class: "diagram" }, h("pre", {}, code)));
         } else {
           if (fence[1] === "suggestion") { top().append(h("div", { class: "md-label" }, "Suggested change")); }
-          top().append(h("pre", {}, h("code", {}, code)));
+          top().append(h("pre", { "data-lang": fence[1] || null }, h("code", {}, code)));
         }
       } else if (details) {
         endBlock();
@@ -1280,7 +1288,7 @@
     renderHeader(DATA.kind === "replies" ? "replies" : "review"),
     h("nav", { class: "jump" }, sections.flatMap((entry) => [entry.groupStart ? h("span", { class: "sep" }) : null, h("a", { href: `#${entry.id}` }, entry.title)])),
     ...sections.map((entry) => entry.node),
-    h("footer", {}, "Rendered from the pr-report-data block in this file. Diagram sources show as text when the diagram library can't load."));
+    h("footer", {}, "Rendered from the pr-report-data block in this file. Diagram and code sources show as plain text when Mermaid or highlight.js can't load."));
   document.title = `PR #${DATA.pr.number}${DATA.kind === "replies" ? " replies" : ""} — ${DATA.pr.title}`;
 
 
@@ -1291,7 +1299,22 @@
     if (!mermaidLib) { return; }
     const run = ++generation;
     const dark = document.documentElement.getAttribute("data-theme") !== "light";
-    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: dark ? "dark" : "default" });
+    const css = getComputedStyle(document.documentElement);
+    const color = (name) => css.getPropertyValue(name).trim();
+    // Only the base theme takes custom colours, and it needs real values, so the page's CSS variables are read here.
+    mermaidLib.initialize({
+      startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: "base",
+      themeVariables: {
+        darkMode: dark, fontFamily: "IBM Plex Sans, system-ui, sans-serif",
+        background: color("--panel-a"), textColor: color("--ink"), lineColor: color("--ink-dim"),
+        primaryColor: color("--panel-a"), primaryTextColor: color("--ink"), primaryBorderColor: color("--brand"),
+        secondaryColor: color("--panel-b"), tertiaryColor: color("--panel-b"),
+        clusterBkg: color("--panel-b"), clusterBorder: color("--line"), edgeLabelBackground: color("--panel-b"),
+        noteBkgColor: color("--panel-b"), noteTextColor: color("--ink-2"), noteBorderColor: color("--logic"),
+        actorBkg: color("--panel-a"), actorBorder: color("--brand"), actorTextColor: color("--ink"), actorLineColor: color("--line"),
+        signalColor: color("--ink-dim"), signalTextColor: color("--ink"),
+      },
+    });
     const boxes = [...document.querySelectorAll(".diagram")];
     await Promise.all(boxes.map(async (box, i) => {
       const source = box.dataset.source || box.textContent;
@@ -1306,12 +1329,29 @@
       }
     }));
   };
-  if (document.querySelector(".diagram")) {
+  // Code is what a comment fences or a finding quotes; a comment's raw view and a diagram's source stay plain.
+  const codes = () => [...root.querySelectorAll(".md pre, .snippet pre")].filter((block) => !block.closest(".diagram") && !("lit" in block.dataset));
+  const highlight = (hljs) => codes().forEach((block) => {
+    const language = block.dataset.lang;
+    const { value } = language && hljs.getLanguage(language)
+      ? hljs.highlight(block.textContent, { language })
+      : hljs.highlightAuto(block.textContent, ["typescript", "sql", "json"]);
+    block.dataset.lit = "";
+    (block.querySelector("code") ?? block).innerHTML = value;
+  });
+  const pending = [
+    document.querySelector(".diagram") && import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; return drawDiagrams(); }),
+    codes().length && import("https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/es/highlight.min.js")
+      .then((module) => {
+        highlight(module.default);
+        // The filters rebuild their cards, so code drawn later is highlighted as it lands.
+        new MutationObserver(() => highlight(module.default)).observe(root, { childList: true, subtree: true });
+      }),
+  ].filter(Boolean).map((loading) => loading.catch(() => {}));
+  if (pending.length) {
     window.__renderDone = false;
-    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
-      .then((module) => { mermaidLib = module.default; return drawDiagrams(); })
-      .catch(() => {})
-      .finally(() => { window.__renderDone = true; });
+    Promise.all(pending).finally(() => { window.__renderDone = true; });
   }
 
   document.addEventListener("themechange", drawDiagrams);
