@@ -78,6 +78,11 @@ describe('checkBody', () => {
     expect(ok.errors).toEqual([]);
     expect(ok.diagrams).toEqual([{ label: 'diagram 1', source: 'flowchart LR\n  A["a<br/>b"] --> B' }]);
   });
+
+  test('a code block must escape its markup, though a <code> wrapper and a bare < are fine', () => {
+    expect(checkBody(body(section('<pre>const done: Promise<void> = run();</pre>'))).errors[0]).toContain('code block 1 holds raw markup');
+    expect(checkBody(body(section('<pre data-lang="typescript"><code>const done: Promise&lt;void&gt; = run();\nif (a < b) {}</code></pre>'))).errors).toEqual([]);
+  });
 });
 
 describe('renderPage', () => {

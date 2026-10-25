@@ -39,6 +39,9 @@ export const checkBody = (body: string): BodyCheck => {
   const forbiddenTag = FORBIDDEN_TAG.exec(body)?.[1];
   const sections = [...body.matchAll(/<section\b[^>]*>\s*(?:<!--[\s\S]*?-->\s*)*(<h2\b)?/gi)];
   const diagramBlocks = [...body.matchAll(/<pre\b[^>]*class=(["'])[^"']*\bdiagram\b[^"']*\1[^>]*>([\s\S]*?)<\/pre>/gi)].map((match) => match[2]);
+  const codeBlocks = [...body.matchAll(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi)]
+    .filter((match) => !/class=(["'])[^"']*\bdiagram\b[^"']*\1/i.test(match[1]))
+    .map((match) => match[2]);
   const errors = [
     ...[
       forbiddenTag && `a <${forbiddenTag.toLowerCase()}> tag`,
@@ -52,6 +55,9 @@ export const checkBody = (body: string): BodyCheck => {
     ...sections.flatMap((match, index) => (match[1] ? [] : [`section ${index + 1} doesn't open with an <h2>`])),
     ...diagramBlocks.flatMap((source, index) =>
       /<[a-z/!]/i.test(source) ? [`diagram ${index + 1} holds raw markup; write < as &lt; inside a diagram (e.g. &lt;br/&gt;)`] : []
+    ),
+    ...codeBlocks.flatMap((source, index) =>
+      /<(?!\/?code\b)[a-z/!]/i.test(source) ? [`code block ${index + 1} holds raw markup; write < as &lt; inside a code block (e.g. Promise&lt;void&gt;)`] : []
     ),
   ];
   return { errors, title: h1s[0] ? textOf(h1s[0][1]) : '', diagrams: diagramBlocks.map((source, index) => ({ label: `diagram ${index + 1}`, source: decode(source) })) };
