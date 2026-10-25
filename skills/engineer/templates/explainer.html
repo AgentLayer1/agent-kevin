@@ -462,6 +462,12 @@
 
   pre { font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.55; background: var(--panel-b); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
   pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  .hljs-keyword, .hljs-built_in, .hljs-literal { color: var(--brand-bright); }
+  .hljs-string, .hljs-regexp { color: var(--ok); }
+  .hljs-number, .hljs-type, .hljs-attr, .hljs-property { color: var(--logic); }
+  .hljs-title, .hljs-symbol { color: var(--cool); }
+  .hljs-comment { color: var(--ink-dim); font-style: italic; }
+  .hljs-meta, .hljs-operator, .hljs-punctuation { color: var(--ink-2); }
   .diagram { margin: 22px 0 8px; padding: 22px; border-radius: var(--r); border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow); overflow-x: auto; white-space: pre; color: var(--ink-2); font-size: 12px; }
   .diagram.drawn { white-space: normal; text-align: center; }
   .diagram svg { max-width: 100%; height: auto; }
@@ -552,7 +558,7 @@
 </div>
 </section>
 <!-- body:end -->
-<footer>Diagrams render with Mermaid; when it can't load, their source shows as text.</footer>
+<footer>Diagrams render with Mermaid and code is highlighted with highlight.js; when either can't load, the source shows as plain text.</footer>
 </main>
 
 <script>
@@ -632,7 +638,22 @@
     if (!mermaidLib) { return; }
     const run = ++generation;
     const dark = document.documentElement.getAttribute("data-theme") !== "light";
-    mermaidLib.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: dark ? "dark" : "default", themeVariables: { fontFamily: "IBM Plex Sans, system-ui, sans-serif" } });
+    const css = getComputedStyle(document.documentElement);
+    const color = (name) => css.getPropertyValue(name).trim();
+    // Only the base theme takes custom colours, and it needs real values, so the page's CSS variables are read here.
+    mermaidLib.initialize({
+      startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme: "base",
+      themeVariables: {
+        darkMode: dark, fontFamily: "IBM Plex Sans, system-ui, sans-serif",
+        background: color("--panel-a"), textColor: color("--ink"), lineColor: color("--ink-dim"),
+        primaryColor: color("--panel-a"), primaryTextColor: color("--ink"), primaryBorderColor: color("--brand"),
+        secondaryColor: color("--panel-b"), tertiaryColor: color("--panel-b"),
+        clusterBkg: color("--panel-b"), clusterBorder: color("--line"), edgeLabelBackground: color("--panel-b"),
+        noteBkgColor: color("--panel-b"), noteTextColor: color("--ink-2"), noteBorderColor: color("--logic"),
+        actorBkg: color("--panel-a"), actorBorder: color("--brand"), actorTextColor: color("--ink"), actorLineColor: color("--line"),
+        signalColor: color("--ink-dim"), signalTextColor: color("--ink"),
+      },
+    });
     await Promise.all(boxes.map(async (box, index) => {
       try {
         const { svg } = await mermaidLib.render(`diagram-${index}-${Date.now()}`, box.dataset.source);
@@ -646,12 +667,23 @@
       }
     }));
   };
-  if (boxes.length) {
+  const codes = [...document.querySelectorAll("pre:not(.diagram)")];
+  const highlight = (hljs) => codes.forEach((block) => {
+    const language = block.dataset.lang;
+    const { value } = language && hljs.getLanguage(language)
+      ? hljs.highlight(block.textContent, { language })
+      : hljs.highlightAuto(block.textContent, ["typescript", "sql", "json"]);
+    block.innerHTML = value;
+  });
+  const pending = [
+    boxes.length && import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
+      .then((module) => { mermaidLib = module.default; return draw(); }),
+    codes.length && import("https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/es/highlight.min.js")
+      .then((module) => highlight(module.default)),
+  ].filter(Boolean).map((loading) => loading.catch(() => {}));
+  if (pending.length) {
     window.__renderDone = false;
-    import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
-      .then((module) => { mermaidLib = module.default; return draw(); })
-      .catch(() => {})
-      .finally(() => { window.__renderDone = true; });
+    Promise.all(pending).finally(() => { window.__renderDone = true; });
   }
   document.addEventListener("themechange", draw);
 })();

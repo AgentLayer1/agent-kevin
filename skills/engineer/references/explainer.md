@@ -30,4 +30,5 @@ Plain HTML: no `<script>`, `<style>`, `<link>`, `<iframe>`, `<form>`, `<object>`
 - One `<section>` per part, each opening with an `<h2>`. Sections number themselves and fill the contents dropdown; keep titles short, since the top bar shows the one in view.
 - Components: `.card` (add `.verdict` with `ok`, `warn` or `crit` for the headline answer), `.grid2` of cards (before and after), `.stats` of `<div class="stat"><b>42</b><span>what it counts</span></div>`, `<div class="table"><table>…</table></div>`, `.card.finding` with `crit`, `warn`, `info` or `ok` and an `<h4>`, `<span class="tag warn">label</span>`, `<p class="label">` above a card's text, `<p class="cap">` under a diagram, and `<details><summary>`.
 - A diagram is `<pre class="diagram">` holding Mermaid source with `<`, `>` and `&` escaped (`&lt;br/&gt;`, `--&gt;`). One diagram per flow, with a caption.
+- A code block is a plain `<pre>` with the same escaping. It is highlighted on load, with TypeScript, SQL or JSON detected; `data-lang` forces a language.
 - Prose stays a readable column on its own; tables, diagrams and grids take the full width.
