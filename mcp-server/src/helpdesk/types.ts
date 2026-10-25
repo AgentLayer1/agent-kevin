@@ -124,6 +124,8 @@ export interface HelpdeskConnector {
   get: (id: string) => Promise<{ ticket: HelpdeskTicket; messages: HelpdeskMessage[] }>;
   /** Adds a note only agents can see; returns the new note's id. */
   addNote: (id: string, bodyHtml: string) => Promise<string>;
+  /** Assigns the ticket to one teammate; returns everyone assigned as the ticket reads back after the change. */
+  assign?: (id: string, teammate: string) => Promise<HelpdeskPerson[]>;
   download: (attachmentId: string) => Promise<DownloadedFile>;
   accounts?: (search?: string) => Promise<HelpdeskAccount[]>;
   lookups: Partial<Record<LookupKind, () => Promise<HelpdeskLookup[]>>>;

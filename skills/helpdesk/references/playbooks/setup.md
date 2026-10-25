@@ -38,7 +38,7 @@ Run it in rounds with `AskUserQuestion`, a few questions at a time. Each questio
    - Known issues.
    - The team and who does what.
    - Who to escalate to.
-6. **More routines.** Any other recurring support job: a weekly digest, a review sweep, a monthly feature-request count. Each becomes a `## Workflow: <name>` section (a name of letters and digits, not `pulse` or one of the skill's own playbooks), and its steps are the operator's. Ask how often each runs, for `schedule`.
+6. **More routines.** Any other recurring support job: a weekly digest, a review sweep, a monthly feature-request count. Each becomes a `## Workflow: <name>` section (a name of letters and digits, not `pulse` or one of the skill's own playbooks), and its steps are the operator's. Ask how often each runs, for `schedule`, and whether its private notes and assignments may go ahead without asking; a yes is written into its steps in those words.
 
 Write the file, show it, and confirm.
 

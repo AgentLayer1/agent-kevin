@@ -1,8 +1,8 @@
 /**
  * Helpdesk tools — one surface over every configured helpdesk (SupportCandy,
- * Pylon). Reads (tickets, counts, conversations, attachments, accounts, lookups) and one write: a note only agents see. Nothing here
- * replies to a customer, changes a ticket's fields or closes it; a person
- * sends every reply. Ticket text crosses the trust boundary, so it comes back
+ * Pylon). Reads (tickets, counts, conversations, attachments, accounts, lookups) and two writes: a note only agents see and the
+ * ticket's assignee. Nothing here replies to a customer, changes a ticket's
+ * status or closes it; a person sends every reply. Ticket text crosses the trust boundary, so it comes back
  * wrapped as untrusted.
  */
 import { assertFilters, connectors, labelOf, noteHtml, resolveConnector } from '@/helpdesk/connectors';
@@ -126,7 +126,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'helpdesk_note',
     description:
-      'Add a private note to a helpdesk ticket: visible to agents, never to the customer. The one write in the Helpdesk pack, used to leave a draft reply for a person to edit and send. Plain text; blank lines start paragraphs. Never use it to reach the customer.',
+      'Add a private note to a helpdesk ticket: visible to agents, never to the customer. One of the two writes in the Helpdesk pack (with helpdesk_assign), used to leave a draft reply for a person to edit and send. Plain text; blank lines start paragraphs. Never use it to reach the customer.',
     inputSchema: {
       helpdesk: HELPDESK,
       connection: CONNECTION,
@@ -137,6 +137,31 @@ export const tools: ToolDef[] = [
       const connector = resolveConnector({ helpdesk, connection });
       const noteId = await connector.addNote(id, noteHtml(text));
       return { ok: true, helpdesk: labelOf(connector), ticket: id, note: noteId };
+    }
+  }),
+  defineTool({
+    name: 'helpdesk_assign',
+    description:
+      "Assign a helpdesk ticket to a teammate (an id from helpdesk_lookups teammates), so a person picks it up. Returns everyone assigned as the ticket reads back after the change, and fails when the teammate isn't among them. It never replies, changes the status or closes the ticket. SupportCandy only: the connection's agent role needs Assign Agents for the ticket's assignment state.",
+    inputSchema: {
+      helpdesk: HELPDESK,
+      connection: CONNECTION,
+      id: z.string().min(1).describe('Ticket id.'),
+      assignee: z.string().min(1).describe('Teammate id, from helpdesk_lookups teammates.')
+    },
+    handler: async ({ helpdesk, connection, id, assignee }) => {
+      const connector = resolveConnector({ helpdesk, connection });
+      if (!connector.assign) {
+        throw new Error(`${connector.name} tickets can't be assigned from here yet.`);
+      }
+      const assignees = await connector.assign(id, assignee);
+      if (!assignees.some((person) => person.id === assignee)) {
+        throw new Error(
+          `Ticket ${id} reads back assigned to ${assignees.map((person) => person.name ?? person.id).join(', ') || 'nobody'}, not teammate ${assignee}. ` +
+            'Check that the agent role has Assign Agents for this ticket, and that the site caches no SupportCandy API responses.'
+        );
+      }
+      return untrusted(`${labelOf(connector)}:assign`, JSON.stringify({ ok: true, helpdesk: labelOf(connector), ticket: id, assignees }, null, 2));
     }
   }),
   defineTool({

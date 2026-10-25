@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { tools } from '@/tools/helpdesk';
 import { assertFilters, connectors, noteHtml, resolveConnector } from './connectors';
 import { safeName, saveToTemp } from './download';
 import { issueFilter, mapAccount, mapIssue, mapMessage, pylon } from './pylon';
@@ -87,6 +88,52 @@ describe('SupportCandy notes', () => {
     const form = new URLSearchParams(request?.body);
     expect(form.get('type')).toBe('note');
     expect(form.get('body')).toBe('<p>Draft</p>');
+  });
+});
+
+describe('SupportCandy assignment', () => {
+  const saved = { ...process.env };
+  const sent: { url: string; method: string; body: string }[] = [];
+  const realFetch = globalThis.fetch;
+  const readBack = { current: ['5'] as string[] };
+
+  beforeEach(() => {
+    process.env.SUPPORTCANDY_URL = 'https://help.example.com';
+    process.env.SUPPORTCANDY_USERNAME = 'agent-bot';
+    process.env.SUPPORTCANDY_APP_PASSWORD = 'abcd efgh';
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      sent.push({ url: url.pathname, method: init?.method ?? 'GET', body: String(init?.body ?? '') });
+      const route = url.pathname.replace('/wp-json/supportcandy/v2', '');
+      const bodies: Record<string, unknown> = {
+        '/statuses': [],
+        '/categories': [],
+        '/agents': { results: [{ id: 5, name: 'Sam' }, { id: 6, name: 'Kit' }] },
+        '/tickets/318': { id: 318, assigned_agent: readBack.current },
+        '/tickets/318/update-fields': { success: true }
+      };
+      return new Response(JSON.stringify(bodies[route] ?? {}), { status: 200 });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    process.env = { ...saved };
+    sent.length = 0;
+    readBack.current = ['5'];
+  });
+
+  test('posts the teammate as the assigned agent and returns the assignees the ticket reads back', async () => {
+    expect(await supportcandy().assign?.('318', '5')).toEqual([{ id: '5', name: 'Sam' }]);
+    const update = sent.find((request) => request.method === 'POST');
+    expect(update?.url).toBe('/wp-json/supportcandy/v2/tickets/318/update-fields');
+    expect(Object.fromEntries(new URLSearchParams(update?.body))).toEqual({ assigned_agent: '5' });
+  });
+
+  test('helpdesk_assign fails when the read-back shows someone else', async () => {
+    const assign = tools.find((tool) => tool.name === 'helpdesk_assign');
+    readBack.current = ['6'];
+    await expect(assign?.handler({ id: '318', assignee: '5' })).rejects.toThrow('reads back assigned to Kit, not teammate 5');
   });
 });
 

@@ -290,6 +290,13 @@ export const supportcandy = (connection?: string): HelpdeskConnector => {
       });
       return String(created.id ?? '');
     },
+    assign: async (id, teammate) => {
+      const creds = requireCredentials(connection);
+      const path = `/tickets/${encodeURIComponent(id)}`;
+      await call<unknown>(creds, `${path}/update-fields`, { method: 'POST', form: { assigned_agent: teammate } });
+      const [raw, names] = await Promise.all([call<ScTicket>(creds, path), lookups(creds)]);
+      return (raw.assigned_agent ?? []).map((agent) => ({ id: String(agent), ...(names.agents.get(String(agent)) && { name: names.agents.get(String(agent)) }) }));
+    },
     download: async (attachmentId) => {
       const attachment = await call<ScAttachment>(requireCredentials(connection), `/attachments/${encodeURIComponent(attachmentId)}`);
       if (!attachment.url) {
