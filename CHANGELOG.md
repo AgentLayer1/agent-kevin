@@ -43,6 +43,23 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.7] - 2026-10-26
+
+### Added
+- **The agent can assign a helpdesk ticket.** `helpdesk_assign` hands a SupportCandy ticket to a teammate (an id from `helpdesk_lookups` teammates), then reads the ticket back and fails when the teammate isn't on it, so a write the site quietly ignores never reads as done. The connection's agent role needs **Assign Agents** for the ticket's assignment state. Pylon tickets can't be assigned yet. The Helpdesk pack grants it beside `helpdesk_note` at the recommended level.
+- **A queue routine can write its notes and assignments without asking.** When a profile's `## Workflow` says its private notes and assignments go ahead without asking, the routine writes those two unasked and its output lists every ticket with what was written. A sweep that notes each new ticket and hands it to a person no longer waits on a yes per ticket. Cards, tasks and comments still wait, and nothing replies, closes or changes a status. The setup interview asks this for each routine.
+- **Explainer and PR report diagrams match the page, and code is highlighted.** Mermaid takes its colours from the page in light and dark, and code blocks are highlighted (diff lines show added and removed). The explainer check flags a raw `<` in a code block, which a browser reads as a tag and drops the rest of the line.
+
+### Fixed
+- **Untrusted content can't close its wrapper early.** A wrapper tag spelled inside a ticket body, a review or a PR diff is defused, so the source can't end the untrusted block and speak outside it. An attachment read from its temp folder counts as untrusted too.
+
+### Changed
+- **SupportCandy setup keeps the API out of the page cache.** A caching plugin with REST caching on (LiteSpeed Cache ships it on, for a week) saves the answers to the agent's API reads and serves them to anyone requesting the same address, login or not, because the application password travels in a header rather than a cookie. Reads go stale, and the ticket list is readable without a login. The Helpdesk walk now has a step to turn REST caching off or exclude `/wp-json/supportcandy/`, then purge.
+
+### Upgrade
+- `settings: optional` — only in a home with the Helpdesk pack that grants `helpdesk_note`: add `mcp__plugin_agent-kevin_kevin__helpdesk_assign` to `permissions.allow` in `.claude/settings.json`.
+- `manual: optional` — on each SupportCandy site a connection reads: if it runs a caching plugin, turn off REST API caching (LiteSpeed Cache → Cache → Cache REST API) or exclude `/wp-json/supportcandy/` from the cache, then purge it. To check, request the ticket list without a login: a `200` answer means the cache is serving it; a `401` means it's protected.
+
 ## [0.8.6] - 2026-10-22
 
 ### Added
