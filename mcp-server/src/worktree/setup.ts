@@ -7,9 +7,10 @@
  * detects the package manager, installs, and runs the first build script it finds.
  * Read-only against the source checkout — it copies, never deletes or overwrites there.
  *
- * `removeWorktree` tears one down safely: it refuses outright on uncommitted changes, gates
- * committed-but-unpushed removal behind an explicit `force`, runs the repo's `clean` script when
- * present, then `git worktree remove`s it. The branch is left alone unless `deleteBranch` is set.
+ * `removeWorktree` tears one down safely: it refuses outright on a base branch (dev/develop/main/
+ * master) or uncommitted changes, gates committed-but-unpushed removal behind an explicit `force`,
+ * runs the repo's `clean` script when present, then `git worktree remove`s it. The branch is left
+ * alone unless `deleteBranch` is set.
  * It never passes `--force` — a git refusal (dirty/locked) fails loud. On native Windows it first
  * kills any process tree still rooted in the worktree (a lingering dev server locks the dir, so clean
  * and `git worktree remove` would otherwise fail — see releaseHolders), and once git has deregistered
@@ -43,8 +44,13 @@ const LOCKFILES = [
 /** Build scripts to look for in package.json, in preference order — full `build` first. */
 const BUILD_SCRIPTS = ['build', 'build:packages', 'build:libs'];
 
-/** Base branches to start a NEW worktree branch from, in preference order. Falls back to current HEAD. */
+/**
+ * Base branches to start a NEW worktree branch from, in preference order (falls back to current HEAD).
+ * A worktree on one of them is never removable, whether or not the repo uses it as its base.
+ */
 const BASE_BRANCH_PREFERENCE = ['dev', 'develop', 'main', 'master'];
+
+const isBaseBranch = (branch: string | null): boolean => branch !== null && BASE_BRANCH_PREFERENCE.includes(branch);
 
 /** These strings become git / path arguments — keep them to safe charsets. */
 const BRANCH_RE = /^[A-Za-z0-9._/-]+$/;
@@ -516,6 +522,9 @@ export const removeWorktree = ({
 
   const head = git(resolvedWorktree, ['rev-parse', '--abbrev-ref', 'HEAD']);
   const branch = head === 'HEAD' ? null : head;
+  if (isBaseBranch(branch)) {
+    throw new Error(`Refusing to remove a worktree on the ${branch} base branch: ${resolvedWorktree}`);
+  }
 
   const uncommitted = dirtyStatus(resolvedWorktree);
   const unpushed = unpushedCount(resolvedWorktree);
@@ -597,12 +606,20 @@ export interface ListWorktreesOptions {
 }
 
 /**
- * `main` is the main checkout (never removable); `missing` is registered but gone from disk
- * (`git worktree prune` clears it); `deletable` means the branch's content is already in the base
- * (merged, squash-merged, or no unique commits); `uncommitted`/`unpushed` mirror removeWorktree's
- * blocking gates; `pushed-unmerged` is safe on a remote but not yet landed (likely in review).
+ * `main` is the main checkout and `base` a worktree on dev/develop/main/master (neither removable);
+ * `missing` is registered but gone from disk (`git worktree prune` clears it); `deletable` means the
+ * branch's content is already in the base (merged, squash-merged, or no unique commits);
+ * `uncommitted`/`unpushed` mirror removeWorktree's blocking gates; `pushed-unmerged` is safe on a
+ * remote but not yet landed (likely in review).
  */
-export type WorktreeVerdict = 'main' | 'missing' | 'uncommitted' | 'deletable' | 'unpushed' | 'pushed-unmerged';
+export type WorktreeVerdict =
+  | 'main'
+  | 'base'
+  | 'missing'
+  | 'uncommitted'
+  | 'deletable'
+  | 'unpushed'
+  | 'pushed-unmerged';
 
 export interface WorktreeStatus {
   path: string;
@@ -724,15 +741,17 @@ export const listWorktrees = ({ repoPath }: ListWorktreesOptions): ListWorktrees
 
     const verdict: WorktreeVerdict = isMain
       ? 'main'
-      : missing
-        ? 'missing'
-        : uncommitted > 0
-          ? 'uncommitted'
-          : merged || squashMerged || counts.aheadOfBase === 0
-            ? 'deletable'
-            : unpushed > 0
-              ? 'unpushed'
-              : 'pushed-unmerged';
+      : isBaseBranch(branch)
+        ? 'base'
+        : missing
+          ? 'missing'
+          : uncommitted > 0
+            ? 'uncommitted'
+            : merged || squashMerged || counts.aheadOfBase === 0
+              ? 'deletable'
+              : unpushed > 0
+                ? 'unpushed'
+                : 'pushed-unmerged';
 
     return {
       path,

@@ -109,6 +109,8 @@ needed). It returns every registered worktree with a per-worktree `verdict`:
 - **`pushed-unmerged`** — safe on a remote but not landed; likely in review. Cross-check with
   `github_pr_list` when the operator wants to know if a PR is open for it.
 - **`missing`** — registered in git but the directory is gone; `git worktree prune` clears it.
+- **`base`** — a worktree on `dev`, `develop`, `main` or `master`. Never offered for teardown, and
+  `remove_worktree` refuses it, whether or not the repo integrates on that branch.
 
 Staleness is a judgment call, not a field: use `lastCommitDays` and `behindBase` to narrate it
 (e.g. "23 days old, 79 commits behind dev").
@@ -116,7 +118,7 @@ Staleness is a judgment call, not a field: use `lastCommitDays` and `behindBase`
 **Render the audit for scanning, not reading.** Lead with the one-line bottom line (how many are
 deletable), then group worktrees by verdict — deletable first, work-in-progress next, in-review
 last. One emoji per **group header** marks the state — 🟢 deletable, ✏️ uncommitted, 📤 unpushed,
-🔵 in review, 👻 missing, 🏠 main — rows stay plain (no per-row badges; emoji noise buries the
+🔵 in review, 👻 missing, 🏠 main and base — rows stay plain (no per-row badges; emoji noise buries the
 data). Inside each group use a short table: worktree suffix, branch, age (`lastCommitDays`), and
 a terse note (dirty/unpushed counts, ahead/behind, "merged", detached HEAD, locked). Trim the
 shared `<repo>-` prefix from paths — the suffix is the name the operator knows. Call out oddities
@@ -139,8 +141,8 @@ which session is in it and get an explicit yes before continuing.
 **Close by offering the teardown.** End the audit with a question (AskUserQuestion where
 available) offering a **full tear down** of the confirmed-deletable worktrees only — the 🟢 group,
 named explicitly, one option per worktree (multi-select) plus a "keep everything" option. Never
-include in-use, dirty, unpushed, in-review, or judgment-call entries (e.g. a base-branch checkout) in the
-offer. A selection there is the explicit yes the drop flow below requires — proceed into it for
+include in-use, dirty, unpushed, in-review, base-branch, or judgment-call entries in the offer. A
+selection there is the explicit yes the drop flow below requires — proceed into it for
 the chosen worktrees (full teardown: workspace entry + worktree + branch + DB fork), where the
 harness's own `remove_worktree` permission prompt remains the second gate.
 

@@ -219,10 +219,11 @@ Worktree commands:
                                     .git/config) — use the setup_worktree MCP tool there; this CLI is for a real terminal.
   worktree list <repoPath>          Audit every registered worktree: branch, dirty/unpushed counts, ahead/behind and
                                     merge state vs the base ref, last-commit age, and a verdict (deletable / uncommitted /
-                                    unpushed / pushed-unmerged / missing / main). Read-only — fine anywhere.
+                                    unpushed / pushed-unmerged / missing / base / main). Read-only — fine anywhere.
   worktree remove <worktreePath> [--delete-branch] [--force] [--dry-run]
-                                    Safely remove a worktree: refuses on uncommitted changes; needs --force when the
-                                    branch has committed-but-unpushed commits; runs the repo's \`clean\` script first.
+                                    Safely remove a worktree: refuses on a dev/develop/main/master worktree and on
+                                    uncommitted changes; needs --force when the branch has committed-but-unpushed
+                                    commits; runs the repo's \`clean\` script first.
                                     Keeps the branch unless --delete-branch. --dry-run reports the status without
                                     touching anything. Same sandbox note — use remove_worktree there.
 

@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { listWorktrees, setupWorktree, type WorktreeStatus } from './setup';
+import { listWorktrees, removeWorktree, setupWorktree, type WorktreeStatus } from './setup';
 
 /**
  * Verdict matrix for `listWorktrees`, against a real temp repo with a bare origin: one worktree
- * per lifecycle state (merged, squash-merged, dirty, unpushed, pushed-in-review, missing dir).
+ * per lifecycle state (merged, squash-merged, dirty, unpushed, pushed-in-review, missing dir, base branch).
  */
 describe('listWorktrees', () => {
   let root: string;
@@ -70,6 +70,9 @@ describe('listWorktrees', () => {
     const gone = join(root, 'repo-gone');
     run(repo, ['worktree', 'add', gone, '-b', 'feat-gone']);
     rmSync(gone, { recursive: true, force: true });
+
+    // base: a checkout of a conventional base branch with nothing beyond main.
+    run(repo, ['worktree', 'add', join(root, 'repo-master'), '-b', 'master']);
   });
 
   afterAll(() => {
@@ -89,7 +92,7 @@ describe('listWorktrees', () => {
     expect(result.baseRef).toBe('origin/main');
     expect(result.mainCheckout).toBe(run(repo, ['rev-parse', '--show-toplevel']));
     expect(byBranch(result, 'main').verdict).toBe('main');
-    expect(result.worktrees).toHaveLength(7);
+    expect(result.worktrees).toHaveLength(8);
   });
 
   test('a regularly merged branch is deletable', () => {
@@ -133,6 +136,19 @@ describe('listWorktrees', () => {
     expect(entry.verdict).toBe('missing');
   });
 
+  test('a base-branch worktree is never deletable, even with nothing beyond the base', () => {
+    const entry = byBranch(listWorktrees({ repoPath: repo }), 'master');
+    expect(entry.aheadOfBase).toBe(0);
+    expect(entry.verdict).toBe('base');
+  });
+
+  test('remove_worktree refuses a base-branch worktree and leaves it and its branch in place', () => {
+    const path = join(root, 'repo-master');
+    expect(() => removeWorktree({ worktreePath: path, deleteBranch: true, force: true })).toThrow(/master base branch/);
+    expect(existsSync(path)).toBe(true);
+    expect(run(repo, ['branch', '--list', 'master'])).toContain('master');
+  });
+
   test('reports last-commit recency', () => {
     const entry = byBranch(listWorktrees({ repoPath: repo }), 'feat-merged');
     expect(entry.lastCommit).not.toBeNull();
@@ -142,7 +158,7 @@ describe('listWorktrees', () => {
   test('works when pointed at a worktree instead of the main checkout', () => {
     const result = listWorktrees({ repoPath: join(root, 'repo-merged') });
     expect(result.mainCheckout).toBe(run(repo, ['rev-parse', '--show-toplevel']));
-    expect(result.worktrees).toHaveLength(7);
+    expect(result.worktrees).toHaveLength(8);
   });
 });
 
