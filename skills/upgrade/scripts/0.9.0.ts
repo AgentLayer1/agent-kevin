@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Upgrade migration for v0.8.8: the focus skill is now attention, so a home's focus files and tool
+ * Upgrade migration for v0.9.0: the focus skill is now attention, so a home's focus files and tool
  * grants follow it.
  *
  * `projects/<slug>/focus.html` becomes `attention.html` (an existing `attention.html` wins and the old
@@ -30,7 +30,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { FOLDERS, PLUGIN_NAME } from '../../../mcp-server/src/config';
 import { migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 
-const VERSION = '0.8.8';
+const VERSION = '0.9.0';
 
 const HOME = resolve(process.env.AGENT_HOME?.trim() || process.cwd());
 const QUEUES = { from: join(dirname(FOLDERS.ATTENTION_QUEUES), 'focus'), to: FOLDERS.ATTENTION_QUEUES };
