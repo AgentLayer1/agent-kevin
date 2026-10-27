@@ -9,7 +9,7 @@ export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
   'pr-review': 'engineer review',
   'pr-walkthrough': 'engineer walkthrough',
   standup: 'focus standup',
-  'where-am-i': 'focus where-am-i',
+  'where-am-i': 'focus checkpoint all',
   'morning-briefing': 'briefing morning',
   'evening-briefing': 'briefing evening',
   'quick-pulse': 'briefing pulse',

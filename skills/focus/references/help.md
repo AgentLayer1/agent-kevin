@@ -21,9 +21,8 @@ Your day in one place: what today is for, what slipped, the week and month, the 
 
 | Ask | Playbook | You get |
 |---|---|---|
-| "Where am I?", "what was I working on?", `/focus where-am-i 48` | **where-am-i** | Every session from the last 24h: what it was about, where it stands, and its resume command |
-| "Which session needs me?", `/focus triage` | **triage** | The sessions waiting on you, ranked, and the one to resume |
-| "Checkpoint this session", "write a handoff" | **checkpoint** | A short pickup note for this session, filed into knowledge when it ends |
+| "Checkpoint this session", "write a handoff" | **checkpoint** | This session as a checklist: done, now, next, and what's waiting on you; filed into knowledge when it ends |
+| "What was I working on?", "which session needs me?", `/focus checkpoint all 48` | **checkpoint all** | The same checklist for every session from the last 24h: the decisions waiting on you first, ranked, each card with its resume command, then an offer to jump to one |
 
 ### 💬 With Slack connected
 

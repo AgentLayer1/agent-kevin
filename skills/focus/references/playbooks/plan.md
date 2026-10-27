@@ -3,7 +3,7 @@
 Run this in the morning. When the operator is overwhelmed, [organize](organize.md) runs first and calls this. Today holds three things at most: a longer list is a backlog, not a plan.
 
 1. Call `focus_write` (no queue, and `project` on a project page) for the lanes. If the last queue pull is older than 12 hours, run [refresh](refresh.md) first.
-2. **Read what's already in motion.** Open the newest radar report (`<HOME>/reports/radar/*-where-am-i.md`, the one the [where-am-i](where-am-i.md) playbook writes). A session that ends by asking the operator something, or stopped mid-flight on a task, is started work. When the newest radar is more than a day old, skip this step rather than reading stale sessions.
+2. **Read what's already in motion.** Open the newest report in `<HOME>/reports/radar/` (the one checkpoint all in the [checkpoint](checkpoint.md) playbook writes). A session with a ★ waiting on the operator, or a ▶ step mid-flight on a task, is started work. When the newest radar is more than a day old, skip this step rather than reading stale sessions.
 3. **Candidates for today**, in this order:
    1. carried-over work;
    2. anything due today or overdue: `focus_write` returns the ones with no plan as `dueUnplanned`, and `task_scan` has the rest;

@@ -887,7 +887,7 @@ const radarTab = (snap: StatusSnapshot): string => {
   const latest: RadarLatest | null = snap.radarLatest;
   const plugin = snap.runtime.pluginName;
   if (!latest) {
-    return hint(`No radar captured yet — run /${plugin}:focus where-am-i (or a sync) to snapshot your sessions.`);
+    return hint(`No radar captured yet — run /${plugin}:focus checkpoint all (or a sync) to snapshot your sessions.`);
   }
   const radarCount = snap.reports.filter((report) => report.category === 'radar').length;
   // Footer below the divider: the digest's stats line, then the radar-count note.
@@ -1222,8 +1222,8 @@ const cheatsheet = (plugin: string): Array<{ when: string; say: string; what: st
   },
   {
     when: 'Feeling lost',
-    say: `/${plugin}:focus where-am-i`,
-    what: 'Radar of your recent sessions — what each was about, where it left off, how to resume it.'
+    say: `/${plugin}:focus checkpoint all`,
+    what: 'A checklist for each recent session — what got done, where it stands, what waits on you, how to resume it.'
   },
   {
     when: 'After a busy day',

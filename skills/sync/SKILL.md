@@ -233,12 +233,12 @@ To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 
 ### 10. Session radar
 
-Invoke the `focus` skill with `where-am-i` (its [where-am-i](../focus/references/playbooks/where-am-i.md)
-playbook, via the Skill tool, default 24h window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
+Invoke the `focus` skill with `checkpoint all` (the all-sessions half of its
+[checkpoint](../focus/references/playbooks/checkpoint.md) playbook, via the Skill tool, default 24h window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
 (the playbook's default multi-root scope), so the sync run
 leaves behind a dated record of which threads were live and where each stood. It owns
-the radar end to end: scans the sessions, writes the per-session summaries, renders the
-digest, and persists the report (`category: 'radar'`). Skip only if it reports zero
+the radar end to end: scans the sessions, writes each one's checklist, renders the
+cards, and persists the report (`category: 'radar'`). Skip only if it reports zero
 sessions. Don't reimplement its steps inline — the playbook is the single source of truth.
 
 Independent of the wiki state, so order doesn't matter for correctness — placed here so

@@ -882,24 +882,22 @@ const reports: DemoReport[] = [
   {
     when: minutesAgo(33),
     category: 'radar',
-    slug: 'where-am-i',
-    title: 'Where am I: 3 sessions across 24h',
+    slug: 'checkpoints',
+    title: 'Checkpoints: 3 sessions across 24h',
     skill: 'focus',
     status: 'clean',
     emoji: '🟢',
     body: `> Launch-week prep across three threads: billing reconciliation, the load-test harness, and SOC 2 evidence.
 
-|   | # | Session | Last |
-|---|---|---------|------|
-| 🚧 | 1 | Billing reconciliation walk | *15m* · exporter bug filed |
-| ✅ | 2 | Load-test target | *yesterday* · 5x locked |
-| ✅ | 3 | SOC 2 evidence sprint | *2 days* · 3 of 5 reviews |
-
 ## 🟢 In motion (last hour)
 
 **1. Billing reconciliation walk** · *15m ago*
 
-Week-1 dual-write numbers reviewed; the exporter's timezone rounding explains all 41 mismatches, filed as pf-099.
+✓ Week-1 dual-write numbers reviewed (41 mismatches counted)
+✓ Exporter's timezone rounding explains all 41 (filed as pf-099)
+
+▶ Waiting on the exporter fix
+▷ next: rerun the week-1 comparison once pf-099 lands
 
 ↳ \`claude --resume ${SESSION.recon}\`
 
@@ -907,13 +905,20 @@ Week-1 dual-write numbers reviewed; the exporter's timezone rounding explains al
 
 **2. Load-test target** · *yesterday*
 
-Settled 5x over 10x; staging booked for Thursday.
+✓ Settled 5x over 10x (agreed in the thread)
+✓ Staging booked for Thursday (calendar invite sent)
+
+▷ next: run the load test on Thursday
 
 ↳ \`claude --resume ${SESSION.loadTest}\`
 
 **3. SOC 2 evidence sprint** · *2 days ago*
 
-Access reviews 3 of 5 done; the Okta checklist is drafted.
+✓ Access reviews 3 of 5 done (signed off)
+✓ Okta checklist drafted (assumed)
+
+▶ Access reviews 4 and 5
+▷ next: chase the two remaining reviewers
 
 ↳ \`claude --resume ${SESSION.soc2}\`
 

@@ -361,12 +361,12 @@ describe('renderDashboardHtml', () => {
         radarLatest: {
           date: '2026-06-16',
           time: '08:59',
-          title: 'Where am I',
-          href: 'reports/radar/2026-06-16-0859-where-am-i.md',
+          title: 'Checkpoints',
+          href: 'reports/radar/2026-06-16-0859-checkpoints.md',
           html: '<p>digest</p>',
           sessions: [
             {
-              title: 'Add report writing to where-am-i skill',
+              title: 'Add report writing to the checkpoint skill',
               timeAgo: '10m ago',
               summary: 'The anchor session for the radar feature.',
               resume: 'claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72',
@@ -383,7 +383,7 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('Tasks touched');
     // The Ongoing feed's Sessions group now comes from the radar digest, with
     // the session's tasks/plans + resume grouped in a .radar-meta box.
-    expect(html).toContain('Add report writing to where-am-i skill');
+    expect(html).toContain('Add report writing to the checkpoint skill');
     expect(html).toContain('claude --resume 46417511-9cd9-4170-83a6-fa05f62e7e72');
     expect(html).toContain('<div class="radar-meta">');
     expect(html).toContain('>lo-001</a> A task');

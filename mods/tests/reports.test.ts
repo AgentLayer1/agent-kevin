@@ -99,8 +99,8 @@ describe('/reports', () => {
 
   test('a path outside the session root stays absolute', async ($, on) => {
     setUp(on, machine({ root: '/fixture/elsewhere' }));
-    await writeReport($, 'radar', 'where', 'Where am I');
-    expect(await listed($)).toBe(list(`${reportPath('radar', 'where')} · Where am I`));
+    await writeReport($, 'radar', 'checkpoints', 'Checkpoints');
+    expect(await listed($)).toBe(list(`${reportPath('radar', 'checkpoints')} · Checkpoints`));
   });
 
   test('an edited report keeps its title; project documents and the roadmap are listed by name', async ($, on) => {

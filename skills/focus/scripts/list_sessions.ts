@@ -15,6 +15,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 const USER_SNIPPET = 400;
 const ASSISTANT_SNIPPET = 1500;
+const CHECKPOINT_SNIPPET = 4000;
 const RECENT_USER_MSGS = 3;
 
 interface ContentBlock {
@@ -42,6 +43,8 @@ interface SessionInfo {
   first_user_msg: string | null;
   recent_user_msgs: string[];
   last_assistant_text: string | null;
+  last_checkpoint: string | null;
+  turns_since_checkpoint: number | null;
   user_turns: number;
   started: string | null;
   last_timestamp: string | null;
@@ -128,6 +131,14 @@ const assistantTexts = (record: SessionRecord): string[] => {
   return content.map(blockText).filter((text): text is string => text !== null && text.trim().length > 0);
 };
 
+const isUserTurn = (record: SessionRecord): boolean => record.type === 'user' && userTexts(record).length > 0;
+
+/**
+ * A checkpoint reply is the focus checklist: a `✓` step line plus a `▶` now, `▷ next:` or `★` line.
+ * The dashboard's `radarSummary` (mcp-server/src/status/radar-refs.ts) reads the same glyphs.
+ */
+const isCheckpoint = (text: string): boolean => /^✓ /m.test(text) && /^(?:▶ |▷ next:|★ )/m.test(text);
+
 const parseRecords = (raw: string): SessionRecord[] =>
   raw
     .split('\n')
@@ -167,12 +178,16 @@ const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
   );
   const timestamps = body.map((record) => record.timestamp).filter((ts): ts is string => Boolean(ts));
 
-  const userMessages = body
-    .filter((record) => record.type === 'user')
-    .map(userTexts)
-    .filter((texts) => texts.length > 0);
+  const userMessages = body.filter(isUserTurn).map(userTexts);
 
   const assistantFlat = body.filter((record) => record.type === 'assistant').flatMap(assistantTexts);
+
+  const checkpoint = body
+    .map((record, index) => ({
+      index,
+      text: record.type === 'assistant' ? assistantTexts(record).findLast(isCheckpoint) : undefined
+    }))
+    .findLast((entry): entry is { index: number; text: string } => entry.text !== undefined);
 
   // Last activity comes from the transcript's own timestamps: Claude Code keeps an OPEN session's
   // file mtime moving even while it idles, so mtime reads "now" for every open tab. mtime is only
@@ -191,6 +206,8 @@ const buildInfo = (path: string, mtimeMs: number, now: number): SessionInfo => {
     recent_user_msgs: userMessages.slice(-RECENT_USER_MSGS).map((texts) => clip(texts[texts.length - 1], USER_SNIPPET)),
     last_assistant_text:
       assistantFlat.length > 0 ? clip(assistantFlat[assistantFlat.length - 1], ASSISTANT_SNIPPET) : null,
+    last_checkpoint: checkpoint ? clip(checkpoint.text, CHECKPOINT_SNIPPET) : null,
+    turns_since_checkpoint: checkpoint ? body.slice(checkpoint.index + 1).filter(isUserTurn).length : null,
     user_turns: userMessages.length,
     started: timestamps[0] ?? null,
     last_timestamp: lastTimestamp,

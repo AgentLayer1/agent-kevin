@@ -1395,7 +1395,7 @@ Env spelling: keys are written under their shared, agent-neutral `AGENT_*` names
 
 The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `AGENT_HOME_TIMEZONE` and the optional codebase pair, so:
 
-- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and the focus skill's where-am-i radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and the focus skill's checkpoint all radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
 
   ```bash
   GIT_REPOS=""

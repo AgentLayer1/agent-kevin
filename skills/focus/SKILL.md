@@ -4,11 +4,11 @@ description: >
   The operator's day in one place: what today is for, what slipped, the week and month, the roadmap
   in flight, who is waiting on them, and where each session left off. Home focus is the dashboard's
   Today tab; a project has its own page. Plans tasks into today, the week or the month, writes the
-  standup, sorts a brain dump, and runs the session radar, triage and checkpoints.
+  standup, sorts a brain dump, and checkpoints one session or all of them.
   Triggers on "what should I work on", "plan my day", "I'm overwhelmed", "get organized", "take this
   on", "add this to my list", "what do I owe people", "standup is coming up", "what did I do
-  yesterday", "where am I", "what was I working on", "which session needs me", "checkpoint this
-  session", a pasted link as something to do, or /focus.
+  yesterday", "what was I working on", "which session needs me", "checkpoint this session",
+  "checkpoint all", a pasted link as something to do, or /focus.
 allowed-tools:
   - AskUserQuestion
   - Bash
@@ -52,12 +52,11 @@ The operator's day: what it's for, what slipped, what the week and month are for
 | "plan my day", "what should I work on", `/focus plan` | [plan](references/playbooks/plan.md) |
 | "I'm overwhelmed", "get organized", "too much in my head", `/focus organize` | [organize](references/playbooks/organize.md) |
 | "standup is coming up", "what did I do yesterday", "I need my update", `/focus standup 48` | [standup](references/playbooks/standup.md) |
-| "where am I", "what was I working on", "which sessions are open", `/focus where-am-i 48` | [where-am-i](references/playbooks/where-am-i.md) |
-| "which session needs me", "what should I tend to", `/focus triage [scope]` | [triage](references/playbooks/triage.md) |
-| "checkpoint this session", "save where we are", "write a handoff", `/focus checkpoint` | [checkpoint](references/playbooks/checkpoint.md) |
+| "checkpoint this session", "save where we are", "where are we in this session", "write a handoff", `/focus checkpoint` | [checkpoint](references/playbooks/checkpoint.md) |
+| "checkpoint all", "what was I working on", "which sessions are open", "which session needs me", "what should I tend to", `/focus checkpoint all 48` | [checkpoint](references/playbooks/checkpoint.md), all sessions |
 | First refresh with Slack connected: pull the priorities already posted there | [backfill](references/playbooks/backfill.md) |
 
-Setting goals for the day, week, month or year, and scoring the week, is the goals skill; plan reads the goals it writes. When the operator names *what* a past session worked on (a branch, a PR, a bug) rather than when, that's the find-session skill, not where-am-i.
+Setting goals for the day, week, month or year, and scoring the week, is the goals skill; plan reads the goals it writes. When the operator names *what* a past session worked on (a branch, a PR, a bug) rather than when, that's the find-session skill, not checkpoint all.
 
 ## The day's data
 
@@ -86,16 +85,16 @@ Both carry what they show as JSON in a `focus-data` block, and `focus_write` ret
 
 **Sources.** GitHub is the queue's base. **Slack is optional:** it counts as connected when the session has Slack tools that identify the operator, search messages and read a thread, from any Slack MCP server the operator has added, and the identify call answers. In the playbooks, `slack_whoami`, `slack_search` and `slack_thread` stand for those three tools. Every Slack step runs only then: with no Slack tools, skip it silently; with tools that error, say so on the page (refresh, step 5).
 
-**Sessions.** `bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours <N>` lists the Claude Code sessions in scope as JSON, newest first. The where-am-i, triage and standup playbooks describe its fields and scope.
+**Sessions.** `bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours <N>` lists the Claude Code sessions in scope as JSON, newest first. The checkpoint and standup playbooks describe its fields and scope.
 
 ## Every time
 
 - **Never create or move a task the operator didn't place.** Every intake and every plan ends in a confirmed answer.
 - **The queue is a snapshot.** Pages print when it was pulled, so never describe an old queue as current.
 - **Outward actions stay outward.** Focus reads GitHub, and Slack when connected. It never comments, reviews, reacts, replies, or sends input to another session. Acting is the operator's next step.
-- **Nothing claimed that didn't happen.** A standup never upgrades built to shipped; a radar summary never guesses what a session did (read the transcript tail instead).
-- **Reports keep their names.** The standup saves as `slug: standup` in `briefings`, the radar as `slug: where-am-i` in `radar`, both with `skill: focus`, so the next run's gap check and the dashboard keep finding them.
+- **Nothing claimed that didn't happen.** A standup never upgrades built to shipped; a checkpoint of another session never guesses what it did (read the transcript tail instead).
+- **Reports keep their names.** The standup saves as `slug: standup` in `briefings`, checkpoint all as `slug: checkpoints` in `radar`, both with `skill: focus`, so the next run's gap check and the dashboard keep finding them.
 
 ## Reply
 
-Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup glance card (the full update is the saved report), the radar digest, a triage table, or a checkpoint. End with the `file://` path when a playbook saved or rendered something.
+Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup glance card (the full update is the saved report), or a checkpoint (one session's checklist, or a card per session for checkpoint all). End with the `file://` path when a playbook saved or rendered something.
