@@ -36,26 +36,31 @@ const LISTS = ['allow', 'ask', 'deny'] as const;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const movePages = (): { moved: string[]; removed: string[] } => {
+interface PageMoves {
+  moved: string[];
+  removed: string[];
+}
+
+const movePages = (): PageMoves => {
   const projects = existsSync(FOLDERS.PROJECTS)
     ? readdirSync(FOLDERS.PROJECTS, { withFileTypes: true }).filter((entry) => entry.isDirectory())
     : [];
-  const pages = projects
-    .map((entry) => join(FOLDERS.PROJECTS, entry.name))
-    .filter((dir) => existsSync(join(dir, 'focus.html')))
-    .map((dir) => ({ from: join(dir, 'focus.html'), to: join(dir, 'attention.html') }));
-  const outcomes = pages.map(({ from, to }) => {
-    if (existsSync(to)) {
-      rmSync(from);
-      return { outcome: 'removed' as const, path: relative(HOME, from) };
-    }
-    renameSync(from, to);
-    return { outcome: 'moved' as const, path: relative(HOME, from) };
-  });
-  return {
-    moved: outcomes.filter((item) => item.outcome === 'moved').map((item) => item.path),
-    removed: outcomes.filter((item) => item.outcome === 'removed').map((item) => item.path)
-  };
+  return projects
+    .map((entry) => join(FOLDERS.PROJECTS, entry.name, 'focus.html'))
+    .filter((page) => existsSync(page))
+    .reduce<PageMoves>(
+      (result, page) => {
+        const next = join(dirname(page), 'attention.html');
+        const outcome = existsSync(next) ? 'removed' : 'moved';
+        if (outcome === 'removed') {
+          rmSync(page);
+        } else {
+          renameSync(page, next);
+        }
+        return { ...result, [outcome]: [...result[outcome], relative(HOME, page)] };
+      },
+      { moved: [], removed: [] }
+    );
 };
 
 const moveQueues = (): 'moved' | 'dropped' | 'absent' => {
@@ -78,12 +83,14 @@ const writeAtomic = (file: string, text: string): void => {
   renameSync(temp, target);
 };
 
-const renameRules = (rules: unknown): unknown =>
-  Array.isArray(rules)
-    ? rules
-        .map((rule) => (rule === TOOL.from ? TOOL.to : rule))
-        .filter((rule, index, all) => rule !== TOOL.to || all.indexOf(TOOL.to) === index)
-    : rules;
+const renameRules = (rules: unknown): unknown => {
+  if (!Array.isArray(rules)) {
+    return rules;
+  }
+  return rules.includes(TOOL.to)
+    ? rules.filter((rule) => rule !== TOOL.from)
+    : rules.map((rule) => (rule === TOOL.from ? TOOL.to : rule));
+};
 
 const moveGrants = (name: string): string | null => {
   const file = resolve(HOME, '.claude', name);

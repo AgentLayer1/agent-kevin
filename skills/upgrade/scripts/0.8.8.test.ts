@@ -20,8 +20,6 @@ const permissions = (root: string, rel: string): Record<string, string[]> => JSO
 const makeHome = (): string => {
   const home = mkdtempSync(join(tmpdir(), 'migrate-088-'));
   homes.push(home);
-  write(home, '.state/version.json', '{"version":"0.8.7"}\n');
-  write(home, 'projects/acme/README.md', '# Acme\n');
   write(home, 'projects/acme/focus.html', 'acme page');
   write(home, 'projects/beta/focus.html', 'old beta page');
   write(home, 'projects/beta/attention.html', 'new beta page');
