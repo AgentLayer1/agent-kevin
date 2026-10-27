@@ -1691,7 +1691,7 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
       return '';
     });
   if (!raw) return null;
-  // The digest writes title / summary / resume on consecutive lines separated
+  // A report can write a card's title / body / resume on consecutive lines separated
   // by single newlines, which markdown collapses into one run-on paragraph.
   // Force a blank line after each "**N. …**" title line and before each "↳"
   // resume line so they render as distinct blocks. Idempotent: the negative
