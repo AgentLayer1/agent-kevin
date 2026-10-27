@@ -309,7 +309,7 @@ export const tools: ToolDef[] = [
       }
       const chromium = await getChromium();
       mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
-      const browser = await withBrowserLaunch(() => chromium.launch({ headless: true }));
+      const browser = await withBrowserLaunch((timeout) => chromium.launch({ headless: true, timeout }));
       const videoDir = stampedPath(BROWSER.CAPTURES_DIR, `${name ?? 'record'}-tmp`);
       mkdirSync(videoDir, { recursive: true });
       try {

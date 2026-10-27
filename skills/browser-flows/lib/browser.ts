@@ -99,9 +99,10 @@ export const launch = async (target: Target, flowName: string, options: { headle
   const context =
     process.platform === 'win32'
       ? await launchWin32ViaCdp(userDataDir, headless)
-      : await withBrowserLaunch(() =>
+      : await withBrowserLaunch((timeout) =>
           chromium.launchPersistentContext(userDataDir, {
             headless,
+            timeout,
             viewport: headless ? { width: 1280, height: 900 } : null,
             permissions: ['clipboard-read', 'clipboard-write'],
             args: [...BROWSER.INTERACTIVE_ARGS]
