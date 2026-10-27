@@ -1,7 +1,8 @@
 /**
  * Skills a release folded into another, by old name, with the command that replaced each. Every
  * place that reconciles a home's permissions maps a retired skill's grant to its successor's, so a
- * dead grant never comes back and an operator's ask or deny placement carries over.
+ * dead grant never comes back and an operator's ask or deny placement carries over. Retired MCP tools
+ * below migrate the same way.
  */
 export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
   'simple-simplify': 'engineer simplify',
@@ -29,6 +30,25 @@ export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
 };
 
 /**
+ * MCP tools a release renamed, by old name, with the tool that replaced each.
+ */
+export const RETIRED_TOOLS: Readonly<Record<string, string>> = {
+  focus_write: 'attention_write'
+};
+
+/**
+ * A retired tool's rule renamed in place, or null; tool rules have no wildcards, and the server slug
+ * between the plugin and the tool name is kept as written.
+ */
+const migrateToolGrant = (entry: string, plugin: string): string[] | null => {
+  if (!entry.startsWith(`mcp__plugin_${plugin}_`)) {
+    return null;
+  }
+  const retired = Object.keys(RETIRED_TOOLS).find((tool) => entry.endsWith(`__${tool}`));
+  return retired ? [`${entry.slice(0, -retired.length)}${RETIRED_TOOLS[retired]}`] : null;
+};
+
+/**
  * A `Skill(...)` rule's name as Claude Code matches it: a leading `/` is dropped, and a trailing ` *` or
  * `:*` makes it a prefix of the skill name (arguments never take part).
  */
@@ -43,7 +63,7 @@ const ruleName = (entry: string): { name: string; prefix?: string } | null => {
 const routerOf = (retired: string): string => (RETIRED_SKILLS[retired] ?? '').split(' ')[0] ?? '';
 
 /**
- * What a permissions entry becomes once `plugin`'s retired skills are gone, or null when it reaches none.
+ * What a permissions entry becomes once `plugin`'s retired skills and tools are gone, or null when it reaches none.
  * A rule for one retired skill becomes its successor's, wildcard kept. A prefix rule that also reached
  * retired skills stays, joined by an exact rule for each successor it no longer reaches, so a gate the
  * operator placed on a retired skill still holds for the skill that replaced it.
@@ -51,7 +71,7 @@ const routerOf = (retired: string): string => (RETIRED_SKILLS[retired] ?? '').sp
 export const migrateGrant = (entry: string, plugin: string): string[] | null => {
   const rule = ruleName(entry);
   if (!rule) {
-    return null;
+    return migrateToolGrant(entry, plugin);
   }
   const retired = Object.keys(RETIRED_SKILLS);
   const stem = rule.prefix ?? rule.name;

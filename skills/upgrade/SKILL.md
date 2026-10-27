@@ -298,8 +298,8 @@ never reorder or remove existing entries; a scalar the action names, a top-level
 `bashEditDiffEnabled` or an `env.<KEY>`, is set only when absent so an operator's own value
 stays; never touch operator keys like `hooks`/`theme`/`env` unless an action names them).
 Write back valid JSON. Idempotent:
-re-running adds nothing. Never add a `Skill(agent-kevin:<name>)` grant whose name is retired (the
-map in `mcp-server/src/shared/retired-skills.ts`), whatever an older release's action names.
+re-running adds nothing. Never add a `Skill(agent-kevin:<name>)` grant or MCP tool grant whose name is retired (the
+maps in `mcp-server/src/shared/retired-skills.ts`), whatever an older release's action names.
 
 **codex wiring (always, when applicable)** — this home runs Codex when either holds:
 `$HOME_DIR/.codex/hooks.json` exists, or this session itself runs under Codex (the `<skill>`
@@ -565,10 +565,10 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
 - **`settings.sandboxMissing`** holds `allowWrite` and `allowedDomains` entries to add under
   `sandbox.filesystem` and `sandbox.network`, so `uv run` can reach its cache and PyPI, and
   `denyRead` entries to add under `sandbox.filesystem`, so Bash can't read the secrets store.
-- **`settings.retiredGrants`** lists a retired skill's grant still in a list (an older release's
+- **`settings.retiredGrants`** lists a retired skill's or tool's grant still in a list (an older release's
   `settings:` action can re-add one after a newer script mapped it): replace each `entry` with its
   `replacement` entries in the same `list` (a prefix rule keeps itself and gains the successors it
-  no longer reaches), and drop a successor from `allow` when it also sits in `ask` or `deny`. The retired names live in `mcp-server/src/shared/retired-skills.ts`.
+  no longer reaches), and drop a successor from `allow` when it also sits in `ask` or `deny`. The retired names live in `RETIRED_SKILLS` and `RETIRED_TOOLS` in `mcp-server/src/shared/retired-skills.ts`.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one or when the reports root sits outside the home (Claude Code ignores a plans folder outside the project).
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.

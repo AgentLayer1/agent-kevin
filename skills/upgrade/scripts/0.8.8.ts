@@ -5,10 +5,10 @@
  *
  * `projects/<slug>/focus.html` becomes `attention.html` (an existing `attention.html` wins and the old
  * page goes, since the dashboard re-renders it), the queue cache in `<data-dir>/focus/` moves to
- * `<data-dir>/attention/` (or is dropped when the new one exists: it refills on the next pull), and a
- * `focus_write` rule in either settings file's `allow`, `ask` or `deny` becomes `attention_write` in
- * the same list. `Skill(<plugin>:focus)` rules are left to the baseline reconcile, which maps retired
- * skills through `retired-skills.ts` on every upgrade.
+ * `<data-dir>/attention/` (or is dropped when the new one exists: it refills on the next pull), and
+ * both settings files' `allow`, `ask` and `deny` lists go through `migrateGrants`, so a `focus_write`
+ * or `Skill(<plugin>:focus)` rule becomes its successor in the same list. The baseline reconcile reads
+ * only `settings.json`, and runs after this script, so an operator's placement decides the successor.
  *
  * Run by `/agent-kevin:upgrade` via `run_upgrade` (outside the Bash sandbox). Idempotent.
  * Contract: prints a single-line JSON report as its LAST stdout line; exits non-zero on failure.
@@ -24,12 +24,12 @@ import {
   writeFileSync
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { FOLDERS, MCP_PREFIX } from '../../../mcp-server/src/config';
+import { FOLDERS, PLUGIN_NAME } from '../../../mcp-server/src/config';
+import { migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 
 const VERSION = '0.8.8';
 
 const HOME = resolve(process.env.AGENT_HOME?.trim() || process.cwd());
-const TOOL = { from: `${MCP_PREFIX}focus_write`, to: `${MCP_PREFIX}attention_write` };
 const QUEUES = { from: join(dirname(FOLDERS.ATTENTION_QUEUES), 'focus'), to: FOLDERS.ATTENTION_QUEUES };
 const LISTS = ['allow', 'ask', 'deny'] as const;
 
@@ -83,14 +83,10 @@ const writeAtomic = (file: string, text: string): void => {
   renameSync(temp, target);
 };
 
-const renameRules = (rules: unknown): unknown => {
-  if (!Array.isArray(rules)) {
-    return rules;
-  }
-  return rules.includes(TOOL.to)
-    ? rules.filter((rule) => rule !== TOOL.from)
-    : rules.map((rule) => (rule === TOOL.from ? TOOL.to : rule));
-};
+const migrateRules = (rules: unknown): unknown =>
+  Array.isArray(rules) && rules.every((rule): rule is string => typeof rule === 'string')
+    ? migrateGrants(rules, PLUGIN_NAME)
+    : rules;
 
 const moveGrants = (name: string): string | null => {
   const file = resolve(HOME, '.claude', name);
@@ -110,7 +106,7 @@ const moveGrants = (name: string): string | null => {
   const next = {
     ...permissions,
     ...Object.fromEntries(
-      LISTS.filter((list) => list in permissions).map((list) => [list, renameRules(permissions[list])])
+      LISTS.filter((list) => list in permissions).map((list) => [list, migrateRules(permissions[list])])
     )
   };
   if (JSON.stringify(next) === JSON.stringify(permissions)) {

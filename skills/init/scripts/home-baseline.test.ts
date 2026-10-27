@@ -199,6 +199,18 @@ describe('home-baseline settings', () => {
     expect(fresh.retiredGrants).toEqual([]);
   });
 
+  test('reports a retired tool grant with its successor, and its ask placement decides the successor', () => {
+    const tool = (name: string) => `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__${name}`;
+    const home = scratchHome({
+      settings: { permissions: { allow: baselineAllowMinus([tool('attention_write')]), ask: [tool('focus_write')] } }
+    });
+    const { settings } = run(home);
+    expect(settings.retiredGrants).toEqual([
+      { list: 'ask', entry: tool('focus_write'), replacement: [tool('attention_write')] }
+    ]);
+    expect(settings.allowMissing).not.toContain(tool('attention_write'));
+  });
+
   test('backfills an ask guard even when the entry sits in allow, never when it sits in deny', () => {
     expect(fresh.askMissing).toContain('Bash(git push)');
     const home = scratchHome({

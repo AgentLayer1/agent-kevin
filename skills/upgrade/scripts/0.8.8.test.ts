@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { MCP_PREFIX } from '../../../mcp-server/src/config';
+import { MCP_PREFIX, PLUGIN_NAME } from '../../../mcp-server/src/config';
 
 const SCRIPT = resolve(import.meta.dir, '0.8.8.ts');
 const OLD = `${MCP_PREFIX}focus_write`;
@@ -29,7 +29,11 @@ const makeHome = (): string => {
     '.claude/settings.json',
     `${JSON.stringify({ permissions: { allow: ['Bash(date)', OLD, 'Read'], ask: [OLD], deny: [] } }, null, 2)}\n`
   );
-  write(home, '.claude/settings.local.json', `${JSON.stringify({ permissions: { allow: [OLD, NEW] } }, null, 2)}\n`);
+  write(
+    home,
+    '.claude/settings.local.json',
+    `${JSON.stringify({ permissions: { allow: [OLD, NEW, `Skill(${PLUGIN_NAME}:focus)`] } }, null, 2)}\n`
+  );
   return home;
 };
 
@@ -65,7 +69,9 @@ describe('0.8.8 migration', () => {
       ask: [NEW],
       deny: []
     });
-    expect(permissions(home, '.claude/settings.local.json')).toEqual({ allow: [NEW] });
+    expect(permissions(home, '.claude/settings.local.json')).toEqual({
+      allow: [NEW, `Skill(${PLUGIN_NAME}:attention)`]
+    });
   });
 
   test('a second run changes nothing', () => {

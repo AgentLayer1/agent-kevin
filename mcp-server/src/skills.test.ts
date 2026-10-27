@@ -3,7 +3,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { RUNTIME_DIR } from '@/shared/naming';
 import { routerPlaybooks } from '@/shared/playbooks';
-import { RETIRED_SKILLS } from '@/shared/retired-skills';
+import { RETIRED_SKILLS, RETIRED_TOOLS } from '@/shared/retired-skills';
+import { TOOL_MODULES } from '@/tools/modules';
 import { PHASES } from '../../mods/sync/phases';
 
 const ROOT = resolve(import.meta.dir, '..', '..');
@@ -156,6 +157,21 @@ describe('retired skills', () => {
     const routers = Object.values(RETIRED_SKILLS).map((command) => command.split(' ')[0] ?? '');
     expect(routers.filter((router) => !skillDirs.includes(router) || Object.hasOwn(RETIRED_SKILLS, router))).toEqual([]);
     expect(Object.keys(RETIRED_SKILLS).filter((retired) => skillDirs.includes(retired))).toEqual([]);
+  });
+});
+
+describe('retired tools', () => {
+  test('every successor is a live tool, never another retired one', async () => {
+    const modules = await Promise.all(
+      TOOL_MODULES.map(
+        async (name) => ((await import(`@/tools/${name}`)) as { tools?: Array<{ name: string }> }).tools ?? []
+      )
+    );
+    const live = modules.flat().map((tool) => tool.name);
+    expect(
+      Object.values(RETIRED_TOOLS).filter((tool) => !live.includes(tool) || Object.hasOwn(RETIRED_TOOLS, tool))
+    ).toEqual([]);
+    expect(Object.keys(RETIRED_TOOLS).filter((retired) => live.includes(retired))).toEqual([]);
   });
 });
 
