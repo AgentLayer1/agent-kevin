@@ -68,7 +68,7 @@ describe('sync tracking', () => {
   test("sync's prompt gains the counted-numbers instruction; other skills are untouched", async ($, on) => {
     fakeHost(on);
     expect((await startSync($)).text).toContain(`call \`${STATS_TOOL}\` once`);
-    expect((await $.skill.prompt({ skill: `${PLUGIN}:focus`, text: 'FOCUS' })).text).toBe('FOCUS');
+    expect((await $.skill.prompt({ skill: `${PLUGIN}:attention`, text: 'ATTENTION' })).text).toBe('ATTENTION');
   });
 
   test('phases move forward with the calls, never back, and actions are tallied from results', async ($, on) => {

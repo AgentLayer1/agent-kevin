@@ -1,4 +1,4 @@
-# Standup — did, next, blocked (`/focus standup [hours]`)
+# Standup — did, next, blocked (`/attention standup [hours]`)
 
 The operator is about to speak to other people. A standup is three parts and the update carries
 all three:
@@ -38,7 +38,7 @@ glob matches nothing, so `ls .../*-standup.md` fails instead of falling through 
 **The window is 24 hours.** Not "since the last report" — a missing report means the skill
 didn't run, which is not the same event as standup not happening. Most of the time standup
 happened anyway and the work is already spoken for, so anchoring on the report would make the
-operator re-announce days of it. Only an explicit `/agent-kevin:focus standup 48` widens the window.
+operator re-announce days of it. Only an explicit `/agent-kevin:attention standup 48` widens the window.
 
 That file still earns its lookup, for one thing: it tells you whether there's a **gap**. Read
 its `created:` and compare against the 24h boundary.
@@ -191,7 +191,7 @@ The forward half is not a second gather; it's read off what act one already prod
 board queries. Deriving beats asking: the operator called this skill because they don't want to
 assemble the update themselves.
 
-**Next — at most three, and each must be evidence-backed.** When the focus Today lane has tasks,
+**Next — at most three, and each must be evidence-backed.** When the Today lane has tasks,
 that lane is Next, in its order: the operator already chose it. Otherwise, in priority order, the
 candidates are:
 
@@ -339,7 +339,7 @@ report_write({
   category: 'briefings',
   slug: 'standup',
   title: <e.g. 'Standup — 3 shipped, acme double-send found, search PR opened'>,
-  skill: 'focus',
+  skill: 'attention',
   body: <the full update from Step 5, no frontmatter; the chat shows the Step 7 card instead>,
   status: <'critical' if a finding needs the room today, 'findings' normally, 'clean' if the window was quiet>
 });

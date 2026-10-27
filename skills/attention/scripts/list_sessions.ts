@@ -134,7 +134,7 @@ const assistantTexts = (record: SessionRecord): string[] => {
 const isUserTurn = (record: SessionRecord): boolean => record.type === 'user' && userTexts(record).length > 0;
 
 /**
- * A checkpoint reply is the focus checklist: a `✓` step line plus a `▶` now, `▷ next:` or `★` line.
+ * A checkpoint reply is the attention checklist: a `✓` step line plus a `▶` now, `▷ next:` or `★` line.
  * The dashboard's `radarSummary` (mcp-server/src/status/radar-refs.ts) reads the same glyphs.
  */
 const isCheckpoint = (text: string): boolean => /^✓ /m.test(text) && /^(?:▶ |▷ next:|★ )/m.test(text);

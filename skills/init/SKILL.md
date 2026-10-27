@@ -1206,7 +1206,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "Skill(agent-kevin:engineer)",
       "Skill(agent-kevin:find-session)",
       "Skill(agent-kevin:flywheel)",
-      "Skill(agent-kevin:focus)",
+      "Skill(agent-kevin:attention)",
       "Skill(agent-kevin:goals)",
       "Skill(agent-kevin:guide)",
       "Skill(agent-kevin:helpdesk)",
@@ -1251,7 +1251,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 | Helpdesk-gated | `helpdesk_connections`, `helpdesk_tickets`, `helpdesk_ticket`, `helpdesk_attachment`, `helpdesk_accounts`, `helpdesk_lookups`, `helpdesk_stats`, `helpdesk_note`, `helpdesk_assign` | configure-skills A.2g (Helpdesk walk) |
 | App Store-gated | `appstore_reviews` | configure-skills A.2h (App Store walk) |
 
-The allow list also carries a **skill** grant for every skill but two. Skills register regardless of permissions: the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill or one skill invokes another through the Skill tool). Every skill is model-invocable except `init`, `release` and `rename-agent`, so the operator asks in plain words ("brief me", "set today's goals", "how's my site ranking", "review 142") and never has to remember a slash name. The playbook skills route inside themselves: `briefing` (morning, evening, pulse), `goals` (day, week, month, year), `seo` (audit, console, speed, serp, rank), `seed` (export, import), `project` (create, archive), `focus` and `engineer`. A skill that writes still asks before it writes: `seed` import's `seed_import` tool sits in `ask`, `project` confirms before creating or archiving, and `configure-skills`, `self-review` and the goals interviews confirm each change. A pack skill that fires on a home without its keys stops at the first missing-key error and names the `/agent-kevin:configure-skills` walk that fixes it; `seo` spends SerpAPI credit only on an explicit SERP ask or an audit anomaly.
+The allow list also carries a **skill** grant for every skill but two. Skills register regardless of permissions: the grant only suppresses the confirm prompt on model invocation (whether Kevin auto-fires the skill or one skill invokes another through the Skill tool). Every skill is model-invocable except `init`, `release` and `rename-agent`, so the operator asks in plain words ("brief me", "set today's goals", "how's my site ranking", "review 142") and never has to remember a slash name. The playbook skills route inside themselves: `briefing` (morning, evening, pulse), `goals` (day, week, month, year), `seo` (audit, console, speed, serp, rank), `seed` (export, import), `project` (create, archive), `attention` and `engineer`. A skill that writes still asks before it writes: `seed` import's `seed_import` tool sits in `ask`, `project` confirms before creating or archiving, and `configure-skills`, `self-review` and the goals interviews confirm each change. A pack skill that fires on a home without its keys stops at the first missing-key error and names the `/agent-kevin:configure-skills` walk that fixes it; `seo` spends SerpAPI credit only on an explicit SERP ask or an audit anomaly.
 
 **`init` and `release` stay slash-only** (`disable-model-invocation`, plus `agents/openai.yaml` with `policy.allow_implicit_invocation: false` for Codex, which ignores the flag, and the one-line operator-only guard): a first-run wizard and a version cut are never something to fire unasked. `release` keeps its grant so `/release` doesn't prompt.
 
@@ -1395,7 +1395,7 @@ Env spelling: keys are written under their shared, agent-neutral `AGENT_*` names
 
 The rule: **init owns env keys that are universal to every operator; configure-skills owns pack-gated env keys.** Kevin's universal-infra keys are `AGENT_HOME_TIMEZONE` and the optional codebase pair, so:
 
-- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and the focus skill's checkpoint all radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
+- **Step 4b captured a real path:** write `AGENT_CODE_PATH` and derive `AGENT_GIT_REPOS` by enumerating the main-checkout git repos beside it — one level under the code root, `.git` **directory** only so sibling worktrees (whose `.git` is a pointer file) don't flood the list (it surfaces those repos' recent git activity in the SessionStart `## Recent Git Activity` block, and the attention skill's checkpoint all radar scopes by the code root too — operators can append more later, `,/path/to/other/repo`, without touching plugin code).
 
   ```bash
   GIT_REPOS=""

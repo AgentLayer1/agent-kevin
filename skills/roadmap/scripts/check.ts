@@ -2,7 +2,7 @@
 /**
  * Check a roadmap page after writing or editing it: `bun check.ts <roadmap.html>`.
  * Exits 1 with the errors when the roadmap-data block won't parse, isn't script-safe, or holds an
- * invalid status or date; warnings (undated milestones, items focus pages skip) print but pass.
+ * invalid status or date; warnings (undated milestones, items attention pages skip) print but pass.
  */
 import { readFileSync } from 'node:fs';
 import { checkRoadmapHtml } from '../../../mcp-server/src/roadmap/data';

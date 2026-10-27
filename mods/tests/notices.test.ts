@@ -228,7 +228,7 @@ describe('acting by hand', () => {
   test('other skills leave the notices alone', async ($, on) => {
     const host = fakeHost(on, machine({ notices: [SYNC] }));
     await start($, host);
-    await $.skill.prompt({ skill: `${PLUGIN}:focus`, text: 'FOCUS' });
+    await $.skill.prompt({ skill: `${PLUGIN}:attention`, text: 'ATTENTION' });
     expect(recorded(host.argv)).toEqual([]);
   });
 });

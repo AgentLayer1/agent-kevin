@@ -12,7 +12,7 @@ Retire a completed or cancelled project so it's preserved for history but no lon
 - `<reason>` — one-line why (shipped / cancelled / rolled into X)
 
 ## Why this design
-- `archive/` sits at the repo root (not under `PROJECTS_ROOT`) so no scanner mistakes "archive" for a project. Every internal scanner (the task tools, the dashboard and focus views, seed) routes through `FOLDERS.PROJECTS` — moving a project out of that folder automatically removes it from all scanners with zero config changes.
+- `archive/` sits at the repo root (not under `PROJECTS_ROOT`) so no scanner mistakes "archive" for a project. Every internal scanner (the task tools, the dashboard and attention views, seed) routes through `FOLDERS.PROJECTS` — moving a project out of that folder automatically removes it from all scanners with zero config changes.
 - Historical session logs in `knowledge/raw/sessions/` and `knowledge/raw/archive/` are point-in-time records and stay untouched. Breaking links there is acceptable; they're compiled into transient memory and eventually pruned.
 - Task files travel with the project into `archive/`. Their internal path references (e.g., `Projects/support-agent/src/...`) become historical — they describe what was true when the work was done.
 

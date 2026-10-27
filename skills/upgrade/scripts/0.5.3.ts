@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Upgrade migration for v0.5.3: roadmap pages move their data from a `const ROADMAP = {…}` literal
- * to a JSON block inline in the same page, which the renderer parses, so the focus page (and
+ * to a JSON block inline in the same page, which the renderer parses, so the attention page (and
  * anything later) can read a roadmap without running it.
  *
  * Each `<HOME>/roadmap.html` and `projects/<slug>/roadmap.html` is rewritten beside itself, then

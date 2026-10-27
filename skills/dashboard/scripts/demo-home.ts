@@ -884,7 +884,7 @@ const reports: DemoReport[] = [
     category: 'radar',
     slug: 'checkpoints',
     title: 'Checkpoints: 3 sessions across 24h',
-    skill: 'focus',
+    skill: 'attention',
     status: 'clean',
     emoji: '🟢',
     body: `> Launch-week prep across three threads: billing reconciliation, the load-test harness, and SOC 2 evidence.

@@ -1,7 +1,7 @@
 ---
 name: goals
 description: >
-  Goals from today to the year, written to the goal blocks in TASKS.md; the focus skill plans the days
+  Goals from today to the year, written to the goal blocks in TASKS.md; the attention skill plans the days
   around them. Day: one to three outcomes for today, scored at night. Week: set on Monday (quick, or a
   2-3 round interview) with each goal's task planned for the week, and scored on Friday. Month: themes with a success check and a report card on
   the last month. Year: outcomes quarter by quarter. Triggers on "set today's goals", "what should
@@ -14,7 +14,7 @@ allowed-tools: mcp__plugin_agent-kevin_kevin__focus_write, mcp__plugin_agent-kev
 
 > **Plugin root:** `${CLAUDE_PLUGIN_ROOT}`. Claude Code writes the real path there when it loads this file; Codex leaves it unfilled, and there the plugin root is this skill's base directory two levels up (the `<skill>` block's `<path>`). Playbook commands write `<plugin root>`: put this path in its place before running one, since no shell fills it in.
 
-What should be true by tonight, this week, this month and this year. Goals are outcomes; the focus skill plans the tasks that reach them.
+What should be true by tonight, this week, this month and this year. Goals are outcomes; the attention skill plans the tasks that reach them.
 
 ## Help
 

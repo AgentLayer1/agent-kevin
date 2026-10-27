@@ -29,7 +29,7 @@ Kevin is a portable, file-based personal AI assistant that plugs into the agent 
 It is not a chat wrapper. It is an operating system for personal AI:
 
 - A **59-tool MCP server** for tasks, knowledge compilation, reports, home history, worktrees, database queries, GitHub review, search, page speed, a bundled browser, and Google Search Console.
-- A **33-skill library**, related work grouped into one skill with playbooks (briefing, goals, SEO, focus, engineering), covering onboarding, version history, project lifecycle, a daily focus view with standup and a session radar, goals from the day to the year, morning and evening briefings, tax deadlines and bookkeeping, a support queue pulse and reply drafts, trip planning, worktree setup, API-request drafting, read-only SEO auditing, and audio and video transcripts and summaries.
+- A **33-skill library**, related work grouped into one skill with playbooks (briefing, goals, SEO, attention, engineering), covering onboarding, version history, project lifecycle, a daily attention view with standup and a session radar, goals from the day to the year, morning and evening briefings, tax deadlines and bookkeeping, a support queue pulse and reply drafts, trip planning, worktree setup, API-request drafting, read-only SEO auditing, and audio and video transcripts and summaries.
 - A **knowledge pipeline** that turns every conversation into structured, queryable memory.
 - **Opt-in packs** (SEO, Browser, Database, GitHub, API, Xcode, Helpdesk, App Store) and a bridge to community skill libraries via [skills.sh](https://skills.sh).
 - **You drive.** Ask in plain words and Kevin picks the skill and playbook; nothing runs unasked, and you never have to remember a command.
@@ -98,7 +98,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 
 - **Memory that compounds.** Hooks capture every session; the `knowledge-compile` skill distils them into user facets, concept articles, and active memory that load next launch. → [The brain](https://agentlayer.one/docs/platform/the-brain)
 - **Projects, not just chats.** One markdown file per task with frontmatter, threads, and a generated dashboard. → [Tasks](https://agentlayer.one/docs/agent/tasks)
-- **A focus page for the day.** The `focus` skill keeps today to three, shows what carried over and what the roadmap has in flight, and the `goals` skill sets the day, week, month and year with you; one page for all your work and one per project. → [Daily rhythm](https://agentlayer.one/docs/agent/daily-rhythm)
+- **A attention page for the day.** The `attention` skill keeps today to three, shows what carried over and what the roadmap has in flight, and the `goals` skill sets the day, week, month and year with you; one page for all your work and one per project. → [Daily rhythm](https://agentlayer.one/docs/agent/daily-rhythm)
 - **One pass to bring everything current.** The `sync` skill runs compile → lint → flywheel → dashboards and ends with a next move. → [Sync](https://agentlayer.one/docs/platform/sync)
 - **Every change can be undone.** The `history` skill turns on local version history for the home in one question, no git knowledge needed; sync saves a snapshot each run. A home in iCloud, Dropbox or OneDrive keeps its history in `~/.local/state` (`%LOCALAPPDATA%` on Windows), where syncing can't damage it. → [History](https://agentlayer.one/docs/platform/history)
 - **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://agentlayer.one/docs/dashboard)

@@ -1,7 +1,7 @@
 ---
 name: dashboard
-description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's focus and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions (the focus skill's checkpoint all radar) and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on. Also "pin this report".
-allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:focus), Bash, Read, Edit, Write
+description: Refresh and open the Agent OS dashboard — a static HTML mission-control page covering today's attention view and activity, work across projects, sessions, Kevin's brain, reports, capabilities, and system internals. A refresh snapshots the latest Claude Code sessions and regenerates both dashboard.html and projects/TASKS.md from current state, without the heavy sync work (no compile, flywheel, or briefing). Use when the user says "refresh the dashboard", "update the dashboard", "open the dashboard", or wants the big picture of what Kevin is and what's going on. Also "pin this report".
+allowed-tools: mcp__plugin_agent-kevin_kevin__dashboard, Skill(agent-kevin:attention), Bash, Read, Edit, Write
 ---
 
 # Dashboard
@@ -15,14 +15,14 @@ A refresh is intentionally light. Almost everything the dashboard shows — task
 reports, git activity, knowledge stats, compile state, logs — is read live from
 disk every time the `dashboard` tool runs, so it's always current with no extra
 step. The one piece of derived state the tool does NOT regenerate is the session
-radar (the latest Claude Code sessions), so a refresh runs the focus skill's `checkpoint all` first to
+radar (the latest Claude Code sessions), so a refresh runs the attention skill's `checkpoint all` first to
 freshen that, then regenerates. It deliberately skips the heavy `sync` work
 (compile, flywheel, briefing, prune, lint-fix) — `sync` owns those and finishes
 with these same two steps.
 
 ## Run
 
-1. **Freshen the session radar** — invoke the `focus` skill with `checkpoint all`
+1. **Freshen the session radar** — invoke the `attention` skill with `checkpoint all`
    (via the Skill tool, default 24h window). It owns the radar end to end: scans the latest
    sessions, writes each one's checklist, and persists the report to
    `reports/radar/`. One source of truth — don't reimplement its steps here.
@@ -59,15 +59,15 @@ open "<path from step 2>"
 
 ## Pages
 
-`today` (focus / ongoing / goals / news) · `tasks` (agenda / needs
-attention) · `projects` · `sessions` · `brain` (context / memory / threads /
+`today` (attention / ongoing / goals / news) · `tasks` (agenda / blocked ·
+stale) · `projects` · `sessions` · `brain` (context / memory / threads /
 concepts / pipeline / lint) · `reports` · `capabilities` (cheatsheet / skills /
 tools / commands / reflexes) · `persona` · `system` (settings / logs /
 changelog) · `profile` (reached via the operator card) · `status` (reached via
-the health badge). Today opens on Focus, the home focus view (the focus skill
-renders it and `dashboard.html` embeds its data as a `focus-data` block). Each
+the health badge). Today opens on Attention, the home attention view (the attention skill
+renders it and `dashboard.html` embeds its data as an `attention-data` block). Each
 page's header tiles open the tab that explains them. Sub-tabs deep-link:
-`dashboard.html#today/focus`, `#tasks/attention`.
+`dashboard.html#today/attention`, `#tasks/stuck`.
 
 ## Pins
 
@@ -84,7 +84,7 @@ acme" adds the same line under a `## Pinned` heading in
 `projects/acme/README.md` (created at the end of the README when missing), the
 link relative to the README (`../../reports/plans/x.md`, `research/notes.md`).
 The project's card shows a 📌 count and lists its pins above its tasks, its
-focus page gets a Pinned lane, and the Reports page lists them after the global
+attention page gets a Pinned lane, and the Reports page lists them after the global
 ones, each with its project. Project pins stay out of the session context: the
 README is read whenever the project is in play. "Pin this" with no project named
 stays global.
@@ -94,14 +94,14 @@ stays global.
 Each project's color comes from its name. To pick one ("make acme green"),
 set `hue:` (0–359 on the color wheel: 0 red, 120 green, 210 blue, 300 pink) in
 the frontmatter of `projects/<slug>/README.md`, then refresh; the card, its chips
-and the focus pages follow.
+and the attention pages follow.
 
 ## Notes
 
 - Near-pure: the `dashboard` tool never mutates knowledge or task files
   (`projects/TASKS.md` is a derived view, rebuilt from frontmatter). The only
   write a refresh makes is the radar report in `reports/radar/`,
-  written by the focus skill's `checkpoint all` (step 1) — and that step is skipped when a
+  written by the attention skill's `checkpoint all` (step 1) — and that step is skipped when a
   fresh one already exists.
 - Secrets are redacted at the source (`••••`); never un-redact them.
 - Markdown links open via the configured opener app: set the `MARKDOWN_URL`

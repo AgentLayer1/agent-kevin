@@ -1,7 +1,7 @@
-# Checkpoint — a checklist of where work stands (`/focus checkpoint [all [hours] [filter]]`)
+# Checkpoint — a checklist of where work stands (`/attention checkpoint [all [hours] [filter]]`)
 
-`/focus checkpoint` maps **this** session. `/focus checkpoint all` maps every session in
-scope, the default window being the last 24 hours (`/focus checkpoint all 48` widens it),
+`/attention checkpoint` maps **this** session. `/attention checkpoint all` maps every session in
+scope, the default window being the last 24 hours (`/attention checkpoint all 48` widens it),
 ranks what's waiting on the operator, and offers to jump to one. Both use the shape below,
 and both run only when asked: nothing draws them between turns. The dashboard and sync
 skills run checkpoint all to freshen the radar the dashboard reads.
@@ -37,7 +37,7 @@ skills run checkpoint all to freshen the radar the dashboard reads.
 - **Refer to things by task id, repo name, and branch — never absolute paths.** Paths go
   stale (layouts move, worktrees get pruned); a task id and a branch name don't.
 
-## This session (`/focus checkpoint`)
+## This session (`/attention checkpoint`)
 
 The script never runs — you already have the context the script would be trying to
 infer from a transcript.
@@ -67,7 +67,7 @@ the last entry is noise in the one place that should stay signal.
 **Availability.** Plugin skills only exist where the plugin is enabled — the agent home,
 not code repos. In a repo session, paste the shape above as a prompt instead.
 
-## All sessions (`/focus checkpoint all [hours] [filter]`)
+## All sessions (`/attention checkpoint all [hours] [filter]`)
 
 ### Step 1 — gather
 
@@ -76,7 +76,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours 24
 ```
 
 - Pass the operator's number as `--hours` when they gave one. A remaining word
-  (`/focus checkpoint all acme`) keeps only sessions whose `cwd` or title contains it,
+  (`/attention checkpoint all acme`) keeps only sessions whose `cwd` or title contains it,
   case-insensitively; with no matches, say so and map the full set.
 - **Scope:** by default the script covers this home and the code tree, never other
   agents' homes. `--scope <path>,<path>` overrides; pass `--scope all` when the operator
@@ -138,7 +138,7 @@ isn't this session's to report.
   one entry that names the lead session. With none pending, lead with one `>` sentence
   that ties the sessions together instead.
 - **Many waiting** (more than about five ★ entries) or an operator who sounds
-  overwhelmed: close the report with one line pointing at `/focus plan` to cut today to
+  overwhelmed: close the report with one line pointing at `/attention plan` to cut today to
   three.
 - **Card = `**N. Title** · *time ago*`, a blank line, the session's checklist, a blank
   line, the resume line.** The dashboard parses exactly that frame, so keep it. Nothing
@@ -163,7 +163,7 @@ report_write({
   category: 'radar',
   slug: 'checkpoints',
   title: <e.g. 'Checkpoints — 6 sessions across 24h'>,
-  skill: 'focus',
+  skill: 'attention',
   body: <exactly what was shown in chat, no frontmatter>,
   status: <'findings' if any session has a ★ or work left open, else 'clean'>
 });

@@ -12,7 +12,7 @@ const SCRIPT = resolve(import.meta.dir, 'home-baseline.ts');
 const TEMPLATE = readFileSync(resolve(import.meta.dir, '..', '..', '..', 'templates', '.gitignore'), 'utf-8');
 const MISSING_GRANTS = [
   `Skill(${PLUGIN_NAME}:dashboard)`,
-  `Skill(${PLUGIN_NAME}:focus)`,
+  `Skill(${PLUGIN_NAME}:attention)`,
   `Skill(${PLUGIN_NAME}:humanizer)`,
   `Skill(${PLUGIN_NAME}:setup-worktree)`,
   `Skill(${PLUGIN_NAME}:plan-spec)`,
@@ -174,7 +174,7 @@ describe('home-baseline settings', () => {
     const missing = run(home).settings.allowMissing;
     expect(missing).not.toContain(`Skill(${PLUGIN_NAME}:plan-spec)`);
     expect(missing).not.toContain(`Skill(${PLUGIN_NAME}:humanizer)`);
-    expect(missing).toContain(`Skill(${PLUGIN_NAME}:focus)`);
+    expect(missing).toContain(`Skill(${PLUGIN_NAME}:attention)`);
   });
 
   test('reports a retired skill grant with its successor, and its ask placement decides the successor', () => {

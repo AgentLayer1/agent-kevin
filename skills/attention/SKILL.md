@@ -1,14 +1,14 @@
 ---
-name: focus
+name: attention
 description: >
   The operator's day in one place: what today is for, what slipped, the week and month, the roadmap
-  in flight, who is waiting on them, and where each session left off. Home focus is the dashboard's
+  in flight, who is waiting on them, and where each session left off. The home view is the dashboard's
   Today tab; a project has its own page. Plans tasks into today, the week or the month, writes the
   standup, sorts a brain dump, and checkpoints one session or all of them.
   Triggers on "what should I work on", "plan my day", "I'm overwhelmed", "get organized", "take this
   on", "add this to my list", "what do I owe people", "standup is coming up", "what did I do
   yesterday", "what was I working on", "which session needs me", "checkpoint this session",
-  "checkpoint all", a pasted link as something to do, or /focus.
+  "checkpoint all", a pasted link as something to do, or /attention.
 allowed-tools:
   - AskUserQuestion
   - Bash
@@ -29,17 +29,17 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__capture
 ---
 
-# Focus
+# Attention
 
 The operator's day: what it's for, what slipped, what the week and month are for, what the roadmap has in flight, who is waiting on them, and where each session stands. The views are derived. Tasks are the source of truth, and the sessions on disk are what the radar reads.
 
 ## Help
 
-`/focus help` (or "what can focus do?") asks for the menu: reply with [help](references/help.md) exactly as written and stop.
+`/attention help` (or "what can attention do?") asks for the menu: reply with [help](references/help.md) exactly as written and stop.
 
 ## Start
 
-1. Match the ask to a playbook below, open it, and copy its steps into your todo list. A step you skip stays in the list as `skip: <reason>`. A bare `/focus` is refresh.
+1. Match the ask to a playbook below, open it, and copy its steps into your todo list. A step you skip stays in the list as `skip: <reason>`. A bare `/attention` is refresh.
 2. A word after the playbook that names a folder under `<HOME>/projects/` is the project (`/focus plan acme`): pass it as `project` on every `focus_write`.
 3. Read the operator's identity once: `<HOME>/USER.md` for `**Name:**` and `**GitHub login:**`. If the login is missing, ask once and suggest adding it to USER.md.
 
@@ -47,13 +47,13 @@ The operator's day: what it's for, what slipped, what the week and month are for
 
 | Ask | Playbook |
 |---|---|
-| `/focus`, "refresh focus", "what's waiting on me", "what do I owe people" | [refresh](references/playbooks/refresh.md) |
+| `/attention`, "refresh attention", "what's waiting on me", "what do I owe people" | [refresh](references/playbooks/refresh.md) |
 | "take this on", "add this to my list", a pasted line, list, or link | [add](references/playbooks/add.md) |
-| "plan my day", "what should I work on", `/focus plan` | [plan](references/playbooks/plan.md) |
-| "I'm overwhelmed", "get organized", "too much in my head", `/focus organize` | [organize](references/playbooks/organize.md) |
-| "standup is coming up", "what did I do yesterday", "I need my update", `/focus standup 48` | [standup](references/playbooks/standup.md) |
-| "checkpoint this session", "save where we are", "where are we in this session", "write a handoff", `/focus checkpoint` | [checkpoint](references/playbooks/checkpoint.md) |
-| "checkpoint all", "what was I working on", "which sessions are open", "which session needs me", "what should I tend to", `/focus checkpoint all 48` | [checkpoint](references/playbooks/checkpoint.md), all sessions |
+| "plan my day", "what should I work on", `/attention plan` | [plan](references/playbooks/plan.md) |
+| "I'm overwhelmed", "get organized", "too much in my head", `/attention organize` | [organize](references/playbooks/organize.md) |
+| "standup is coming up", "what did I do yesterday", "I need my update", `/attention standup 48` | [standup](references/playbooks/standup.md) |
+| "checkpoint this session", "save where we are", "where are we in this session", "write a handoff", `/attention checkpoint` | [checkpoint](references/playbooks/checkpoint.md) |
+| "checkpoint all", "what was I working on", "which sessions are open", "which session needs me", "what should I tend to", `/attention checkpoint all 48` | [checkpoint](references/playbooks/checkpoint.md), all sessions |
 | First refresh with Slack connected: pull the priorities already posted there | [backfill](references/playbooks/backfill.md) |
 
 Setting goals for the day, week, month or year, and scoring the week, is the goals skill; plan reads the goals it writes. When the operator names *what* a past session worked on (a branch, a PR, a bug) rather than when, that's the find-session skill, not checkpoint all.
@@ -76,8 +76,8 @@ Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_cr
 
 | Scope | Where | Holds |
 |---|---|---|
-| home (no project) | the dashboard's Today → Focus tab, `dashboard.html#today/focus` | every project, plus today's, the week's and the month's goals |
-| `<project>` | `<HOME>/projects/<project>/focus.html`, linked from its project card | that project's tasks only |
+| home (no project) | the dashboard's Today → Attention tab, `dashboard.html#today/attention` | every project, plus today's, the week's and the month's goals |
+| `<project>` | `<HOME>/projects/<project>/attention.html`, linked from its project card | that project's tasks only |
 
 Both carry what they show as JSON in a `focus-data` block, and `focus_write` returns the same data (lanes, `planned`, `dueUnplanned`, `dayGoals`, `roadmap`, `snapshot`) with the `path`. "Mine" means a task whose assignee is empty, `user`, the agent's name, or the operator's first name or GitHub login; teammates' tasks stay off.
 
@@ -91,10 +91,10 @@ Both carry what they show as JSON in a `focus-data` block, and `focus_write` ret
 
 - **Never create or move a task the operator didn't place.** Every intake and every plan ends in a confirmed answer.
 - **The queue is a snapshot.** Pages print when it was pulled, so never describe an old queue as current.
-- **Outward actions stay outward.** Focus reads GitHub, and Slack when connected. It never comments, reviews, reacts, replies, or sends input to another session. Acting is the operator's next step.
+- **Outward actions stay outward.** Attention reads GitHub, and Slack when connected. It never comments, reviews, reacts, replies, or sends input to another session. Acting is the operator's next step.
 - **Nothing claimed that didn't happen.** A standup never upgrades built to shipped; a checkpoint of another session never guesses what it did (read the transcript tail instead).
-- **Reports keep their names.** The standup saves as `slug: standup` in `briefings`, checkpoint all as `slug: checkpoints` in `radar`, both with `skill: focus`, so the next run's gap check and the dashboard keep finding them.
+- **Reports keep their names.** The standup saves as `slug: standup` in `briefings`, checkpoint all as `slug: checkpoints` in `radar`, both with `skill: attention`, so the next run's gap check and the dashboard keep finding them.
 
 ## Reply
 
-Each playbook names its reply: a focus card, a one-line confirmation, the organize card, the standup glance card (the full update is the saved report), or a checkpoint (one session's checklist, or a card per session for checkpoint all). End with the `file://` path when a playbook saved or rendered something.
+Each playbook names its reply: an attention card, a one-line confirmation, the organize card, the standup glance card (the full update is the saved report), or a checkpoint (one session's checklist, or a card per session for checkpoint all). End with the `file://` path when a playbook saved or rendered something.

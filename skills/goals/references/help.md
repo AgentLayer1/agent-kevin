@@ -1,6 +1,6 @@
 ## 🎯 Goals: what I can do
 
-What should be true by tonight, this week, this month and this year. The goals live in your task hub; focus turns them into tasks.
+What should be true by tonight, this week, this month and this year. The goals live in your task hub; attention turns them into tasks.
 
 | Ask | Playbook | You get |
 |---|---|---|

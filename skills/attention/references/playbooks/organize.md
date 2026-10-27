@@ -1,4 +1,4 @@
-# Organize — empty your head, then cut to a plan (`/focus organize [project]`)
+# Organize — empty your head, then cut to a plan (`/attention organize [project]`)
 
 For when the operator is overwhelmed or asks to get organized: too much in their head, and a board too noisy to trust. Their head comes first and the board second, so never open with the task list. Ask three rounds of questions at most, about six questions in all, and only about gaps that exist.
 
@@ -27,7 +27,7 @@ For when the operator is overwhelmed or asks to get organized: too much in their
      category: 'plans',
      slug: 'organize',
      title: <e.g. 'Organize — 14 things out of your head, today cut to three'>,
-     skill: 'focus',
+     skill: 'attention',
      body: <the sorted dump, the gaps and their answers, today's three, the week goals, and the parked list>,
      status: 'clean'
    });

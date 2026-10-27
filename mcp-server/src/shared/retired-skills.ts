@@ -8,8 +8,8 @@ export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
   'pr-adversarial': 'adversarial-review',
   'pr-review': 'engineer review',
   'pr-walkthrough': 'engineer walkthrough',
-  standup: 'focus standup',
-  'where-am-i': 'focus checkpoint all',
+  standup: 'attention standup',
+  'where-am-i': 'attention checkpoint all',
   'morning-briefing': 'briefing morning',
   'evening-briefing': 'briefing evening',
   'quick-pulse': 'briefing pulse',
@@ -24,7 +24,8 @@ export const RETIRED_SKILLS: Readonly<Record<string, string>> = {
   'seed-export': 'seed export',
   'seed-import': 'seed import',
   'create-project': 'project create',
-  'archive-project': 'project archive'
+  'archive-project': 'project archive',
+  focus: 'attention'
 };
 
 /**

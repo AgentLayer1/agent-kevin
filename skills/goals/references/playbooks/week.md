@@ -1,6 +1,6 @@
 # Week — set it on Monday, score it on Friday (`/goals week`)
 
-The week gets set and scored in one place, so the week's tasks and the Weekly Goals in `TASKS.md` are the same list. The focus skill's [standup](../../../focus/references/playbooks/standup.md) playbook runs the quick set on Monday and the score on Friday; `/goals week` sets the week, except on a Friday or when asked to score it, when it [scores it](#score-the-week-friday-or-score-the-week); "plan the week" sets it any day. `/goals week interview`, "set my weekly goals", or sync's weekly nudge runs the [interview](#set-the-week-in-depth-the-interview) instead. Either one stamps the week, so a Monday standup that set it clears the nudge.
+The week gets set and scored in one place, so the week's tasks and the Weekly Goals in `TASKS.md` are the same list. The attention skill's [standup](../../../attention/references/playbooks/standup.md) playbook runs the quick set on Monday and the score on Friday; `/goals week` sets the week, except on a Friday or when asked to score it, when it [scores it](#score-the-week-friday-or-score-the-week); "plan the week" sets it any day. `/goals week interview`, "set my weekly goals", or sync's weekly nudge runs the [interview](#set-the-week-in-depth-the-interview) instead. Either one stamps the week, so a Monday standup that set it clears the nudge.
 
 ## Set the week (Monday, or "plan the week")
 
@@ -87,7 +87,7 @@ Skip the week frame on a quiet week the operator says doesn't need one.
 
 One procedure, so the week's tasks and `TASKS.md` never drift apart:
 
-1. **Plan the tasks.** `task_update` each goal's task to `horizon: week`. A goal with no task yet goes through the focus skill's [add](../../../focus/references/playbooks/add.md) flow first (one confirming question), then gets the same horizon.
+1. **Plan the tasks.** `task_update` each goal's task to `horizon: week`. A goal with no task yet goes through the attention skill's [add](../../../attention/references/playbooks/add.md) flow first (one confirming question), then gets the same horizon.
 2. **Write the Weekly Goals block.** In `<HOME>/projects/TASKS.md`, replace only the `## Weekly Goals` block inside the `<!-- GOALS:START -->…<!-- GOALS:END -->` markers: from `## Weekly Goals` up to (not including) the next `##` heading or `<!-- GOALS:END -->`. Leave the other goal blocks and everything outside the markers untouched; the task sections are rebuilt on every task change.
 
    ```markdown

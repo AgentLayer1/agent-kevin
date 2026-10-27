@@ -48,7 +48,7 @@ export const PHASES: readonly Phase[] = [
     tools: ['focus_write', 'web_search', 'WebSearch'],
     reports: [{ category: 'briefings' }]
   }),
-  phase('radar', { skills: ['focus'], reports: [{ category: 'radar' }] }),
+  phase('radar', { skills: ['attention'], reports: [{ category: 'radar' }] }),
   phase('dashboard', { tools: ['dashboard'] }),
   phase('history', { scripts: ['commit-brain.ts'] }),
   phase('next', {

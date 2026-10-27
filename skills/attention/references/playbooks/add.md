@@ -1,4 +1,4 @@
-# Add — turn an ask into a planned task (`/focus add <text | link>`)
+# Add — turn an ask into a planned task (`/attention add <text | link>`)
 
 1. **Read the source.** For a GitHub issue or PR link, read it with `github_issue_view` or `github_pr_view`. For a Slack permalink (Slack connected), pull it with `slack_thread` (the channel id and ts are in the link: `/archives/<C…>/p<digits>`, and the ts is those digits with a dot before the last six). For plain text, use it as given. Several items at once (a pasted list, or a Slack message listing priorities) are handled as a batch (step 5).
 2. **Check for an existing task.** Run `task_query` and look for the same work under another name. If one exists, offer to set its horizon (and link the new source in its thread) instead of creating a duplicate.

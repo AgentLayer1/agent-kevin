@@ -4,7 +4,7 @@ description: >
   Cross-project work session. Read the north-star roadmap for the frame, triage active tasks against
   it, advance every project meaningfully, close what's done, keep the roadmaps honest, log what
   mattered. Only when the operator asks for a cross-project pass: "run the flywheel", "work across
-  all my projects", or /flywheel. "What should I work on" is the focus skill.
+  all my projects", or /flywheel. "What should I work on" is the attention skill.
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 

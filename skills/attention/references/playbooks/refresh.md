@@ -1,4 +1,4 @@
-# Refresh — pull the queue and re-render (`/focus [project]`)
+# Refresh — pull the queue and re-render (`/attention [project]`)
 
 The default playbook. It pulls what's waiting on the operator, re-renders the view, and replies with a card.
 
@@ -25,4 +25,4 @@ QUEUE      <n> per group, e.g. 3 PRs (1 ready) · 2 reviews owed · 0 replies ow
 → file://<path>
 ```
 
-If Today is empty, end with a one-line offer to run `/focus plan`.
+If Today is empty, end with a one-line offer to run `/attention plan`.

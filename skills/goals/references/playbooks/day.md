@@ -1,6 +1,6 @@
 # Day — what today should achieve (`/goals day`)
 
-One to three outcomes for today: what should be true by tonight, not the task list. The focus skill's [plan](../../../focus/references/playbooks/plan.md) playbook picks the tasks and ranks the ones that serve these first; the evening brief scores them.
+One to three outcomes for today: what should be true by tonight, not the task list. The attention skill's [plan](../../../attention/references/playbooks/plan.md) playbook picks the tasks and ranks the ones that serve these first; the evening brief scores them.
 
 ## Set the day
 
@@ -18,7 +18,7 @@ One to three outcomes for today: what should be true by tonight, not the task li
    ```
 
 6. Call `focus_write` with no arguments again, so the dashboard shows the goals just written.
-7. Reply with the goals. When today's focus lane is empty, end with "Pick the tasks: `/focus plan`".
+7. Reply with the goals. When today's Today lane is empty, end with "Pick the tasks: `/attention plan`".
 
 No report and no cadence stamp: the dated heading is the record, and yesterday's block is replaced tomorrow.
 

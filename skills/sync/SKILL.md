@@ -1,7 +1,7 @@
 ---
 name: sync
-description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh focus and both dashboards, commit the brain's pending changes when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:focus), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh attention and both dashboards, commit the brain's pending changes when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:attention), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -210,13 +210,13 @@ Read <HOME>/.state/lint.md
 Read <HOME>/knowledge/memory/index.md   # for narrative context
 ```
 
-### 8. Pull the focus queue
+### 8. Pull the attention queue
 
-Invoke the `focus` skill with `refresh` (its [refresh](../focus/references/playbooks/refresh.md) playbook,
-via the Skill tool) so the home focus view carries what's waiting on the operator right now: their pull
+Invoke the `attention` skill with `refresh` (its [refresh](../attention/references/playbooks/refresh.md) playbook,
+via the Skill tool) so the home attention view carries what's waiting on the operator right now: their pull
 requests, the reviews they owe, and with Slack connected the replies they owe. Run it on every sync, not
-only in the morning: the queue is the part of focus that goes stale fastest. Inside sync, skip the
-playbook's first-run offers and its card; carry its QUEUE line into the output's 🎯 Focus line. A source
+only in the morning: the queue is the part of attention that goes stale fastest. Inside sync, skip the
+playbook's first-run offers and its card; carry its QUEUE line into the output's 🎯 Attention line. A source
 it can't read stays a note on the page, never a failed sync.
 
 Placed before the briefing on purpose: the morning brief reads focus through `focus_write`, so its Today
@@ -233,8 +233,8 @@ To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 
 ### 10. Session radar
 
-Invoke the `focus` skill with `checkpoint all` (the all-sessions half of its
-[checkpoint](../focus/references/playbooks/checkpoint.md) playbook, via the Skill tool, default 24h window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
+Invoke the `attention` skill with `checkpoint all` (the all-sessions half of its
+[checkpoint](../attention/references/playbooks/checkpoint.md) playbook, via the Skill tool, default 24h window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
 (the playbook's default multi-root scope), so the sync run
 leaves behind a dated record of which threads were live and where each stood. It owns
 the radar end to end: scans the sessions, writes each one's checklist, renders the
@@ -331,7 +331,7 @@ One block, tight. Skip empty sections — don't pad.
 💻 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, diverged, or held by a worktree>
 
-🎯 Focus — <n PRs (n ready) · n reviews owed · n replies owed, the last with Slack only | a source it couldn't read, in a few words>
+🎯 Attention — <n PRs (n ready) · n reviews owed · n replies owed, the last with Slack only | a source it couldn't read, in a few words>
 
 🎫 Support (omit entirely when no helpdesk is configured; one entry per queue)
   - <project slug | no project | <connection>, no profile yet>, last 24h: <total, or total+ when more is true> <open | all-status> tickets active (<status> <n> · …) · <n> unassigned · <n> opened in the window

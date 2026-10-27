@@ -4,7 +4,7 @@
 
 ## What stays fixed
 
-- **Data-driven.** One `roadmap-data` JSON block, parsed into `ROADMAP`, is the single source of truth, readable by focus pages and anything else without running the page; sections render in object order via the `RENDERERS` dispatch. Editing the roadmap later means editing data, never markup. This is the whole maintenance model: "edit the data, reload, no build step."
+- **Data-driven.** One `roadmap-data` JSON block, parsed into `ROADMAP`, is the single source of truth, readable by attention pages and anything else without running the page; sections render in object order via the `RENDERERS` dispatch. Editing the roadmap later means editing data, never markup. This is the whole maintenance model: "edit the data, reload, no build step."
 - **The timeline track.** The workhorse section: period pills on a gradient directional rail with an arrowhead, milestone cards interwoven above and below, dotted connector stubs and gutter dividers. Each period holds a top card and an optional bottom card; either row can stack several cards (see Stacked rows below).
 - **Milestone cards.** Mono chip (`M1`, `W3`…) + short title + status-emoji items. Statuses are exactly `done` / `progress` / `planned` (✅ / ⏳ / 📋), matched by the header legend.
 - **Outcome bands.** Brand-tinted "what this earns" tiles (icon + label + one-line desc, optional `when`) close each timeline section; a `north` section can open the page with the same tiles as the document's finish lines.
@@ -40,7 +40,7 @@ Timeline details:
 - `tag`: `done` (brand accent), `plan` (cool blue), `moon` (green, a hard finish line like a season or event). `tagLabel` is free text — the tag picks the color family, the label says the truth ("Shipped", "In progress", "Planning", "Ramadan"). The current phase reads well as brand-accent + "In progress".
 - `variant: "future"` recolors the whole section to the cool accent — use it for not-yet-started quarters so shipped and planned phases read differently at a glance.
 - `periods`: 3–6 per timeline reads best. Each period is `{ name, start, end?, milestones: [top, bottom?] }`; a missing bottom card renders an empty slot cleanly.
-- `start` / `end` (machine dates, never rendered): `2026-10-05`, `2026-W41` or `2026-10`, with `end` defaulting to `start`. `name` stays the human label. A section may carry them instead of its periods when the whole lane shares one window. Focus pages use them to tell a current milestone from a future one and to flag a period that ended unfinished. More than ~6 periods cramps the rail — split into two sections instead.
+- `start` / `end` (machine dates, never rendered): `2026-10-05`, `2026-W41` or `2026-10`, with `end` defaulting to `start`. `name` stays the human label. A section may carry them instead of its periods when the whole lane shares one window. Attention pages use them to tell a current milestone from a future one and to flag a period that ended unfinished. More than ~6 periods cramps the rail — split into two sections instead.
 - **Stacked rows**: a busy period can hold more than one milestone per row — make the row entry an array (`milestones: [[m1, m2], m3]`) and the cards stack in that slot joined by a short dashed link. Prefer a stack of two focused cards over one overstuffed card; more than two stacked starts to dwarf the neighboring periods.
 - Milestone `items`: 1–4 lines each, ≤ ~60 characters — these are arc-level statements, not task descriptions.
 - Milestone `unlocks` (optional): one mono `↳` line naming what shipping this milestone buys ("clean identity data · corridor SLAs"). Chained across a phase, the unlock lines narrate the sequence — why this order and not another. Use them wherever the ordering is deliberate; skip them where it isn't.
@@ -68,7 +68,7 @@ Together they close the loop: planned-but-not-now flows to the horizon and re-en
 - **Arc altitude.** This page tracks the arc; the task board tracks the detail. A milestone item summarizes a theme of work, it doesn't enumerate tasks. If an item needs a second line to explain itself, it's too detailed.
 - **Don't drop, demote.** Work that doesn't fit a period goes to a `cards` horizon or a later period, not deleted. Parked bets deserve a card with an honest note ("parked deliberately — revisit each planning cycle").
 - **Honest horizons.** Ranges, `when` labels and `start`/`end` use real dates the operator gave or confirmed.
-- **Link the work.** A milestone item that a task delivers names its id (`Webhook receiver (ac-012)`), so focus pages can show which tasks move it. A moon-dependent or external deadline gets said so in the footer.
+- **Link the work.** A milestone item that a task delivers names its id (`Webhook receiver (ac-012)`), so attention pages can show which tasks move it. A moon-dependent or external deadline gets said so in the footer.
 - **Outcomes are earnings, not features.** Outcome tiles answer "what does finishing this buy us" (equity protected, ops calm, launch complete), not "what did we build".
 
 ## Output conventions

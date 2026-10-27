@@ -1,4 +1,4 @@
-# Plan — cut today to three (`/focus plan [project]`)
+# Plan — cut today to three (`/attention plan [project]`)
 
 Run this in the morning. When the operator is overwhelmed, [organize](organize.md) runs first and calls this. Today holds three things at most: a longer list is a backlog, not a plan.
 
