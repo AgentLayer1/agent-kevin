@@ -130,3 +130,58 @@ describe('cli', () => {
     expect(run('write', fragment, join(dir, 'missing.md')).err).toContain('no card at');
   });
 });
+
+describe('walkthrough', () => {
+  const svg = '<svg viewBox="0 0 10 10"><g data-wt="form"></g><g data-wt="email"></g><g data-wt-token></g></svg>';
+  const walkthrough = (script: unknown, picture = svg): string =>
+    body(section(`<div class="walkthrough">${picture}<pre class="wt-script">${JSON.stringify(script)}</pre></div>`));
+  const steps = (...items: unknown[]) => ({ scenarios: [{ title: 'A signup', steps: items }] });
+
+  test('a script whose ids all exist in its svg passes', () => {
+    expect(checkBody(walkthrough(steps({ title: 'Submitted', lit: ['form', 'email'], at: 'email' }))).errors).toEqual([]);
+  });
+
+  test('names a lit or token id the svg lacks', () => {
+    const errors = checkBody(walkthrough(steps({ title: 'Submitted', lit: ['form', 'audit'], at: 'inbox' }))).errors;
+    expect(errors).toEqual([
+      'walkthrough 1, scenario 1, step 1: no data-wt="audit" in its svg',
+      'walkthrough 1, scenario 1, step 1: no data-wt="inbox" in its svg',
+    ]);
+  });
+
+  test('refuses a script that is not JSON with scenarios', () => {
+    const page = body(section(`<div class="walkthrough">${svg}<pre class="wt-script">{ not json</pre></div>`));
+    expect(checkBody(page).errors).toEqual(['walkthrough 1: its wt-script must be JSON with a non-empty "scenarios" list']);
+  });
+
+  test('a step that moves the token needs a token element, and every step needs a title', () => {
+    const errors = checkBody(walkthrough(steps({ lit: ['form'], at: 'form' }), '<svg><g data-wt="form"></g></svg>')).errors;
+    expect(errors).toEqual([
+      'walkthrough 1: steps set "at" but its svg has no data-wt-token element',
+      'walkthrough 1, scenario 1, step 1: a step needs a "title"',
+    ]);
+  });
+});
+
+describe('mock', () => {
+  const mock = (inner: string): string => body(section(`<div class="mock" data-mock-state="draft">${inner}</div>`));
+
+  test('controls that lead to a dialog, a shown state and a pane pass', () => {
+    const inner = [
+      '<button data-mock-open="publish">Publish…</button><dialog id="publish"><button data-mock-go="published">Publish</button></dialog>',
+      '<span data-mock-when="draft">Draft</span><span data-mock-when="published">Published</span>',
+      '<button data-mock-tab="admin">Admin</button><div data-mock-pane="admin"></div>',
+    ].join('');
+    expect(checkBody(mock(inner)).errors).toEqual([]);
+  });
+
+  test('names a missing dialog, a state nothing shows, a state nothing sets and a tab without a pane', () => {
+    const inner = '<button data-mock-open="publish">Publish…</button><button data-mock-go="archived">Archive</button><span data-mock-when="draft scheduled">x</span><button data-mock-tab="admin">Admin</button>';
+    expect(checkBody(mock(inner)).errors).toEqual([
+      'mock: data-mock-open="publish" has no <dialog id="publish">',
+      'mock: data-mock-go="archived" changes nothing, since no data-mock-when or data-mock-unless names that state',
+      'mock: the state "scheduled" is shown for, but no data-mock-go or data-mock-state sets it',
+      'mock: data-mock-tab="admin" has no data-mock-pane="admin"',
+    ]);
+  });
+});

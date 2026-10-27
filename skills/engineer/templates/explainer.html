@@ -478,6 +478,195 @@
   details > summary { cursor: pointer; padding: 10px 14px; color: var(--ink-2); font-size: 14px; }
   details > :not(summary) { margin: 0 14px 14px; }
 
+  .walkthrough { margin: 22px 0; padding: 16px 18px 18px; border: 1px solid var(--line); border-radius: var(--r); background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow); }
+  .walkthrough:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+  .wt-script { display: none; }
+  .wt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .wt-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+  .wt-tab, .wt-ctl { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-a); color: var(--ink-2); font: 600 12.5px/1.2 "IBM Plex Sans", system-ui, sans-serif; }
+  .wt-tab:hover, .wt-ctl:hover { color: var(--ink); border-color: var(--brand); }
+  .wt-tab[aria-selected="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .wt-tab:focus-visible, .wt-ctl:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .wt-count { min-width: 56px; text-align: right; color: var(--ink-dim); font: 500 12px "IBM Plex Mono", monospace; }
+  .wt-summary { min-height: 1.5em; margin: 0 0 6px; color: var(--ink-2); font-size: 14px; }
+  .wt-stage svg { display: block; width: 100%; height: auto; }
+  .wt-stage [data-wt] { transition: opacity .35s, filter .35s; }
+  .walkthrough.playing .wt-stage [data-wt].wt-dim { opacity: .2; }
+  .walkthrough.playing .wt-stage [data-wt].wt-on { filter: drop-shadow(0 0 7px var(--brand-glow)); }
+  .wt-stage [data-wt-token] { opacity: 0; pointer-events: none; transition: transform .6s cubic-bezier(.4, 0, .2, 1), opacity .3s; }
+  .walkthrough.playing .wt-stage [data-wt-token] { opacity: 1; }
+  .wt-progress { height: 3px; margin: 10px 0 14px; overflow: hidden; border-radius: 3px; background: var(--line-soft); }
+  .wt-progress > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-bright)); transition: width .4s; }
+  .wt-body { display: grid; grid-template-columns: minmax(220px, 290px) 1fr; gap: 18px; }
+  .wt-list { max-height: 470px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+  .wt-list li { margin: 0; }
+  .wt-list button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 12px 1fr; gap: 2px 10px; width: 100%; padding: 7px 8px; border-radius: 8px; color: var(--ink-2); font-size: 13.5px; line-height: 1.35; }
+  .wt-list button:hover { background: color-mix(in srgb, var(--brand) 8%, transparent); }
+  .wt-list button[aria-current="step"] { background: color-mix(in srgb, var(--brand) 15%, transparent); color: var(--ink); }
+  .wt-list .dot { grid-row: span 2; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; }
+  .wt-list .time, .wt-detail .time { color: var(--ink-dim); font: 500 11.5px "IBM Plex Mono", monospace; }
+  .wt-detail { min-width: 0; }
+  .wt-detail h4 { margin: 2px 0 4px; font-size: 17px; }
+  .wt-detail .subs { margin: 10px 0; padding: 8px 12px; border-radius: 8px; background: var(--panel-b); color: var(--ink-2); font: 12.5px/1.7 "IBM Plex Mono", monospace; white-space: pre-wrap; }
+  .wt-detail .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .wt-detail pre { margin: 10px 0 0; font-size: 12px; }
+  .wt-detail .table { margin: 12px 0 0; }
+  .wt-hint { margin: 12px 0 0; color: var(--ink-dim); font-size: 12.5px; }
+  .tag.in { color: var(--cool); }
+  .tag.out { color: var(--brand-bright); }
+  @media (max-width: 760px) { .wt-body { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .wt-stage [data-wt], .wt-stage [data-wt-token], .wt-progress > span { transition: none; } }
+
+  .mock {
+    --m-bg: #18181b; --m-side: #131316; --m-raise: #1f1f23; --m-ink: #f4f4f5; --m-dim: #a1a1aa; --m-line: #2d2d33; --m-soft: #27272c;
+    --m-accent: var(--mock-accent, var(--brand)); --m-ok: #4ade80; --m-warn: #fbbf24; --m-crit: #f87171; --m-info: #60a5fa;
+    position: relative; margin: 22px 0 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--m-bg); color: var(--m-ink); box-shadow: var(--shadow);
+    font: 13.5px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  html[data-theme="light"] .mock { --m-bg: #ffffff; --m-side: #fafafa; --m-raise: #ffffff; --m-ink: #18181b; --m-dim: #71717a; --m-line: #e4e4e7; --m-soft: #f4f4f5; --m-ok: #15803d; --m-warn: #b45309; --m-crit: #dc2626; --m-info: #2563eb; }
+  .mock [hidden] { display: none !important; }
+  .mock p, .mock h3, .mock h4, .mock ul, .mock ol { margin: 0; }
+  .mock li, .mock footer { margin: 0; }
+  .mock code { background: var(--m-soft); border: 0; color: var(--m-ink); font-size: 11.5px; }
+  .mock-chrome { display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 12px; border-bottom: 1px solid var(--m-line); background: var(--m-side); }
+  .mock-chrome > i { width: 11px; height: 11px; flex: none; border-radius: 50%; background: #ff5f57; }
+  .mock-chrome > i:nth-child(2) { background: #febc2e; }
+  .mock-chrome > i:nth-child(3) { background: #28c840; }
+  .mock-url { flex: 1; min-width: 0; max-width: 440px; margin: 0 auto; padding: 3px 12px; border-radius: 7px; background: var(--m-soft); color: var(--m-dim); font-size: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mock-reset { all: unset; cursor: pointer; padding: 3px 8px; border-radius: 6px; color: var(--m-dim); font-size: 12px; }
+  .mock-reset:hover { background: var(--m-soft); color: var(--m-ink); }
+  .mock-app { display: grid; grid-template-columns: 188px minmax(0, 1fr); min-height: 360px; }
+  .mock-side { padding: 14px 10px; border-right: 1px solid var(--m-line); background: var(--m-side); font-size: 13px; }
+  .mock-logo { display: flex; align-items: center; gap: 9px; padding: 2px 8px 14px; font-weight: 650; }
+  .mock-logo::before { content: ""; width: 20px; height: 20px; border-radius: 6px; background: var(--m-accent); }
+  .mock-side > span { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; color: var(--m-dim); white-space: nowrap; }
+  .mock-side > span.on { background: var(--m-soft); color: var(--m-ink); font-weight: 600; }
+  .mock-side > small { display: block; padding: 12px 8px 4px; color: var(--m-dim); font-size: 11px; }
+  .mock-side em { margin-left: auto; padding: 0 6px; border-radius: 99px; background: color-mix(in srgb, var(--m-accent) 18%, transparent); color: var(--m-accent); font-size: 10.5px; font-style: normal; }
+  .mock-main { min-width: 0; padding: 20px 24px 24px; }
+  .mock-duo { display: grid; grid-template-columns: minmax(0, 1fr) 292px; }
+  .mock-aside { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 18px; border-left: 1px solid var(--m-line); background: var(--m-side); }
+  .mock-aside > small { color: var(--m-dim); font-size: 11.5px; text-align: center; }
+  .mock-crumbs { color: var(--m-dim); font-size: 12.5px; }
+  .mock-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+  .mock-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 2px 0 0; font-size: 20px; font-weight: 650; line-height: 1.3; letter-spacing: -.01em; }
+  .mock-sub { margin-top: 3px; color: var(--m-dim); font-size: 12.5px; }
+  .mock-dim { color: var(--m-dim); }
+  .mock-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .mock-tabsbar { display: flex; gap: 20px; margin: 0 0 16px; border-bottom: 1px solid var(--m-line); }
+  .mock-tabsbar > * { all: unset; padding: 0 0 9px; color: var(--m-dim); font-size: 13px; }
+  .mock-tabsbar > button { cursor: pointer; }
+  .mock-tabsbar > .on, .mock-tabsbar > [aria-selected="true"] { color: var(--m-ink); font-weight: 600; box-shadow: inset 0 -2px var(--m-accent); }
+  .mock-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--m-line); border-radius: 8px; background: var(--m-raise); color: var(--m-ink); font-size: 13px; font-weight: 550; white-space: nowrap; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08); transition: background .15s, filter .15s, opacity .15s; }
+  .mock-btn:hover { background: var(--m-soft); }
+  .mock-btn:active { transform: translateY(1px); }
+  .mock-btn:focus-visible, .mock [data-mock-item]:focus-visible { outline: 2px solid var(--m-accent); outline-offset: 2px; }
+  .mock-btn.primary { border-color: var(--m-accent); background: var(--m-accent); color: #fff; }
+  .mock-btn.danger { border-color: var(--m-crit); background: var(--m-crit); color: #fff; }
+  .mock-btn:is(.primary, .danger):hover { filter: brightness(1.08); }
+  .mock-btn.risk { color: var(--m-crit); }
+  .mock-btn.ghost { border-color: transparent; background: transparent; box-shadow: none; color: var(--m-dim); }
+  .mock-btn.ghost:hover { background: var(--m-soft); color: var(--m-ink); }
+  .mock-btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
+  .mock-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; filter: none; }
+  .mock-pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 99px; background: var(--m-soft); color: var(--m-dim); font-size: 12px; font-weight: 550; letter-spacing: 0; white-space: nowrap; }
+  .mock-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .mock-pill:is(.ok, .warn, .crit, .info, .accent) { background: color-mix(in srgb, currentColor 14%, transparent); }
+  .mock-pill.ok { color: var(--m-ok); }
+  .mock-pill.warn { color: var(--m-warn); }
+  .mock-pill.crit { color: var(--m-crit); }
+  .mock-pill.info { color: var(--m-info); }
+  .mock-pill.accent { color: var(--m-accent); }
+  .mock-panel { margin: 0 0 16px; overflow: hidden; border: 1px solid var(--m-line); border-radius: 10px; background: var(--m-raise); }
+  .mock-panel:last-child { margin-bottom: 0; }
+  .mock-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--m-line); font-weight: 600; }
+  .mock-panel > header small, .mock-panel > footer { color: var(--m-dim); font-size: 12px; font-weight: 400; }
+  .mock-panel > footer { padding: 10px 16px; border-top: 1px solid var(--m-line); }
+  .mock-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .mock-kpi { padding: 12px 14px; border: 1px solid var(--m-line); border-radius: 10px; background: var(--m-raise); }
+  .mock-kpi > span { display: block; color: var(--m-dim); font-size: 12px; }
+  .mock-kpi > b { display: block; font-size: 22px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .mock-kpi > small { color: var(--m-dim); font-size: 11.5px; }
+  .mock table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mock th { padding: 9px 14px; border-bottom: 1px solid var(--m-line); background: transparent; color: var(--m-dim); font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0; text-transform: none; text-align: left; }
+  .mock td { padding: 11px 14px; border-bottom: 1px solid var(--m-line); vertical-align: middle; }
+  .mock tr:last-child > td { border-bottom: 0; }
+  .mock-scroll { overflow-x: auto; }
+  .mock-scroll > table { min-width: max-content; }
+  .mock :is(td, th).num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mock-rows > *, .mock-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--m-line); background: var(--m-raise); }
+  .mock-rows > :last-child { border-bottom: 0; }
+  .mock .grow { flex: 1; min-width: 0; }
+  .mock tr[data-mock-item] > td, .mock-rows > * { transition: background .15s, opacity .18s, transform .18s; }
+  .mock [data-mock-select] [data-mock-item] { cursor: pointer; }
+  .mock [data-mock-select] [data-mock-item]:hover, .mock [data-mock-select] tr[data-mock-item]:hover > td { background: color-mix(in srgb, var(--m-soft) 70%, var(--m-raise)); }
+  .mock [data-mock-item][aria-selected="true"], .mock tr[data-mock-item][aria-selected="true"] > td { background: color-mix(in srgb, var(--m-accent) 10%, var(--m-raise)); }
+  .mock [data-mock-item][aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+  .mock-option { display: grid; grid-template-columns: 18px 1fr auto; align-items: start; gap: 10px; margin: 8px 0 0; padding: 11px 13px; border: 1px solid var(--m-line); border-radius: 10px; }
+  .mock-option[aria-selected="true"] { border-color: var(--m-accent); }
+  .mock-check, .mock-radio { display: grid; place-items: center; width: 16px; height: 16px; margin-top: 2px; flex: none; border: 1.5px solid var(--m-dim); border-radius: 4px; }
+  .mock-radio { border-radius: 50%; }
+  [aria-selected="true"] > :is(.mock-check, .mock-radio), [aria-selected="true"] > td > .mock-check { border-color: var(--m-accent); background: var(--m-accent); }
+  [aria-selected="true"] > .mock-check::after, [aria-selected="true"] > td > .mock-check::after { content: "✓"; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+  [aria-selected="true"] > .mock-radio::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .mock-grip { color: var(--m-dim); font-size: 15px; letter-spacing: -3px; cursor: grab; user-select: none; }
+  .mock [data-mock-rank] { display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; background: var(--m-soft); font-weight: 650; font-size: 12.5px; }
+  .mock-dragging { opacity: .5; }
+  .mock-meter { width: 100%; height: 6px; margin-top: 5px; overflow: hidden; border-radius: 3px; background: var(--m-soft); }
+  .mock-meter > span { display: block; height: 100%; border-radius: 3px; background: var(--c, var(--m-accent)); }
+  .mock-steps { margin: 0; padding: 8px 16px 6px; list-style: none; }
+  .mock-steps > li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; padding: 10px 0; }
+  .mock-steps > li:has(~ li:not([hidden]))::before { content: ""; position: absolute; left: 12px; top: 40px; bottom: -6px; width: 2px; background: var(--m-line); }
+  .mock-steps .detail { grid-column: 2 / -1; color: var(--m-dim); font-size: 12.5px; }
+  .mock-dot { position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--c, var(--m-dim)); color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 4px color-mix(in srgb, var(--c, var(--m-dim)) 18%, transparent); }
+  .mock-dot.todo { border: 2px dashed var(--m-line); background: transparent; box-shadow: none; color: var(--m-dim); }
+  .mock-dot.live { animation: mock-pulse 1.6s ease-in-out infinite; }
+  .mock-feed { margin: 0; padding: 8px 16px 12px; list-style: none; }
+  .mock-feed > li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; padding: 5px 0; font-size: 12.5px; }
+  .mock-feed time { color: var(--m-dim); font-variant-numeric: tabular-nums; }
+  .mock-field { display: grid; gap: 6px; margin: 14px 0 0; font-size: 12.5px; font-weight: 550; }
+  .mock-field > small { color: var(--m-dim); font-weight: 400; }
+  .mock :is(input, select, textarea) { box-sizing: border-box; width: 100%; padding: 7px 10px; border: 1px solid var(--m-line); border-radius: 8px; outline: none; background: var(--m-bg); color: var(--m-ink); font: inherit; font-weight: 400; }
+  .mock :is(input, select, textarea):focus { border-color: var(--m-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-accent) 22%, transparent); }
+  .mock textarea { min-height: 64px; resize: vertical; }
+  .mock dialog { width: min(460px, calc(100vw - 32px)); padding: 22px 22px 18px; border: 1px solid var(--m-line); border-radius: 14px; background: var(--m-bg); color: var(--m-ink); box-shadow: 0 24px 64px -12px rgba(0,0,0,.5); }
+  .mock dialog[open] { animation: mock-pop .18s ease-out; }
+  .mock dialog::backdrop { background: rgba(10,10,14,.5); backdrop-filter: blur(3px); }
+  .mock dialog h4 { margin: 0 0 6px; font-size: 16px; font-weight: 650; }
+  .mock dialog p { margin: 0 0 6px; color: var(--m-dim); }
+  .mock dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding: 0; border: 0; }
+  .mock-note { margin: 12px 0 0; padding: 9px 12px; border-radius: 8px; background: var(--m-soft); color: var(--m-dim); font-size: 12.5px; }
+  .mock-note.warn { background: color-mix(in srgb, var(--m-warn) 12%, transparent); color: var(--m-ink); }
+  .mock-phone { width: 100%; max-width: 252px; padding: 16px 16px 20px; border: 7px solid color-mix(in srgb, var(--m-ink) 88%, var(--m-bg)); border-radius: 32px; background: var(--m-bg); box-shadow: 0 18px 40px -18px rgba(0,0,0,.5); }
+  .mock-phone::before { content: ""; display: block; width: 64px; height: 6px; margin: -6px auto 14px; border-radius: 3px; background: var(--m-soft); }
+  .mock .mock-track { margin: 14px 0 0; padding: 0; list-style: none; }
+  .mock-track > li { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 10px; padding: 0 0 16px; }
+  .mock-track > li:has(~ li:not([hidden]))::before { content: ""; position: absolute; left: 10px; top: 24px; bottom: 2px; width: 2px; background: var(--m-line); }
+  .mock-track i { display: grid; place-items: center; width: 22px; height: 22px; box-sizing: border-box; border: 2px solid var(--m-line); border-radius: 50%; color: var(--m-dim); font-size: 11px; font-style: normal; font-weight: 700; }
+  .mock-track .done i { border-color: var(--m-ok); background: var(--m-ok); color: #fff; }
+  .mock-track .now i { --c: var(--m-accent); border-color: var(--m-accent); animation: mock-pulse 1.6s ease-in-out infinite; }
+  .mock-track b { font-size: 13px; font-weight: 600; }
+  .mock-track span { display: block; color: var(--m-dim); font-size: 12px; }
+  .mock-chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 22px; }
+  .mock-chain > :not(:first-child)::before { content: "→"; position: absolute; left: -17px; top: 50%; transform: translateY(-50%); color: var(--m-dim); }
+  .mock-link { position: relative; padding: 7px 11px 8px; border: 1px solid var(--m-line); border-left: 3px solid var(--c, var(--m-line)); border-radius: 8px; background: var(--m-raise); font-size: 12.5px; line-height: 1.45; }
+  .mock-link > small { display: block; color: var(--c, var(--m-dim)); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .mock-link.end { border-style: dashed; border-left-width: 1px; background: transparent; color: var(--m-dim); }
+  .mock-link.gap { display: grid; place-items: center; min-width: 56px; border-style: dashed; border-left-width: 1px; background: transparent; color: var(--m-dim); font-weight: 600; }
+  .mock-sim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px dashed var(--m-line); background: repeating-linear-gradient(-45deg, transparent 0 8px, color-mix(in srgb, var(--m-soft) 55%, transparent) 8px 16px); color: var(--m-dim); font-size: 12px; }
+  .mock-sim::before { content: "Simulate"; margin-right: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .mock-toasts { position: absolute; right: 14px; bottom: 14px; z-index: 3; display: grid; gap: 8px; justify-items: end; pointer-events: none; }
+  .mock-toast { display: flex; align-items: center; gap: 12px; max-width: 380px; padding: 10px 12px 10px 14px; border: 1px solid var(--m-line); border-radius: 10px; background: var(--m-raise); color: var(--m-ink); font-size: 13px; pointer-events: auto; box-shadow: 0 12px 32px -10px rgba(0,0,0,.45); animation: mock-pop .22s ease-out; }
+  .mock-toast::before { content: "✓"; color: var(--m-ok); font-weight: 700; }
+  .mock-toast > button { all: unset; margin-left: auto; color: var(--m-accent); font-weight: 650; cursor: pointer; }
+  .mock-in { animation: mock-in .3s ease-out; }
+  .mock-out { opacity: 0; transform: translateX(14px); }
+  @keyframes mock-in { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes mock-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+  @keyframes mock-pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--c, var(--m-accent)) 14%, transparent); } }
+  @media (max-width: 880px) { .mock-app, .mock-duo { grid-template-columns: minmax(0, 1fr); } .mock-side { display: none; } .mock-aside { border-left: 0; border-top: 1px solid var(--m-line); } }
+  @media (prefers-reduced-motion: reduce) { .mock *, .mock dialog[open] { animation: none !important; transition: none !important; } }
+
   footer { margin-top: 80px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; }
 
   @media (max-width: 720px) {
@@ -632,6 +821,333 @@
   addEventListener("resize", schedule);
   track();
 
+  let hljsLib = null;
+  const make = (tag, props = {}, ...children) => {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  };
+  const tree = (lines) => lines.map((line, index) => `${index === lines.length - 1 ? "└─" : "├─"} ${line}`).join("\n");
+  document.querySelectorAll(".walkthrough").forEach((root, rootIndex) => {
+    const svg = root.querySelector("svg");
+    let script;
+    try { script = JSON.parse(root.querySelector(".wt-script")?.textContent ?? ""); } catch { return; }
+    const scenarios = script.scenarios ?? [];
+    if (!svg || !scenarios.length) { return; }
+    const parts = [...svg.querySelectorAll("[data-wt]")];
+    const token = svg.querySelector("[data-wt-token]");
+    const button = (label, title) => make("button", { className: "wt-ctl", type: "button", title }, label);
+    const prev = button("◀", "Previous step (←)");
+    const play = button("Play", "Play or pause (space)");
+    const next = button("▶", "Next step (→)");
+    const count = make("span", { className: "wt-count" });
+    const tabs = make("div", { className: "wt-tabs", role: "tablist" });
+    const summary = make("p", { className: "wt-summary" });
+    const stage = make("div", { className: "wt-stage" });
+    const fill = make("span");
+    const list = make("ol", { className: "wt-list" });
+    const detail = make("div", { className: "wt-detail" });
+    svg.replaceWith(stage);
+    stage.append(svg);
+    root.prepend(make("div", { className: "wt-bar" }, tabs, prev, play, next, count), summary);
+    root.append(make("div", { className: "wt-progress" }, fill), make("div", { className: "wt-body" }, list, detail));
+    list.style.position = "relative";
+
+    let scenario = 0;
+    let step = -1;
+    let timer = null;
+    const steps = () => scenarios[scenario].steps ?? [];
+    const stop = () => { clearInterval(timer); timer = null; play.textContent = "Play"; };
+    const renderDetail = (item) => {
+      const nodes = [make("div", { className: "time" }, item.time ?? ""), make("h4", {}, item.title ?? "")];
+      if (item.text) { nodes.push(make("p", {}, item.text)); }
+      if (item.subs?.length) { nodes.push(make("div", { className: "subs" }, tree(item.subs))); }
+      if (item.chips?.length) { nodes.push(make("div", { className: "chips" }, ...item.chips.map((chip) => make("span", { className: `tag ${chip.tone ?? ""}`.trim() }, chip.text)))); }
+      if (item.code !== undefined) {
+        const source = typeof item.code === "string" ? item.code : JSON.stringify(item.code, null, 2);
+        const pre = make("pre", {}, source);
+        if (hljsLib) { pre.innerHTML = hljsLib.highlight(source, { language: typeof item.code === "string" ? "typescript" : "json" }).value; }
+        nodes.push(pre);
+      }
+      if (item.table) {
+        const { title, head = [], rows = [], empty = "—" } = item.table;
+        if (title) { nodes.push(make("p", { className: "label" }, title)); }
+        const body = rows.length
+          ? rows.map((row) => make("tr", {}, ...row.map((cell) => make("td", {}, cell))))
+          : [make("tr", {}, make("td", { colSpan: Math.max(head.length, 1) }, empty))];
+        nodes.push(make("div", { className: "table" }, make("table", {}, make("tr", {}, ...head.map((cell) => make("th", {}, cell))), ...body)));
+      }
+      detail.replaceChildren(...nodes);
+    };
+    const show = (nextScenario, nextStep, fromUser) => {
+      if (nextScenario !== scenario || !list.children.length) {
+        scenario = nextScenario;
+        list.replaceChildren(...steps().map((item, index) => {
+          const entry = make("button", { type: "button" }, make("span", { className: "dot" }), make("span", { className: "time" }, item.time ?? ""), make("span", {}, item.title ?? ""));
+          entry.firstChild.style.background = item.color ?? "var(--brand)";
+          entry.addEventListener("click", () => { stop(); show(scenario, index, true); });
+          return make("li", {}, entry);
+        }));
+      }
+      step = nextStep;
+      const item = steps()[step];
+      root.classList.toggle("playing", Boolean(item));
+      tabs.querySelectorAll(".wt-tab").forEach((tab, index) => tab.setAttribute("aria-selected", String(index === scenario)));
+      summary.textContent = scenarios[scenario].summary ?? "";
+      list.querySelectorAll("button").forEach((entry, index) => (index === step ? entry.setAttribute("aria-current", "step") : entry.removeAttribute("aria-current")));
+      count.textContent = item ? `${step + 1} / ${steps().length}` : `${steps().length} steps`;
+      fill.style.width = item ? `${((step + 1) / steps().length) * 100}%` : "0";
+      if (!item) {
+        parts.forEach((part) => part.classList.remove("wt-on", "wt-dim"));
+        detail.replaceChildren(make("p", { className: "wt-hint" }, "Press Play, or pick a step. The arrow keys step through it."));
+        return;
+      }
+      const lit = new Set(item.lit ?? []);
+      parts.forEach((part) => {
+        part.classList.toggle("wt-on", lit.has(part.dataset.wt));
+        part.classList.toggle("wt-dim", !lit.has(part.dataset.wt));
+      });
+      const target = item.at ? svg.querySelector(`[data-wt="${CSS.escape(item.at)}"]`) : null;
+      if (token && target) {
+        const box = target.getBBox();
+        token.style.transform = `translate(${box.x + box.width}px, ${box.y}px)`;
+      }
+      renderDetail(item);
+      const current = list.querySelector('[aria-current="step"]')?.parentElement;
+      if (current && (current.offsetTop < list.scrollTop || current.offsetTop + current.offsetHeight > list.scrollTop + list.clientHeight)) {
+        list.scrollTop = current.offsetTop - 40;
+      }
+      if (fromUser && rootIndex === 0) { history.replaceState(null, "", `#wt=${scenario}.${step}`); }
+    };
+    tabs.append(...scenarios.map((item, index) => {
+      const tab = make("button", { className: "wt-tab", type: "button", role: "tab" }, item.title ?? `Scenario ${index + 1}`);
+      tab.addEventListener("click", () => { stop(); show(index, 0, true); });
+      return tab;
+    }));
+    prev.addEventListener("click", () => { stop(); show(scenario, Math.max(0, step - 1), true); });
+    next.addEventListener("click", () => { stop(); show(scenario, Math.min(steps().length - 1, step + 1), true); });
+    play.addEventListener("click", () => {
+      if (timer) { stop(); return; }
+      if (step < 0 || step >= steps().length - 1) { show(scenario, 0, true); }
+      play.textContent = "Pause";
+      timer = setInterval(() => (step >= steps().length - 1 ? stop() : show(scenario, step + 1, true)), 2600);
+    });
+    root.tabIndex = 0;
+    root.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") { event.preventDefault(); next.click(); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); prev.click(); }
+      if (event.key === " " && event.target === root) { event.preventDefault(); play.click(); }
+    });
+    const linked = rootIndex === 0 ? /^#wt=(\d+)\.(\d+)$/.exec(location.hash) : null;
+    const [linkedScenario, linkedStep] = linked ? [Number(linked[1]), Number(linked[2])] : [0, -1];
+    show(scenarios[linkedScenario] ? linkedScenario : 0, scenarios[linkedScenario]?.steps?.[linkedStep] ? linkedStep : -1, false);
+  });
+
+  const words = (text) => (text ?? "").split(/\s+/).filter(Boolean);
+  document.querySelectorAll(".mock").forEach((root) => {
+    const html = root.innerHTML;
+    const startState = root.dataset.mockState;
+    const body = make("div", { className: "mock-body" });
+    const toasts = make("div", { className: "mock-toasts", role: "status" });
+    const reset = make("button", { className: "mock-reset", type: "button", title: "Put this screen back the way it started" }, "↺ Reset");
+    root.replaceChildren(make("div", { className: "mock-chrome" }, make("i"), make("i"), make("i"), make("span", { className: "mock-url" }, root.dataset.mockUrl ?? ""), reset), body, toasts);
+    const pristine = new Map();
+    let opener = null;
+    let dragging = null;
+    let order = [];
+    const all = (selector) => [...body.querySelectorAll(selector)];
+    const picked = (box) => [...box.querySelectorAll("[data-mock-select] [data-mock-item][aria-selected='true']")].filter((item) => (item.closest("dialog") ?? body) === box);
+
+    const sync = () => {
+      const tab = root.dataset.mockTab;
+      all("[data-mock-tab]").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.mockTab === tab)));
+      all("[data-mock-when], [data-mock-unless], [data-mock-pane]").forEach((node) => {
+        const states = words(node.parentElement.closest("[data-mock-state]")?.dataset.mockState);
+        const hide = (node.dataset.mockPane !== undefined && !words(node.dataset.mockPane).includes(tab))
+          || (node.dataset.mockWhen !== undefined && !words(node.dataset.mockWhen).some((state) => states.includes(state)))
+          || words(node.dataset.mockUnless).some((state) => states.includes(state));
+        if (node.hidden && !hide) {
+          node.classList.add("mock-in");
+          node.addEventListener("animationend", () => node.classList.remove("mock-in"), { once: true });
+        }
+        node.hidden = hide;
+      });
+      all("[data-mock-sort]").forEach((list) => [...list.querySelectorAll(":scope > [data-mock-item]")].forEach((item, index) => {
+        item.draggable = true;
+        item.tabIndex = 0;
+        item.querySelectorAll("[data-mock-rank]").forEach((rank) => { rank.textContent = String(index + 1); });
+      }));
+      all("[data-mock-select] [data-mock-item]").forEach((item) => {
+        item.tabIndex = item.getAttribute("aria-disabled") === "true" ? -1 : 0;
+        item.setAttribute("aria-selected", String(item.getAttribute("aria-selected") === "true"));
+      });
+      all("[data-mock-count]").forEach((node) => { node.textContent = String(picked(body).length); });
+      all("[data-mock-needs]").forEach((button) => {
+        const box = button.closest("dialog") ?? body;
+        button.disabled = !words(button.dataset.mockNeeds).every((need) => (need === "selection"
+          ? picked(box).length > 0
+          : [...box.querySelectorAll(`[name="${need}"]`)].some((field) => field.value.trim())));
+      });
+    };
+
+    const toast = (text, undo) => {
+      const note = make("div", { className: "mock-toast" }, make("span", {}, text));
+      if (undo) {
+        const button = make("button", { type: "button" }, "Undo");
+        button.addEventListener("click", () => { undo(); note.remove(); });
+        note.append(button);
+      }
+      toasts.append(note);
+      setTimeout(() => note.remove(), undo ? 6000 : 3500);
+    };
+
+    const remove = (items, text) => {
+      const places = items.map((item) => [item, item.parentNode, item.nextSibling]);
+      items.forEach((item) => item.classList.add("mock-out"));
+      setTimeout(() => { items.forEach((item) => item.remove()); sync(); }, 180);
+      toast(text, () => {
+        places.reverse().forEach(([item, parent, next]) => {
+          parent.insertBefore(item, next?.parentNode === parent ? next : null);
+          item.classList.remove("mock-out");
+          item.setAttribute("aria-selected", "false");
+        });
+        sync();
+      });
+    };
+
+    const open = (control) => {
+      const dialog = body.querySelector(`dialog#${CSS.escape(control.dataset.mockOpen)}`);
+      if (!dialog) { return; }
+      if (pristine.has(dialog.id)) { dialog.innerHTML = pristine.get(dialog.id); } else { pristine.set(dialog.id, dialog.innerHTML); }
+      opener = control;
+      const item = control.closest("[data-mock-item]");
+      dialog.querySelectorAll("[data-mock-field]").forEach((slot) => {
+        const source = item?.querySelector(`[data-mock-field="${slot.dataset.mockField}"]`);
+        if (source) { slot.textContent = source.textContent; }
+      });
+      sync();
+      dialog.showModal();
+    };
+
+    const apply = (dialog, target) => dialog.querySelectorAll("input[name], select[name], textarea[name]").forEach((field) => {
+      const value = field.tagName === "SELECT" ? field.selectedOptions[0]?.textContent ?? "" : field.value.trim();
+      if (value) { target.querySelectorAll(`[data-mock-field="${field.name}"]`).forEach((slot) => { slot.textContent = value; }); }
+    });
+
+    const go = (from, next) => {
+      const scope = from.closest("[data-mock-state]");
+      if (!scope) { return; }
+      const states = words(scope.dataset.mockState);
+      const flag = next.slice(1);
+      scope.dataset.mockState = next.startsWith("+") ? [...new Set([...states, flag])].join(" ")
+        : next.startsWith("-") ? states.filter((state) => state !== flag).join(" ")
+        : next;
+    };
+
+    const act = (control) => {
+      const data = control.dataset;
+      if (data.mockTab !== undefined) { root.dataset.mockTab = data.mockTab; sync(); return; }
+      if (data.mockOpen) { open(control); return; }
+      const dialog = control.closest("dialog");
+      const origin = (dialog && opener) || control;
+      const item = origin.closest("[data-mock-item]");
+      if (dialog && data.mockApply !== undefined) { apply(dialog, item ?? body); }
+      if (data.mockRemove !== undefined) {
+        const items = data.mockRemove === "selected" ? picked(body) : [item].filter(Boolean);
+        if (items.length) { remove(items, (data.mockToast ?? "Removed").replace("{n}", String(items.length))); }
+      } else if (data.mockToast) {
+        toast(data.mockToast);
+      }
+      if (data.mockGo !== undefined) { go(origin, data.mockGo); }
+      if (dialog) { dialog.close(); }
+      sync();
+    };
+
+    const choose = (item) => {
+      const list = item.closest("[data-mock-select]");
+      const many = list.dataset.mockSelect === "many";
+      const on = !many || item.getAttribute("aria-selected") !== "true";
+      if (!many) { list.querySelectorAll("[data-mock-item]").forEach((other) => other.setAttribute("aria-selected", "false")); }
+      item.setAttribute("aria-selected", String(on));
+      if (item.dataset.mockGo !== undefined) { go(list, item.dataset.mockGo); }
+      sync();
+    };
+
+    const sorted = (list) => {
+      sync();
+      if (list.dataset.mockSort) { toast(list.dataset.mockSort); }
+    };
+
+    body.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLDialogElement) {
+        const box = target.getBoundingClientRect();
+        const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+        if (outside) { target.close(); }
+        return;
+      }
+      const control = target.closest("button");
+      if (control) {
+        if (!control.disabled) { act(control); }
+        return;
+      }
+      const item = target.closest("[data-mock-select] [data-mock-item]");
+      if (item && item.getAttribute("aria-disabled") !== "true" && !target.closest("input, select, textarea")) { choose(item); }
+    });
+    body.addEventListener("input", sync);
+    body.addEventListener("keydown", (event) => {
+      const item = event.target.closest?.("[data-mock-item]");
+      if (!item || event.target !== item) { return; }
+      if ((event.key === "Enter" || event.key === " ") && item.closest("[data-mock-select]") && item.getAttribute("aria-disabled") !== "true") {
+        event.preventDefault();
+        choose(item);
+      }
+      const sibling = { ArrowUp: item.previousElementSibling, ArrowDown: item.nextElementSibling }[event.key];
+      if (event.altKey && sibling?.matches("[data-mock-item]") && item.parentElement.matches("[data-mock-sort]")) {
+        event.preventDefault();
+        if (event.key === "ArrowUp") { sibling.before(item); } else { sibling.after(item); }
+        item.focus();
+        sorted(item.parentElement);
+      }
+    });
+    body.addEventListener("dragstart", (event) => {
+      dragging = event.target.closest?.("[data-mock-sort] > [data-mock-item]") ?? null;
+      if (!dragging) { return; }
+      order = [...dragging.parentElement.children];
+      dragging.classList.add("mock-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", "");
+    });
+    body.addEventListener("dragover", (event) => {
+      const over = event.target.closest?.("[data-mock-item]");
+      if (!dragging || !over || over.parentElement !== dragging.parentElement) { return; }
+      event.preventDefault();
+      if (over === dragging) { return; }
+      const box = over.getBoundingClientRect();
+      if (event.clientY > box.top + box.height / 2) { over.after(dragging); } else { over.before(dragging); }
+    });
+    body.addEventListener("drop", (event) => { if (dragging) { event.preventDefault(); } });
+    body.addEventListener("dragend", () => {
+      if (!dragging) { return; }
+      const list = dragging.parentElement;
+      dragging.classList.remove("mock-dragging");
+      dragging = null;
+      if ([...list.children].some((child, index) => child !== order[index])) { sorted(list); }
+    });
+    reset.addEventListener("click", () => {
+      body.innerHTML = html;
+      if (startState === undefined) { delete root.dataset.mockState; } else { root.dataset.mockState = startState; }
+      root.dataset.mockTab = firstTab;
+      toasts.replaceChildren();
+      sync();
+    });
+
+    const firstTab = root.dataset.mockTab ?? body.querySelector("[data-mock-tab]")?.dataset.mockTab;
+    root.dataset.mockTab = firstTab ?? "";
+    body.innerHTML = html;
+    sync();
+  });
+
   const boxes = [...document.querySelectorAll(".diagram")];
   boxes.forEach((box) => { box.dataset.source = box.textContent; });
   let mermaidLib = null;
@@ -669,18 +1185,21 @@
       }
     }));
   };
-  const codes = [...document.querySelectorAll("pre:not(.diagram)")];
-  const highlight = (hljs) => codes.forEach((block) => {
-    const language = block.dataset.lang;
-    const { value } = language && hljs.getLanguage(language)
-      ? hljs.highlight(block.textContent, { language })
-      : hljs.highlightAuto(block.textContent, ["typescript", "sql", "json"]);
-    (block.querySelector("code") ?? block).innerHTML = value;
-  });
+  const codes = [...document.querySelectorAll("pre:not(.diagram):not(.wt-script)")];
+  const highlight = (hljs) => {
+    hljsLib = hljs;
+    codes.forEach((block) => {
+      const language = block.dataset.lang;
+      const { value } = language && hljs.getLanguage(language)
+        ? hljs.highlight(block.textContent, { language })
+        : hljs.highlightAuto(block.textContent, ["typescript", "sql", "json"]);
+      (block.querySelector("code") ?? block).innerHTML = value;
+    });
+  };
   const pending = [
     boxes.length && import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs")
       .then((module) => { mermaidLib = module.default; return draw(); }),
-    codes.length && import("https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/es/highlight.min.js")
+    (codes.length || document.querySelector(".walkthrough")) && import("https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/es/highlight.min.js")
       .then((module) => highlight(module.default)),
   ].filter(Boolean).map((loading) => loading.catch(() => {}));
   if (pending.length) {
