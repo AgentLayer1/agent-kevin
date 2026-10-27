@@ -38,6 +38,8 @@ import {
   composeMetaRows,
   conversationTextFromLines,
   extractSessionRefs,
+  radarSummary,
+  RESUME_LINE,
   type RadarTaskRef
 } from './radar-refs';
 import { sanitizeHtml } from '@/shared/sanitize-html';
@@ -1723,7 +1725,8 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
   // subsection, set apart from the summary. Done post-marked so the box is a
   // block sibling (a <div> can't live inside the <p> marked emits) and a single
   // pass — no double-wrapping.
-  const rendered = (await marked.parse(normalized)).replace(
+  // `breaks` keeps each checklist line on its own line instead of one run-on paragraph.
+  const rendered = (await marked.parse(normalized, { breaks: true })).replace(
     /<p>↳\s*<code>claude --resume ([0-9a-fA-F-]+)<\/code><\/p>/g,
     (_full, sessionId: string) => composeMetaBox(metaFor(sessionId), `claude --resume ${sessionId}`)
   );
@@ -1756,7 +1759,7 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
 const wrapRadarSessions = (html: string): string =>
   html.replace(/(<p><strong>\d+\.[\s\S]*?)(?=<p><strong>\d+\.|<h2|$)/g, '<div class="radar-session" data-row>$1</div>');
 
-/** Pull the digest's per-session blocks (`**N. Title** · *time ago*`, a summary,
+/** Pull the report's per-session cards (`**N. Title** · *time ago*`, the session's checklist,
  *  then a `↳ claude --resume …` line) into structured rows for the Today feed. */
 const parseRadarSessions = (raw: string): RadarSession[] => {
   const sessions: RadarSession[] = [];
@@ -1764,16 +1767,11 @@ const parseRadarSessions = (raw: string): RadarSession[] => {
     /\*\*\d+\.\s*([\s\S]*?)\*\*\s*·\s*\*([^*]+)\*([\s\S]*?)(?=\n\*\*\d+\.\s|\n##\s|$)/g
   )) {
     const body = block[3];
-    const resume = body.match(/↳\s*`?(claude --resume[^\n`]+)`?/)?.[1]?.trim() ?? '';
+    const resume = body.match(RESUME_LINE)?.[1]?.trim() ?? '';
     sessions.push({
       title: stripMarkdown(block[1].trim()),
       timeAgo: block[2].trim(),
-      summary: stripMarkdown(
-        body
-          .replace(/↳\s*`?claude --resume[^\n`]+`?/g, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-      ),
+      summary: stripMarkdown(radarSummary(body)),
       resume,
       meta: ''
     });

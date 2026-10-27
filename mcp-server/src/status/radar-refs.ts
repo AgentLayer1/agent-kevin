@@ -139,3 +139,19 @@ export const composeMetaRows = (
  *  command, grouped in one subsection. Shared by both dashboard feeds. */
 export const composeMetaBox = (metaRows: string, resumeCommand: string): string =>
   `<div class="radar-meta">${metaRows}<div class="rmeta-row resume">↳ <code>${escapeHtml(resumeCommand)}</code></div></div>`;
+
+/**
+ * A session card's resume line; group 1 is the `claude --resume <id>` command.
+ */
+export const RESUME_LINE = /↳\s*`?(claude --resume[^\n`]+)`?/;
+
+/**
+ * A session card's one-line summary for the Today feed: its checklist's `▶` step, else its next step,
+ * else the whole card body. The glyphs match the focus checkpoint shape, which `list_sessions.ts` also detects.
+ */
+export const radarSummary = (body: string): string => {
+  const withoutResume = body.replace(RESUME_LINE, '');
+  const now = withoutResume.match(/^▶ (.+)$/m)?.[1];
+  const next = withoutResume.match(/^▷ (next: .+)$/m)?.[1];
+  return (now ?? next ?? withoutResume).replace(/\s+/g, ' ').trim();
+};

@@ -6,6 +6,7 @@ import {
   extractSessionRefs,
   isConversationUserText,
   openerAnchor,
+  radarSummary,
   type RadarTaskRef
 } from './radar-refs';
 
@@ -146,5 +147,22 @@ describe('composeMetaBox', () => {
     expect(box).toBe(
       '<div class="radar-meta"><div class="rmeta-row resume">↳ <code>claude --resume abc-123</code></div></div>'
     );
+  });
+});
+
+describe('radarSummary', () => {
+  test("uses the checklist's ▶ step", () => {
+    const body = '\n\n✓ Exporter bug filed (ab-001)\n\n▶ Waiting on the exporter fix\n▷ next: rerun the comparison\n\n↳ `claude --resume abc-123`\n';
+    expect(radarSummary(body)).toBe('Waiting on the exporter fix');
+  });
+
+  test('uses the next step when nothing is in progress', () => {
+    const body = '\n\n✓ Released (tag pushed)\n▷ next: watch the crash reports\n\n↳ `claude --resume abc-123`\n';
+    expect(radarSummary(body)).toBe('next: watch the crash reports');
+  });
+
+  test('falls back to the whole body without the resume line', () => {
+    const body = '\n\nSettled 5x over 10x;\nstaging booked.\n\n↳ `claude --resume abc-123`\n';
+    expect(radarSummary(body)).toBe('Settled 5x over 10x; staging booked.');
   });
 });
