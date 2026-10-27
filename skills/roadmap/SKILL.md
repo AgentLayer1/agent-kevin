@@ -56,7 +56,7 @@ Fill the frame with real content. Milestones come from sources, not imagination:
 - **Roadmap draft**: each `| When | Milestone |` row becomes a `planned` milestone in the period its When names.
 - **The user's own words**: anything they dumped in the interview is first-class source material.
 
-Every period gets a `start` (and an `end` when it spans more than one day, week or month) from a real date the operator gave or confirmed: `2026-10-05`, `2026-W41` or `2026-10`. An undated period still renders, but attention pages can only see its `progress` items. Name the task ids a milestone covers in its item text (`Webhook receiver (ac-012)`): that link is how a attention page shows which tasks move a milestone forward.
+Every period gets a `start` (and an `end` when it spans more than one day, week or month) from a real date the operator gave or confirmed: `2026-10-05`, `2026-W41` or `2026-10`. An undated period still renders, but attention pages can only see its `progress` items. Name the task ids a milestone covers in its item text (`Webhook receiver (ac-012)`): that link is how an attention page shows which tasks move a milestone forward.
 
 Rules: a `done` status needs evidence from this session (task frontmatter, git, or the user's word) — when unsure, downgrade to `planned` or ask. Milestone items are arc-level (≤ ~60 chars); detail stays on the task board. Route the two overflow streams per DESIGN.md's "overflow pair": harvested work that doesn't earn a period parks in the long-term horizon (the inbox for the next planning cycle), and shipped work that was never planned becomes unplanned wins, not a retrofitted milestone. When the ordering of milestones is deliberate, capture per-milestone `unlocks` lines — what shipping each one buys — so the sequence reads as a flywheel, not a list.
 
@@ -81,7 +81,7 @@ An existing roadmap is a living document — updates are **surgical edits to the
 
 When statuses are being refreshed wholesale (a planning-cadence pass), re-harvest from ground truth first — task frontmatter and git, not memory — then edit the deltas. Run the data check after every edit, and the render check after any edit that touched the data's structure.
 
-**Dating an undated roadmap.** A roadmap moved to JSON by the 0.5.3 upgrade has free-text period names and no dates. When the operator asks to date it, or a attention page says a roadmap is undated, propose a `start`/`end` for each period from its name and its section's `range`, show them as one table, and write only what the operator confirms. A period whose dates you can't infer with confidence goes into the question, never a guess.
+**Dating an undated roadmap.** A roadmap moved to JSON by the 0.5.3 upgrade has free-text period names and no dates. When the operator asks to date it, or an attention page says a roadmap is undated, propose a `start`/`end` for each period from its name and its section's `range`, show them as one table, and write only what the operator confirms. A period whose dates you can't infer with confidence goes into the question, never a guess.
 
 **A roadmap still on a `const ROADMAP = {` literal** was either created before 0.5.3 or left untouched by its migration (the report says why: a render that changed between runs, a value JSON can't hold). Never convert it by hand. Fix what the reason names, if anything, then call `run_upgrade` with `{ version: "0.5.3" }`: it converts every such page in the home, replacing each only after its render matches, and skips the rest.
 
