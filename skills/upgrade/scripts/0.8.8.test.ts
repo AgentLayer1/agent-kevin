@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { MCP_PREFIX, PLUGIN_NAME } from '../../../mcp-server/src/config';
 
-const SCRIPT = resolve(import.meta.dir, '0.9.0.ts');
+const SCRIPT = resolve(import.meta.dir, '0.8.8.ts');
 const OLD = `${MCP_PREFIX}focus_write`;
 const NEW = `${MCP_PREFIX}attention_write`;
 
@@ -18,7 +18,7 @@ const read = (root: string, rel: string): string => readFileSync(join(root, rel)
 const permissions = (root: string, rel: string): Record<string, string[]> => JSON.parse(read(root, rel)).permissions;
 
 const makeHome = (): string => {
-  const home = mkdtempSync(join(tmpdir(), 'migrate-090-'));
+  const home = mkdtempSync(join(tmpdir(), 'migrate-088-'));
   homes.push(home);
   write(home, 'projects/acme/focus.html', 'acme page');
   write(home, 'projects/beta/focus.html', 'old beta page');
@@ -48,7 +48,7 @@ const run = (home: string): { status: number | null; report: Record<string, unkn
 
 afterAll(() => homes.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-describe('0.9.0 migration', () => {
+describe('0.8.8 migration', () => {
   test('moves pages and the queue cache, and renames the tool grant in place', () => {
     const home = makeHome();
     const { status, report } = run(home);
