@@ -43,6 +43,28 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.8] - 2026-10-28
+
+### Added
+- **A checkpoint is a checklist.** `/attention checkpoint` writes this session as done steps with their proof, what is in progress, the next step, decisions waiting on the operator with a recommended pick, traps, and what changed since the last checkpoint. `/attention checkpoint all` writes the same checklist for every recent session: the waiting decisions first, ranked, then a card per session, then an offer to jump to one. A session that already wrote a checkpoint has it reused, with the turns since counted. It replaces the where-am-i paragraphs and the triage interview.
+- **The dashboard's session radar reads checkpoints.** The Today feed shows each session's in-progress step, or its next step when nothing is in progress (older reports fall back to the whole card), and the Recent tab keeps one line per step.
+- **Explainers gain step-through walkthroughs and clickable UI mocks.** A walkthrough is a diagram with scenario tabs, play and step controls, a timeline and a detail panel, deep-linked by `#wt=scenario.step`. A mock is a fake screen with states, dialogs, selection, drag to reorder, remove with Undo, toasts and tabs. The explainer check refuses a step that names a missing part and a mock control that leads nowhere.
+
+### Changed
+- **The focus skill is now `attention`.** Claude Code ships a built-in `/focus`, so `/agent-kevin:focus` never reached the skill. The skill, its playbooks, the `focus_write` tool (now `attention_write`), project pages (`attention.html`), the dashboard view and the Codex default prompt all follow the new name. `where-am-i` and `triage` are gone: use `/attention checkpoint all`.
+- **SOUL: "I didn't read that" restarts step by step.** The agent restarts with the answer in three lines or fewer, then walks through the rest one short step per reply, waiting for "next", and keeps that size for the rest of the conversation.
+- **Retired MCP tools migrate like retired skills.** Upgrade's baseline check and seed import map a retired tool's grant to its successor in the same `allow`, `ask` or `deny` list, so a dead grant never comes back and a gate the operator placed carries over.
+
+### Fixed
+- **A worktree on a base branch is never torn down.** A worktree on `dev`, `develop`, `main` or `master` could read `deletable` and be removed (with its branch, under `deleteBranch`). `list_worktrees` now gives it a `base` verdict, `remove_worktree` refuses it, and the teardown offer leaves it out.
+- **A stalled Chromium launch retries instead of hanging the capture.** Under bun, Chromium's DevTools pipe sometimes breaks at startup and Playwright waited out its 180s timeout, past the host's 120s tool budget. Each launch now gets 20s and up to three attempts, for the screenshot, PDF, markdown and record tools and browser flows.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.8.8.ts. It moves each `projects/<slug>/focus.html` to `attention.html` (an existing `attention.html` wins and the old page goes, since the dashboard re-renders it), moves the queue cache from `.state/focus/` to `.state/attention/` (or drops it when the new one exists; it refills on the next pull), and rewrites any `focus_write` or retired `Skill(agent-kevin:focus)` rule in `.claude/settings.json` and `.claude/settings.local.json` to its successor in the same `allow`, `ask` or `deny` list. Both settings files are read first, so one that doesn't parse stops the run with nothing changed. Idempotent.
+- `template/AGENTS.md: mandatory` — the memory-routing row and the `reports/radar/` tree comment name the attention skill's standup and checkpoint all instead of focus's standup and where-am-i.
+- `template/SOUL.md: optional` — a Writing Style line: "I didn't read that" (or "too long") restarts with the answer in three lines, then one short step per reply.
+- `manual: none` — `/agent-kevin:focus` is now `/agent-kevin:attention`, and `/focus where-am-i` and `/focus triage` are `/attention checkpoint all`. Plain asks ("what should I work on", "which session needs me") route there on their own. A schedule or script outside the home that runs an old command needs the new one.
+
 ## [0.8.7] - 2026-10-26
 
 ### Added
