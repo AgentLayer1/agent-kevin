@@ -10,6 +10,9 @@
  * or `Skill(<plugin>:focus)` rule becomes its successor in the same list. The baseline reconcile reads
  * only `settings.json`, and runs after this script, so an operator's placement decides the successor.
  *
+ * Both settings files are read and planned first, so one that is not JSON fails the run before anything
+ * in the home changes.
+ *
  * Run by `/agent-kevin:upgrade` via `run_upgrade` (outside the Bash sandbox). Idempotent.
  * Contract: prints a single-line JSON report as its LAST stdout line; exits non-zero on failure.
  */
@@ -88,7 +91,13 @@ const migrateRules = (rules: unknown): unknown =>
     ? migrateGrants(rules, PLUGIN_NAME)
     : rules;
 
-const moveGrants = (name: string): string | null => {
+/** A settings file's migrated text, planned before anything in the home changes. */
+interface SettingsPlan {
+  file: string;
+  text: string;
+}
+
+const planGrants = (name: string): SettingsPlan | null => {
   const file = resolve(HOME, '.claude', name);
   if (!existsSync(file)) {
     return null;
@@ -112,16 +121,17 @@ const moveGrants = (name: string): string | null => {
   if (JSON.stringify(next) === JSON.stringify(permissions)) {
     return null;
   }
-  writeAtomic(file, `${JSON.stringify({ ...settings, permissions: next }, null, 2)}\n`);
-  return relative(HOME, file);
+  return { file, text: `${JSON.stringify({ ...settings, permissions: next }, null, 2)}\n` };
 };
 
 try {
+  const plans = ['settings.json', 'settings.local.json']
+    .map(planGrants)
+    .filter((plan): plan is SettingsPlan => plan !== null);
   const pages = movePages();
   const queues = moveQueues();
-  const grants = ['settings.json', 'settings.local.json']
-    .map(moveGrants)
-    .filter((file): file is string => file !== null);
+  plans.forEach(({ file, text }) => writeAtomic(file, text));
+  const grants = plans.map(({ file }) => relative(HOME, file));
   process.stdout.write(JSON.stringify({ ok: true, version: VERSION, pages, queues, grants }) + '\n');
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);

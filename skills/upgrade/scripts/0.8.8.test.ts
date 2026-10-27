@@ -92,11 +92,15 @@ describe('0.8.8 migration', () => {
     expect(read(home, '.state/attention/queue.json')).toBe('{"groups":["fresh"]}\n');
   });
 
-  test('fails loudly on a settings file that is not JSON', () => {
+  test('a settings file that is not JSON fails the run before anything moves', () => {
     const home = makeHome();
-    write(home, '.claude/settings.json', '{ not json');
+    const settings = read(home, '.claude/settings.json');
+    write(home, '.claude/settings.local.json', '{ not json');
     const { status, report } = run(home);
     expect(status).toBe(1);
     expect(report).toMatchObject({ ok: false });
+    expect(existsSync(join(home, 'projects/acme/focus.html'))).toBe(true);
+    expect(existsSync(join(home, '.state/focus/queue.json'))).toBe(true);
+    expect(read(home, '.claude/settings.json')).toBe(settings);
   });
 });
