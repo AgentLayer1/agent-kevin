@@ -716,9 +716,9 @@ Weekly active workspaces 1,840 to 2,100
 `
 );
 
-// The last queue pull and a dated roadmap, so Today opens on a real focus view.
+// The last queue pull and a dated roadmap, so Today opens on a real attention view.
 write(
-  '.state/focus/queue.json',
+  '.state/attention/queue.json',
   `${JSON.stringify(
     {
       fetchedAt: minutesAgo(35).toISOString(),

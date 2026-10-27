@@ -54,7 +54,7 @@ const pinsIn = (source: string, body: string): Pin[] => {
 /** The pins in reports/pinned.md. */
 export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readText(FILES.REPORTS_PINNED));
 
-/** The pins in a project README's `## Pinned` section, which its card and focus page show. */
+/** The pins in a project README's `## Pinned` section, which its card and attention page show. */
 export const projectPins = (project: string): Pin[] => {
   const readme = resolve(FOLDERS.PROJECTS, project, 'README.md');
   return pinsIn(readme, PINNED_SECTION.exec(readText(readme))?.[1] ?? '');

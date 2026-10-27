@@ -7,9 +7,9 @@ import { roadmapDataBlock } from '@/roadmap/data';
 import { todayDate } from '@/shared/date';
 import { THEME_BLOCK } from '@/shared/theme';
 import { collectGoals, collectStatus } from './collect';
-import { buildFocusView, focusPagePath, writeFocusPage, writeFocusPagesSafe, type FocusInputs } from './focus';
-import { focusData, readFocusData } from './focus-data';
-import { renderFocusHtml } from './focus-render';
+import { buildAttentionView, attentionPagePath, writeAttentionPage, writeAttentionPagesSafe, type AttentionInputs } from './attention';
+import { attentionData, readAttentionData } from './attention-data';
+import { renderAttentionHtml } from './attention-render';
 
 const TODAY = '2026-09-28';
 
@@ -41,7 +41,7 @@ const task = (id: string, overrides: Partial<TaskFrontmatter> = {}): TaskFile =>
   filePath: `/home/alex/projects/acme/tasks/${id}.md`
 });
 
-const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusInputs => ({
+const inputs = (tasks: TaskFile[], overrides: Partial<AttentionInputs> = {}): AttentionInputs => ({
   project: '',
   home: '/home/alex',
   tasks,
@@ -59,8 +59,8 @@ const inputs = (tasks: TaskFile[], overrides: Partial<FocusInputs> = {}): FocusI
   ...overrides
 });
 
-describe('buildFocusView', () => {
-  const view = buildFocusView(
+describe('buildAttentionView', () => {
+  const view = buildAttentionView(
     inputs([
       task('ac-001', { horizon: TODAY, priority: 'P1' }),
       task('ac-002', { horizon: TODAY, priority: 'P0' }),
@@ -91,7 +91,7 @@ describe('buildFocusView', () => {
 });
 
 describe('week and month progress', () => {
-  const view = buildFocusView(
+  const view = buildAttentionView(
     inputs([
       task('ac-001', { horizon: TODAY, status: 'done' }),
       task('ac-002', { horizon: TODAY }),
@@ -105,63 +105,63 @@ describe('week and month progress', () => {
     expect(view.planned.week.done.map((item) => item.id)).toEqual(['ac-001', 'ac-003']);
     expect(view.planned.week.open.map((item) => item.id)).toEqual(['ac-002']);
     expect(view.planned.month.open.map((item) => item.id)).toEqual(['ac-005', 'ac-002']);
-    expect(renderFocusHtml(view)).toContain('<b>2/3</b> this week');
+    expect(renderAttentionHtml(view)).toContain('<b>2/3</b> this week');
   });
 });
 
-describe('renderFocusHtml', () => {
+describe('renderAttentionHtml', () => {
   test('titles are escaped, the data block stays inert, and the page makes no external requests', () => {
     const title = '<img src=x onerror=alert(1)></script><script>alert(2)</script>';
-    const view = buildFocusView(inputs([task('ac-001', { horizon: TODAY, title })]));
-    const html = renderFocusHtml(view);
+    const view = buildAttentionView(inputs([task('ac-001', { horizon: TODAY, title })]));
+    const html = renderAttentionHtml(view);
     expect(html).toContain(THEME_BLOCK);
     const page = html.replace(THEME_BLOCK, '');
-    const rendered = page.replace(/<script type="application\/json" id="focus-data">[\s\S]*?<\/script>/, '');
+    const rendered = page.replace(/<script type="application\/json" id="attention-data">[\s\S]*?<\/script>/, '');
     expect(rendered).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(rendered).not.toContain('<img');
     expect(rendered).not.toContain('<script');
     expect(page.match(/<\/script/gi)).toEqual(['</script']);
-    expect(readFocusData(html)?.lanes.today[0].title).toBe(title);
+    expect(readAttentionData(html)?.lanes.today[0].title).toBe(title);
     expect(html).not.toMatch(/(src|href)="https?:/);
     expect(html).not.toMatch(/url\(["']?https?:/);
   });
 
   test('the page inlines the shared lanes stylesheet the dashboard uses', () => {
-    const html = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })])));
-    expect(html).toContain('<main class="focusview">');
-    expect(html).toContain('.focusview .lanes {');
+    const html = renderAttentionHtml(buildAttentionView(inputs([task('ac-001', { horizon: TODAY })])));
+    expect(html).toContain('<main class="attentionview">');
+    expect(html).toContain('.attentionview .lanes {');
     expect(html).not.toContain('{{');
   });
 
   test('the page embeds its data with task paths relative to the home', () => {
-    const view = buildFocusView(inputs([task('ac-001', { horizon: TODAY })]));
-    const data = readFocusData(renderFocusHtml(view));
-    expect(data).toEqual(focusData(view));
+    const view = buildAttentionView(inputs([task('ac-001', { horizon: TODAY })]));
+    const data = readAttentionData(renderAttentionHtml(view));
+    expect(data).toEqual(attentionData(view));
     expect(data?.lanes.today[0].path).toBe('projects/acme/tasks/ac-001.md');
     expect(JSON.stringify(data)).not.toContain('/home/alex');
   });
 
   test("today's goals head the Today lane on the home page, never on a project page", () => {
     const goals = { daily: ['The invoice export is on staging'], weekly: [], monthly: [] };
-    const home = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })], { goals })));
-    const today = home.slice(home.indexOf('id="focus-today"'), home.indexOf('id="focus-roadmap"'));
+    const home = renderAttentionHtml(buildAttentionView(inputs([task('ac-001', { horizon: TODAY })], { goals })));
+    const today = home.slice(home.indexOf('id="attention-today"'), home.indexOf('id="attention-roadmap"'));
     expect(today).toContain('<ul class="goals"><li>The invoice export is on staging</li></ul>');
-    const project = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })], { goals, project: 'acme' })));
+    const project = renderAttentionHtml(buildAttentionView(inputs([task('ac-001', { horizon: TODAY })], { goals, project: 'acme' })));
     expect(project).not.toContain('The invoice export is on staging');
   });
 
   test("a project page lists its README's pins in their own lane", () => {
     const pins = [{ title: 'Migration plan', icon: '📐', path: 'reports/plans/migration.md' }];
-    const project = renderFocusHtml(buildFocusView(inputs([], { pins, project: 'acme' })));
+    const project = renderAttentionHtml(buildAttentionView(inputs([], { pins, project: 'acme' })));
     expect(project).toContain(
       `<span class="mark">📐</span><span class="title"><a href="obsidian://open?path=${encodeURIComponent('/home/alex/reports/plans/migration.md')}">Migration plan</a></span>`
     );
-    expect(readFocusData(project)?.pins).toEqual(pins);
-    expect(renderFocusHtml(buildFocusView(inputs([], { project: 'acme' })))).not.toContain('id="focus-pins"');
+    expect(readAttentionData(project)?.pins).toEqual(pins);
+    expect(renderAttentionHtml(buildAttentionView(inputs([], { project: 'acme' })))).not.toContain('id="attention-pins"');
   });
 
   test('today reads as a numbered list with the date as the headline', () => {
-    const html = renderFocusHtml(buildFocusView(inputs([task('ac-001', { horizon: TODAY })])));
+    const html = renderAttentionHtml(buildAttentionView(inputs([task('ac-001', { horizon: TODAY })])));
     expect(html).toContain('<em>Monday</em>, 28 September');
     expect(html).toContain('<span class="mark">1</span><span class="title">Task ac-001</span>');
     expect(html).toContain(
@@ -170,10 +170,10 @@ describe('renderFocusHtml', () => {
   });
 
   test('without a pull the queue says how to get one; with one it lists each item and when it was pulled', () => {
-    expect(renderFocusHtml(buildFocusView(inputs([])))).toContain('No pull yet');
+    expect(renderAttentionHtml(buildAttentionView(inputs([])))).toContain('No pull yet');
     const fetchedAt = '2026-09-28T09:47:00Z';
-    const html = renderFocusHtml(
-      buildFocusView(
+    const html = renderAttentionHtml(
+      buildAttentionView(
         inputs([], {
           snapshot: {
             fetchedAt,
@@ -216,7 +216,7 @@ describe('renderFocusHtml', () => {
 
 describe('queue sources that could not be read', () => {
   test('say so once per group and are never counted as items', () => {
-    const view = buildFocusView(
+    const view = buildAttentionView(
       inputs([], {
         snapshot: {
           fetchedAt: '2026-09-27T23:10:00Z',
@@ -237,7 +237,7 @@ describe('queue sources that could not be read', () => {
         }
       })
     );
-    const html = renderFocusHtml(view).replace(/<script type="application\/json"[\s\S]*<\/script>/, '');
+    const html = renderAttentionHtml(view).replace(/<script type="application\/json"[\s\S]*<\/script>/, '');
     expect(html).toContain('<p class="unavailable">GitHub can&#39;t read 2 repos: web, ops</p>');
     expect(html).not.toContain('None open.');
     expect(html).toMatch(/<h2>Queue<\/h2><span class="count">1<\/span>/);
@@ -247,7 +247,7 @@ describe('queue sources that could not be read', () => {
 
 describe('due work with no plan', () => {
   test('leaves the collapsed lanes and shows under Today', () => {
-    const view = buildFocusView(
+    const view = buildAttentionView(
       inputs([
         task('ac-001', { due: '2026-09-20' }),
         task('ac-002', { due: TODAY, horizon: 'later' }),
@@ -259,7 +259,7 @@ describe('due work with no plan', () => {
     expect(view.unplanned.map((item) => item.id)).toEqual(['ac-003']);
     expect(view.lanes.later).toEqual([]);
     expect(view.lanes.week.map((item) => item.id)).toEqual(['ac-004']);
-    expect(renderFocusHtml(view)).toContain('<h3>Due, not planned · 2</h3>');
+    expect(renderAttentionHtml(view)).toContain('<h3>Due, not planned · 2</h3>');
   });
 });
 
@@ -298,7 +298,7 @@ describe('roadmap milestones', () => {
     },
     horizon: { cards: [{ theme: 'Undated but moving', items: [{ text: '<b>Docs</b> (op-001)', status: 'progress' }] }] }
   };
-  const view = buildFocusView(
+  const view = buildAttentionView(
     inputs([task('ac-001', { horizon: TODAY }), task('op-001', { project: 'ops', status: 'done' })], {
       roadmaps: [
         { source: 'roadmap.html', read: { kind: 'data', raw: '', data: roadmap }, linkedOnly: false },
@@ -327,7 +327,7 @@ describe('roadmap milestones', () => {
     expect(view.roadmap.notices).toEqual([
       "projects/web/roadmap.html still keeps its data in a script, so it can't feed this page yet: ask /roadmap to convert it."
     ]);
-    const html = renderFocusHtml(view);
+    const html = renderAttentionHtml(view);
     expect(html).toContain('<span class="chip">M1</span>Slipped');
     expect(html).toContain('window ended 27 Sep');
     expect(html).toContain('no open task behind it');
@@ -335,7 +335,7 @@ describe('roadmap milestones', () => {
   });
 
   test('a project page keeps only the root milestones that name its tasks, and notes an undated roadmap', () => {
-    const project = buildFocusView(
+    const project = buildAttentionView(
       inputs([task('ac-001', { horizon: TODAY }), task('op-001', { project: 'ops' })], {
         project: 'ops',
         roadmaps: [
@@ -351,12 +351,12 @@ describe('roadmap milestones', () => {
     expect(project.roadmap.milestones.map((item) => item.title)).toEqual(['Undated but moving']);
     expect(project.roadmap.notices).toEqual([
       'projects/ops/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.',
-      "projects/ops/roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
+      "projects/ops/roadmap.html names no task ids, so attention can't tell which tasks move its milestones. /roadmap can add them."
     ]);
   });
 
   test('a roadmap that names no task ids flags no gaps, and says so once', () => {
-    const view = buildFocusView(
+    const view = buildAttentionView(
       inputs([], {
         roadmaps: [
           {
@@ -373,13 +373,13 @@ describe('roadmap milestones', () => {
     );
     expect(view.roadmap.milestones.map((item) => item.gap)).toEqual([false]);
     expect(view.roadmap.notices).toEqual([
-      "roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
+      "roadmap.html names no task ids, so attention can't tell which tasks move its milestones. /roadmap can add them."
     ]);
   });
 });
 
 describe('project page', () => {
-  const view = buildFocusView(
+  const view = buildAttentionView(
     inputs([task('ac-001', { horizon: TODAY }), task('op-001', { horizon: TODAY, project: 'ops' })], {
       project: 'acme'
     })
@@ -388,14 +388,14 @@ describe('project page', () => {
   test('holds only its project, names it, and leaves the home-wide goals off', () => {
     expect(view.lanes.today.map((item) => item.id)).toEqual(['ac-001']);
     expect(view.weekGoals).toEqual([]);
-    const html = renderFocusHtml(view);
-    expect(html).toContain('<div class="kicker">Focus · Acme</div>');
-    expect(html).toContain('<code>/focus plan acme</code>');
+    const html = renderAttentionHtml(view);
+    expect(html).toContain('<div class="kicker">Attention · Acme</div>');
+    expect(html).toContain('<code>/attention plan acme</code>');
     expect(html).not.toContain('class="proj"');
   });
 
   test('a pull with no groups hides the queue', () => {
-    const html = renderFocusHtml({ ...view, snapshot: { fetchedAt: new Date().toISOString(), groups: [] } });
+    const html = renderAttentionHtml({ ...view, snapshot: { fetchedAt: new Date().toISOString(), groups: [] } });
     expect(html).not.toContain('Queue');
   });
 });
@@ -444,37 +444,37 @@ describe('goals from TASKS.md', () => {
   });
 });
 
-describe('focus pages on disk', () => {
+describe('attention pages on disk', () => {
   test('only project pages the skill created re-render, a project dashboard.html is never touched, and none is a surface', async () => {
     mkdirSync(join(FOLDERS.PROJECTS, 'acme', 'tasks'), { recursive: true });
     const dashboard = join(FOLDERS.PROJECTS, 'acme', 'dashboard.html');
     writeFileSync(dashboard, '<p>hand-made</p>');
-    const page = focusPagePath('acme');
+    const page = attentionPagePath('acme');
     rmSync(page, { force: true });
-    writeFocusPagesSafe();
+    writeAttentionPagesSafe();
     expect(existsSync(page)).toBe(false);
-    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
+    expect(existsSync(join(FOLDERS.HOME, 'attention.html'))).toBe(false);
 
-    writeFocusPage('acme');
+    writeAttentionPage('acme');
     const archived = join(FOLDERS.PROJECTS, 'acme', 'tasks', 'archive');
     mkdirSync(archived, { recursive: true });
     writeFileSync(
       join(archived, 'ac-901-shipped.md'),
       `---\nschema: 1\nid: ac-901\ntitle: Shipped already\ntype: task\nstatus: done\npriority: P2\nproject: acme\nassignee: [user]\nlabels: []\ncreated: ${todayDate()}\nupdated: ${todayDate()}\ndue: ''\nhorizon: ${todayDate()}\ndepends_on: []\nblocked_by: ''\nparent: ''\nclosed: ${todayDate()}\n---\n\n## Description\n\nDone.\n`
     );
-    writeFocusPagesSafe();
+    writeAttentionPagesSafe();
     expect(readFileSync(page, 'utf-8')).toContain('Shipped already');
-    expect(existsSync(join(FOLDERS.HOME, 'focus.html'))).toBe(false);
+    expect(existsSync(join(FOLDERS.HOME, 'attention.html'))).toBe(false);
     expect(readFileSync(dashboard, 'utf-8')).toBe('<p>hand-made</p>');
     rmSync(join(archived, 'ac-901-shipped.md'), { force: true });
 
-    const { surfaces, tasks, focus, skills } = await collectStatus();
+    const { surfaces, tasks, attention, skills } = await collectStatus();
     expect(skills.details.find((skill) => skill.name === 'briefing')?.playbooks).toEqual(['morning', 'evening', 'pulse']);
-    expect(surfaces.map((surface) => surface.title)).not.toContain('Focus');
-    expect(focus.project).toBe('');
+    expect(surfaces.map((surface) => surface.title)).not.toContain('Attention');
+    expect(attention.project).toBe('');
     expect(surfaces).toContainEqual({ title: 'Acme', icon: '📊', appTab: false, href: 'projects/acme/dashboard.html' });
-    expect(surfaces.map((surface) => surface.href)).not.toContain('projects/acme/focus.html');
-    expect(tasks.byProject.find((load) => load.project === 'acme')?.focus).toBe('projects/acme/focus.html');
+    expect(surfaces.map((surface) => surface.href)).not.toContain('projects/acme/attention.html');
+    expect(tasks.byProject.find((load) => load.project === 'acme')?.attention).toBe('projects/acme/attention.html');
 
     [page, dashboard].forEach((path) => rmSync(path, { force: true }));
   });
@@ -488,16 +488,16 @@ describe('focus pages on disk', () => {
       `<body>${roadmapDataBlock({ a: { title: 'Lane', items: [{ text: 'Invoice export', status: 'progress' }] } })}</body>`
     );
     writeFileSync(root, '<script>const ROADMAP = { a: 1 };</script>');
-    const { view } = writeFocusPage('acme');
+    const { view } = writeAttentionPage('acme');
     expect(view.roadmap).toMatchObject({
       milestones: [{ title: 'Lane', source: 'projects/acme/roadmap.html' }],
       notices: [
         'projects/acme/roadmap.html has no dates, so only its in-progress items show here. /roadmap can date it.',
-        "projects/acme/roadmap.html names no task ids, so focus can't tell which tasks move its milestones. /roadmap can add them."
+        "projects/acme/roadmap.html names no task ids, so attention can't tell which tasks move its milestones. /roadmap can add them."
       ]
     });
-    expect(readFileSync(focusPagePath('acme'), 'utf-8')).toContain('⏳ Invoice export');
-    [own, root, focusPagePath('acme')].forEach((path) => rmSync(path, { force: true }));
+    expect(readFileSync(attentionPagePath('acme'), 'utf-8')).toContain('⏳ Invoice export');
+    [own, root, attentionPagePath('acme')].forEach((path) => rmSync(path, { force: true }));
   });
 
   test('pinned reports come from reports/pinned.md in file order, and a missing file drops out', async () => {
@@ -520,12 +520,12 @@ describe('focus pages on disk', () => {
   });
 
   test('the home scope has no page of its own; it lives in the dashboard', () => {
-    expect(() => focusPagePath('')).toThrow('lives in the dashboard');
-    expect(() => writeFocusPage('')).toThrow('lives in the dashboard');
+    expect(() => attentionPagePath('')).toThrow('lives in the dashboard');
+    expect(() => writeAttentionPage('')).toThrow('lives in the dashboard');
   });
 
   test('a slug that is not a project folder is refused before it becomes a path', () => {
-    expect(() => focusPagePath('../..')).toThrow('Unknown project');
-    expect(() => writeFocusPage('nope')).toThrow('Unknown project');
+    expect(() => attentionPagePath('../..')).toThrow('Unknown project');
+    expect(() => writeAttentionPage('nope')).toThrow('Unknown project');
   });
 });

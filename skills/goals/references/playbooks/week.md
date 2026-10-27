@@ -4,8 +4,8 @@ The week gets set and scored in one place, so the week's tasks and the Weekly Go
 
 ## Set the week (Monday, or "plan the week")
 
-1. Call `focus_write` with no arguments for the lanes, the roadmap, and `planned.week`.
-2. **Propose two or three week goals**, starting from the roadmap milestones `focus_write` returns under `roadmap` (slipped first), then the carried-over lane, the week lane, the Weekly Goals already in `TASKS.md`, and the work already in flight. Each goal names its task and what done looks like.
+1. Call `attention_write` with no arguments for the lanes, the roadmap, and `planned.week`.
+2. **Propose two or three week goals**, starting from the roadmap milestones `attention_write` returns under `roadmap` (slipped first), then the carried-over lane, the week lane, the Weekly Goals already in `TASKS.md`, and the work already in flight. Each goal names its task and what done looks like.
 3. Confirm with one multi-select `AskUserQuestion`.
 4. [Apply the week](#apply-the-week) with the chosen goals.
 5. In a standup, add `## This week` above `Next`, one line per goal: **the deliverable**, what done means. Otherwise reply with the goals and the refresh card's WEEK line.
@@ -77,7 +77,7 @@ If the user confirms, [apply the week](#apply-the-week) with the goals. Carry th
 
 ## Score the week (Friday, or "score the week")
 
-1. Score every task `focus_write` returns under `planned.week` (planned for the week or one of its days, archived ones included): ✅ done, 🟡 partial (active, moved), or ❌ missed, with one clause of why for every miss.
+1. Score every task `attention_write` returns under `planned.week` (planned for the week or one of its days, archived ones included): ✅ done, 🟡 partial (active, moved), or ❌ missed, with one clause of why for every miss.
 2. Ask where each open one goes: next week (`horizon: next-week`), later, or dropped (cancel it). Apply the answers with `task_update`.
 3. In a standup, add `## Week score` above `Next`; otherwise reply with the score. The misses are the useful part, because they show where the week was overcommitted or stuck; say them plainly.
 

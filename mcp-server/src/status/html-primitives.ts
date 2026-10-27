@@ -1,5 +1,5 @@
 /**
- * Markup primitives shared by the dashboard and focus page renderers.
+ * Markup primitives shared by the dashboard and attention page renderers.
  */
 export const escapeHtml = (text: string): string =>
   text

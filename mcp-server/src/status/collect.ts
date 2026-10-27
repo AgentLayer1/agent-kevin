@@ -51,8 +51,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { MOD_FEATURES, type ModFeature } from '../../../mods/shared/catalog';
-import { collectFocusView } from './focus';
-import type { FocusView } from './focus-data';
+import { collectAttentionView } from './attention';
+import type { AttentionView } from './attention-data';
 import { livePins, projectHues, projectPinLinks, surfaceFiles, type PinLink } from './surfaces';
 
 export interface SettingsLayer {
@@ -311,8 +311,8 @@ export interface ProjectLoad {
   description: string;
   /** HOME-relative path to the project's own roadmap.html; '' when it has none. */
   roadmap: string;
-  /** HOME-relative path to the project's own focus.html; '' when it has none. */
-  focus: string;
+  /** HOME-relative path to the project's own attention.html; '' when it has none. */
+  attention: string;
   /** The live pins in the README's `## Pinned` section. */
   pins: PinLink[];
 }
@@ -496,8 +496,8 @@ export interface StatusSnapshot {
   reports: ReportRef[];
   reportsTotal: number;
   radarLatest: RadarLatest | null;
-  /** The home focus view: the dashboard's Today tab, and the focus-data block it embeds. */
-  focus: FocusView;
+  /** The home attention view: the dashboard's Today tab, and the attention-data block it embeds. */
+  attention: AttentionView;
   /** Parsed CHANGELOG.md entries (newest first) for the System → Changelog tab. */
   changelog: ChangelogEntry[];
   health: Health;
@@ -820,9 +820,9 @@ const OPEN_STATUSES = new Set(['open', 'active', 'blocked']);
 /** First plain paragraph of a project README (frontmatter skipped). */
 const projectDescription = (project: string): string => firstParagraph(resolve(FOLDERS.PROJECTS, project, 'README.md'));
 
-/** Same convention as the HOME-root north star and focus page, one level down: a project's
- *  own roadmap.html or focus.html sits at its root and links from its card. '' when absent. */
-const projectPage = (project: string, file: 'roadmap.html' | 'focus.html'): string => {
+/** Same convention as the HOME-root north star and attention page, one level down: a project's
+ *  own roadmap.html or attention.html sits at its root and links from its card. '' when absent. */
+const projectPage = (project: string, file: 'roadmap.html' | 'attention.html'): string => {
   const path = resolve(FOLDERS.PROJECTS, project, file);
   return existsSync(path) ? relative(FOLDERS.HOME, path) : '';
 };
@@ -848,7 +848,7 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
     updatedAt: '',
     description: '',
     roadmap: '',
-    focus: '',
+    attention: '',
     pins: []
   });
 
@@ -875,7 +875,7 @@ const collectTasks = (): StatusSnapshot['tasks'] => {
         load.done + countDir(resolve(FOLDERS.PROJECTS, load.project, 'tasks', 'archive'), (n) => MARKDOWN_RE.test(n)),
       description: projectDescription(load.project),
       roadmap: projectPage(load.project, 'roadmap.html'),
-      focus: projectPage(load.project, 'focus.html'),
+      attention: projectPage(load.project, 'attention.html'),
       pins: projectPinLinks(load.project)
     }))
     // Most recently touched project first (by latest live-task `updated:`),
@@ -1848,7 +1848,7 @@ const surfaceAt = (absPath: string, entry: Omit<SurfaceLink, 'href'>): SurfaceLi
 
 /** Surfaces are discovered by convention, never configured: the HOME-root
  *  roadmap.html (the north star, opened as a new tab) leads, then every
- *  project's dashboard.html. A project's own roadmap or focus page is
+ *  project's dashboard.html. A project's own roadmap or attention page is
  *  deliberately absent — it belongs on that project's card, not in a sidebar
  *  that grows a row per project. */
 const collectSurfaces = (): SurfaceLink[] =>
@@ -1896,7 +1896,7 @@ export const collectStatus = async (): Promise<StatusSnapshot> => {
     reports: allReports.slice(0, MAX_REPORTS),
     reportsTotal: allReports.length,
     radarLatest: await collectRadarLatest(allReports),
-    focus: collectFocusView(''),
+    attention: collectAttentionView(''),
     changelog: parseChangelog()
   };
   return { ...base, health: computeHealth(base) };

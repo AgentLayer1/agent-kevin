@@ -126,7 +126,7 @@ falls back to the cwd and audits the wrong repo as "nothing uncommitted".
 window crosses midnight, so "today" alone drops a task closed yesterday evening) plus
 `{status:"active"}` and open P0/P1 (act two), and `task_scan` for overdue/blocked (act three).
 Also read `<HOME>/projects/TASKS.md` → `## Weekly Goals`, which is what makes a long active list
-rankable. Call `focus_write` with no
+rankable. Call `attention_write` with no
 arguments: its Today, carried-over and week lanes are what the operator already planned. Tasks
 created or touched inside the window are output too:
 

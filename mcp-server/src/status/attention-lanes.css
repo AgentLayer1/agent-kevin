@@ -1,0 +1,76 @@
+/*
+  Attention lanes on their timeline, shared by attention.html and the dashboard's Today → Attention tab.
+  Everything is scoped under .attentionview; colors come from the host page's palette.
+*/
+.attentionview {
+  --serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --bright: #e6edf3; --faint: #5c6570; --hairline: rgba(139, 148, 158, 0.18);
+  font: 16px/1.5 var(--serif); color: var(--text); -webkit-font-smoothing: antialiased;
+}
+html[data-theme="light"] .attentionview { --bright: #14130f; --faint: #8f8b80; --hairline: rgba(60, 56, 48, 0.16); --proj-l: 34%; }
+.attentionview a { color: inherit; }
+.attentionview a:hover { color: var(--accent); text-decoration: none; }
+.attentionview .lanes { margin: 28px 0 0 6px; border-left: 1px solid var(--hairline); padding-left: 26px; }
+.attentionview section { position: relative; margin: 0 0 40px; color: inherit; animation: attention-rise .45s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+.attentionview section::before {
+  content: ''; position: absolute; left: -31px; top: 4px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--faint);
+}
+.attentionview section.now::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
+.attentionview section.warn::before { border-color: var(--amber); }
+@keyframes attention-rise { from { transform: translateY(8px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .attentionview section { animation: none; } }
+.attentionview .lane-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.attentionview .lane-head h2 { margin: 0; font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.attentionview section.now .lane-head h2 { color: var(--accent); }
+.attentionview .count { font: 11px/1 var(--mono); color: var(--faint); }
+.attentionview .rule { flex: 1; height: 1px; background: var(--hairline); }
+.attentionview ol, .attentionview ul { list-style: none; margin: 0; padding: 0; }
+.attentionview .row { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--hairline); border-bottom: none; }
+.attentionview .row:first-child { border-top: none; }
+.attentionview .mark { font: italic 400 22px/1.1 var(--serif); color: var(--faint); text-align: right; padding-top: 1px; }
+.attentionview .today .mark { color: var(--accent); font-size: 30px; line-height: .95; }
+.attentionview .title { color: var(--bright); font-size: 17px; line-height: 1.35; }
+.attentionview .today .title { font-size: 20px; }
+.attentionview .meta { grid-column: 2; margin-top: 3px; font: 11.5px/1.5 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.attentionview .meta a { color: var(--cyan); }
+.attentionview .proj { color: hsl(var(--h) 55% var(--proj-l, 68%)); }
+.attentionview .pri { padding: 0 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--dim); }
+.attentionview .pri.p0 { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.attentionview .pri.p1 { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.attentionview .blocked { color: var(--red); }
+.attentionview .late { color: var(--amber); }
+.attentionview .row.done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--dim) 50%, transparent); }
+.attentionview .row.done .mark { color: var(--green); font-style: normal; font-size: 18px; }
+.attentionview .carried { margin-top: 14px; padding: 10px 14px 4px; border-left: 2px solid var(--amber); background: color-mix(in srgb, var(--amber) 5%, transparent); border-radius: 0 6px 6px 0; }
+.attentionview .carried h3 { margin: 0 0 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--amber); }
+.attentionview .carried .mark { font-size: 16px; color: var(--amber); }
+.attentionview .from { color: var(--amber); }
+.attentionview .carried.due { border-left-color: var(--red); background: color-mix(in srgb, var(--red) 5%, transparent); }
+.attentionview .carried.due h3, .attentionview .carried.due .mark, .attentionview .carried.due .late { color: var(--red); }
+.attentionview .roadmap .mark { font: 400 13px/1.9 var(--mono); color: var(--accent); font-style: normal; }
+.attentionview .roadmap .slipped .mark, .attentionview .roadmap .slipped .title { color: var(--amber); }
+.attentionview .chip { background: none; white-space: normal; font: 600 11px/1 var(--mono); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 3px; }
+.attentionview .doings { grid-column: 2; margin-top: 4px; }
+.attentionview .doing { font: 12px/1.6 var(--mono); color: var(--text); }
+.attentionview .goals { margin: 0 0 12px; }
+.attentionview .goals li { position: relative; padding: 3px 0 3px 22px; font-style: italic; color: var(--text); }
+.attentionview .goals li::before { content: '◆'; position: absolute; left: 2px; top: 5px; font: normal 9px/1.8 var(--mono); color: var(--accent); }
+.attentionview .progress { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; font: 11px/1 var(--mono); color: var(--dim); }
+.attentionview .bar { flex: 1; max-width: 260px; height: 4px; border-radius: 2px; background: var(--hairline); overflow: hidden; }
+.attentionview .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), #fff 45%)); border-radius: 2px; }
+.attentionview .dot { width: 8px; height: 8px; border-radius: 50%; margin: 8px 0 0 auto; background: var(--faint); }
+.attentionview .dot.good { background: var(--green); }
+.attentionview .dot.warn { background: var(--amber); }
+.attentionview .dot.bad { background: var(--red); }
+.attentionview .items .title, .attentionview .pins .title { font-size: 16px; }
+.attentionview .pins .mark { font-size: 16px; font-style: normal; }
+.attentionview .subhead { font: 600 10.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin: 18px 0 6px; }
+.attentionview .subhead:first-of-type { margin-top: 0; }
+.attentionview .unavailable { font: 12px/1.5 var(--mono); color: var(--amber); margin: 2px 0 8px; }
+.attentionview .empty { font-style: italic; color: var(--dim); padding: 4px 0; margin: 0; }
+.attentionview .empty code { font: 12px var(--mono); color: var(--accent); font-style: normal; }
+.attentionview details > summary { cursor: pointer; list-style: none; }
+.attentionview details > summary::-webkit-details-marker { display: none; }
+.attentionview details > summary .lane-head h2::after { content: ' ▸'; color: var(--faint); }
+.attentionview details[open] > summary .lane-head h2::after { content: ' ▾'; }

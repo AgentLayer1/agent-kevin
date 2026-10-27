@@ -7,7 +7,7 @@ description: >
   the last month. Year: outcomes quarter by quarter. Triggers on "set today's goals", "what should
   today achieve", "plan the week", "set my weekly goals", "score the week", "monthly goals", "this
   month's themes", "set this year's goals", "yearly goals", or /goals.
-allowed-tools: mcp__plugin_agent-kevin_kevin__focus_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Write, Edit, Glob, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__attention_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__report_write, AskUserQuestion, Read, Write, Edit, Glob, Bash
 ---
 
 # Goals

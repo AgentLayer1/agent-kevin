@@ -2,36 +2,36 @@ import { readJsonBlock } from '@/shared/json-block';
 import { horizonBucket } from '@/tasks/horizon';
 import { z } from 'zod';
 
-export const FOCUS_TONES = ['good', 'warn', 'bad', 'dim'] as const;
+export const ATTENTION_TONES = ['good', 'warn', 'bad', 'dim'] as const;
 
-export const FocusItemSchema = z.object({
+export const AttentionItemSchema = z.object({
   title: z.string(),
   url: z
     .string()
     .refine((url) => url === '' || /^https?:\/\//i.test(url), 'Queue links must be http(s)')
     .default(''),
   detail: z.string().default(''),
-  tone: z.enum(FOCUS_TONES).default('dim')
+  tone: z.enum(ATTENTION_TONES).default('dim')
 });
 
-export const FocusGroupSchema = z.object({
+export const AttentionGroupSchema = z.object({
   label: z.string().min(1),
   empty: z.string().default('Nothing here.'),
-  items: z.array(FocusItemSchema).default([]),
+  items: z.array(AttentionItemSchema).default([]),
   /** Why part or all of this source couldn't be read; shown once, never counted as an item. */
   unavailable: z.string().default('')
 });
 
-export const FocusSnapshotSchema = z.object({
+export const AttentionSnapshotSchema = z.object({
   fetchedAt: z.string(),
-  groups: z.array(FocusGroupSchema).default([])
+  groups: z.array(AttentionGroupSchema).default([])
 });
 
-export type FocusItem = z.infer<typeof FocusItemSchema>;
-export type FocusGroup = z.infer<typeof FocusGroupSchema>;
-export type FocusSnapshot = z.infer<typeof FocusSnapshotSchema>;
+export type AttentionItem = z.infer<typeof AttentionItemSchema>;
+export type AttentionGroup = z.infer<typeof AttentionGroupSchema>;
+export type AttentionSnapshot = z.infer<typeof AttentionSnapshotSchema>;
 
-const FocusTaskSchema = z.object({
+const AttentionTaskSchema = z.object({
   id: z.string(),
   title: z.string(),
   priority: z.string(),
@@ -44,7 +44,7 @@ const FocusTaskSchema = z.object({
   path: z.string()
 });
 
-const FocusMilestoneSchema = z.object({
+const AttentionMilestoneSchema = z.object({
   chip: z.string(),
   title: z.string(),
   section: z.string(),
@@ -56,17 +56,17 @@ const FocusMilestoneSchema = z.object({
   /** Plain text of the items marked in progress. */
   inProgress: z.array(z.string()),
   /** Tasks its text names, open or closed. */
-  tasks: z.array(FocusTaskSchema),
+  tasks: z.array(AttentionTaskSchema),
   /** No open task names it, so nothing on the board moves it forward. */
   gap: z.boolean(),
   /** HOME-relative page it came from. */
   source: z.string()
 });
 
-const Tasks = z.array(FocusTaskSchema);
+const Tasks = z.array(AttentionTaskSchema);
 
-/** What a focus page shows, embedded in it as its `focus-data` block and returned by focus_write. */
-export const FocusDataSchema = z.object({
+/** What an attention page shows, embedded in it as its `attention-data` block and returned by attention_write. */
+export const AttentionDataSchema = z.object({
   schema: z.literal(1),
   operator: z.string(),
   /** Project slug of a project page; '' for the home page. */
@@ -90,17 +90,17 @@ export const FocusDataSchema = z.object({
   /** Open tasks due today or earlier that no current period plans (no horizon, or later). */
   dueUnplanned: Tasks,
   /** Roadmap milestones in flight, slipped first, plus a line for each roadmap this page couldn't use fully. */
-  roadmap: z.object({ milestones: z.array(FocusMilestoneSchema), notices: z.array(z.string()) }),
+  roadmap: z.object({ milestones: z.array(AttentionMilestoneSchema), notices: z.array(z.string()) }),
   /** A project page's pins, HOME-relative; pages written before project pins carry none. */
   pins: z.array(z.object({ title: z.string(), icon: z.string(), path: z.string() })).default([]),
-  snapshot: FocusSnapshotSchema.nullable()
+  snapshot: AttentionSnapshotSchema.nullable()
 });
 
-export type FocusTask = z.infer<typeof FocusTaskSchema>;
-export type FocusMilestone = z.infer<typeof FocusMilestoneSchema>;
-export type FocusData = z.infer<typeof FocusDataSchema>;
+export type AttentionTask = z.infer<typeof AttentionTaskSchema>;
+export type AttentionMilestone = z.infer<typeof AttentionMilestoneSchema>;
+export type AttentionData = z.infer<typeof AttentionDataSchema>;
 
-export interface FocusView extends FocusData {
+export interface AttentionView extends AttentionData {
   home: string;
   markdownUrl: string;
   projectHues: Readonly<Record<string, number>>;
@@ -109,12 +109,12 @@ export interface FocusView extends FocusData {
 }
 
 /** The page's data, with what only the renderer needs stripped. */
-export const focusData = (view: FocusView): FocusData => FocusDataSchema.parse(view);
+export const attentionData = (view: AttentionView): AttentionData => AttentionDataSchema.parse(view);
 
-/** null when the page carries no focus data, or data from another schema. */
-export const readFocusData = (html: string): FocusData | null => {
-  const block = readJsonBlock(html, 'focus-data');
-  const parsed = block?.kind === 'data' ? FocusDataSchema.safeParse(block.data) : null;
+/** null when the page carries no attention data, or data from another schema. */
+export const readAttentionData = (html: string): AttentionData | null => {
+  const block = readJsonBlock(html, 'attention-data');
+  const parsed = block?.kind === 'data' ? AttentionDataSchema.safeParse(block.data) : null;
   return parsed?.success ? parsed.data : null;
 };
 
@@ -134,7 +134,7 @@ export const horizonLabel = (horizon: string): string => {
 };
 
 /** Where a task stands in the plan, in words: `today`, `week`, `carried over`, `not planned`, or its closed status. */
-export const taskStanding = (task: FocusTask, today: string): string => {
+export const taskStanding = (task: AttentionTask, today: string): string => {
   if (task.status === 'done' || task.status === 'cancelled') {
     return task.status;
   }

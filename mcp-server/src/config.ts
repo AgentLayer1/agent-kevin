@@ -101,9 +101,9 @@ export const FOLDERS = {
   get DATA() {
     return dataRoot();
   },
-  /** Each focus page's last queue pull: queue.json for the home page, queue.<slug>.json per project. */
-  get FOCUS_QUEUES() {
-    return resolve(dataRoot(), 'focus');
+  /** Each attention page's last queue pull: queue.json for the home page, queue.<slug>.json per project. */
+  get ATTENTION_QUEUES() {
+    return resolve(dataRoot(), 'attention');
   },
   /** What App Store review reads have learned about each app's storefronts: <appId>.json. */
   get APPSTORE() {

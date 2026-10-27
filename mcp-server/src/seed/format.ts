@@ -161,6 +161,7 @@ const mcp = (names: string[]): string[] => names.map((name) => `${MCP_PREFIX}${n
 const CORE_GRANTS = new Set([
   ...mcp([
     'ping',
+    'attention_write',
     'capture',
     'codex_setup',
     'compile_next',

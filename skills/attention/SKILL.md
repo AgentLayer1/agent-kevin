@@ -15,7 +15,7 @@ allowed-tools:
   - Glob
   - Read
   - Edit
-  - mcp__plugin_agent-kevin_kevin__focus_write
+  - mcp__plugin_agent-kevin_kevin__attention_write
   - mcp__plugin_agent-kevin_kevin__task_query
   - mcp__plugin_agent-kevin_kevin__task_create
   - mcp__plugin_agent-kevin_kevin__task_update
@@ -40,7 +40,7 @@ The operator's day: what it's for, what slipped, what the week and month are for
 ## Start
 
 1. Match the ask to a playbook below, open it, and copy its steps into your todo list. A step you skip stays in the list as `skip: <reason>`. A bare `/attention` is refresh.
-2. A word after the playbook that names a folder under `<HOME>/projects/` is the project (`/focus plan acme`): pass it as `project` on every `focus_write`.
+2. A word after the playbook that names a folder under `<HOME>/projects/` is the project (`/attention plan acme`): pass it as `project` on every `attention_write`.
 3. Read the operator's identity once: `<HOME>/USER.md` for `**Name:**` and `**GitHub login:**`. If the login is missing, ask once and suggest adding it to USER.md.
 
 ## Playbooks
@@ -70,7 +70,7 @@ Setting goals for the day, week, month or year, and scoring the week, is the goa
 | `later` | Later |
 | empty | Not planned |
 
-Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task change, `focus_write` call and `report_write` re-renders the dashboard and each project focus page, so no playbook has a save step. Focus never starts another skill; the standup reads the goals skill's week playbook and follows it inline on Monday and Friday. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
+Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_create` / `task_update`; the tool stores the period. Every task change, `attention_write` call and `report_write` re-renders the dashboard and each project attention page, so no playbook has a save step. Attention never starts another skill; the standup reads the goals skill's week playbook and follows it inline on Monday and Friday. Week and month progress count every task planned inside the period, including ones since pulled into today and ones sync has archived.
 
 **Where it shows.**
 
@@ -79,7 +79,7 @@ Pass the shorthands `today`, `week`, `next-week`, `month` or `later` to `task_cr
 | home (no project) | the dashboard's Today → Attention tab, `dashboard.html#today/attention` | every project, plus today's, the week's and the month's goals |
 | `<project>` | `<HOME>/projects/<project>/attention.html`, linked from its project card | that project's tasks only |
 
-Both carry what they show as JSON in a `focus-data` block, and `focus_write` returns the same data (lanes, `planned`, `dueUnplanned`, `dayGoals`, `roadmap`, `snapshot`) with the `path`. "Mine" means a task whose assignee is empty, `user`, the agent's name, or the operator's first name or GitHub login; teammates' tasks stay off.
+Both carry what they show as JSON in an `attention-data` block, and `attention_write` returns the same data (lanes, `planned`, `dueUnplanned`, `dayGoals`, `roadmap`, `snapshot`) with the `path`. "Mine" means a task whose assignee is empty, `user`, the agent's name, or the operator's first name or GitHub login; teammates' tasks stay off.
 
 **Roadmaps.** The home view reads `<HOME>/roadmap.html`; a project view reads its own `projects/<slug>/roadmap.html` plus the root roadmap's milestones that name one of its task ids. Slipped milestones (their period ended with items open) and in-flight ones (an item in progress, or a period covering today) show with their linked tasks, and a milestone no open task names is a gap. A roadmap still on a script literal, one with no dates, or one that names no task ids gets a one-line notice instead.
 

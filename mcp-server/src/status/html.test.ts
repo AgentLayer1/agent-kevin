@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { THEME_BLOCK } from '@/shared/theme';
 import type { StatusSnapshot, TaskRef } from './collect';
-import { buildFocusView } from './focus';
-import { readFocusData } from './focus-data';
+import { buildAttentionView } from './attention';
+import { readAttentionData } from './attention-data';
 // html-render is pure by design (see its header), so this suite needs no filesystem or HOME.
 import { escapeHtml } from './html-primitives';
 import { PAGES, renderDashboardHtml } from './html-render';
 
-const emptyFocus = buildFocusView({
+const emptyAttention = buildAttentionView({
   project: '',
   home: '/tmp/home',
   tasks: [],
@@ -243,7 +243,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
         updatedAt: '2026-06-10',
         description: 'Agentic personal AI operating system.',
         roadmap: '',
-        focus: '',
+        attention: '',
         pins: []
       }
     ],
@@ -323,7 +323,7 @@ const makeSnapshot = (overrides: Partial<StatusSnapshot> = {}): StatusSnapshot =
   ],
   reportsTotal: 12,
   radarLatest: null,
-  focus: emptyFocus,
+  attention: emptyAttention,
   changelog: [],
   health: { overdue: 0, pendingCompiles: 0, logErrors: 0, missingImports: 0, malformedTasks: 0, ok: true },
   ...overrides
@@ -389,12 +389,12 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('>lo-001</a> A task');
   });
 
-  test("today opens on Focus, drawn with the focus page's lanes and stylesheet, and the Plan tab is gone", () => {
+  test("today opens on Attention, drawn with the attention page's lanes and stylesheet, and the Plan tab is gone", () => {
     const task = (id: string, horizon: string, status: 'active' | 'open' = 'active', due = '') => ({
       frontmatter: {
         schema: 1,
         id,
-        title: `Focus task ${id}`,
+        title: `Attention task ${id}`,
         type: 'task' as const,
         status,
         priority: 'P1' as const,
@@ -416,7 +416,7 @@ describe('renderDashboardHtml', () => {
       thread: [],
       filePath: `/tmp/home/projects/life-os/tasks/${id}.md`
     });
-    const focus = buildFocusView({
+    const attention = buildAttentionView({
       project: '',
       home: '/tmp/home',
       tasks: [
@@ -441,26 +441,26 @@ describe('renderDashboardHtml', () => {
       projectHues: {},
       timeZone: 'UTC'
     });
-    const html = renderDashboardHtml(makeSnapshot({ focus }));
+    const html = renderDashboardHtml(makeSnapshot({ attention }));
     const today = html.slice(html.indexOf('data-page="today"'), html.indexOf('data-page="tasks"'));
-    expect(today).toContain('<button class="subtab active" data-subtab="focus">Focus</button>');
+    expect(today).toContain('<button class="subtab active" data-subtab="attention">Attention</button>');
     expect(today).not.toContain('data-subtab="plan"');
-    expect(today).toContain('data-nav="today/focus/focus-carried"');
+    expect(today).toContain('data-nav="today/attention/attention-carried"');
     expect(today).toContain(
       '<div class="stat"><div class="top"><span class="num">0</span><span class="lab">milestones</span>'
     );
-    expect(today).not.toContain('data-nav="today/focus/focus-roadmap"');
+    expect(today).not.toContain('data-nav="today/attention/attention-roadmap"');
     expectTilesLand(html);
-    expect(today).toContain('<div class="focusview"><div class="lanes"><section id="focus-today" class="now today');
+    expect(today).toContain('<div class="attentionview"><div class="lanes"><section id="attention-today" class="now today');
     expect(today).toContain('<li class="row" data-row data-cat="life-os"><span class="mark">1</span>');
-    expect(today).toContain('Focus task lo-101');
+    expect(today).toContain('Attention task lo-101');
     expect(today).toContain('from Fri 12');
     expect(today).toContain('GitHub can&#39;t read 2 repos');
     expect(today).toContain('pulled 08:30');
     expect(today).toContain('<span class="lab">due, not planned</span></div><div class="cap">83d overdue</div>');
-    expect(readFocusData(html)?.lanes.today.map((item) => item.id)).toEqual(['lo-101']);
-    expect(html).toContain('.focusview .lanes {');
-    expect(html).not.toContain('{{FOCUS_CSS}}');
+    expect(readAttentionData(html)?.lanes.today.map((item) => item.id)).toEqual(['lo-101']);
+    expect(html).toContain('.attentionview .lanes {');
+    expect(html).not.toContain('{{ATTENTION_CSS}}');
   });
 
   test('tasks agenda leads with what is in flight, lists each task once, and its stats open the right tab', () => {
@@ -468,7 +468,7 @@ describe('renderDashboardHtml', () => {
     const html = renderDashboardHtml(base);
     const tasksPage = html.slice(html.indexOf('data-page="tasks"'), html.indexOf('data-page="projects"'));
     expect(tasksPage).toContain('▶ In flight');
-    expect(tasksPage).toContain('data-nav="tasks/attention/attention-blocked"');
+    expect(tasksPage).toContain('data-nav="tasks/stuck/stuck-blocked"');
     expectTilesLand(html);
     base.tasks.activeList.forEach((ref) => {
       const agenda = tasksPage.slice(0, tasksPage.indexOf('data-subpanel="attention"'));
@@ -674,15 +674,15 @@ describe('renderDashboardHtml', () => {
     expect(html).toMatch(/<summary>[\s\S]*?<span class="proj-link">🗺️ <a [^>]+>Roadmap<\/a><\/span>[\s\S]*?<\/summary>/);
   });
 
-  test('a project card links its own focus page when it has one', () => {
+  test('a project card links its own attention page when it has one', () => {
     const base = makeSnapshot();
     const html = renderDashboardHtml(
       makeSnapshot({
-        tasks: { ...base.tasks, byProject: [{ ...base.tasks.byProject[0], focus: 'projects/life-os/focus.html' }] }
+        tasks: { ...base.tasks, byProject: [{ ...base.tasks.byProject[0], attention: 'projects/life-os/attention.html' }] }
       })
     );
     expect(html).toContain(
-      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/focus.html')}">Focus</a>`
+      `<a href="obsidian://open?path=${encodeURIComponent('/tmp/home/projects/life-os/attention.html')}">Attention</a>`
     );
   });
 
@@ -929,7 +929,7 @@ describe('renderDashboardHtml', () => {
     expect(status).toContain('All static imports present.');
     expect(status).toContain('data-nav="system/logs"');
     // Stale is informational: linked for review but never trips the badge.
-    expect(status).toContain('data-nav="tasks/attention"');
+    expect(status).toContain('data-nav="tasks/stuck"');
     expect(html).toContain('class="badge ok"');
     // Hidden page: routes but earns no sidebar item.
     expect(html).not.toContain('class="nav-item" data-nav="status"');

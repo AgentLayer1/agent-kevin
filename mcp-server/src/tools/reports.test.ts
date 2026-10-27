@@ -26,7 +26,7 @@ describe('report_write', () => {
     rmSync(tasksMd, { force: true });
     await tools
       .find((tool) => tool.name === 'report_write')
-      ?.handler({ category: 'radar', slug: 'checkpoints', title: 'Checkpoints', skill: 'focus', body: 'Two sessions.' });
+      ?.handler({ category: 'radar', slug: 'checkpoints', title: 'Checkpoints', skill: 'attention', body: 'Two sessions.' });
     expect(existsSync(tasksMd)).toBe(true);
   });
 });

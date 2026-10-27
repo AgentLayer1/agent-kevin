@@ -15,7 +15,7 @@ export const TOOL_MODULES = [
   'curl',
   'database',
   'database-fork',
-  'focus',
+  'attention',
   'github',
   'github-writes',
   'google-page-speed',

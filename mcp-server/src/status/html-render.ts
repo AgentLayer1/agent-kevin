@@ -47,8 +47,8 @@ import type {
   SurfaceLink,
   TaskRef
 } from './collect';
-import { focusData, horizonLabel } from './focus-data';
-import { FOCUS_CSS, renderFocusLanes } from './focus-render';
+import { attentionData, horizonLabel } from './attention-data';
+import { ATTENTION_CSS, renderAttentionLanes } from './attention-render';
 import { humanBytes, relTime, shortToolName, tildifyHome, truncate } from './format';
 import { escapeHtml, projectHue } from './html-primitives';
 
@@ -368,85 +368,85 @@ const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews', 
 const CATEGORY_DOT: Record<string, string> = {
   briefings: 'briefing',
   plans: 'plans',
-  radar: 'focus',
+  radar: 'attention',
   api: 'api-collections',
   reviews: 'engineer',
   helpdesk: 'helpdesk'
 };
 
-// ── focus (Today) ─────────────────────────────────────────────────────
+// ── attention (Today) ─────────────────────────────────────────────────────
 
-/** Today → Focus: the focus page's own lanes, restyled under `.focusview`, with the project chips. */
-const focusTab = (snap: StatusSnapshot): string => {
-  const { focus } = snap;
+/** Today → Attention: the attention page's own lanes, restyled under `.attentionview`, with the project chips. */
+const attentionTab = (snap: StatusSnapshot): string => {
+  const { attention } = snap;
   const tasks = [
-    ...focus.lanes.today,
-    ...focus.lanes.carried,
-    ...focus.dueUnplanned,
-    ...focus.lanes.week,
-    ...focus.lanes.month,
-    ...focus.lanes.later,
-    ...focus.unplanned
+    ...attention.lanes.today,
+    ...attention.lanes.carried,
+    ...attention.dueUnplanned,
+    ...attention.lanes.week,
+    ...attention.lanes.month,
+    ...attention.lanes.later,
+    ...attention.unplanned
   ];
-  return `<div data-filterbox>${filterInput('filter focus…')}${projectFilterChips(tasks, snap.projectHues)}<div class="focusview"><div class="lanes">${renderFocusLanes(focus)}</div></div></div>`;
+  return `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips(tasks, snap.projectHues)}<div class="attentionview"><div class="lanes">${renderAttentionLanes(attention)}</div></div></div>`;
 };
 
-/** Today's header: the day as focus sees it, each tile opening the Focus tab. */
-const focusStats = (snap: StatusSnapshot): string => {
-  const { focus } = snap;
-  const weekTotal = focus.planned.week.open.length + focus.planned.week.done.length;
-  const slipped = focus.roadmap.milestones.filter((milestone) => milestone.state === 'slipped').length;
-  const gaps = focus.roadmap.milestones.filter((milestone) => milestone.gap).length;
-  const waiting = focus.snapshot?.groups.reduce((total, group) => total + group.items.length, 0) ?? 0;
-  const oldest = focus.lanes.carried.map((task) => task.horizon).sort()[0];
-  const earliestDue = focus.dueUnplanned.map((task) => task.due).sort()[0];
-  const nav = (section: string) => `today/focus/focus-${section}`;
+/** Today's header: the day as attention sees it, each tile opening the Attention tab. */
+const attentionStats = (snap: StatusSnapshot): string => {
+  const { attention } = snap;
+  const weekTotal = attention.planned.week.open.length + attention.planned.week.done.length;
+  const slipped = attention.roadmap.milestones.filter((milestone) => milestone.state === 'slipped').length;
+  const gaps = attention.roadmap.milestones.filter((milestone) => milestone.gap).length;
+  const waiting = attention.snapshot?.groups.reduce((total, group) => total + group.items.length, 0) ?? 0;
+  const oldest = attention.lanes.carried.map((task) => task.horizon).sort()[0];
+  const earliestDue = attention.dueUnplanned.map((task) => task.due).sort()[0];
+  const nav = (section: string) => `today/attention/attention-${section}`;
   return statStrip([
     {
-      num: `${focus.lanes.today.length}/3`,
-      count: focus.lanes.today.length + focus.done.today.length,
+      num: `${attention.lanes.today.length}/3`,
+      count: attention.lanes.today.length + attention.done.today.length,
       label: 'today',
-      tone: focus.lanes.today.length ? 'good' : 'warn',
-      caption: focus.done.today.length
-        ? `${focus.done.today.length} done`
-        : focus.lanes.today.length
+      tone: attention.lanes.today.length ? 'good' : 'warn',
+      caption: attention.done.today.length
+        ? `${attention.done.today.length} done`
+        : attention.lanes.today.length
           ? 'planned'
           : 'not planned yet',
       nav: nav('today')
     },
     {
-      num: focus.lanes.carried.length,
+      num: attention.lanes.carried.length,
       label: 'carried over',
-      tone: focus.lanes.carried.length ? 'warn' : '',
+      tone: attention.lanes.carried.length ? 'warn' : '',
       caption: oldest ? `oldest from ${horizonLabel(oldest)}` : 'none',
       nav: nav('carried')
     },
     {
-      num: focus.dueUnplanned.length,
+      num: attention.dueUnplanned.length,
       label: 'due, not planned',
-      tone: focus.dueUnplanned.length ? 'bad' : '',
-      caption: earliestDue ? dueLabel(earliestDue, focus.today).text : 'none',
+      tone: attention.dueUnplanned.length ? 'bad' : '',
+      caption: earliestDue ? dueLabel(earliestDue, attention.today).text : 'none',
       nav: nav('due')
     },
     {
-      num: `${focus.planned.week.done.length}/${weekTotal}`,
+      num: `${attention.planned.week.done.length}/${weekTotal}`,
       count: weekTotal,
       label: 'this week',
-      caption: `${focus.weekGoals.length} goal${focus.weekGoals.length === 1 ? '' : 's'}`,
+      caption: `${attention.weekGoals.length} goal${attention.weekGoals.length === 1 ? '' : 's'}`,
       nav: nav('week')
     },
     {
-      num: focus.roadmap.milestones.length,
+      num: attention.roadmap.milestones.length,
       label: 'milestones',
       tone: slipped ? 'warn' : '',
       caption: slipped ? `${slipped} slipped` : gaps ? `${gaps} with no task` : 'all moving',
       nav: nav('roadmap')
     },
     {
-      num: focus.snapshot ? waiting : '—',
+      num: attention.snapshot ? waiting : '—',
       label: 'waiting on you',
       tone: waiting ? 'warn' : '',
-      caption: focus.queuePulled ? `pulled ${focus.queuePulled.day || focus.queuePulled.time}` : 'not pulled yet',
+      caption: attention.queuePulled ? `pulled ${attention.queuePulled.day || attention.queuePulled.time}` : 'not pulled yet',
       nav: nav('queue')
     }
   ]);
@@ -541,9 +541,9 @@ const pageToday = (snap: StatusSnapshot): string => {
     'today',
     `Good ${part}${name} <span class="accent">✨</span>`,
     `${snap.runtime.date} · here's where everything stands.`,
-    focusStats(snap) +
+    attentionStats(snap) +
       subTabs([
-        { id: 'focus', label: 'Focus', body: focusTab(snap) },
+        { id: 'attention', label: 'Attention', body: attentionTab(snap) },
         { id: 'activity', label: `Ongoing · ${activityCount}`, body: activity },
         { id: 'goals', label: 'Goals', body: section('Goals', 'from projects/TASKS.md', goalsBody) },
         {
@@ -582,7 +582,7 @@ const projectCard = (load: ProjectLoad, snap: StatusSnapshot): string => {
   // other link: a relative in-frame href is swallowed by Obsidian's HTML viewer.
   const pageLink = (path: string, icon: string, label: string): string =>
     path ? `<span class="proj-link">${icon} ${mdLink(snap, path, label)}</span>` : '';
-  const pageLinks = pageLink(load.roadmap, '🗺️', 'Roadmap') + pageLink(load.focus, '🎯', 'Focus');
+  const pageLinks = pageLink(load.roadmap, '🗺️', 'Roadmap') + pageLink(load.attention, '🎯', 'Attention');
   const pinCount = load.pins.length
     ? `<span class="proj-link dim" title="Pinned in the README">📌 ${load.pins.length}</span>`
     : '';
@@ -644,14 +644,14 @@ const pageTasks = (snap: StatusSnapshot): string => {
     )}</span><span class="grow dim">${esc(
       ref.blockedBy || `depends on ${ref.dependsOn.join(', ') || '?'}`
     )}</span>${projChip(ref.project, snap.projectHues)}</div>`;
-  const attentionBody =
+  const stuckBody =
     (blocked.length
-      ? `<h3 class="group" id="attention-blocked">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}`
+      ? `<h3 class="group" id="stuck-blocked">⛔ Blocked · ${blocked.length}</h3>${blocked.map(blockedRow).join('')}`
       : '') +
     (tasks.staleList.length
-      ? `<h3 class="group" id="attention-stale">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
+      ? `<h3 class="group" id="stuck-stale">🍂 Going stale · ${tasks.stale}</h3>${tasks.staleList.map((ref) => taskRow(ref, snap)).join('')}`
       : '');
-  const attention = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([...blocked, ...tasks.staleList], snap.projectHues)}${attentionBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
+  const stuck = `<div data-filterbox>${filterInput('filter tasks…')}${projectFilterChips([...blocked, ...tasks.staleList], snap.projectHues)}${stuckBody || hint('Nothing blocked, nothing going stale. All clear.')}</div>`;
 
   // Counted from the agenda's own buckets, so a tile's number is what its group lists
   // plus the in-flight tasks that share its deadline.
@@ -698,14 +698,14 @@ const pageTasks = (snap: StatusSnapshot): string => {
       num: blocked.length,
       label: 'blocked',
       tone: blocked.length ? 'bad' : '',
-      nav: 'tasks/attention/attention-blocked'
+      nav: 'tasks/stuck/stuck-blocked'
     },
     {
       num: tasks.stale,
       label: 'going stale',
       tone: tasks.stale ? 'warn' : '',
       caption: 'no update in 7d',
-      nav: 'tasks/attention/attention-stale'
+      nav: 'tasks/stuck/stuck-stale'
     }
   ]);
 
@@ -716,7 +716,7 @@ const pageTasks = (snap: StatusSnapshot): string => {
     stats +
       subTabs([
         { id: 'agenda', label: 'Agenda', body: agenda },
-        { id: 'attention', label: `Needs attention · ${blocked.length + tasks.stale}`, body: attention }
+        { id: 'stuck', label: `Blocked · stale · ${blocked.length + tasks.stale}`, body: stuck }
       ])
   );
 };
@@ -737,7 +737,7 @@ const projectStats = (snap: StatusSnapshot): string => {
       label: 'with blockers',
       tone: stuck ? 'bad' : '',
       caption: 'a blocked task',
-      nav: 'tasks/attention/attention-blocked'
+      nav: 'tasks/stuck/stuck-blocked'
     },
     { num: quiet, label: 'quiet', caption: 'no live tasks' },
     { num: all ? `${Math.round((done / all) * 100)}%` : '—', label: 'done overall', caption: `${done} of ${all} tasks` }
@@ -1978,7 +1978,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
       nav: 'brain/context'
     },
     { num: health.malformedTasks, label: 'unreadable tasks', tone: health.malformedTasks ? 'bad' : 'good' },
-    { num: tasks.stale, label: 'stale', caption: 'info only', nav: 'tasks/attention/attention-stale' }
+    { num: tasks.stale, label: 'stale', caption: 'info only', nav: 'tasks/stuck/stuck-stale' }
   ]);
 
   const malformedBody =
@@ -2027,7 +2027,7 @@ const pageStatus = (snap: StatusSnapshot): string => {
   const staleBody =
     hint('Tasks not closed and untouched for 7+ days. Informational only — it never turns the badge amber.') +
     (tasks.stale
-      ? `<div class="row"><span class="dim" style="flex:none">●</span><span class="grow">${tasks.stale} task(s) going stale</span>${navLink('tasks/attention', 'review them')}</div>`
+      ? `<div class="row"><span class="dim" style="flex:none">●</span><span class="grow">${tasks.stale} task(s) going stale</span>${navLink('tasks/stuck', 'review them')}</div>`
       : clearRow('Nothing rotting.'));
 
   const issueCount = [
@@ -2186,7 +2186,7 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
   return fill(TEMPLATE, {
     TITLE: esc(`${snap.persona.name} · Agent OS`),
     EMOJI: esc(snap.persona.emoji || '🤖'),
-    FOCUS_CSS,
+    ATTENTION_CSS,
     THEME: THEME_BLOCK,
     GENERATED_AT: esc(snap.runtime.generatedAt),
     LAST_SYNC: esc(snap.runtime.lastSync),
@@ -2196,6 +2196,6 @@ export const renderDashboardHtml = (snap: StatusSnapshot): string => {
     SIDEFOOT: sidebarFoot(snap),
     PAGES: PAGES.map((item) => PAGE_BUILDERS[item.id](snap)).join('\n'),
     FOOTER: footer,
-    DATA: jsonBlock('focus-data', focusData(snap.focus), 'FOCUS')
+    DATA: jsonBlock('attention-data', attentionData(snap.attention), 'ATTENTION')
   });
 };

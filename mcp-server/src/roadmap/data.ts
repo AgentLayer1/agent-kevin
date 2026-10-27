@@ -144,7 +144,7 @@ const checkNode = (node: unknown, path: string): RoadmapCheck => {
   ];
   const warnings =
     Array.isArray(node.items) && node.items.length > 0 && !isMilestone(node)
-      ? [`${path}.items holds something other than { text, status }, so focus pages skip this milestone`]
+      ? [`${path}.items holds something other than { text, status }, so attention pages skip this milestone`]
       : [];
   const children = Object.entries(node).map(([key, child]) => checkNode(child, `${path}.${key}`));
   return merge([{ errors, warnings }, ...children]);
@@ -173,7 +173,7 @@ export const checkRoadmapHtml = (html: string): RoadmapCheck => {
   const undated = roadmapMilestones(read.data).filter((milestone) => !milestone.window);
   const dates = undated.length
     ? [
-        `${undated.length} milestone(s) have no start date (first: ${[undated[0].chip, undated[0].title].filter(Boolean).join(' ') || undated[0].section}), so focus pages only see their in-progress items`
+        `${undated.length} milestone(s) have no start date (first: ${[undated[0].chip, undated[0].title].filter(Boolean).join(' ') || undated[0].section}), so attention pages only see their in-progress items`
       ]
     : [];
   return { errors: [...unsafe, ...check.errors], warnings: [...check.warnings, ...dates] };

@@ -219,7 +219,7 @@ only in the morning: the queue is the part of attention that goes stale fastest.
 playbook's first-run offers and its card; carry its QUEUE line into the output's 🎯 Attention line. A source
 it can't read stays a note on the page, never a failed sync.
 
-Placed before the briefing on purpose: the morning brief reads focus through `focus_write`, so its Today
+Placed before the briefing on purpose: the morning brief reads attention through `attention_write`, so its Today
 section sees the fresh queue, and step 11's dashboard render shows it.
 
 ### 9. Briefing

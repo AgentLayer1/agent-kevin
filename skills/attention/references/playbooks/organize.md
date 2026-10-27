@@ -2,7 +2,7 @@
 
 For when the operator is overwhelmed or asks to get organized: too much in their head, and a board too noisy to trust. Their head comes first and the board second, so never open with the task list. Ask three rounds of questions at most, about six questions in all, and only about gaps that exist.
 
-1. **Pre-read, silently.** Call `focus_write` (no queue) for the lanes, `dueUnplanned`, `dayGoals` and the roadmap, and `task_scan` for overdue, stale and blocked tasks. Read the goal blocks in `<HOME>/projects/TASKS.md`, and the newest radar report when it is under a day old ([plan](plan.md), step 2). Note the gaps: no week goals, overdue tasks, a slipped milestone with no task behind it. Don't show any of it yet.
+1. **Pre-read, silently.** Call `attention_write` (no queue) for the lanes, `dueUnplanned`, `dayGoals` and the roadmap, and `task_scan` for overdue, stale and blocked tasks. Read the goal blocks in `<HOME>/projects/TASKS.md`, and the newest radar report when it is under a day old ([plan](plan.md), step 2). Note the gaps: no week goals, overdue tasks, a slipped milestone with no task behind it. Don't show any of it yet.
 2. **Brain dump.** Ask in plain chat, not `AskUserQuestion`, and stop for the answer: "What's on your mind? Dump all of it, unsorted: work, home, worries, things you promised someone. And is this week light, normal or heavy?"
 3. **Sort the dump.** Split it into items and match each against `task_query` ([add](add.md), step 2). Each lands in one bucket:
 

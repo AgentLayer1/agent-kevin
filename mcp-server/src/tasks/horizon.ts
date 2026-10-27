@@ -96,7 +96,7 @@ export const horizonWithin = (value: string, span: 'week' | 'month', today: stri
   return period.start >= start && period.start <= end;
 };
 
-/** Which focus lane a horizon falls in as of `today`; null when unset or unparseable. */
+/** Which attention lane a horizon falls in as of `today`; null when unset or unparseable. */
 export const horizonBucket = (value: string, today: string = todayDate()): HorizonBucket | null => {
   const period = parsePeriod(value);
   if (!period) {

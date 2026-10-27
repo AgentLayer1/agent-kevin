@@ -8,12 +8,12 @@ import { FILES } from '@/config';
 import { writeFileAtomic } from '@/shared/utils';
 import { writeDashboard, type DashboardCounts } from '@/tasks/dashboard';
 import { collectStatus } from './collect';
-import { writeFocusPagesSafe } from './focus';
+import { writeAttentionPagesSafe } from './attention';
 import { renderDashboardHtml } from './html-render';
 
 /** Collect a fresh snapshot and write the dashboard to `<HOME>/dashboard.html`. */
 export const writeDashboardHtml = async (): Promise<{ path: string; bytes: number }> => {
-  writeFocusPagesSafe();
+  writeAttentionPagesSafe();
   const html = renderDashboardHtml(await collectStatus());
   writeFileAtomic(FILES.DASHBOARD, html);
   return { path: FILES.DASHBOARD, bytes: Buffer.byteLength(html) };

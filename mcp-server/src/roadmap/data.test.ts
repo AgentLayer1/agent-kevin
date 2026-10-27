@@ -141,7 +141,7 @@ describe('checkRoadmapHtml', () => {
       'ROADMAP.s.periods[0].milestones[0].items[0].status "wip" must be one of done, progress, planned'
     ]);
     expect(warnings).toEqual([
-      '1 milestone(s) have no start date (first: s), so focus pages only see their in-progress items'
+      '1 milestone(s) have no start date (first: s), so attention pages only see their in-progress items'
     ]);
   });
 
@@ -151,10 +151,10 @@ describe('checkRoadmapHtml', () => {
     );
   });
 
-  test('items focus pages would skip are a warning', () => {
+  test('items attention pages would skip are a warning', () => {
     const html = page(roadmapDataBlock({ s: { start: '2026-10', items: [{ text: 'fine' }, 'a bare string'] } }));
     expect(checkRoadmapHtml(html).warnings).toEqual([
-      'ROADMAP.s.items holds something other than { text, status }, so focus pages skip this milestone'
+      'ROADMAP.s.items holds something other than { text, status }, so attention pages skip this milestone'
     ]);
   });
 
@@ -196,7 +196,7 @@ describe('the template', () => {
     expect(checkRoadmapHtml(template)).toEqual({
       errors: [],
       warnings: [
-        '2 milestone(s) have no start date (first: Company brain), so focus pages only see their in-progress items'
+        '2 milestone(s) have no start date (first: Company brain), so attention pages only see their in-progress items'
       ]
     });
   });

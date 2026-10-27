@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  A project's focus page shell. focus-render.ts fills the {{TOKEN}} slots with pre-escaped HTML.
+  A project's attention page shell. attention-render.ts fills the {{TOKEN}} slots with pre-escaped HTML.
   Hard rule: zero external requests (system fonts, inline SVG only, no JS beyond the shared theme block).
 -->
 <html lang="en">
@@ -67,18 +67,18 @@ h1 em { font-style: italic; color: var(--accent); }
 .subline { font: 12px/1.6 var(--mono); color: var(--dim); display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .subline b { color: var(--text); font-weight: 600; }
 
-{{FOCUS_CSS}}
-.focusview .lanes { margin-top: 44px; }
-.focusview footer code { font: 11.5px var(--mono); color: var(--accent); }
+{{ATTENTION_CSS}}
+.attentionview .lanes { margin-top: 44px; }
+.attentionview footer code { font: 11.5px var(--mono); color: var(--accent); }
 
 footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--hairline); font: 11.5px/1.8 var(--mono); color: var(--faint); }
 </style>
 {{THEME}}
 </head>
 <body>
-<main class="focusview">
+<main class="attentionview">
   <span id="theme-slot"></span>
-  <div class="kicker">Focus · {{SCOPE}}</div>
+  <div class="kicker">Attention · {{SCOPE}}</div>
   <h1>{{DATE_LONG}}</h1>
   <div class="subline">{{SUBLINE}}</div>
   <div class="lanes">

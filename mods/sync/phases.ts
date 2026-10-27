@@ -45,7 +45,7 @@ export const PHASES: readonly Phase[] = [
     scripts: ['cadence.ts', 'review-reads.ts', 'brain-audit.ts']
   }),
   phase('briefing', {
-    tools: ['focus_write', 'web_search', 'WebSearch'],
+    tools: ['attention_write', 'web_search', 'WebSearch'],
     reports: [{ category: 'briefings' }]
   }),
   phase('radar', { skills: ['attention'], reports: [{ category: 'radar' }] }),

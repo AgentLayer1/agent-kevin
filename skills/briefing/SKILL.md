@@ -7,7 +7,7 @@ description: >
   move. The pulse: a 60-second scan for anything overdue, stale or blocked. Triggers on "brief me",
   "morning brief", "daily brief", "wrap up the day", "evening wrap", "what did I ship today", "how did
   today go", "quick pulse", "anything on fire", "status check", or /briefing.
-allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__focus_write, mcp__plugin_agent-kevin_kevin__web_search, mcp__plugin_agent-kevin_kevin__report_write, WebSearch, Read, Glob, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__attention_write, mcp__plugin_agent-kevin_kevin__web_search, mcp__plugin_agent-kevin_kevin__report_write, WebSearch, Read, Glob, Bash
 ---
 
 # Briefing

@@ -142,7 +142,7 @@ main { flex: 1; min-width: 0; padding: 30px 38px 70px; }
 .stat .lab { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .cap { color: var(--dim); font-size: 10.5px; margin-top: 1px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-{{FOCUS_CSS}}
+{{ATTENTION_CSS}}
 
 /* ── sections ──────────────────────────────────────────────────────── */
 .section { margin: 26px 0; }
@@ -737,7 +737,7 @@ kbd {
       }
       heading.style.display = anyVisible ? '' : 'none';
     });
-    // A focus lane or callout whose rows are all filtered out goes too; one with no rows (a hint) stays.
+    // An attention lane or callout whose rows are all filtered out goes too; one with no rows (a hint) stays.
     box.querySelectorAll('[data-rowgroup]').forEach((group) => {
       const rows = [...group.querySelectorAll('[data-row]')];
       group.style.display = rows.length && rows.every((row) => row.style.display === 'none') ? 'none' : '';
