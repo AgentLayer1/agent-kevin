@@ -263,6 +263,7 @@ export const PACKS: Record<string, PackDef> = {
       'github_run_log',
       'github_issue_list',
       'github_issue_view',
+      'github_sweep',
       'github_issue_create',
       'github_issue_comment',
       'github_issue_update',

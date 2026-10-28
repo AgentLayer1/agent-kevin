@@ -444,7 +444,7 @@ const syncRepo = async (path: string): Promise<RepoSyncReport> => {
   return { repo: path, slug, status: RepoSyncStatus.Synced, branches };
 };
 
-const repoField = {
+export const repoField = {
   repo: z
     .string()
     .optional()

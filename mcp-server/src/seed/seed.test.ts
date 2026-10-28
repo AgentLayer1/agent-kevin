@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { pluginName, RUNTIME_DIR } from '@/shared/naming';
-import { HOME_PLACEHOLDER, validateSeedPath } from '@/seed/format';
+import { HOME_PLACEHOLDER, PACKS, validateSeedPath } from '@/seed/format';
 import { renameAgent } from '@/shared/agent-name';
 import { scanSeed } from '@/seed/scan';
 import { exportSeed } from '@/seed/export';
@@ -626,11 +626,7 @@ describe('scanSeed with the GitHub pack', () => {
   test("carries the pack's gh denies with it", () => {
     const home = makeHome();
     homes.push(home);
-    const github = [
-      'fast_forward', 'pr_list', 'pr_view', 'pr_comments', 'pr_diff', 'pr_checks', 'run_list', 'run_view', 'run_log',
-      'issue_list', 'issue_view', 'issue_create', 'issue_comment', 'issue_update', 'pr_update', 'comment_update'
-    ].map((tool) => `mcp__plugin_${PLUGIN_NAME}_${AGENT_SLUG}__github_${tool}`);
-    write(home, '.claude/settings.json', JSON.stringify({ permissions: { allow: github, deny: ['Bash(gh)', 'Bash(gh *)'] } }));
+    write(home, '.claude/settings.json', JSON.stringify({ permissions: { allow: PACKS.github?.grants, deny: ['Bash(gh)', 'Bash(gh *)'] } }));
     const scan = inHome(home, () => scanSeed());
     expect(scan.activePacks.find((pack) => pack.name === 'github')?.denies).toEqual(['Bash(gh)', 'Bash(gh *)']);
   });

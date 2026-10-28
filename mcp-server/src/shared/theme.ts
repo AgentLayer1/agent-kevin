@@ -108,6 +108,7 @@ ${END}`;
 export const THEMED_TEMPLATES = [
   'skills/engineer/templates/explainer.html',
   'skills/engineer/templates/pr-report.html',
+  'skills/engineer/templates/sweep-report.html',
   'skills/guide/references/template.html',
   'skills/itinerary/references/template.html',
   'skills/roadmap/references/template.html',

@@ -281,7 +281,7 @@ Each is a **secret**, so it follows the same editor-fill rule as every other cre
 
 > **Never prompt for the token value in chat.** A PAT is a credential; pasting it touches the transcript and the Anthropic API. This walk grants tool permissions, ensures `.state/secrets/.env` exists, and surfaces one `GITHUB_TOKEN_<OWNER>=` line per owner + minting steps. The user fills the values in their editor.
 
-**(1) Grant the GitHub tool permissions.** Add these fifteen to `permissions.allow` via §E (not `github_pr_create`, which init lists in `permissions.ask`):
+**(1) Grant the GitHub tool permissions.** Add these seventeen to `permissions.allow` via §E (not `github_pr_create`, which init lists in `permissions.ask`):
 
 - `mcp__plugin_agent-kevin_kevin__github_fast_forward`
 - `mcp__plugin_agent-kevin_kevin__github_pr_list`
@@ -294,6 +294,7 @@ Each is a **secret**, so it follows the same editor-fill rule as every other cre
 - `mcp__plugin_agent-kevin_kevin__github_run_log`
 - `mcp__plugin_agent-kevin_kevin__github_issue_list`
 - `mcp__plugin_agent-kevin_kevin__github_issue_view`
+- `mcp__plugin_agent-kevin_kevin__github_sweep`
 - `mcp__plugin_agent-kevin_kevin__github_issue_create`
 - `mcp__plugin_agent-kevin_kevin__github_issue_comment`
 - `mcp__plugin_agent-kevin_kevin__github_issue_update`
@@ -370,7 +371,7 @@ Then surface these steps verbatim, once per owner:
 
 Tool permissions granted:  github_pr_list, github_pr_view, github_pr_comments, github_pr_diff,
                            github_pr_checks, github_run_list, github_run_view, github_run_log,
-                           github_issue_list, github_issue_view, github_fast_forward,
+                           github_issue_list, github_issue_view, github_sweep, github_fast_forward,
                            github_issue_create, github_issue_comment, github_issue_update, github_pr_update,
                            github_comment_update
 Asks every time:           github_pr_create  (from init's permissions.ask)
@@ -838,7 +839,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 - `AskUserQuestion`: "Also remove your `AGENT_DB_*` connection lines from `.state/secrets/.env`?" (Yes / No). Claude can't read the gated file, so it can't list them — if yes, tell the user to delete any `AGENT_DB_*` lines they no longer want from `.state/secrets/.env` in their editor (warn that removing one discards a connection string). If no, leave them (harmless once the perms are revoked).
 
 **GitHub deconfigure:**
-- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`, `github_comment_update`. Always-on core stays.
+- Revoke the GitHub tool grants from `permissions.allow` (§E remove helper): `github_pr_list`, `github_pr_view`, `github_pr_comments`, `github_pr_diff`, `github_pr_checks`, `github_run_list`, `github_run_view`, `github_run_log`, `github_issue_list`, `github_issue_view`, `github_sweep`, `github_fast_forward`, `github_issue_create`, `github_issue_comment`, `github_issue_update`, `github_pr_update`, `github_comment_update`. Always-on core stays.
 - Note: this also disables `sync` step 0, so the code checkouts stop being fast-forwarded (the rest of the sync chain is unaffected).
 - `AskUserQuestion`: "Also remove the GitHub tokens from `.state/secrets/.env`?" (Yes/No). If yes, tell the user to delete `GITHUB_TOKEN` and every `GITHUB_TOKEN_<OWNER>` line in their editor (§D.1 — Claude can't edit the gated file). If no, leave them (harmless once the perms are revoked).
 - `AskUserQuestion`: "Let Kevin run `gh` in its own shell again?" (No, keep it denied (Recommended) / Yes). Only on yes, remove `Bash(gh)` and `Bash(gh *)` from `permissions.deny` (§E deny helper, remove), then run `codex_setup` if `<HOME>/.codex/hooks.json` exists so Codex's forbidden rule goes too; removing a deny widens what the agent can run, so it is never the default.

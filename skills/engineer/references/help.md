@@ -51,6 +51,7 @@ Read-only against GitHub: every output is a report in `reports/reviews/` you pas
 | "review PR 142" | **pr review** | The change explained with where to read and what it decides for you, nine lanes held to the principles, every finding and bot comment verified, on one page with diagrams and a Copy button on every comment |
 | "reply to the comments on my PR" | **pr replies** | Each thread judged against the code, accurate ones fixed uncommitted, a reply for every thread in scroll order, each with a Copy button |
 | "prep my PR for standup" | **pr walkthrough** | A standup script, the diff tour, the questions with receipts, a recording runbook; `--rehearse` quizzes you |
+| "github sweep", "what do I owe on GitHub" | **github sweep** | Every comment, review and conflict waiting on you across your PRs, reviews and issues, folded by issue on one page, a code-checked reply with a Copy button on each, and a Handled tick per item |
 
 ### 🏃 Long and multi-session work
 

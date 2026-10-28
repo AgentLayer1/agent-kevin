@@ -17,6 +17,7 @@ export const TOOL_MODULES = [
   'database-fork',
   'attention',
   'github',
+  'github-sweep',
   'github-writes',
   'google-page-speed',
   'google-search-console',

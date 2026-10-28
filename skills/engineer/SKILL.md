@@ -10,7 +10,7 @@ description: >
   and its test video. Picks the playbook, applies 23 engineering principles (laziness protocol,
   prove it works, fix root causes…), and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor", "simplify", "why is this slow", "how
   does X work", "why is X like this", "architect this", "blast radius", "interrogate", "review PR
-  123", "reply to the comments on my PR", "walk me through my PR", "engineer help".
+  123", "reply to the comments on my PR", "walk me through my PR", "github sweep", "engineer help".
 allowed-tools:
   - Agent
   - AskUserQuestion
@@ -23,6 +23,7 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_run_view
   - mcp__plugin_agent-kevin_kevin__github_run_log
   - mcp__plugin_agent-kevin_kevin__github_issue_view
+  - mcp__plugin_agent-kevin_kevin__github_sweep
   - mcp__plugin_agent-kevin_kevin__github_issue_update
   - mcp__plugin_agent-kevin_kevin__github_fast_forward
   - mcp__plugin_agent-kevin_kevin__setup_worktree
@@ -31,6 +32,7 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__database_query
   - mcp__plugin_agent-kevin_kevin__video_frames
   - mcp__plugin_agent-kevin_kevin__report_write
+  - mcp__plugin_agent-kevin_kevin__attention_write
 ---
 
 # Engineer
@@ -81,6 +83,7 @@ Pull requests share one [foundation](references/pr/foundation.md) (resolve the P
 | A teammate's PR: "review 142", `/engineer review 142` | [pr review](references/playbooks/pr-review.md) |
 | The review on your own PR: "reply to the comments", `/engineer replies 142` | [pr replies](references/playbooks/pr-replies.md) |
 | Present or record your own PR: "prep my PR for standup", `/engineer walkthrough 142` | [pr walkthrough](references/playbooks/pr-walkthrough.md) |
+| Everything on GitHub waiting on you, with a reply drafted for each: "github sweep", "what do I owe on GitHub", `/engineer sweep` | [github sweep](references/playbooks/github-sweep.md) |
 
 Cross-cutting references:
 
