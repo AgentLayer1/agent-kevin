@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { classify, type IssueNode, type PrNode, sinceOf } from './github-sweep';
+import { classify, type IssueNode, type PrNode, sinceOf, tally } from './github-sweep';
 
 const ME = 'alice';
 const user = (login: string) => ({ __typename: 'User', login });
@@ -246,5 +246,38 @@ describe('since', () => {
   test('no since means a first sweep, and a malformed one is refused', () => {
     expect(sinceOf(undefined)).toBeNull();
     expect(() => sinceOf('last tuesday')).toThrow('Invalid since');
+  });
+});
+
+describe('counts', () => {
+  test('tally counts owed replies, new and bot ones, each review state, and only my own conflicts', () => {
+    const theirs = (number: number, overrides: Partial<PrNode>) => pr({ number, author: user('bob'), ...overrides });
+    const sweep = run(
+      [
+        pr({
+          number: 1,
+          mergeable: 'CONFLICTING',
+          reviewThreads: {
+            nodes: [
+              thread([comment('bob', '2026-10-25T00:00:00Z')]),
+              thread([comment('cursor', '2026-10-10T00:00:00Z', 'High', bot('cursor'))])
+            ]
+          }
+        }),
+        theirs(2, { mergeable: 'CONFLICTING', reviewRequests: { nodes: [{ requestedReviewer: user(ME) }] } }),
+        theirs(3, { reviews: { nodes: [review(ME, 'PENDING', null)] } })
+      ],
+      [issue({ comments: { nodes: [comment('bob', '2026-10-26T00:00:00Z')] } })],
+      '2026-10-20T00:00:00Z'
+    );
+    expect(tally(sweep)).toEqual({
+      replies: 3,
+      newReplies: 2,
+      fromBots: 1,
+      reviews: 1,
+      reReviews: 0,
+      pendingReviews: 1,
+      conflicts: 1
+    });
   });
 });

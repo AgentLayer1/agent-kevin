@@ -131,6 +131,16 @@ export interface Sweep {
   truncated: string[];
 }
 
+export interface SweepCounts {
+  replies: number;
+  newReplies: number;
+  fromBots: number;
+  reviews: number;
+  reReviews: number;
+  pendingReviews: number;
+  conflicts: number;
+}
+
 const loginOf = (actor: Actor | null): string => actor?.login ?? 'ghost';
 
 const isBot = (actor: Actor | null): boolean =>
@@ -316,6 +326,24 @@ export const classify = (input: {
   };
 };
 
+/**
+ * The sweep as numbers only, for an unattended caller such as sync: no comment text, no titles.
+ * `conflicts` counts only the operator's own PRs.
+ */
+export const tally = (sweep: Sweep): SweepCounts => {
+  const owed = [...sweep.prs, ...sweep.issues].flatMap((item) => item.owed);
+  const inReview = (state: ReviewState): number => sweep.prs.filter((pr) => pr.review === state).length;
+  return {
+    replies: owed.length,
+    newReplies: owed.filter((item) => item.new).length,
+    fromBots: owed.filter((item) => item.kind === 'bot').length,
+    reviews: inReview('owed'),
+    reReviews: inReview('re-review'),
+    pendingReviews: inReview('pending'),
+    conflicts: sweep.prs.filter((pr) => pr.mine && pr.mergeable === 'CONFLICTING').length
+  };
+};
+
 const ACTOR = '{ __typename login }';
 const COMMENT = `{ author ${ACTOR} body createdAt url }`;
 
@@ -413,7 +441,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'github_sweep',
     description:
-      "Everything on one repo waiting on the operator (read-only): their open PRs, PRs requesting their review, PRs and issues they're involved in, and open issues assigned to or opened by them. Each comes back with conflicts-with-main, review state (owed, re-review after a push, their own review left PENDING) and the comments they owe an answer to (unresolved threads where someone else spoke last, comments after their last one, mentions). Login defaults to USER.md's GitHub login.",
+      "Everything on one repo waiting on the operator (read-only): their open PRs, PRs requesting their review, PRs and issues they're involved in, and open issues assigned to or opened by them. Each comes back with conflicts-with-main, review state (owed, re-review after a push, their own review left PENDING) and the comments they owe an answer to (unresolved threads where someone else spoke last, comments after their last one, mentions). With counts: true it returns only the numbers, never a comment's text. Login defaults to USER.md's GitHub login.",
     inputSchema: {
       ...repoField,
       login: z.string().optional().describe("The operator's GitHub login. Defaults to USER.md's **GitHub login:**."),
@@ -424,9 +452,13 @@ export const tools: ToolDef[] = [
         .positive()
         .max(90)
         .optional()
-        .describe('Lookback for PRs and issues the operator is only involved in (default 21).')
+        .describe('Lookback for PRs and issues the operator is only involved in (default 21).'),
+      counts: z
+        .boolean()
+        .optional()
+        .describe('Numbers only (owed, new, from bots, reviews, re-reviews, pending, own conflicts), no comment text.')
     },
-    handler: async ({ repo, login, since, windowDays }) => {
+    handler: async ({ repo, login, since, windowDays, counts }) => {
       const target = await resolveRepo(repo);
       const user = operatorLogin(login);
       const from = sinceOf(since);
@@ -452,7 +484,8 @@ export const tools: ToolDef[] = [
           .filter((result) => result.more)
           .map((result) => `search "${result.query}" has more than ${SEARCH_LIMIT} results`)
       });
-      return untrusted(`github:sweep:${target}`, JSON.stringify(sweep));
+      const { prs, issues, ...header } = sweep;
+      return untrusted(`github:sweep:${target}`, JSON.stringify(counts ? { ...header, counts: tally(sweep) } : sweep));
     }
   })
 ];

@@ -42,7 +42,7 @@ export const PHASES: readonly Phase[] = [
     reports: [{ category: 'briefings', skill: 'flywheel' }]
   }),
   phase('attention', {
-    tools: ['task_scan', 'helpdesk_connections', 'helpdesk_stats', 'appstore_reviews'],
+    tools: ['task_scan', 'helpdesk_connections', 'helpdesk_stats', 'appstore_reviews', 'github_sweep'],
     scripts: ['cadence.ts', 'review-reads.ts', 'brain-audit.ts']
   }),
   phase('briefing', {
@@ -55,7 +55,7 @@ export const PHASES: readonly Phase[] = [
   phase('next', {
     tools: ['AskUserQuestion'],
     scripts: ['review-defer.ts'],
-    skills: ['goals', 'roadmap', 'self-review']
+    skills: ['goals', 'roadmap', 'self-review', 'engineer']
   })
 ];
 
