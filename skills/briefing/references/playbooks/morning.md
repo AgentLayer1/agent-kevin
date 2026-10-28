@@ -2,7 +2,7 @@
 
 A single phone-screen of orientation: what matters today, what's moved since yesterday, where the world shifted on the topics that touch your work. The previous daemon-era briefing was rich on purpose — match that depth, not a 30-line summary.
 
-Target: ~400–600 words, eight sections, one concrete first move, agent-emoji sign-off.
+Target: ~400–600 words, eight sections, a ranked list of first moves, agent-emoji sign-off.
 
 ## Inputs to gather (parallelise where possible)
 
@@ -13,9 +13,9 @@ Target: ~400–600 words, eight sections, one concrete first move, agent-emoji s
    - `mcp__plugin_agent-kevin_kevin__task_query` `{status:"active"}`
    - `{status:"open", priority:"P0"}` and `{status:"open", priority:"P1"}`
    - `mcp__plugin_agent-kevin_kevin__task_scan` for overdue / due-soon (`dueSoon`, the next 14 days) / stale / blocked surfacing. A dated deadline in `dueSoon` belongs in `🎯 Today` when it's within a week or needs the operator's input first
-   - **Attention lanes**: `mcp__plugin_agent-kevin_kevin__attention_write` with no arguments. It re-renders the dashboard's Today → Attention view and returns today, carried over, the week and month lanes, and the roadmap milestones in flight.
+   - **Attention lanes**: `mcp__plugin_agent-kevin_kevin__attention_write` with no arguments. It re-renders the dashboard's Today → Attention view and returns today, carried over, the week and month lanes, the roadmap milestones in flight, and the cached queue of what people are waiting on (`snapshot`).
 5. **Tax owed** — when `<HOME>/projects/tax/entities/` exists, run the tax skill's engine (`bun "<plugin root>/skills/tax/scripts/calendar.ts" liability`) and carry one line into `🎯 Today`: the total owed now across entities (only the known ones, with "not priced" named for the rest, never RM 0 for an unknown) and the monthly set-aside. Skip silently when there is no tax project.
-6. **Goals** — read `<HOME>/projects/TASKS.md` `## Daily Goals`, `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap. When no Daily Goals heading is dated today, the first move is `/goals day` (the goals skill's [day](../../../goals/references/playbooks/day.md) playbook), which ends by pointing at `/attention plan`; the brief never sets them itself.
+6. **Goals** — read `<HOME>/projects/TASKS.md` `## Daily Goals`, `## Monthly Goals` and `## Weekly Goals` blocks. If empty, note the gap. When no Daily Goals heading is dated today, `/goals day` is a fourth-rank item in `👉 First moves` (the goals skill's [day](../../../goals/references/playbooks/day.md) playbook), which ends by pointing at `/attention plan`; the brief never sets them itself.
 7. **Signal-topic news** — read `<HOME>/knowledge/user/profile.md` `## Signal Topics` (and `<HOME>/USER.md`). Run **2–4 targeted `mcp__plugin_agent-kevin_kevin__web_search` calls in parallel** — the plugin's Perplexity-backed tool (the bare name `web_search` below always means this MCP tool; it returns raw dated sources with `recency`/`domains`/`country` filters, no pre-synthesis). One call per topic cluster relevant *today*. Suggested clusters (pick the ones that matter for current Active Threads, skip the rest):
    - Pick clusters from the user's `## Signal Topics` (each topic or related-topic group becomes one query). Typical clusters: a competitive/industry cluster tied to the day job, a local-regulatory cluster (recency `"week"`, set `country` if applicable), an AI/tooling cluster covering the model ecosystem they build on, and a geopolitics cluster for events that touch their values or travel.
    - Use `recency: "day"` for fast-moving clusters, `recency: "week"` for slower regulatory ones.
@@ -23,6 +23,7 @@ Target: ~400–600 words, eight sections, one concrete first move, agent-emoji s
    - **Apply the Signal gate below before any item earns a slot.** Most mornings, 0–2 signals clear it; that's correct, not a gap.
    - **Perplexity is optional.** When `web_search` fails because `PERPLEXITY_API_KEY` isn't set (or the tool isn't granted), run the same clusters through the host's built-in web search instead (Claude Code's `WebSearch`, Codex's built-in web search). It has no `recency` or `country` filter, so put the time window and the country in the query words ("this week", the month and year, the country name), and drop any result whose publish date you can't establish inside the window. Don't mention the missing key in the brief.
 8. **Prior briefings (novelty check)** — `Glob` `<HOME>/reports/briefings/*.md` and read the entries from the **last 7 days**. This is what you de-dupe today's signals against. Read it *before* deciding which web_search results to surface.
+9. **Sessions waiting on you** — the newest radar report, per [first moves](../first-moves.md#inputs).
 
 ## Signal gate (novelty + relevance)
 
@@ -62,7 +63,7 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
   • <task-id> <P-level> — <crisp "why now"; deadline, dependency unlock, or fresh blocker>
   • <task-id> ...
   (3–6 bullets; mix P0/P1 active + the one P0 you should drop everything for. Inline-code task IDs.)
-  (This section is attention's Today lane in order, then carried-over items marked ↻ with the day they slipped from. An empty Today lane gets three proposals and a first move of `/attention plan`, unless today's goals are unset too, when `/goals day` comes first.)
+  (This section is attention's Today lane in order, then carried-over items marked ↻ with the day they slipped from. An empty Today lane gets three proposals, and `/attention plan` is a fourth-rank item in `👉 First moves`.)
 
 📦 Drafted
   • <project-slug> — <what moved yesterday/overnight that isn't a closed task: PRs, inbox captures, knowledge concepts, status flips, decisions>
@@ -93,7 +94,10 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
   • <emoji> ...
   (1–3 items. Geopolitical / macro, plus any region or community the operator's signal topics name. Headline links to the source. Skip section if nothing material.)
 
-👉 Today: <one concrete first action — the mechanical, blocked-on-nothing, prevents-the-next-outage move>
+👉 First moves
+  1. <the first move — the mechanical, blocked-on-nothing, prevents-the-next-outage action>   ← start here
+  2. <★ a session waiting on you, a task due, a review owed…>
+  (3–5 items ranked across everything, built per [first moves](../first-moves.md).)
 
 <agent emoji — the Emoji line of IDENTITY.md>
 ```
@@ -122,6 +126,7 @@ Surface `📄 Saved to <path>` (the absolute `path` the tool returns, not `relPa
 ## Anti-patterns
 
 - ❌ Dumping every active task. `🎯 Today` is 3–6 sharpest items, not a backlog.
+- ❌ Turning `👉 First moves` into a second backlog. Three to five actions, ranked; everything else stays in its section.
 - ❌ Running ONE web_search call to "cover everything" — the result is mush. Run a few **focused** queries, one per cluster you actually care about today.
 - ❌ Restating Active Threads from `memory/index.md` verbatim. Briefing is *delta and direction*, not status quo.
 - ❌ Including signals/news that are interesting but don't change today's plan or touch a TASKS.md item. Run it through the Signal gate; if the "so what" is generic, cut it.

@@ -11,8 +11,10 @@ Close the day cleanly. Show what landed, name what didn't, flag what'll bite tom
 3. **Today's project file deltas** — `find <HOME>/projects -type f -name '*.md' -newermt '<day> 00:00' -not -path '*/node_modules/*'`.
 4. **Closed today** — `grep -rl --include='*.md' '^closed: <date>' <HOME>/projects`, once per date being wrapped (it also finds tasks sync already archived). `task_query` has no closed-date filter.
 5. **Active / open P0–P1** — `{status:"active"}`, `{status:"open", priority:"P0"}`, `{status:"open", priority:"P1"}`.
-6. **Overdue / due soon / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan` (`dueSoon` is the next 14 days; name anything due tomorrow in tomorrow's first move).
+6. **Overdue / due soon / stale / blocked** — `mcp__plugin_agent-kevin_kevin__task_scan` (`dueSoon` is the next 14 days; name anything due tomorrow in tomorrow's first moves).
 7. **Goals** — read `<HOME>/projects/TASKS.md` `## Daily Goals`, `## Monthly Goals` and `## Weekly Goals` to compute end-of-day delta. Score today's daily goals as the goals skill's [day](../../../goals/references/playbooks/day.md#score-the-day-the-evening-brief-or-how-did-today-go) playbook says.
+8. **Owed to people** — `mcp__plugin_agent-kevin_kevin__attention_write` with no arguments; its `snapshot` is the queue of pull requests, reviews and replies waiting on the operator.
+9. **Sessions waiting on you** — the newest radar report, per [first moves](../first-moves.md#inputs).
 
 ## Hard guardrails
 
@@ -70,8 +72,10 @@ Substitute `<USER_TZ>` with the operator's **current** IANA timezone — the zon
   • <1–2 lines if a decision, insight, or correction emerged worth carrying forward>
   (Skip section if nothing crystallised. Don't manufacture insight.)
 
-🌅 Tomorrow first move
-  • <one concrete first action — the mechanical, blocked-on-nothing thing to open at 8am>
+🌅 Tomorrow's first moves
+  1. <the first move — the mechanical, blocked-on-nothing thing to open at 8am>   ← start here
+  2. <★ a session waiting on you, a task due tomorrow, a review owed…>
+  (3–5 items ranked across everything, built per [first moves](../first-moves.md).)
 
 <agent emoji — the Emoji line of IDENTITY.md>
 ```

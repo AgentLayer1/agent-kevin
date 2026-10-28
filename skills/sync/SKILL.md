@@ -14,8 +14,8 @@ One pass through every maintenance op, in dependency order, ending in a single s
 
 Optional first arg selects a briefing to chain after sync completes:
 
-- `morning` — run the briefing skill's [morning](../briefing/references/playbooks/morning.md) playbook at step 9.
-- `evening` — run the briefing skill's [evening](../briefing/references/playbooks/evening.md) playbook at step 9.
+- `morning` — run the briefing skill's [morning](../briefing/references/playbooks/morning.md) playbook at step 10.
+- `evening` — run the briefing skill's [evening](../briefing/references/playbooks/evening.md) playbook at step 10.
 - _(none)_ — pick automatically, catch-up-aware: a forgotten morning brief still runs in the afternoon instead of silently becoming an evening one. Check whether a morning brief already ran today (day starts at 3am): glob `<HOME>/reports/briefings/<today>-*-morning.md`, or read today's section of `reports/index.md` if the SessionStart hook already injected it. Then:
   - **No morning brief today and it's 3am–9pm** → **morning** (catch-up — even at 5pm).
   - **Morning already ran, or it's 9pm–3am** → **evening** (past 9pm the day is closing; a morning brief would be theater).
@@ -222,16 +222,7 @@ it can't read stays a note on the page, never a failed sync.
 Placed before the briefing on purpose: the morning brief reads attention through `attention_write`, so its Today
 section sees the fresh queue, and step 11's dashboard render shows it.
 
-### 9. Briefing
-
-Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the catch-up-aware auto-selection from `## Arguments` (morning if none ran today and it's 3am–9pm, else evening). Then inline the matching protocol:
-
-- `morning` → run the [morning](../briefing/references/playbooks/morning.md) playbook **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 Today · agent-emoji sign-off), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool; without `PERPLEXITY_API_KEY`, the briefing's built-in-search fallback) **— including a geopolitics cluster plus any region or community the operator's signal topics name, not just the work-signal one**. Then **call `report_write` per the playbook's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
-- `evening` → run the [evening](../briefing/references/playbooks/evening.md) playbook **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the playbook's `## Persist` section** — not done until persisted.
-
-To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
-
-### 10. Session radar
+### 9. Session radar
 
 Invoke the `attention` skill with `checkpoint all` (the all-sessions half of its
 [checkpoint](../attention/references/playbooks/checkpoint.md) playbook, via the Skill tool, default 24h window) — a snapshot of the Claude Code sessions scoped to the HOME plus the code tree
@@ -241,13 +232,22 @@ the radar end to end: scans the sessions, writes each one's checklist, renders t
 cards, and persists the report (`category: 'radar'`). Skip only if it reports zero
 sessions. Don't reimplement its steps inline — the playbook is the single source of truth.
 
-Independent of the wiki state, so order doesn't matter for correctness — placed here so
-the radar report lands in `reports/index.md` before step 11's dashboard render picks it
-up.
+Placed before the briefing on purpose: the briefing's first moves read the newest radar report for the
+sessions waiting on the operator, so it sees this run's, and the report lands in `reports/index.md`
+before step 11's dashboard render picks it up.
+
+### 10. Briefing
+
+Resolve which briefing to run: the explicit `morning`/`evening` arg wins; with no arg use the catch-up-aware auto-selection from `## Arguments` (morning if none ran today and it's 3am–9pm, else evening). Then inline the matching protocol:
+
+- `morning` → run the [morning](../briefing/references/playbooks/morning.md) playbook **in full** — render every section of its compose template (🌅 header · 🎯 Today · 📦 Drafted · 📈 Goals · 🏗️ Projects · 🕸️ Stale · 🌐 Signals · 📰 News · 👉 First moves · agent-emoji sign-off), 400–600 words. **Step-7 reuse is narrow:** only the task/thread/scan + memory-index context is already in hand — don't re-query *those*. You still owe the briefing's other inputs: Glob + read today's raw sessions, the project-delta `find` + `git log`, the last-7-days briefings novelty check, and **2–4 focused `mcp__plugin_agent-kevin_kevin__web_search` clusters** (the plugin's Perplexity-backed tool; without `PERPLEXITY_API_KEY`, the briefing's built-in-search fallback) **— including a geopolitics cluster plus any region or community the operator's signal topics name, not just the work-signal one**. Then **call `report_write` per the playbook's `## Persist` section** — compose-without-persist is a bug (not done until `reports/index.md` shows today's entry). Do **not** collapse the eight sections into a prose summary; match the depth of a standalone briefing.
+- `evening` → run the [evening](../briefing/references/playbooks/evening.md) playbook **in full** — its complete section template, not a summary. Narrow step-7 reuse (task/memory context already loaded); still pull today's git log + closed-today tasks + raw sessions. Evening intentionally skips 🌐 Signals / 📰 News (scoped to closing the day). Then **call `report_write` per the playbook's `## Persist` section** — not done until persisted.
+
+To run a sync with no briefing at all, say so explicitly (e.g. "sync only").
 
 ### 11. Regenerate the dashboards (last)
 
-This is the final step — it runs **after** the briefing, on purpose. `dashboard.html`'s News section is harvested from `reports/briefings/*.md`, and the Reports tab reads `reports/index.md` — both of which step 9 just wrote. Rendering here (rather than before the briefing) is what lets the dashboard show the current run's news and report entry instead of the previous run's. By now every upstream producer has run: compile, lint, flywheel mutations, scan, the briefing, and the session radar.
+This is the final step — it runs **after** the briefing, on purpose. `dashboard.html`'s News section is harvested from `reports/briefings/*.md`, and the Reports tab reads `reports/index.md` — both of which step 10 just wrote. Rendering here (rather than before the briefing) is what lets the dashboard show the current run's news and report entry instead of the previous run's. By now every upstream producer has run: compile, lint, flywheel mutations, scan, the session radar, and the briefing.
 
 One call rebuilds both `<HOME>/dashboard.html` and `projects/TASKS.md` — call it once here, nowhere else in sync. It runs even for "sync only" (it just won't have new briefing news to pick up). Pass `sync: true` so the tool records this run as the last sync before it renders: the dashboard's last-sync age and the sync notice (the banner line, or the row above the prompt) both read that stamp.
 

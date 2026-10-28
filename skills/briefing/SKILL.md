@@ -2,9 +2,9 @@
 name: briefing
 description: >
   The day's bookends and a quick check. The morning brief: today's priorities, what moved
-  overnight, goals, per-project state, stale work, signal-topic and world news, and one first move.
+  overnight, goals, per-project state, stale work, signal-topic and world news, and first moves.
   The evening wrap: what shipped, drafted and stalled today, the goals delta, and tomorrow's first
-  move. The pulse: a 60-second scan for anything overdue, stale or blocked. Triggers on "brief me",
+  moves. The pulse: a 60-second scan for anything overdue, stale or blocked. Triggers on "brief me",
   "morning brief", "daily brief", "wrap up the day", "evening wrap", "what did I ship today", "how did
   today go", "quick pulse", "anything on fire", "status check", or /briefing.
 allowed-tools: mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__attention_write, mcp__plugin_agent-kevin_kevin__web_search, mcp__plugin_agent-kevin_kevin__report_write, WebSearch, Read, Glob, Bash
