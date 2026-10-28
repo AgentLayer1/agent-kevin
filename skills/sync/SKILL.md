@@ -1,7 +1,7 @@
 ---
 name: sync
 description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh attention and both dashboards, snapshot the brain at both ends when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
-allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__github_sweep, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:attention), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), Skill(agent-kevin:engineer), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__github_sweep, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:attention), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), Skill(agent-kevin:engineer), Skill(agent-kevin:slack), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Sync
@@ -226,10 +226,11 @@ Read <HOME>/knowledge/memory/index.md   # for narrative context
 
 Invoke the `attention` skill with `refresh` (its [refresh](../attention/references/playbooks/refresh.md) playbook,
 via the Skill tool) so the home attention view carries what's waiting on the operator right now: their pull
-requests, the reviews they owe, and with Slack connected the replies they owe. Run it on every sync, not
+requests, the reviews they owe, and with Slack connected the replies they owe and the external threads waiting. Run it on every sync, not
 only in the morning: the queue is the part of attention that goes stale fastest. Inside sync, skip the
-playbook's first-run offers and its card; carry its QUEUE line into the output's 🎯 Attention line. A source
-it can't read stays a note on the page, never a failed sync.
+playbook's first-run offers and its card; carry its QUEUE line into the output's 🎯 Attention line, and its
+`Replies I owe` and `External threads waiting` items and its unmapped channels into the `🔔 Slack` block. A source it can't read stays a note on
+the page, never a failed sync.
 
 Placed before the briefing on purpose: the morning brief reads attention through `attention_write`, so its Today
 section sees the fresh queue, and step 11's dashboard render shows it.
@@ -283,7 +284,7 @@ Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` sta
 
 ### 13. Closing interview — what's next (only when something's actionable)
 
-After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no stalled task from the flywheel, no priority bump, no closed handed-off issue, no cadence due, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
+After the output block (see below), turn the surfaced backlog into a decision. **Gate first:** skip the interview entirely on a clean bill — no overdue/stale item flagged for action, no stalled task from the flywheel, no priority bump, no closed handed-off issue, no cadence due, no unmapped Slack channel, no pending upgrade, and an empty "Suggested next moves" list. The interview exists to act on what sync surfaced; with nothing surfaced, end on the output block (the `✅ Sync complete` one-liner) and stop.
 
 **Self-review first, on its own.** When step 6's cadence check listed a `self-review…` item, ask about it before anything else, in its own `AskUserQuestion`: "<label> is due (last run <lastRun, or never>; <the 🧹 Brain counts> waiting)", with **Run it now** · **Tomorrow** · **Skip this month**.
 
@@ -294,7 +295,7 @@ Self-review is never one of question 1's options.
 
 When there *is* something to act on, end with a single `AskUserQuestion` call carrying two questions, plus one per stalled task (questions 3 and 4 below). When stalled tasks are the only thing surfaced, ask just those.
 
-1. **"What do you want to tackle next?"** (`multiSelect: true`, so the operator can pick several) — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, a line from the flywheel's Untracked work ("File a task for <stream>"), a task whose handed-off issue closed ("Close <id>: <owner/repo>#<n> closed as completed"; with **Act now**, `task_close` for completed and `task_update` to `cancelled` for not planned), the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/roadmap`, `/helpdesk <routine> <slug>`), new App Store reviews to check (`/helpdesk reviews <slug>`), the GitHub sweep when step 6 offers it ("Run the GitHub sweep: <n> replies owed, <n> new"), or the pending `/upgrade`. Each label is the action itself ("Nudge X on ticket Y", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one. A due `roadmap` always takes the first slot, and stands in for a due `goals year` when the Yearly Goals block is missing or from an earlier year, since its build runs that interview first. A stalled task is never an option here; it gets its own question below.
+1. **"What do you want to tackle next?"** (`multiSelect: true`, so the operator can pick several) — options are the concrete candidates sync already surfaced in steps 6–7: the 2–3 "Suggested next moves", plus any overdue/stale item flagged for action, a line from the flywheel's Untracked work ("File a task for <stream>"), a task whose handed-off issue closed ("Close <id>: <owner/repo>#<n> closed as completed"; with **Act now**, `task_close` for completed and `task_update` to `cancelled` for not planned), the due cadence (`/goals week interview`, `/goals month`, `/goals year`, `/roadmap`, `/helpdesk <routine> <slug>`), new App Store reviews to check (`/helpdesk reviews <slug>`), the GitHub sweep when step 6 offers it ("Run the GitHub sweep: <n> replies owed, <n> new"), new Slack channels the map doesn't list ("Sort <n> new Slack channels into the map"), or the pending `/upgrade`. Each label is the action itself ("Nudge X on ticket Y", "Run /upgrade"); the description says why it's surfacing now. Pull these straight from state you already read — don't invent options the sync didn't produce. Cap at four; lead with the highest-leverage one. A due `roadmap` always takes the first slot, and stands in for a due `goals year` when the Yearly Goals block is missing or from an earlier year, since its build runs that interview first. A stalled task is never an option here; it gets its own question below.
 
    **Freshness gate — verify every candidate against current ground truth before offering it (do NOT skip).** The failure mode here is offering something the operator *already did*, often in the very sessions this sync just compiled. The Pending list in `memory/index.md`, the cadence watermarks, and even today's briefing are lagging views — a task can be closed, a bug already fixed, or a chore already handled between when that state was written and now. So for each candidate, confirm it's still open against the freshest source before it earns a slot:
    - **Task-backed candidate** → re-read the task's frontmatter `status` (a `done`/`cancelled`/`blocked`-on-someone-else task is not a "tackle next"). Prefer items whose status/thread you touched *this run* (flywheel step 5) over anything read only from the stale Pending list.
@@ -312,6 +313,8 @@ Apply the stalled-task answers first, so nothing below can skip them. Then honor
 **Cadence and upgrade picks:** a due goals cadence picked with **Act now** runs through the Skill tool (`agent-kevin:goals` with the rest of `invoke` as its argument, e.g. `week interview`), a due `roadmap` runs `agent-kevin:roadmap` the same way, and **Queue as tasks** files it like any other pick. A tax close needs the operator's documents, a helpdesk routine (the reviews check included) reads untrusted ticket or review text, and `upgrade` chains sync itself, so sync invoking it would recurse: for those three, both answers collapse to the same thing — surface the exact slash command for the operator to type.
 
 **The GitHub sweep pick:** **Act now** runs the engineer skill through the Skill tool (`agent-kevin:engineer` with `sweep`), which drafts the replies and posts nothing; **Queue as tasks** files it like any other pick.
+
+**The Slack channels pick:** **Act now** runs the slack skill through the Skill tool (`agent-kevin:slack` with `sort new channels`), whose diff-and-extend files each unmapped channel into its section of `slack-channels.md` and reads no message text; **Queue as tasks** files it like any other pick.
 
 ## Output
 
@@ -345,8 +348,14 @@ One block, tight. Skip empty sections — don't pad.
 💻 Code (omit entirely when no repos are configured)
   - <"N repos, all default branches current" | one line per repo/branch that was behind, updated, dirty, diverged, or held by a worktree>
 
-🎯 Attention — <n PRs (n ready) · n reviews owed · n replies owed, the last with Slack only | a source it couldn't read, in a few words>
+🎯 Attention — <n PRs (n ready) · n reviews owed · n replies owed · n external waiting, the last two with Slack only | a source it couldn't read, in a few words>
   - GitHub: <n> replies owed (<n> new since the last sweep, <n> from bots) · <n> re-reviews · <n> pending reviews · <n> of your PRs conflict with main   (omit without the GitHub pack; "nothing waiting" when all are 0; "can't read <repo>: <reason>" on an error)
+
+🔔 Slack — waiting an hour or more (omit entirely without Slack; "nothing waiting" when both lists are empty and no channel is unmapped)
+  - You: <from> · #<channel> · <wait, e.g. 2h 10m> → <url>   (one line per `Replies I owe` item, longest wait first)
+  - External: <from> · #<channel> · <wait> → <url>   (one line per `External threads waiting` item)
+  - New channels not in the map: #<name>, … → /agent-kevin:slack sorts them into slack-channels.md   (one line, from `unmapped`; omit when empty, and when it's `null` (no map yet) say `no channel map yet` instead)
+  - <"+<n> more on the attention page" past 10 lines in total | "can't read <channels>" when the group carried an unavailable note>
 
 🎫 Support (omit entirely when no helpdesk is configured; one entry per queue)
   - <project slug | no project | <connection>, no profile yet>, last 24h: <total, or total+ when more is true> <open | all-status> tickets active (<status> <n> · …) · <n> unassigned · <n> opened in the window
@@ -378,7 +387,7 @@ If everything is clean: a one-liner is the right output.
 ✅ Sync complete — wiki healthy, <N> active tasks, nothing flagged.
 ```
 
-A pending upgrade or a due cadence item is "something flagged" — if either fired, don't use the clean one-liner; keep the `⬆️ Upgrade` and `📅 Cadence` lines so the nudge isn't swallowed:
+A pending upgrade, a due cadence item or anything in `🔔 Slack` is "something flagged" — if any fired, don't use the clean one-liner; keep the `⬆️ Upgrade`, `📅 Cadence` and `🔔 Slack` lines so the nudge isn't swallowed:
 
 ```
 ✅ Sync complete — wiki healthy, <N> active tasks. ⬆️ Plugin vINSTALLED — run /upgrade.

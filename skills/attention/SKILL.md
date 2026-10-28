@@ -27,6 +27,10 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__github_issue_view
   - mcp__plugin_agent-kevin_kevin__report_write
   - mcp__plugin_agent-kevin_kevin__capture
+  - mcp__plugin_agent-kevin_kevin__slack_whoami
+  - mcp__plugin_agent-kevin_kevin__slack_search
+  - mcp__plugin_agent-kevin_kevin__slack_thread
+  - mcp__plugin_agent-kevin_kevin__slack_waiting
 ---
 
 # Attention
@@ -83,7 +87,7 @@ Both carry what they show as JSON in an `attention-data` block, and `attention_w
 
 **Roadmaps.** The home view reads `<HOME>/roadmap.html`; a project view reads its own `projects/<slug>/roadmap.html` plus the root roadmap's milestones that name one of its task ids. Slipped milestones (their period ended with items open) and in-flight ones (an item in progress, or a period covering today) show with their linked tasks, and a milestone no open task names is a gap. A roadmap still on a script literal, one with no dates, or one that names no task ids gets a one-line notice instead.
 
-**Sources.** GitHub is the queue's base. **Slack is optional:** it counts as connected when the session has Slack tools that identify the operator, search messages and read a thread, from any Slack MCP server the operator has added, and the identify call answers. In the playbooks, `slack_whoami`, `slack_search` and `slack_thread` stand for those three tools. Every Slack step runs only then: with no Slack tools, skip it silently; with tools that error, say so on the page (refresh, step 5).
+**Sources.** GitHub is the queue's base. **Slack is optional:** it counts as connected when the session has Slack tools that identify the operator, search messages and read a thread (`slack_whoami`, `slack_search`, `slack_thread`), and `slack_whoami` answers. The queue's Slack groups come from `slack_waiting`, which decides in code what is waiting. Every Slack step runs only then: with no Slack tools, skip it silently; with tools that error, say so on the page (refresh, step 5).
 
 **Sessions.** `bun "${CLAUDE_SKILL_DIR}/scripts/list_sessions.ts" --hours <N>` lists the Claude Code sessions in scope as JSON, newest first. The checkpoint and standup playbooks describe its fields and scope.
 
