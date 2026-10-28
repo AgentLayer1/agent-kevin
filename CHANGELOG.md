@@ -43,6 +43,25 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.10] - 2026-10-28
+
+### Added
+- **Slack pack: read-only Slack through your own account.** Seven `slack_*` tools (`slack_whoami`, `slack_channels`, `slack_history`, `slack_batch_history`, `slack_thread`, `slack_search`, `slack_waiting`) read Slack with a user token from a one-time PKCE sign-in, `kevin slack auth`, run in the operator's own terminal because the callback binds a localhost port. User-token scopes only: no bot, no DM scope, no write scope, and a token carrying any of those is refused when it's minted. Each workspace creates its own Slack app; the configure-skills Slack walk checks for `AGENT_SLACK_CLIENT_ID` and, when it's missing, walks through creating one before planting the public Client ID. Tokens live in `.state/secrets/slack/`, show in the dashboard's secrets inventory, and are masked in logs.
+- **slack skill.** Composes pulses from a channel map the operator curates (`knowledge/concepts/slack-channels.md`: Team, External, Reference, Uncategorized), bootstraps the map on first run, files new joins into it ("sort new channels"), and saves pulses to `reports/slack/`, which the dashboard lists as its own report category.
+- **What's waiting in Slack, decided in code.** `slack_waiting` returns the threads where someone outside the workspace spoke last, the mentions the operator hasn't answered within an hour, and the channels the map doesn't list, never message text.
+
+### Changed
+- **The attention queue and sync read Slack through the pack.** With Slack connected, the attention refresh calls `slack_waiting` once and shows two groups, `Replies I owe` and `External threads waiting`, with unmapped channels as a note, since a channel the map leaves out is never scanned. Sync carries those into a `🔔 Slack` block that counts as flagged, and its closing interview offers "sort new channels". The attention skill now names the plugin's own `slack_*` tools as the Slack source rather than any Slack MCP server.
+- **Slack stays quiet where it isn't set up.** Every home now carries the `slack_*` tools, so `slack_whoami` returns `connected: false` when this agent was never signed in to Slack instead of an error. Attention, standup and sync skip Slack on that with no group and no note; a sign-in that fails (expired, revoked) still shows as a source that couldn't be read.
+
+### Fixed
+- **The GitHub login reads only the login.** `github_sweep` and attention's "mine" check took the whole `GitHub login` field in USER.md, so a note after the login made the sweep reject it and left tasks assigned to the login off the operator's list. Both now take the field's first word.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds `Skill(agent-kevin:slack)` to `permissions.allow` when the home hasn't placed it in allow, ask or deny. Applied automatically.
+- `template/AGENTS.md: mandatory` — the reports routing row and the layout tree gain `reports/slack/` for slack pulses.
+- `manual: optional` — to read Slack, run `/agent-kevin:configure-skills` → Slack. It creates the workspace's Slack app if there isn't one, grants the `slack_*` tools, and hands over the one-time `kevin slack auth` sign-in to run in your own terminal.
+
 ## [0.8.9] - 2026-10-28
 
 ### Added
