@@ -484,8 +484,11 @@ export const tools: ToolDef[] = [
           .filter((result) => result.more)
           .map((result) => `search "${result.query}" has more than ${SEARCH_LIMIT} results`)
       });
-      const { prs, issues, ...header } = sweep;
-      return untrusted(`github:sweep:${target}`, JSON.stringify(counts ? { ...header, counts: tally(sweep) } : sweep));
+      const { fetchedAt, truncated } = sweep;
+      const body = counts
+        ? { login: user, repo: target, fetchedAt, since: from, counts: tally(sweep), truncated }
+        : sweep;
+      return untrusted(`github:sweep:${target}`, JSON.stringify(body));
     }
   })
 ];
