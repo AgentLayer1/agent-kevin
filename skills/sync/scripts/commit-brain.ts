@@ -16,6 +16,9 @@ import { expandTilde } from "../../../mcp-server/src/shared/paths";
  * Usage: bun commit-brain.ts — prints a single JSON result for the skill to render.
  */
 
+/** The one commit sync's opening snapshot makes, so the run's own changes diff cleanly against it. */
+export const START_MESSAGE = "Sync: save the home before the run";
+
 export const BrainCommitStatus = {
   NotARepo: "NOT_A_REPO",
   SkippedHasRemote: "SKIPPED_HAS_REMOTE",
@@ -169,7 +172,7 @@ const inProgressOp = (home: string): boolean => {
 const GRANT_HINT =
   "git could not write to the repo. If history was turned on in this session, start a new session first, since the new write grant may only apply from the next launch. Otherwise, if this HOME keeps its history outside the folder, run the history skill: it records that folder with the permissions.additionalDirectories and sandbox allowWrite grants in <HOME>/.claude/settings.local.json so the sandbox can commit.";
 
-export const commitBrain = (home: string): BrainCommitResult => {
+export const commitBrain = (home: string, options: { start?: boolean } = {}): BrainCommitResult => {
   const result = (status: BrainCommitStatus, extra: Partial<BrainCommitResult> = {}): BrainCommitResult => ({
     status,
     commits: [],
@@ -244,10 +247,12 @@ export const commitBrain = (home: string): BrainCommitResult => {
 
   const groups = brainGroups(home);
   const { buckets, leftUncommitted } = groupChanges(groups, changes);
+  const batches = options.start
+    ? [{ message: START_MESSAGE, bucket: groups.flatMap((group) => buckets.get(group.name) ?? []) }]
+    : groups.map((group) => ({ message: group.message, bucket: buckets.get(group.name) ?? [] }));
   const commits: BrainCommit[] = [];
   try {
-    for (const group of groups) {
-      const bucket = buckets.get(group.name) ?? [];
+    for (const { message, bucket } of batches) {
       if (bucket.length === 0) {
         continue;
       }
@@ -256,9 +261,9 @@ export const commitBrain = (home: string): BrainCommitResult => {
       if (!hasStaged(home)) {
         continue;
       }
-      git(home, "commit", "-q", "-m", group.message);
+      git(home, "commit", "-q", "-m", message);
       commits.push({
-        message: group.message,
+        message,
         sha: git(home, "rev-parse", "--short", "HEAD"),
         fileCount: bucket.length,
       });

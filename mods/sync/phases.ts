@@ -31,6 +31,7 @@ const phase = (id: string, parts: Partial<Omit<Phase, 'id'>>): Phase => ({
  * Sync's steps in order, keyed by the tools and scripts each one calls.
  */
 export const PHASES: readonly Phase[] = [
+  phase('snapshot', { scripts: ['snapshot-brain.ts'] }),
   phase('code', { tools: ['github_fast_forward'] }),
   phase('compile', { tools: ['compile_status', 'compile_next', 'compile_write'] }),
   phase('lint', { tools: ['knowledge_lint'] }),

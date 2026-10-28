@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrainCommitStatus, commitBrain, parseStatusZ } from "./commit-brain";
+import { BrainCommitStatus, START_MESSAGE, commitBrain, parseStatusZ } from "./commit-brain";
 
 /**
  * Guard matrix for the brain committer. Always runs against scratch repos under
@@ -146,6 +146,37 @@ describe("commitBrain grouping", () => {
     expect(outcome.leftUncommitted).toEqual(["stray.txt"]);
     expect(git(home, "status", "--porcelain")).toBe("?? stray.txt");
     expect(git(home, "ls-files")).not.toContain(".env");
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  test("the opening snapshot is one commit across every group; strays and secrets still stay out", () => {
+    const home = makeHome();
+    write(home, "knowledge/index.md", "changed\n");
+    write(home, "projects/TASKS.md", "changed\n");
+    write(home, "dashboard.html", "changed\n");
+    write(home, ".env", "SECRET=1\n");
+    write(home, "stray.txt", "scratch\n");
+
+    const outcome = commitBrain(home, { start: true });
+    expect(outcome.status).toBe(BrainCommitStatus.Committed);
+    expect(outcome.commits.map((entry) => entry.message)).toEqual([START_MESSAGE]);
+    expect(filesIn(home, outcome.commits[0].sha).sort()).toEqual([
+      "M\tdashboard.html",
+      "M\tknowledge/index.md",
+      "M\tprojects/TASKS.md",
+    ]);
+    expect(outcome.leftUncommitted).toEqual(["stray.txt"]);
+    expect(git(home, "ls-files")).not.toContain(".env");
+    expect(commitBrain(home, { start: true }).status).toBe(BrainCommitStatus.Clean);
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  test("the opening snapshot keeps the same guards: a remoted brain is skipped", () => {
+    const home = makeHome();
+    git(home, "remote", "add", "origin", "git@github.com:acme/brain.git");
+    write(home, "knowledge/index.md", "changed\n");
+    expect(commitBrain(home, { start: true }).status).toBe(BrainCommitStatus.SkippedHasRemote);
+    expect(commitCount(home)).toBe(1);
     rmSync(home, { recursive: true, force: true });
   });
 

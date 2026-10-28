@@ -1,6 +1,6 @@
 ---
 name: sync
-description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh attention and both dashboards, commit the brain's pending changes when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
+description: End-to-end refresh — fast-forward configured code repos, compile pending raw inputs, lint and fix the wiki, run a flywheel pass, surface what needs attention (a pending plugin upgrade, a planning or review skill that's come due), optionally chain into a morning or evening briefing, refresh attention and both dashboards, snapshot the brain at both ends when the HOME repo is local-only, and close with concrete next steps to act on now or queue as a task. Run anytime to bring Kevin's state fully current in one consolidated update. Heavier than a briefing pulse, lighter than running each skill by hand.
 allowed-tools: mcp__plugin_agent-kevin_kevin__github_fast_forward, mcp__plugin_agent-kevin_kevin__helpdesk_connections, mcp__plugin_agent-kevin_kevin__helpdesk_stats, mcp__plugin_agent-kevin_kevin__appstore_reviews, mcp__plugin_agent-kevin_kevin__compile_status, mcp__plugin_agent-kevin_kevin__compile_next, mcp__plugin_agent-kevin_kevin__compile_write, mcp__plugin_agent-kevin_kevin__knowledge_lint, mcp__plugin_agent-kevin_kevin__memory_prune, mcp__plugin_agent-kevin_kevin__links_rewrite, mcp__plugin_agent-kevin_kevin__dashboard, mcp__plugin_agent-kevin_kevin__report_write, mcp__plugin_agent-kevin_kevin__task_query, mcp__plugin_agent-kevin_kevin__task_get, mcp__plugin_agent-kevin_kevin__task_scan, mcp__plugin_agent-kevin_kevin__task_update, mcp__plugin_agent-kevin_kevin__task_thread, mcp__plugin_agent-kevin_kevin__task_close, mcp__plugin_agent-kevin_kevin__task_create, mcp__plugin_agent-kevin_kevin__web_search, WebSearch, Skill(agent-kevin:attention), Skill(agent-kevin:goals), Skill(agent-kevin:roadmap), Skill(agent-kevin:self-review), AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -28,6 +28,16 @@ The briefing reads the post-sync state, so it's strictly better than running the
 Most maintenance ops have a natural order: compile feeds lint feeds the wiki state that briefings read. Running them piecemeal works but leaves you reconciling: did I compile before I lint? Did the dashboard update? `sync` runs the full chain and tells you the outcome — pass, partial, or fail — with the report paths anchored.
 
 ## Protocol
+
+### Before step 0: save the home as it stands
+
+Commit whatever the home already holds, before anything in this run writes to it:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/snapshot-brain.ts"
+```
+
+It runs step 12's committer under the same guards (a local-only brain on `main`, never a push, strays left out), as one commit: `Sync: save the home before the run`. Step 12's commits then hold only this run's changes, so the run reads as a clean diff, and the snapshot is the point to go back to if the run damages the brain. Read its JSON as step 12 describes, into the `💾 Brain` line. A skipped or blocked snapshot is a note on that line, never a stopped sync; step 12 hits the same guard, so say it once.
 
 ### 0. Refresh the code checkouts
 
@@ -259,7 +269,7 @@ Returns `{ path, bytes, tasks: { active, blocked, overdue, stale, closedRecent }
 
 ### 12. Commit the brain history
 
-Everything above has now written its outputs — compiled knowledge, lint fixes, task mutations, reports, the freshly rendered dashboards. Commit them, so the brain's git history records the run instead of waiting for the operator to remember (they never do):
+Everything above has now written its outputs — compiled knowledge, lint fixes, task mutations, reports, the freshly rendered dashboards. Commit them, so the brain's git history records the run instead of waiting for the operator to remember (they never do). The opening snapshot already holds what the home had before the run, so these commits are the run's own changes:
 
 ```bash
 bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/commit-brain.ts"
@@ -267,7 +277,7 @@ bun "${CLAUDE_PLUGIN_ROOT}/skills/sync/scripts/commit-brain.ts"
 
 The script is the guard, not the model: it commits **only** when the HOME repo is on `main`/`master` with **no remote configured** — a remoted brain is the operator's own push workflow, out of scope — and it never pushes or amends. Changes are grouped into ordered commits so history stays legible: `Sync: update knowledge` (the knowledge root + root identity files), `Sync: update projects`, `Sync: save reports`, `Sync: update state` (runtime dir, `.claude`, dashboards, plus any other tracked edit as catch-all). `.gitignore` still fences secrets. Untracked files outside those roots are never committed — they come back in `leftUncommitted` for the report; a stray scratch file shouldn't enter history silently. The guard matrix lives in `scripts/commit-brain.test.ts`.
 
-Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` statuses are one neutral clause, never dressed up as problems. `NOT_A_REPO` means history is off (or its folder is gone, which its `detail` says), and `SKIPPED_NO_SNAPSHOT` means its setup stopped before the first snapshot (sync never makes that one): either way one neutral clause pointing at `/agent-kevin:history`, which finishes it. `SKIPPED_LINK_MISSING` means a synced folder deleted the home's one-line `.git` link: one clause saying the next session start or `/agent-kevin:history` restores it. `SKIPPED_OTHER_HOME` means this folder's link points at another folder's history (a copied home): surface its `detail` and never commit around it. `COMMIT_BLOCKED` means git couldn't write the repo — surface its `detail`, which carries the likely fix (history kept outside the folder needs its grants, which the history skill records); don't hand-run git to force the commit through. The closing interview's own task mutations (step 13) land in the next sync's commit — that's fine.
+Read the JSON into the `💾 Brain` output line. `CLEAN` and the `SKIPPED_*` statuses are one neutral clause, never dressed up as problems. `NOT_A_REPO` means history is off (or its folder is gone, which its `detail` says), and `SKIPPED_NO_SNAPSHOT` means its setup stopped before the first snapshot (sync never makes that one): either way one neutral clause pointing at `/agent-kevin:history`, which finishes it. `SKIPPED_LINK_MISSING` means a synced folder deleted the home's one-line `.git` link: one clause saying the next session start or `/agent-kevin:history` restores it. `SKIPPED_OTHER_HOME` means this folder's link points at another folder's history (a copied home): surface its `detail` and never commit around it. `COMMIT_BLOCKED` means git couldn't write the repo — surface its `detail`, which carries the likely fix (history kept outside the folder needs its grants, which the history skill records); don't hand-run git to force the commit through. The closing interview's own task mutations (step 13) land in the next sync's opening snapshot — that's fine.
 
 ### 13. Closing interview — what's next (only when something's actionable)
 
@@ -340,7 +350,7 @@ One block, tight. Skip empty sections — don't pad.
 
 📊 Dashboard — <HOME>/dashboard.html refreshed
 
-💾 Brain — <N commits (knowledge, projects, reports, state) | clean | skipped (<reason>) | blocked (<detail>)>
+💾 Brain — before the run: <1 commit (<n> files) | clean> · after: <N commits (knowledge, projects, reports, state) | clean> | skipped (<reason>) | blocked (<detail>)
   - left uncommitted: <paths — only when the script reports any>
 
 📅 Cadence (only when something is due — omit entirely when the cadence check returns [])
@@ -380,7 +390,7 @@ The output block is the last *text* of the run. The step-13 interview, when it f
 - **Don't open new tasks from this skill.** Surface "needs attention" items in the summary; let the user choose what to file.
 - **One pass only.** If a step fails 3 times, surface the error and stop. Don't loop indefinitely.
 - **Step 0 is fast-forward only.** Never rebase, reset, force, stash, commit, or check out a different branch to make a pull succeed. A diverged, dirty, or worktree-held branch gets reported, not resolved — that's the operator's call. If a future edit to this step needs `checkout` or `stash` to work, the edit is wrong.
-- **Step 12 commits only a local-only brain, via the script.** On main with no remote, plain forward-only commits, never a push. Skipped/blocked/leftover outcomes are reported, not worked around — no hand-run `git add`/`commit` to force what the script declined.
+- **The opening snapshot and step 12 commit only a local-only brain, via the scripts.** On main with no remote, plain forward-only commits, never a push. Skipped/blocked/leftover outcomes are reported, not worked around — no hand-run `git add`/`commit` to force what the script declined.
 
 ## Anti-patterns
 

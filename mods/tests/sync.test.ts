@@ -188,7 +188,7 @@ describe('sync band', () => {
       const text = await bandText($, surface);
       expect(text).toContain('⟳ sync · running · 2m05s');
       expect(text).toContain('●─◉─○');
-      expect(text).toContain('compile 2/12');
+      expect(text).toContain('compile 3/13');
       expect(text).toContain('sessions 1/3');
       expect(text).toContain('feedback 0/1');
       expect(text).not.toContain('inbox');
@@ -218,7 +218,7 @@ describe('sync band', () => {
       await $.turn.complete({ answer: '', durationMs: 60_000, isAborted: false, turnId: 't1', reason: 'answer' });
       const text = await bandText($, surface);
       expect(text).toContain('✓ sync · done · 1m00s');
-      expect(text).toContain('●─●─●─●─●─●─●─●─●─●─●─●');
+      expect(text).toContain('●─●─●─●─●─●─●─●─●─●─●─●─●');
       expect(text).toContain('stale 7/12');
       expect(text).toContain('overdue 0/7 +2');
     });
