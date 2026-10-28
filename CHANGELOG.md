@@ -43,6 +43,24 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.9] - 2026-10-28
+
+### Added
+- **GitHub sweep: everything on GitHub waiting on you, with a reply drafted for each.** "github sweep" in the engineer skill runs the new `github_sweep` tool, which decides what is owed from GitHub's own fields: unresolved threads where someone else spoke last, comments after your last word, mentions, review requests, re-reviews a push made due, your own PENDING reviews, and PRs that conflict with main. Read-only drafters write a code-checked reply per owed comment, and one page folds everything by issue with a Copy box and a Handled tick per item. Nothing is posted. The GitHub pack grants the tool.
+- **Briefings close with ranked first moves.** The morning and evening briefs end with three to five ranked actions across tasks, sessions waiting on a decision (from checkpoint all), PRs and replies owed, and goals, instead of one first-move line. Unset goals rank fourth instead of always leading.
+
+### Changed
+- **Sync runs the session radar before the briefing**, so the brief's first moves see this run's waiting sessions. A standalone brief reads the newest radar report, skipping one more than a day old.
+- **Writing Style: "tldr" and "tl;dr" also restart step by step**, beside "I didn't read that" and "too long".
+
+### Fixed
+- **The GitHub pack's setup counts its tools right.** Step 1 said fifteen grants while listing sixteen; with `github_sweep` it now says seventeen, and the pack's intro says eighteen tools.
+
+### Upgrade
+- `settings: optional` — only in a home with the GitHub pack (`permissions.allow` already carries the `github_*` grants): add `mcp__plugin_agent-kevin_kevin__github_sweep` beside them. Homes without the pack get nothing.
+- `template/SOUL.md: optional` — the "I didn't read that" line also names "tldr" and "tl;dr".
+- `template/IDENTITY.md: optional` — the Operational Pattern "Briefings" line ends on "tomorrow's first moves" (plural).
+
 ## [0.8.8] - 2026-10-28
 
 ### Added
