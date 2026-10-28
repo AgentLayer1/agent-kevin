@@ -3,8 +3,8 @@
  *
  * Line one: model with its effort level, folder (a `file://` link), git branch. Line two: a context bar with the
  * percentage, session cost with the hourly rate, elapsed time, and the Pro/Max rate-limit
- * windows when the host reports them. Pure: the payload is Claude Code's status-line JSON
- * and the branch is looked up by the caller.
+ * windows with the time until each resets, when the host reports them. Pure given `now`: the
+ * payload is Claude Code's status-line JSON and the branch is looked up by the caller.
  *
  * Ported from the bash status line in trailofbits/claude-code-config
  * (https://github.com/trailofbits/claude-code-config), credit to Trail of Bits.
@@ -27,7 +27,13 @@ export interface StatusLinePayload {
       cache_read_input_tokens?: number;
     } | null;
   };
-  rate_limits?: { five_hour?: { used_percentage?: number }; seven_day?: { used_percentage?: number } };
+  rate_limits?: { five_hour?: RateLimitWindow; seven_day?: RateLimitWindow };
+}
+
+interface RateLimitWindow {
+  used_percentage?: number;
+  /** Unix epoch seconds. */
+  resets_at?: number;
 }
 
 export type Theme = 'dark' | 'light';
@@ -39,6 +45,8 @@ export interface StatusLineOptions {
   emoji?: string;
   /** The terminal's appearance; dark when unknown. */
   theme?: Theme;
+  /** Epoch milliseconds the reset countdowns count from. */
+  now?: number;
 }
 
 const ESC = '\x1b[';
@@ -91,6 +99,15 @@ export const formatDuration = (durationMs: number): string => {
   return `${seconds}s`;
 };
 
+/** Time left until a rate-limit window resets: minutes under an hour, then the nearest hour, then the nearest day. */
+export const formatCountdown = (remainingMs: number): string => {
+  if (remainingMs < 3_600_000) {
+    return `${Math.max(0, Math.floor(remainingMs / 60_000))}m`;
+  }
+  const hours = Math.round(remainingMs / 3_600_000);
+  return hours < 24 ? `${hours}h` : `${Math.round(remainingMs / 86_400_000)}d`;
+};
+
 const percentOrNull = (value: number | null | undefined): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : null;
 
@@ -118,8 +135,6 @@ export const renderStatusLine = (payload: StatusLinePayload, options: StatusLine
   const cost = Math.floor((payload.cost?.total_cost_usd ?? 0) * 100) / 100;
   const durationMs = payload.cost?.total_duration_ms ?? 0;
   const context = contextPercent(payload.context_window);
-  const fiveHour = percentOrNull(payload.rate_limits?.five_hour?.used_percentage);
-  const sevenDay = percentOrNull(payload.rate_limits?.seven_day?.used_percentage);
   const palette = PALETTES[options.theme ?? 'dark'];
 
   const effort = payload.effort?.level ? ` ${paint(DIM, payload.effort.level)}` : '';
@@ -132,10 +147,18 @@ export const renderStatusLine = (payload: StatusLinePayload, options: StatusLine
 
   const usage = context === null ? [] : [`${contextBar(context)} ${paint(palette.text, `${context}%`)}`];
   const hourly = durationMs > 0 ? ` ${paint(DIM, `($${((cost / (durationMs / 1000)) * 3600).toFixed(2)}/hr)`)}` : '';
-  const limits = [
-    ...(fiveHour === null ? [] : [paint(usageColor(fiveHour), `5h ${fiveHour}%`)]),
-    ...(sevenDay === null ? [] : [paint(usageColor(sevenDay), `7d ${sevenDay}%`)])
-  ];
+  const now = options.now ?? Date.now();
+  const limit = (label: string, window: RateLimitWindow | undefined): string[] => {
+    const used = percentOrNull(window?.used_percentage);
+    if (used === null) {
+      return [];
+    }
+    const resetsAt = window?.resets_at;
+    const text =
+      typeof resetsAt === 'number' ? `${used}% ↻ ${formatCountdown(resetsAt * 1000 - now)}` : `${label} ${used}%`;
+    return [paint(usageColor(used), text)];
+  };
+  const limits = [...limit('5h', payload.rate_limits?.five_hour), ...limit('7d', payload.rate_limits?.seven_day)];
   const second = [
     ...usage,
     `${paint(YELLOW, `$${cost.toFixed(2)}`)}${hourly}`,

@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { contextBar, formatDuration, renderStatusLine, shortModelName, type StatusLinePayload } from './render';
+import {
+  contextBar,
+  formatCountdown,
+  formatDuration,
+  renderStatusLine,
+  shortModelName,
+  type StatusLinePayload
+} from './render';
 
 const plain = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, '');
 const payload: StatusLinePayload = {
@@ -69,6 +76,23 @@ describe('renderStatusLine', () => {
     ).toEndWith('│ ⏳ 7d 5%');
   });
 
+  test('a window with a reset time shows the countdown to it in place of the window label', () => {
+    const now = Date.UTC(2026, 0, 1);
+    const inSeconds = (ms: number): number => (now + ms) / 1000;
+    const second = renderStatusLine(
+      {
+        ...payload,
+        rate_limits: {
+          five_hour: { used_percentage: 16, resets_at: inSeconds((2 * 60 + 13) * 60_000) },
+          seven_day: { used_percentage: 56, resets_at: inSeconds((3 * 24 + 4) * 3_600_000) }
+        }
+      },
+      { now }
+    ).split('\n')[2];
+    expect(plain(second)).toEndWith('│ ⏳ 16% ↻ 2h · 56% ↻ 3d');
+    expect(second).toContain('\x1b[33m56% ↻ 3d');
+  });
+
   test('dark is the default palette; light swaps white and the bright hues for ones a light background shows', () => {
     const dark = renderStatusLine(payload, { branch: 'main' });
     expect(renderStatusLine(payload, { branch: 'main', theme: 'dark' })).toBe(dark);
@@ -99,6 +123,21 @@ describe('contextBar', () => {
 
   test('shows one cell for any usage too small to fill a whole cell', () => {
     expect(plain(contextBar(11, 8))).toBe(`█${'⣿'.repeat(7)}`);
+  });
+});
+
+describe('formatCountdown', () => {
+  test('minutes under an hour, then the nearest hour, then the nearest day; a passed reset reads 0m', () => {
+    expect(formatCountdown((6 * 24 + 23) * 3_600_000)).toBe('7d');
+    expect(formatCountdown((3 * 24 + 11) * 3_600_000)).toBe('3d');
+    expect(formatCountdown((3 * 24 + 13) * 3_600_000)).toBe('4d');
+    expect(formatCountdown(23 * 3_600_000 + 40 * 60_000)).toBe('1d');
+    expect(formatCountdown(23 * 3_600_000 + 20 * 60_000)).toBe('23h');
+    expect(formatCountdown(4 * 3_600_000 + 29 * 60_000)).toBe('4h');
+    expect(formatCountdown(4 * 3_600_000 + 31 * 60_000)).toBe('5h');
+    expect(formatCountdown(3_600_000)).toBe('1h');
+    expect(formatCountdown(59 * 60_000 + 59_000)).toBe('59m');
+    expect(formatCountdown(-5_000)).toBe('0m');
   });
 });
 
