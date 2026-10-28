@@ -17,7 +17,7 @@ import { discoverProjects, scanAllTasks, scanArchivedTasks } from '@/tasks/scan'
 import { existsSync, readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { boldField, collectGoals } from './collect';
+import { boldField, collectGoals, operatorGithubLogin } from './collect';
 import {
   AttentionSnapshotSchema,
   type AttentionGroup,
@@ -316,7 +316,7 @@ export const collectAttentionView = (project = ''): AttentionView => {
     roadmaps: roadmapSources(project),
     pins: project ? projectPinLinks(project) : [],
     snapshot: readAttentionQueue(project),
-    self: selfNames(operator, boldField(FILES.USER, 'GitHub login')),
+    self: selfNames(operator, operatorGithubLogin()),
     operator,
     today: todayDate(),
     generatedAt: nowTime(),

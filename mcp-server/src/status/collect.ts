@@ -1175,6 +1175,12 @@ export const boldField = (file: string, label: string): string => {
   }
 };
 
+/**
+ * The operator's GitHub login from USER.md: the field's first word, so a note after it is ignored.
+ */
+export const operatorGithubLogin = (): string =>
+  boldField(FILES.USER, 'GitHub login').replace(/[`*@]/g, '').split(/\s+/)[0] ?? '';
+
 /** First markdown image path in a file, kept only if it exists under HOME. */
 const firstImage = (file: string): string => {
   try {

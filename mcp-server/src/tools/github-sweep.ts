@@ -4,11 +4,10 @@
  * requests they haven't answered, re-reviews a push has made due, and their own reviews left PENDING.
  * Read-only; the engineer skill's github-sweep playbook drafts the replies and renders the page.
  */
-import { FILES } from '@/config';
 import { daysAgoDate } from '@/shared/date';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { untrusted } from '@/shared/untrusted';
-import { boldField } from '@/status/collect';
+import { operatorGithubLogin } from '@/status/collect';
 import { z } from 'zod';
 import { repoField, resolveRepo, runGh } from './github';
 
@@ -427,7 +426,7 @@ export const sinceOf = (given: string | undefined): string | null => {
 };
 
 const operatorLogin = (given: string | undefined): string => {
-  const raw = (given ?? boldField(FILES.USER, 'GitHub login')).replace(/[`@]/g, '').trim();
+  const raw = (given ?? operatorGithubLogin()).replace(/[`@]/g, '').trim();
   if (!raw) {
     throw new Error('No GitHub login: pass `login`, or add `**GitHub login:** <login>` to USER.md.');
   }
