@@ -29,6 +29,7 @@ export const TOOL_MODULES = [
   'reports',
   'seed',
   'serpapi',
+  'slack',
   'status',
   'tasks',
   'upgrade',

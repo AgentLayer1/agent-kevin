@@ -26,7 +26,7 @@
  * ALLOWED_ROOTS — a hostile manifest cannot touch settings, secrets, or
  * anything else in the home.
  */
-import { FOLDERS, MCP_PREFIX, PLUGIN_NAME } from '@/config';
+import { AGENT_SLUG, FOLDERS, MCP_PREFIX, PLUGIN_NAME } from '@/config';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -151,6 +151,7 @@ export const validateSeedPath = (path: string): string | null => {
 export const CREDENTIAL_KEY_RE = /(_TOKEN|_KEY|_SECRET|_PASSWORD|_CREDENTIALS?)($|_)/;
 
 const mcp = (names: string[]): string[] => names.map((name) => `${MCP_PREFIX}${name}`);
+const skill = (name: string): string => `Skill(${PLUGIN_NAME}:${name})`;
 
 /**
  * Grant classification for `seed_scan` — mirrors what `/init` pre-grants and
@@ -283,15 +284,39 @@ export const PACKS: Record<string, PackDef> = {
     grants: mcp(['appstore_reviews']),
     secretKeys: [],
     settingsEnv: []
+  },
+  slack: {
+    grants: [
+      ...mcp([
+        'slack_whoami',
+        'slack_channels',
+        'slack_history',
+        'slack_batch_history',
+        'slack_thread',
+        'slack_search',
+        'slack_waiting'
+      ]),
+      `Bash(${AGENT_SLUG} slack *)`,
+      'WebFetch(domain:slack.com)',
+      skill('slack')
+    ],
+    // Auth is a per-operator OAuth ceremony (`kevin slack auth`), not a plantable key.
+    secretKeys: [],
+    settingsEnv: ['AGENT_SLACK_CLIENT_ID']
   }
 };
 
 export type GrantClass = 'core' | 'skill' | 'custom' | { pack: string };
 
-/** Classify one permissions entry for the export interview. */
+/**
+ * Classify one permissions entry for the export interview. Pack membership is
+ * checked before the skill prefix because a pack can carry its own `Skill(...)`
+ * grant (slack) — that should label as the pack.
+ */
 export const classifyGrant = (entry: string): GrantClass => {
   if (CORE_GRANTS.has(entry)) return 'core';
-  if (entry.startsWith(`Skill(${PLUGIN_NAME}:`)) return 'skill';
   const pack = Object.entries(PACKS).find(([, def]) => def.grants.includes(entry));
-  return pack ? { pack: pack[0] } : 'custom';
+  if (pack) return { pack: pack[0] };
+  if (entry.startsWith(`Skill(${PLUGIN_NAME}:`)) return 'skill';
+  return 'custom';
 };

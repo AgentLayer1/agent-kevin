@@ -36,9 +36,9 @@ export interface SecretEntry {
 /**
  * Presence-only inventory of the secret store, for the dashboard. Env keys come
  * from what was loaded at boot (names only — values never leave config); the
- * Google OAuth files are checked on disk so a mid-session auth shows up without
- * a restart. Google rows appear only once the auth flow has created the dir, so
- * homes that never connect Google aren't shown empty rows.
+ * Google/Slack OAuth files are checked on disk so a mid-session auth shows up
+ * without a restart. Rows appear only once each auth flow has created its dir,
+ * so homes that never connect Google/Slack aren't shown empty rows.
  */
 export function listSecretEntries(): SecretEntry[] {
   const googleDir = resolve(secretsRoot(), 'google');
@@ -48,7 +48,11 @@ export function listSecretEntries(): SecretEntry[] {
         { name: 'google/tokens', present: existsSync(resolve(googleDir, 'google-tokens.json')) }
       ]
     : [];
-  return [...loadedSecretKeyNames().map((name) => ({ name, present: true })), ...google];
+  const slackDir = resolve(secretsRoot(), 'slack');
+  const slack = existsSync(slackDir)
+    ? [{ name: 'slack/tokens', present: existsSync(resolve(slackDir, 'slack-tokens.json')) }]
+    : [];
+  return [...loadedSecretKeyNames().map((name) => ({ name, present: true })), ...google, ...slack];
 }
 
 export const TIMEZONE = env('AGENT_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

@@ -1,6 +1,6 @@
 ---
 name: wordpress-rest
-description: Query WordPress content via the public WP REST API — posts, pages, custom post types, categories, tags, media, and modified dates. Use this when auditing a WordPress site's content, cross-referencing with Search Console data, or listing products/brands from Toolset custom post types. Targets whatever site is configured via `GSC_SITE_URL` (the same site the seo skill uses). No authentication required for published content. For SEO title/meta (The SEO Framework, Yoast, RankMath, AIOSEO), fall back to Playwright — those fields are injected at render time and not in the REST response.
+description: Query WordPress content via the public WP REST API — posts, pages, custom post types, categories, tags, media, and modified dates. Use this when auditing a WordPress site's content, cross-referencing with Search Console data, or listing products/brands from Toolset custom post types. Targets whatever site is configured via `GSC_SITE_URL` (the same site the seo skill uses).
 ---
 
 # WordPress REST API

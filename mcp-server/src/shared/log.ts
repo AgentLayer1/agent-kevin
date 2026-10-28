@@ -30,7 +30,7 @@
  *
  * Secrets are scrubbed two ways before serialisation:
  *   - any env value listed in SENSITIVE_KEYS is replaced with [REDACTED]
- *   - any literal Bearer token / JWT pattern is masked
+ *   - any literal Slack token pattern (xox[a-z]-…), Bearer token / JWT pattern is masked
  */
 import { ownDataDir, resolveEnv } from '@/shared/naming';
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
@@ -126,6 +126,7 @@ function rotateIfNeeded(logFile: string): void {
 // ── Scrubber ──────────────────────────────────────────────────────────
 
 const TOKEN_PATTERNS: RegExp[] = [
+  /xox[abeprs]-[A-Za-z0-9-]+/g, // Slack tokens (xoxp, xoxb, xoxe-…)
   /\bBearer\s+[A-Za-z0-9._-]+/gi, // Authorization: Bearer <token>
   /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, // JWTs
   /\b[a-z][a-z0-9+.-]*:\/\/[^\s/@]+:[^\s/@]+@\S+/gi // connection strings: scheme://user:pass@host
@@ -240,5 +241,6 @@ export const log = {
   tasks: createLogger('📋 tasks'),
   session: createLogger('🪝 session'),
   tools: createLogger('🔧 tools'),
-  pylon: createLogger('🎫 pylon')
+  pylon: createLogger('🎫 pylon'),
+  slack: createLogger('💬 slack')
 };

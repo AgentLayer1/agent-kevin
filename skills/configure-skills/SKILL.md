@@ -1,6 +1,6 @@
 ---
 name: configure-skills
-description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode, Helpdesk) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after. Triggers on "set up the SEO pack", "add my SerpAPI key", "configure a pack", "turn off the database pack", or /configure-skills.
+description: Configure Kevin's optional skill packs (SEO, Browser, Database, GitHub, API, Xcode, Helpdesk, Slack) or author a brand-new custom skill. The pack skills ship with the plugin and auto-load — this skill just wires up API keys, MCP server registrations, database connections, coding rules, and tool permissions. Custom-authored skills land in `<HOME>/.claude/skills/<name>/`. Invoked at the end of /agent-kevin:init or any time after. Triggers on "set up the SEO pack", "add my SerpAPI key", "configure a pack", "turn off the database pack", or /configure-skills.
 allowed-tools: Read, Write, Edit, AskUserQuestion, Bash(mkdir *), Bash(cat *), Bash(cp *), Bash(ls *), Bash(rm *), Bash(rmdir *), Bash(bunx skills *), Bash(test *), Bash(head *), Bash(command -v *), Bash(bun -e *), Bash(sw_vers *), Bash(xcode-select -p), Bash(xcodebuild -version), Bash(xcrun -f *), Bash(xcrun mcp-server status)
 ---
 
@@ -80,11 +80,12 @@ Branch into the matching section below. For authoring brand-new custom skills (n
 > - ☐ Xcode — build, test, run and debug Apple apps and Swift packages through Apple's Xcode MCP server, plus the sandbox and permission posture that makes the toolchain reachable. **macOS with Xcode 27 or later** (the headless server ships there). No API key.
 > - ☐ Helpdesk — read support tickets and leave private draft notes in SupportCandy or Pylon (`helpdesk_*`); a person sends every reply
 > - ☐ App Store — read any app's App Store reviews (`appstore_reviews`); no key, read-only, never replies
+> - ☐ Slack — read-only Slack through your own account (`slack_*`): pulses, the replies you owe and the external threads waiting; never posts or reads DMs. Needs a Slack app in your workspace (the walk creates one if there isn't)
 > - ☐ Third-party libraries — clone separately-authored skill libraries (e.g. SEO/GEO from `aaron-he-zhu`, marketing playbooks from `coreyhaines31`) into `<HOME>/.claude/skills/`. Apache-2.0 licensed.
 
 **Never offer the Xcode tick on Windows, WSL2 or Linux.** Render it only when `$AGENT_PLATFORM` = `macos` (or `[ "$(uname -s)" = "Darwin" ]`); on every other host drop the row entirely rather than showing a pack that can only fail. The A.2f preflight is a second wall, but a Windows operator should never see the option in the first place.
 
-If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Helpdesk (A.2g) → App Store (A.2h) → Third-party (Section F).
+If nothing is ticked, cancel and return to Step 1. Otherwise run the matching sub-section(s) below in order: SEO (A.2a) → Browser (A.2b) → Database (A.2c) → GitHub (A.2d) → API (A.2e) → Xcode (A.2f) → Helpdesk (A.2g) → App Store (A.2h) → Slack (A.2i) → Third-party (Section F).
 
 ### A.2a — SEO pack walk
 
@@ -676,6 +677,62 @@ Check with: "show the latest App Store reviews for <app link>".
 To watch an app's reviews in a helpdesk pulse, add `appstore: <id>` to its queue profile (/agent-kevin:helpdesk setup <slug>).
 ```
 
+### A.2i — Slack pack walk
+
+Gives Kevin read-only Slack through the `slack_*` MCP tools: the `slack` skill's pulses, the attention queue's `Replies I owe` and `External threads waiting`, and sync's `🔔 Slack` block. Each operator authorizes their own Slack account with a **user token via PKCE OAuth**: Kevin sees only the channels that account can see. No bot, no DM scope, no write scope. Reads run in the unsandboxed MCP server, which can read the deny-gated token file; only the one-time `auth` runs in a terminal.
+
+**(0) Find the Slack app's Client ID.** Read `AGENT_SLACK_CLIENT_ID` from `$SETTINGS_FILE` `env` (only that key). If it's set and not empty, a teammate or an earlier run already created the app: skip to (1). Otherwise ask with `AskUserQuestion`: **"Does your Slack workspace already have an app for Kevin?"**, with the options *Yes, I have its Client ID* / *No, walk me through creating one* / *Skip Slack for now*.
+
+For *No*, hand over these steps verbatim. They're done once per workspace, by anyone allowed to create apps there:
+
+> 1. Open <https://api.slack.com/apps> → **Create New App** → **From scratch**. Name it after your agent and pick your workspace.
+> 2. **OAuth & Permissions** → **User Token Scopes** (not Bot Token Scopes): add `channels:history`, `channels:read`, `groups:history`, `groups:read`, `users:read` and `search:read`. Nothing else: Kevin refuses a token with any write or DM scope.
+> 3. **OAuth & Permissions** → **Redirect URLs**: add `http://localhost`.
+> 4. **OAuth & Permissions** → **Advanced token security via PKCE**: turn it **on**. Slack says this can't be undone, and it's what lets Kevin sign in without a client secret.
+> 5. **Basic Information** → copy the **Client ID** (it's public, not a secret) and paste it here.
+> 6. If your workspace requires admin approval, **Install to Workspace** and have an admin approve it once. Teammates don't need to repeat any of this.
+
+With a Client ID in hand (pasted, or from *Yes*), plant it in `$SETTINGS_FILE` `env` as `AGENT_SLACK_CLIENT_ID` with §D.2 **Set value**. *Skip* ends the walk with nothing granted.
+
+**(1) Grant** via §E: the seven read tools `mcp__plugin_agent-kevin_kevin__slack_whoami`, `..._slack_channels`, `..._slack_history`, `..._slack_batch_history`, `..._slack_thread`, `..._slack_search` and `..._slack_waiting`; `Bash(kevin slack *)` (for `auth`); `WebFetch(domain:slack.com)` (follows a pasted permalink, which without Slack cookies only ever reaches public pages); and `Skill(agent-kevin:slack)`, so the skill runs on "slack pulse" without a confirm prompt.
+
+**(2) Auth, from a terminal outside the agent.** The OAuth callback binds a localhost port, which the sandbox blocks, so the operator runs it. Resolve the CLI path first (under Codex, `CLAUDE_PLUGIN_ROOT` is this skill's base directory two levels up):
+
+```bash
+AGENT_BIN="${CLAUDE_PLUGIN_ROOT}/bin/kevin"
+test -x "$AGENT_BIN" || echo "AGENT_BIN_MISSING: $AGENT_BIN"
+```
+
+Then hand over, with both paths filled in:
+
+> **One-time Slack sign-in, in your own terminal (about 30 seconds)**
+>
+> 1. Open a new terminal window, not this session.
+> 2. Paste: `cd <HOME_DIR> && <AGENT_BIN> slack auth`
+> 3. Your browser opens Slack's authorize page. Click **Allow**, then close the tab once it says you're signed in.
+> 4. The terminal prints `{"ok": true, ...}`. Come back and say **done** (or paste the error).
+
+Wait for the answer. On an error, explain it (common: `AGENT_SLACK_CLIENT_ID` not loaded yet, which a relaunch fixes; PKCE left off; the app awaiting admin approval) and stop the walk. Tokens land in `<HOME>/.state/secrets/slack/slack-tokens.json` (mode `0600`).
+
+**(3) Verify** with `slack_whoami` (a relaunch may be needed first for the new grants and env key to load). It returns the Slack identity and the granted scopes.
+
+**(4) Bootstrap the channel map** `<HOME>/knowledge/concepts/slack-channels.md`, only if it doesn't exist: run the `slack` skill's first-run bootstrap (`slack_channels`, the three-tier classification, sections `Team`, `External`, `Reference (opt-in)`, `Uncategorized`). An existing file is the operator's: leave it and say so. Sections that come out empty stay in the file.
+
+**(5) Summary:**
+
+```
+✅ Slack pack activated.
+
+Client ID:          AGENT_SLACK_CLIENT_ID in settings.local.json (public, not a secret)
+Tool permissions:   slack_whoami, slack_channels, slack_history, slack_batch_history, slack_thread, slack_search, slack_waiting · Bash(kevin slack *) · WebFetch(domain:slack.com) · Skill(agent-kevin:slack)
+Signed in:          <@user in workspace | deferred | failed: <error>>
+Tokens:             <HOME>/.state/secrets/slack/slack-tokens.json (0600)
+Channel map:        <HOME>/knowledge/concepts/slack-channels.md (<bootstrapped, N channels | already there, left alone>)
+
+Try: "slack pulse". The attention queue and sync now show the replies you owe, external threads waiting an hour or more, and channels you join that the map doesn't list yet.
+Refresh tokens expire after 30 days unused; re-run `kevin slack auth` then.
+```
+
 ---
 
 ## Section B — Register an external remote MCP server
@@ -818,6 +875,7 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 > - GitHub (revokes the `github_*` tool permissions; optionally removes the `GITHUB_TOKEN*` lines)
 > - Helpdesk (revokes the `helpdesk_*` tool permissions; optionally removes the helpdesk keys)
 > - App Store (revokes `appstore_reviews`; the learned storefront files in `.state/appstore/` can stay)
+> - Slack (revokes the `slack_*` tools and the slack skill grant; optionally deletes your local Slack token)
 > - Xcode (unregisters the `xcode` MCP server, revokes its tool + Bash permissions; optionally removes the seeded rules)
 
 ### C.2 Deconfigure actions
@@ -853,6 +911,11 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 **App Store deconfigure:**
 - Revoke `appstore_reviews` from `permissions.allow` (§E remove helper). There are no keys. `.state/appstore/` holds only what the tool learned about storefronts; leave it unless the operator asks.
+
+**Slack deconfigure:**
+- Revoke the seven `slack_*` tool grants (`slack_whoami`, `slack_channels`, `slack_history`, `slack_batch_history`, `slack_thread`, `slack_search`, `slack_waiting`), `Bash(kevin slack *)`, `WebFetch(domain:slack.com)` and `Skill(agent-kevin:slack)` from `permissions.allow` (§E remove helper).
+- `AskUserQuestion`: "Delete your local Slack token at `<HOME>/.state/secrets/slack/slack-tokens.json`?" (Yes/No). The file is deny-gated, so on yes hand the operator `rm -f <HOME_DIR>/.state/secrets/slack/slack-tokens.json` to run themselves. Tokens are per account, so teammates are unaffected. To revoke on Slack's side too: the workspace's **Authorized apps** settings → the app → **Revoke**.
+- `AGENT_SLACK_CLIENT_ID` and `knowledge/concepts/slack-channels.md` stay: the first is public and shared by the workspace, the second is the operator's.
 
 **Xcode deconfigure:**
 - Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.
@@ -904,7 +967,7 @@ into `process.env`; ad-hoc Bash that Claude spawns never loads it — that's the
 **Deactivation** — tell the user to delete the matching `KEY=` line(s) from `.state/secrets/.env`
 in their editor. Claude can't edit (or even read) the gated file, so this is always a user step.
 
-### D.2 — Private config → `$SETTINGS_FILE` `env` (JSON) — `GSC_SITE_URL` + tunables only
+### D.2 — Private config → `$SETTINGS_FILE` `env` (JSON) — `GSC_SITE_URL`, `AGENT_SLACK_CLIENT_ID` + tunables only
 
 **Ensure placeholder**: read `$SETTINGS_FILE` (start `{}` if absent); ensure `env` is an object; if `env[KEY]` is undefined set `env[KEY] = ""`; write back 2-space indent. **Set value**: set `env[KEY] = value`. **Remove**: `delete env[KEY]`.
 

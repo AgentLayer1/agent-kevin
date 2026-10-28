@@ -3,7 +3,15 @@ import { defineTool, type ToolDef } from '@/shared/types';
 import { writeDashboardSafe } from '@/tasks/dashboard';
 import { z } from 'zod';
 
-const CATEGORIES: [ReportCategory, ...ReportCategory[]] = ['briefings', 'plans', 'radar', 'api', 'reviews', 'helpdesk'];
+const CATEGORIES: [ReportCategory, ...ReportCategory[]] = [
+  'briefings',
+  'plans',
+  'radar',
+  'api',
+  'reviews',
+  'helpdesk',
+  'slack'
+];
 
 const STATUSES: [ReportStatus, ...ReportStatus[]] = ['clean', 'findings', 'critical', 'draft'];
 
@@ -13,7 +21,7 @@ export const tools: ToolDef[] = [
   defineTool({
     name: 'report_write',
     description:
-      "Write a report file to reports/<category>/ AND insert a one-line entry into reports/index.md under today's date heading. Atomic — file and index are updated in the same call. Use this from every reporting skill (briefings, goals, plan-spec, self-review, flywheel, engineer's PR playbooks, adversarial-review, helpdesk pulses) so today's outputs surface in SessionStart context for the next session.",
+      "Write a report file to reports/<category>/ AND insert a one-line entry into reports/index.md under today's date heading. Atomic — file and index are updated in the same call. Use this from every reporting skill (briefings, goals, plan-spec, self-review, flywheel, engineer's PR playbooks, adversarial-review, helpdesk pulses, slack pulses) so today's outputs surface in SessionStart context for the next session.",
     inputSchema: {
       category: z.enum(CATEGORIES).describe('Report category — maps to reports/<category>/ subdirectory.'),
       slug: z

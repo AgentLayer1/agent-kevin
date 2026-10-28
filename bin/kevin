@@ -40,6 +40,14 @@
  *   kevin database schema --connection=NAME [--table=T] [--schema=S] [--database=DB]
  *   kevin database query --connection=NAME --sql="SELECT ..." [--database=DB] [--timeout=MS]
  *   kevin database fork [--connection=NAME] [--source=DB] [--fork=NAME] [--cwd=PATH] [--repoint-env] [--env-var=DATABASE_URL] [--force] [--terminate-source] [--drop]
+ *
+ *   kevin slack auth
+ *   kevin slack whoami
+ *   kevin slack list-channels
+ *   kevin slack history <channel> [--since=24h] [--limit=100]
+ *   kevin slack batch-history <ch1,ch2,...> [--since=24h] [--limit=100]
+ *   kevin slack thread <channel> <thread_ts>
+ *   kevin slack search <query> [--in=<channel>] [--since=7d]
  */
 import { resolve } from 'node:path';
 
@@ -203,6 +211,18 @@ Seed commands (prefer the /${PLUGIN}:seed export skill inside Claude Code — it
                                     Build a seed bundle zip from home-relative paths (no review gate here — you are the gate)
   seed import <bundlePath> [--overwrite] [--dry-run]
                                     Overlay a bundle onto THIS home; --dry-run prints the plan + conflicts first
+
+Slack commands (read-only; per-operator OAuth):
+  slack auth                        One-time OAuth (PKCE) — opens browser, mints + persists user token
+  slack whoami                      Show authenticated Slack identity
+  slack list-channels               List channels you're a member of (name, id, topic)
+  slack history <channel> [--since=24h] [--limit=100]
+  slack batch-history <ch1,ch2,...> [--since=24h] [--limit=100]    Multi-channel history in one process
+  slack thread <channel> <thread_ts>
+  slack search <query> [--in=<channel>] [--since=7d]
+
+  Categorisation lives in <HOME>/knowledge/concepts/slack-channels.md — read by the
+  /${PLUGIN}:slack skill for multi-channel composition.
 
 Compile commands:
   compile status                    Show queue (pending sessions, feedback, inbox)
@@ -773,6 +793,12 @@ async function run(): Promise<void> {
     const { rewriteAllWikilinks } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/knowledge/links'));
     const modified = await rewriteAllWikilinks();
     console.log(JSON.stringify({ modified, count: modified.length }, null, 2));
+    return;
+  }
+
+  if (group === 'slack') {
+    const { runSlackCommand } = await import(resolve(PLUGIN_ROOT, 'mcp-server/src/slack/cli'));
+    await runSlackCommand(command, args);
     return;
   }
 

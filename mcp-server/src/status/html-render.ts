@@ -361,7 +361,7 @@ const reportChips = (reports: ReportRef[], pinned: number): string => {
     .join('')}</div>`;
 };
 
-const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews', 'helpdesk'] as const;
+const REPORT_CATEGORY_ORDER = ['briefings', 'plans', 'radar', 'api', 'reviews', 'helpdesk', 'slack'] as const;
 
 /** Dot hue per category — keyed to a representative row chip so the filter and
  *  the list share colors. Briefings uses the briefing skill's hue. */
@@ -371,7 +371,8 @@ const CATEGORY_DOT: Record<string, string> = {
   radar: 'attention',
   api: 'api-collections',
   reviews: 'engineer',
-  helpdesk: 'helpdesk'
+  helpdesk: 'helpdesk',
+  slack: 'slack'
 };
 
 // ── attention (Today) ─────────────────────────────────────────────────────
