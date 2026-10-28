@@ -38,7 +38,7 @@ export function parseThreadUrl(url: string): { channel: string; thread_ts: strin
   if (!match) {
     throw new Error(`Not a Slack message URL: ${url}. Expected .../archives/<channel>/p<timestamp>.`);
   }
-  // Permalinks drop the decimal: p1782346438941609 → 1782346438.941609.
+  // Permalinks drop the decimal: p1767225600000100 → 1767225600.000100.
   const messageTs = `${match[2].slice(0, -6)}.${match[2].slice(-6)}`;
   // A reply link carries the root ts in the query — prefer it so we fetch the whole thread.
   return { channel: match[1], thread_ts: parsed.searchParams.get('thread_ts') ?? messageTs };

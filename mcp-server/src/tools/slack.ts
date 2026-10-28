@@ -54,7 +54,7 @@ export const tools: ToolDef[] = [
       thread_ts: z
         .string()
         .optional()
-        .describe('Thread root timestamp, e.g. "1782346438.941609". Required when `url` is omitted.')
+        .describe('Thread root timestamp, e.g. "1767225600.000100". Required when `url` is omitted.')
     },
     handler: async (args) => {
       const target = args.url ? parseThreadUrl(args.url) : { channel: args.channel, thread_ts: args.thread_ts };
