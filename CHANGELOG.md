@@ -50,6 +50,8 @@ and prompts per optional one. The new template files are the source of truth for
 - **Briefings close with ranked first moves.** The morning and evening briefs end with three to five ranked actions across tasks, sessions waiting on a decision (from checkpoint all), PRs and replies owed, and goals, instead of one first-move line. Unset goals rank fourth instead of always leading.
 
 ### Changed
+- **Sync saves the home before it starts.** With history on, the run opens with one commit, `Sync: save the home before the run`, under the same guards as the closing commits (a local-only brain on `main`, never a push). The closing commits then hold only the run's own changes, and the opening one is the point to go back to if a run damages the brain. The sync band gains a `snapshot` step, so it counts thirteen.
+- **Sync counts what GitHub is waiting on.** Step 6 calls `github_sweep` with the new `counts: true`, which returns numbers only, never a comment's text: replies owed (new since the last sweep, and from bots), re-reviews, pending reviews, and your PRs that conflict with main, as a GitHub line under Attention. When any are owed, the closing interview offers the sweep.
 - **Sync runs the session radar before the briefing**, so the brief's first moves see this run's waiting sessions. A standalone brief reads the newest radar report, skipping one more than a day old.
 - **Writing Style: "tldr" and "tl;dr" also restart step by step**, beside "I didn't read that" and "too long".
 
