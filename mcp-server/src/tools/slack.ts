@@ -23,7 +23,7 @@ const SINCE = z
 export const tools: ToolDef[] = [
   defineTool({
     name: 'slack_whoami',
-    description: `Verify Slack access and return the authenticated identity (user, team, scopes, token expiry). Read-only. Runs inside the MCP server, so it reads the deny-gated token file that a sandboxed \`${AGENT_CLI} slack\` shell cannot.`,
+    description: `Verify Slack access and return the authenticated identity (user, team, scopes, token expiry) with \`connected: true\`, or \`connected: false\` and a hint when this agent was never signed in to Slack, so a caller can skip Slack without treating it as an error. A sign-in that fails (expired, revoked) still errors. Read-only. Runs inside the MCP server, so it reads the deny-gated token file that a sandboxed \`${AGENT_CLI} slack\` shell cannot.`,
     inputSchema: {},
     handler: async () => getWhoami()
   }),

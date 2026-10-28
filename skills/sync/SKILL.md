@@ -351,7 +351,7 @@ One block, tight. Skip empty sections — don't pad.
 🎯 Attention — <n PRs (n ready) · n reviews owed · n replies owed · n external waiting, the last two with Slack only | a source it couldn't read, in a few words>
   - GitHub: <n> replies owed (<n> new since the last sweep, <n> from bots) · <n> re-reviews · <n> pending reviews · <n> of your PRs conflict with main   (omit without the GitHub pack; "nothing waiting" when all are 0; "can't read <repo>: <reason>" on an error)
 
-🔔 Slack — waiting an hour or more (omit entirely without Slack; "nothing waiting" when both lists are empty and no channel is unmapped)
+🔔 Slack — waiting an hour or more (omit entirely when Slack isn't set up for this agent, as attention skipped it; "nothing waiting" when both lists are empty and no channel is unmapped)
   - You: <from> · #<channel> · <wait, e.g. 2h 10m> → <url>   (one line per `Replies I owe` item, longest wait first)
   - External: <from> · #<channel> · <wait> → <url>   (one line per `External threads waiting` item)
   - New channels not in the map: #<name>, … → /agent-kevin:slack sorts them into slack-channels.md   (one line, from `unmapped`; omit when empty, and when it's `null` (no map yet) say `no channel map yet` instead)

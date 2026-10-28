@@ -9,9 +9,12 @@
  * unsandboxed server process, so they read the deny-gated token file that a
  * sandboxed `kevin slack` shell cannot.
  */
+import { pluginName } from '@/shared/naming';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as slack from './client';
+import { slackTokensFile } from './config';
 import { formatMessage, renderJson, renderMessagesMarkdown, type Format, type MessageContext } from './format';
 import { loadTokens } from './oauth';
 import type { FormattedMessage, SlackChannel, SlackUser } from './types';
@@ -160,7 +163,8 @@ export async function getChannels(): Promise<SlackChannel[]> {
   return channels.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export interface Whoami {
+export interface SignedIn {
+  connected: true;
   user: string;
   user_id: string;
   team: string;
@@ -170,10 +174,21 @@ export interface Whoami {
   expires_at: string;
 }
 
+/**
+ * `connected: false` means this agent was never signed in to Slack, so callers can skip Slack quietly;
+ * a sign-in that fails (expired, revoked, rate-limited) still throws.
+ */
+export type Whoami = SignedIn | { connected: false; hint: string };
+
 export async function getWhoami(): Promise<Whoami> {
+  if (!existsSync(slackTokensFile())) {
+    const cli = pluginName().replace(/^agent-/, '');
+    return { connected: false, hint: `No Slack sign-in yet. Run \`${cli} slack auth\` from your own terminal.` };
+  }
   const tokens = loadTokens();
   const me = await slack.authTest();
   return {
+    connected: true,
     user: me.user,
     user_id: me.user_id,
     team: me.team,

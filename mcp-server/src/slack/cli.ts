@@ -95,6 +95,10 @@ async function cmdAuth(): Promise<void> {
 
 async function cmdWhoami(format: Format): Promise<void> {
   const me = await getWhoami();
+  if (!me.connected) {
+    out(me, format, () => me.hint);
+    return;
+  }
   log.info(`whoami → @${me.user} (${me.user_id}) in ${me.team}`);
   out(me, format, () => `@${me.user} (${me.user_id}) — ${me.team}\nScopes: ${me.scope}`);
 }

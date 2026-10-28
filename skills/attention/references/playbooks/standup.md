@@ -158,7 +158,7 @@ three cheap queries is what makes the cap affordable to be honest about.
 **9. Slack, for what they already said** — `slack_whoami`, then `slack_search` for their own
 messages in the window. This is a *subtractive* input: its job is to stop the operator
 re-announcing something they already posted, and to surface a question someone asked them that
-they never answered. Skip silently if Slack isn't configured.
+they never answered. Skip silently if Slack isn't configured (no Slack tools, or `slack_whoami` says `connected: false`).
 
 ## Step 3 — classify before composing
 

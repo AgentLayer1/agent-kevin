@@ -714,7 +714,7 @@ Then hand over, with both paths filled in:
 
 Wait for the answer. On an error, explain it (common: `AGENT_SLACK_CLIENT_ID` not loaded yet, which a relaunch fixes; PKCE left off; the app awaiting admin approval) and stop the walk. Tokens land in `<HOME>/.state/secrets/slack/slack-tokens.json` (mode `0600`).
 
-**(3) Verify** with `slack_whoami` (a relaunch may be needed first for the new grants and env key to load). It returns the Slack identity and the granted scopes.
+**(3) Verify** with `slack_whoami` (a relaunch may be needed first for the new grants and env key to load). It returns `connected: true` with the Slack identity and the granted scopes; `connected: false` means the sign-in didn't land, so ask for the terminal's output.
 
 **(4) Bootstrap the channel map** `<HOME>/knowledge/concepts/slack-channels.md`, only if it doesn't exist: run the `slack` skill's first-run bootstrap (`slack_channels`, the three-tier classification, sections `Team`, `External`, `Reference (opt-in)`, `Uncategorized`). An existing file is the operator's: leave it and say so. Sections that come out empty stay in the file.
 
