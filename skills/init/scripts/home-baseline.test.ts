@@ -327,6 +327,34 @@ describe('home-baseline settings', () => {
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-sonnet-5-5' })).toBeNull();
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5' })).toBeNull();
   });
+
+  test('privacyEnvMissing lists the opt-outs neither home file sets, whatever their value', () => {
+    const privacy = [
+      'DISABLE_TELEMETRY',
+      'DISABLE_ERROR_REPORTING',
+      'DISABLE_FEEDBACK_COMMAND',
+      'CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY'
+    ];
+    expect([...fresh.privacyEnvMissing].sort()).toEqual([...privacy].sort());
+    const split = scratchHome({
+      settings: { env: { DISABLE_TELEMETRY: '0', DISABLE_ERROR_REPORTING: '1' } },
+      local: { env: { DISABLE_FEEDBACK_COMMAND: '1' } }
+    });
+    expect(run(split).settings.privacyEnvMissing).toEqual(['CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY']);
+    const global = run(scratchHome(), ['--claude-dir', claudeDirWith({ env: { DISABLE_TELEMETRY: '1' } })]);
+    expect(global.settings.privacyEnvMissing).toContain('DISABLE_TELEMETRY');
+  });
+
+  test('trafficKill names each settings file that still sets the retired traffic kill', () => {
+    const kill = { env: { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '0' } };
+    expect(fresh.trafficKill).toEqual({ home: [], user: false });
+    expect(run(scratchHome({ settings: kill, local: kill })).settings.trafficKill).toEqual({
+      home: ['settings.json', 'settings.local.json'],
+      user: false
+    });
+    const fromUser = run(scratchHome({ local: kill }), ['--claude-dir', claudeDirWith(kill)]);
+    expect(fromUser.settings.trafficKill).toEqual({ home: ['settings.local.json'], user: true });
+  });
 });
 
 describe('home-baseline identity', () => {

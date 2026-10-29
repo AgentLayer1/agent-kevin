@@ -826,7 +826,7 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`bashEditDiffEnabled` — see what Bash edited.** Under auto mode Claude Code routes file edits through the Bash tool, which hides the diff the Edit tool would have shown. This setting (Claude Code 2.1.269+) attaches a diff of the files a Bash command changed to that command's result, so a scripted edit stays reviewable in the transcript. Written when the operator's user-global settings don't set it.
 
-**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, traffic kill, retention, render). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
+**Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, retention, render). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently. Upgrade re-runs the test for `permissions.deny` and `sandbox` on every run (`home-baseline.ts`), so a home whose global coverage later disappears gets the baseline back.
 
@@ -835,13 +835,25 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 | `cleanupPeriodDays` | `99999` | Any non-empty `cleanupPeriodDays` set globally |
 | `bashEditDiffEnabled` | `true` | Global `bashEditDiffEnabled` set to any boolean |
 | `env.CLAUDE_CODE_NO_FLICKER` | `"1"` | Global `env.CLAUDE_CODE_NO_FLICKER` set to any truthy string |
-| `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `"1"` | Global `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to any truthy string |
 | `permissions.deny` | The full deny list below | Global `permissions.deny` is non-empty (any deny suggests the operator is curating their own — don't fight it) |
 | `sandbox` | The full sandbox block below | Global `sandbox.enabled === true` (sandbox is binary — if globally enabled, project doesn't need its own) |
 
 **`model` and `effortLevel` are not gap-filled.** `model` carries the operator's explicit Step 6c answer (`"opus"` or `"fable"`) and `effortLevel` is `"high"`; both are always written to the project scaffold so the home runs the same pair whatever the machine's global settings say. The Step 6c answer outranks the global setting and, on re-init, the prior project value; an existing project `effortLevel` is kept.
 
 **The Haiku-tier remap is not gap-filled either.** Claude Code sends its small background calls to the Haiku tier, and `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` = `"claude-sonnet-5-5"` points that tier at Sonnet. It is always written to the project scaffold, whatever the global settings say. An existing project value is kept unless it is one an earlier release wrote (`claude-sonnet-4-6`), which is replaced. Upgrade reconciles the same key on every run through `home-baseline.ts`, which reads the value from this paragraph.
+
+**Baseline privacy `env` — always written, never gap-filled.** Four opt-outs keep Claude Code's own traffic to Anthropic down to the model calls: usage metrics, crash reports, `/feedback` (which uploads the transcript) and the session survey with its share-your-transcript follow-up. They go in `settings.json`, whatever the global settings say, so the policy travels with the home and its seeds. Claude Code checks only whether each is set, so `"0"` still opts out and an existing value of any kind is kept. Never write `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`: it also turns off artifacts (so `/design` and Claude Design never appear), Remote Control and auto-updates, and upgrade removes it from a home's settings files. Upgrade reconciles these keys on every run through `home-baseline.ts`, which reads them from this block:
+
+```json
+{
+  "DISABLE_TELEMETRY": "1",
+  "DISABLE_ERROR_REPORTING": "1",
+  "DISABLE_FEEDBACK_COMMAND": "1",
+  "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1"
+}
+```
+
+The bigger privacy setting lives in the operator's Claude account, not a file. On Free, Pro and Max, Anthropic trains on chats and Claude Code sessions unless the operator turns it off, and keeps them up to 5 years instead of 30 days: claude.ai → their name → Settings → Privacy → **Help improve Claude** → off (the same path in the mobile app). Team, Enterprise and API accounts aren't trained on unless the organization opts in. Step 9 reminds them.
 
 **`statusLine` — the footer, the Claude side of the Codex `[tui]` table.** Kevin renders it (`kevin statusline`: model, folder, branch on line one; context bar, cost with the hourly rate, session time, and the Pro/Max rate-limit windows on line two). The command names this checkout, so it goes in `settings.local.json`, never the shared file; never type it — generate it and merge the object it prints:
 
@@ -851,7 +863,7 @@ bun "$PLUGIN_ROOT/bin/kevin" statusline --setting
 
 Set when absent from both home files: an operator's own `statusLine` in either is kept, and the user-level one is never touched — the home's settings outrank it in sessions started here, which is the point: this home shows its agent's footer, every other directory keeps the operator's own. A version-pinned plugin cache moves on every release, so `$upgrade` re-points the command, and the SessionStart context flags a stale one until it does. The subagent panel needs no wiring: the plugin ships its `subagentStatusLine` itself. Both take effect on relaunch.
 
-**⚠ The traffic kill suppresses auto mode's built-in default.** `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` disables feature-flag fetching, and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the traffic kill: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
+**⚠ The telemetry opt-out suppresses auto mode's built-in default.** `DISABLE_TELEMETRY` disables feature-flag fetching (as `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and `DO_NOT_TRACK` do), and Claude Code only engages its built-in auto-mode default when flags are reachable — so a home carrying this env (or an operator carrying it globally) silently starts every session in Manual and drowns in static-matcher prompts, with nothing on screen saying why. This is not a reason to drop the opt-out: the printed user-settings block in the auto-mode section below carries an explicit `permissions.defaultMode: "auto"`, which bypasses the built-in default entirely and survives the flag being off. If an operator reports constant permission prompts, check this interaction first.
 
 Baseline `permissions.deny` to write when global doesn't already have a deny list. It has a **cross-platform core** plus an **OS-specific tail** (credential store + crypto-wallet dirs, which live in different places per OS). Concatenate the core with the tail selected by `$AGENT_PLATFORM` from Step 0 — never ship the macOS `~/Library/...` paths on a Windows/Linux/WSL home, where they're dead entries that protect nothing. (On native Windows, `$AGENT_PLATFORM` is `windows` and the Windows `~/AppData/...` tail below applies.)
 
@@ -1000,7 +1012,7 @@ Auto mode's classifier ships an allow exception for **`~/.claude/projects/*/memo
 
 The fix is a small `autoMode` block in the operator's **user-global** settings: a mode line, an environment anchor, two allow exceptions, and two soft-denies (outbound push, identity-file replacement — the latter because an exclusion from an allow blocks nothing on its own; a git-recoverable replacement matches no default block rule). Print the block below in the Step 9 summary as an optional copy-paste, flag the tradeoff in one line, and move on. **Do not write it, do not offer to write it, and do not gate the summary on it** — the operator may be on a plan or platform where the classifier isn't available, in which case it's inert.
 
-The `defaultMode` line matters as much as the sentences: the *built-in* auto default is fragile — it needs Pro/Max/Team OAuth, reachable feature flags (which the traffic-kill env above turns off), and it skips the first session after every update. The explicit setting bypasses all of that. Without it most operators are never in auto mode at all, and the sentences do nothing.
+The `defaultMode` line matters as much as the sentences: the *built-in* auto default is fragile — it needs Pro/Max/Team OAuth, reachable feature flags (which the telemetry opt-out above turns off), and it skips the first session after every update. The explicit setting bypasses all of that. Without it most operators are never in auto mode at all, and the sentences do nothing.
 
 ```json
 {
@@ -1147,7 +1159,10 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "effortLevel": "<\"high\" — always written; an existing project value is kept>",
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "<\"1\" if global doesn't set it, else omit this key>",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "<\"1\" if global doesn't set it, else omit this key>",
+    "DISABLE_TELEMETRY": "<\"1\" — always written; an existing project value is kept>",
+    "DISABLE_ERROR_REPORTING": "<\"1\" — always written; an existing project value is kept>",
+    "DISABLE_FEEDBACK_COMMAND": "<\"1\" — always written; an existing project value is kept>",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "<\"1\" — always written; an existing project value is kept>",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<\"claude-sonnet-5-5\" — always written; an existing project value is kept unless an earlier release wrote it>"
   },
   "sandbox": "<the uv sandbox grants above, always; merged with the full baseline sandbox block when global.sandbox.enabled !== true>",
@@ -1702,6 +1717,8 @@ Blank line, then the status block as plain prose (one row per line, two-space gu
 > ✅ Concepts      4 seeded: karpathy-wiki · markdown-native-task-management · self-evolution-loop · audit-premise-decay
 > `<SKILL_PACK_ROW>`
 > `<HISTORY_ROW>`
+> ✅ Privacy       telemetry, crash reports, /feedback and the session survey off (.claude/settings.json)
+> ⏳ Training      on Free, Pro or Max, turn off **Help improve Claude**: claude.ai → your name → Settings → Privacy
 > ⏳ Custom skills none — author with `/agent-kevin:configure-skills`
 
 For `<CODEX_HOOKS_ROW>`: if Step 7c ran → `✅ Codex wiring  .codex/hooks.json (4 entries; trust them via /hooks) + .codex/config.toml (kevin MCP server, permission profile, status line, skills budget) + .codex/rules/kevin.rules (<n> prompt rules, <m> forbidden rules) · user-level keys: .state/updates/codex-user-config.md`; otherwise omit the row.

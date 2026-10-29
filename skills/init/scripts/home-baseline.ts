@@ -2,8 +2,8 @@
 /**
  * The part of init's Step 7 baseline that no template merge reaches: the home's `.gitignore`
  * (reconciled against `templates/.gitignore`), the `permissions.allow` / `permissions.ask`
- * entries, the `permissions.deny` list, the sandbox, `plansDirectory` and the Haiku-tier model, and
- * any retired skill's grant an older release left behind. The home's two settings files are read as
+ * entries, the `permissions.deny` list, the sandbox, `plansDirectory`, the Haiku-tier model and the
+ * privacy opt-outs, and any retired skill's grant or traffic kill an older release left behind. The home's two settings files are read as
  * the one view Claude Code acts on, so an entry kept in `settings.local.json` counts as present.
  * The core deny list and the sandbox block are gap-filled against the user settings, the same
  * test init applies. It also records this plugin in the data dir's `version.json`, which is how a
@@ -115,6 +115,8 @@ if (!haikuModel) {
   throw new Error('init SKILL.md no longer names the ANTHROPIC_DEFAULT_HAIKU_MODEL baseline');
 }
 const retiredHaikuModels = ['claude-sonnet-4-6'];
+const baselinePrivacyEnv = Object.keys(jsonBlockAfter<Record<string, string>>('Baseline privacy `env`'));
+const TRAFFIC_KILL = 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC';
 const LISTS = ['allow', 'ask', 'deny'] as const;
 
 interface HomeSettings {
@@ -147,6 +149,10 @@ const decidedForDeny = listed('allow', 'ask', 'deny');
 const missingFrom = (present: string[] | undefined, wanted: string[]) =>
   wanted.filter((entry) => !(present ?? []).includes(entry));
 const currentHaiku = settings.env?.ANTHROPIC_DEFAULT_HAIKU_MODEL;
+const homeSettingsFiles = [
+  ['settings.json', homeSettings.shared],
+  ['settings.local.json', readSettings(join(home, '.claude', 'settings.local.json'))]
+] as const;
 
 const configuredReports = resolveEnv('AGENT_REPORTS');
 const reportsRoot = configuredReports ? resolve(expandTilde(configuredReports)) : join(home, 'reports');
@@ -179,7 +185,14 @@ process.stdout.write(
           })
         ),
         plansDirectory: settings.plansDirectory === undefined ? defaultPlans : null,
-        haikuModel: !currentHaiku || retiredHaikuModels.includes(currentHaiku) ? haikuModel : null
+        haikuModel: !currentHaiku || retiredHaikuModels.includes(currentHaiku) ? haikuModel : null,
+        privacyEnvMissing: baselinePrivacyEnv.filter((key) => settings.env?.[key] === undefined),
+        trafficKill: {
+          home: homeSettingsFiles
+            .filter(([, file]) => (file as HomeSettings).env?.[TRAFFIC_KILL] !== undefined)
+            .map(([name]) => name),
+          user: userSettings.env?.[TRAFFIC_KILL] !== undefined
+        }
       }
     },
     null,
