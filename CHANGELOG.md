@@ -43,6 +43,20 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.8.11] - 2026-10-29
+
+### Added
+- **The status line counts down to each rate-limit reset.** The Pro/Max windows read their usage with the time left until they reset (`16% ↻ 2h · 56% ↻ 3d`) when Claude Code reports `resets_at`, and keep the `5h`/`7d` label when it doesn't.
+- **Explainers gain reveal cards, rails and accordions.** Reveal cards put a short phrase up front and open the detail in a panel underneath, one at a time (Escape closes it, and with no script every panel shows). A rail lists peers beside one panel for long detail such as tables, steps or a folder tree, moved with the arrow keys. An accordion stacks rows that open in place, one at a time. The explainer check refuses a card or rail item without its panel and a panel without its opener.
+
+### Changed
+- **Four privacy opt-outs replace the traffic kill.** Init no longer writes `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, which also turned off artifacts (so `/design` and Claude Design never appeared), Remote Control and auto-updates. It writes `DISABLE_TELEMETRY`, `DISABLE_ERROR_REPORTING`, `DISABLE_FEEDBACK_COMMAND` and `CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY` into `settings.json` instead, always, so the policy travels with the home and its seeds; a value the operator already set is kept. Init's closing summary gains a Privacy row and a reminder to turn off **Help improve Claude** in the Claude account on Free, Pro and Max. `DISABLE_TELEMETRY` still turns off feature flags, so the auto-mode note now names it: the explicit `permissions.defaultMode` in the printed user-settings block is still what keeps auto mode on.
+- **The dashboard explains the new keys.** Its settings view carries a tip for each opt-out, and the traffic kill's tip says upgrade removes it.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds each of the four privacy opt-outs to `env` in `settings.json` as `"1"` when neither home file sets it, and deletes `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` from whichever home settings file still carries it. Applied automatically on every run; `/design`, artifacts and Remote Control come back from the next session.
+- `manual: optional` — upgrade never writes `~/.claude/settings.json`. If it sets `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` (upgrade says so when it does), delete that line yourself, or the kill still applies to every home on the machine. On a Free, Pro or Max account, turn off training: claude.ai → your name → Settings → Privacy → **Help improve Claude**.
+
 ## [0.8.10] - 2026-10-28
 
 ### Added
