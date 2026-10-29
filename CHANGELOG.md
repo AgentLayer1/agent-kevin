@@ -43,6 +43,22 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.9.0] - 2026-10-30
+
+### Changed
+- **Breaking: an agent with its own Claude subscription now starts with `agent`.** Claude Code 2.1.312 ignores `CLAUDE_CODE_OAUTH_TOKEN` in a home's settings files, so an agent meant to bill its own account was quietly billing the default `/login`. The token now lives in `.state/secrets/.env.claude.json` with an `AGENT_SUBSCRIPTION` marker, and an `agent` shell function (`templates/shell/agent.sh` for zsh and bash, `agent.ps1` for PowerShell) starts Claude with `--settings <that file>` when the current folder has one, and as plain `claude` everywhere else. It never collides with cmux, which replaces any `claude` function at the first prompt, and inside cmux it still runs through cmux's wrapper, which merges the file with its own hook settings. Plain `claude` keeps the default login, which `claude remote-control` and `claude auto-mode critique` need, since the subscription token only makes model requests.
+- **Claude Code 2.1.312 is the new floor.** Init and upgrade refuse to run below it and the banner warns, so every home starts from the version that forced this change.
+
+### Added
+- **The banner warns when a session misses its subscription.** A home with `.state/secrets/.env.claude.json` whose session started with plain `claude`, or from an IDE, gets a warning at the top of the session to exit and start it with `agent`. Codex sessions skip the check, since Codex never reads that file.
+- **`run_upgrade` passes the operator's choices to a migration.** An optional `options` object reaches the script as `AGENT_UPGRADE_OPTIONS`, so an upgrade step can ask first and then act.
+- **Init points at Billing per agent** for an agent that should bill a different account, and never handles the token itself.
+
+### Upgrade
+- `script: required` — run skills/upgrade/scripts/0.9.0.ts. When `.claude/settings.local.json` sets `CLAUDE_CODE_OAUTH_TOKEN`, it moves the token to `.state/secrets/.env.claude.json` (0600, with `AGENT_SUBSCRIPTION`) and deletes the key, keeping every other setting in place; a different token already in that file stops the move and is named in `manual`. A hand-made file gets the marker. A home without a token is left alone and hears nothing about it. When the home has a subscription, the report says whether the `agent` launcher is in your shell profile; the upgrade then asks to add it (`~/.zshrc`, `~/.bashrc` or the PowerShell profile, which live outside the home), to show the one-line command, or to skip. The report never holds the token.
+- `manual: optional` — only for an agent with its own subscription: start it with `agent` from its home from now on. After this session exits, run `source ~/.zshrc` (bash: `source ~/.bashrc`; PowerShell: `. $PROFILE.CurrentUserAllHosts`) or open a new terminal so the shell knows the command.
+- `manual: none` — run `claude update` first if `claude --version` is below 2.1.312; the upgrade refuses to start until it is.
+
 ## [0.8.11] - 2026-10-29
 
 ### Added
