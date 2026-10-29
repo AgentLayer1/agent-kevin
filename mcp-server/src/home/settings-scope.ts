@@ -25,10 +25,10 @@ const readSettingsFile = (path: string): Json => {
 };
 
 /** Both files and the view Claude Code acts on: lists combined, a local scalar or object over the shared one. */
-export const readMergedSettings = (home: string): { shared: Json; merged: Json } => {
+export const readMergedSettings = (home: string): { shared: Json; local: Json; merged: Json } => {
   const shared = readSettingsFile(join(home, '.claude', 'settings.json'));
   const local = readSettingsFile(join(home, '.claude', 'settings.local.json'));
-  return { shared, merged: mergeSettings(shared, local) };
+  return { shared, local, merged: mergeSettings(shared, local) };
 };
 
 /** Whether `rule` is in `permissions.ask`, so Claude Code stops for the operator before the call it names. */

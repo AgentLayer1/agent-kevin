@@ -335,7 +335,7 @@ describe('home-baseline settings', () => {
       'DISABLE_FEEDBACK_COMMAND',
       'CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY'
     ];
-    expect([...fresh.privacyEnvMissing].sort()).toEqual([...privacy].sort());
+    expect(fresh.privacyEnvMissing).toEqual(privacy);
     const split = scratchHome({
       settings: { env: { DISABLE_TELEMETRY: '0', DISABLE_ERROR_REPORTING: '1' } },
       local: { env: { DISABLE_FEEDBACK_COMMAND: '1' } }

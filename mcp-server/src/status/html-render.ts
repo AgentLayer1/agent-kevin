@@ -1773,7 +1773,7 @@ const ENV_KEY_TIPS: Record<string, string> = {
   CLAUDE_CODE_NO_FLICKER:
     'Renders the prompt without the flicker-prone redraw. Upside: you can click anywhere in the prompt input box to move the cursor. Trade-off: to highlight/select text in Claude’s responses you have to hold Shift while dragging.',
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
-    'Turns off all non-essential traffic, which also hides /design and artifacts and blocks Remote Control and auto-updates. Kevin no longer sets it: upgrade removes it from the home, and the four narrower opt-outs below keep the privacy.',
+    'Turns off all non-essential traffic, which also hides /design and artifacts and blocks Remote Control and auto-updates. The agent no longer sets it: upgrade removes it from the home, and the four narrower opt-outs below keep the privacy.',
   DISABLE_TELEMETRY:
     'No usage metrics to Anthropic (they never carry code, prompts or file paths). Also turns off feature flags, so auto mode needs an explicit defaultMode.',
   DISABLE_ERROR_REPORTING: 'No crash reports from Claude Code itself.',

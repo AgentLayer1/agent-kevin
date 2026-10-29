@@ -576,18 +576,16 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   each to `env` in `settings.json` as `"1"`. A key already present keeps its value, whatever it is.
 - **`settings.trafficKill`** finds `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, an earlier release's
   default that also hides `/design`, artifacts and Remote Control. `home` lists the home files that
-  still set it: delete the key from each (the plugin's retired default, like a retired grant; the
-  opt-outs above keep the privacy it bought). Setting it to `"0"` doesn't undo it, so it is deleted,
-  never rewritten. `user: true` means `~/.claude/settings.json` sets it, which overrides every home
-  on the machine: never write that file, carry a `manual:` note instead telling the operator to
-  delete the line there, and that `/design`, artifacts and Remote Control return once they do.
+  still set it: delete the key from each (it is the plugin's, like a retired grant, and `"0"`
+  doesn't undo it). `user: true` means `~/.claude/settings.json` sets it for every home on the
+  machine: never write that file; carry a `manual:` note telling the operator to delete the line.
 
 The script reads both home settings files as the one view Claude Code acts on, so an entry kept in
 `settings.local.json` is never reported missing. Read `$HOME_DIR/.claude/settings.json` once, union
 every list above and set `plansDirectory`, the Haiku-tier model and the privacy opt-outs in one
 in-memory merge, and write it with the Write tool, same as Step 7 does; no `jq`. The traffic-kill
-deletion is the one edit that can reach `settings.local.json`, the same way. Never remove or reorder an operator's entry;
-a retired grant is the plugin's, not theirs.
+deletion is the one edit that can reach `settings.local.json`, the same way. Never remove or
+reorder an operator's entry; a retired grant is the plugin's, not theirs.
 
 If a write fails with a permission error, the operator's sandbox protects the settings files from
 agent writes (a correct posture, and the default in some setups; both `settings.json` and
