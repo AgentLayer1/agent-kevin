@@ -120,7 +120,7 @@ const recommendations: Recommendation[] = [
   {
     path: ['analytics', 'enabled'],
     value: false,
-    why: 'usage analytics off, the Claude home disables nonessential traffic too'
+    why: 'usage analytics off, the Claude home turns telemetry off too'
   },
   { path: ['feedback', 'enabled'], value: false, why: 'no transcript submission through /feedback' },
   { path: ['otel', 'exporter'], value: 'none', why: 'no log export' },
