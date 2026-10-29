@@ -197,3 +197,10 @@ describe('reveal', () => {
     expect(checkBody(body(section(inner))).errors).toEqual(['reveal: data-reveal="setup" has no data-reveal-panel="setup"', 'reveal: data-reveal-panel="teardown" has no card']);
   });
 });
+
+describe('rail', () => {
+  test('names an item with no panel and a panel with no item', () => {
+    const inner = '<div class="rail"><div class="rail-list"><button class="rail-item" data-rail="step-0"></button></div><div class="rail-panel" data-rail-panel="step-1"></div></div>';
+    expect(checkBody(body(section(inner))).errors).toEqual(['rail: data-rail="step-0" has no data-rail-panel="step-0"', 'rail: data-rail-panel="step-1" has no item']);
+  });
+});

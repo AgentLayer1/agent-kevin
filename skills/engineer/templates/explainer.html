@@ -690,6 +690,45 @@
   .reveal-row span { display: block; color: var(--ink-dim); font-size: 13.5px; line-height: 1.5; }
   @media (prefers-reduced-motion: reduce) { .reveal-card, .reveal-card::after, .reveal.ready .reveal-panel { transition: none; } }
 
+  .rail { display: grid; grid-template-columns: minmax(200px, 270px) minmax(0, 1fr); gap: 18px; align-items: start; margin: 18px 0 22px; }
+  .rail-list { position: sticky; top: calc(var(--bar-h) + 16px); display: flex; flex-direction: column; gap: 3px; }
+  .rail-item { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 4px minmax(0, 1fr); column-gap: 12px; padding: 9px 12px 10px 0; border-radius: 10px; cursor: pointer; transition: background .15s, box-shadow .15s; }
+  .rail-item::before { content: ""; grid-row: span 2; width: 4px; border-radius: 4px; background: var(--c, var(--brand)); opacity: .3; transition: opacity .15s; }
+  .rail-item b { color: var(--ink-2); font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+  .rail-item span { color: var(--ink-dim); font-size: 12.5px; line-height: 1.35; }
+  .rail-item:hover { background: color-mix(in srgb, var(--c, var(--brand)) 7%, transparent); }
+  .rail-item:focus-visible { outline: 2px solid var(--c, var(--brand)); outline-offset: 1px; }
+  .rail-item[aria-selected="true"] { background: color-mix(in srgb, var(--c, var(--brand)) 12%, var(--panel-a)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--brand)) 30%, transparent); }
+  .rail-item[aria-selected="true"]::before { opacity: 1; }
+  .rail-item[aria-selected="true"] b { color: var(--ink); }
+  .rail-group { padding: 14px 0 4px 16px; color: var(--ink-dim); font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  .rail-panel { min-width: 0; }
+  .rail-panel > .reveal-body { margin-top: 0; }
+  .rail.ready .rail-panel:not(.open) { display: none; }
+  .rail.ready .rail-panel.open { animation: rail-in .26s ease-out; }
+  @keyframes rail-in { from { opacity: 0; transform: translateX(8px); } }
+  @media (max-width: 760px) { .rail { grid-template-columns: minmax(0, 1fr); } .rail-list { position: static; } }
+  @media (prefers-reduced-motion: reduce) { .rail.ready .rail-panel.open { animation: none; } .rail-item, .rail-item::before { transition: none; } }
+
+  .acc { display: flex; flex-direction: column; gap: 8px; margin: 18px 0 22px; }
+  .acc-item { border: 1px solid var(--line); border-left: 3px solid var(--c, var(--brand)); border-radius: 12px; background: var(--panel-b); transition: background .2s, box-shadow .2s; }
+  .acc-item.open { background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow); }
+  .acc-head { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 13px 18px 13px 16px; cursor: pointer; }
+  .acc-head > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-width: 0; }
+  .acc-head b { color: var(--ink); font-family: "Bricolage Grotesque", sans-serif; font-size: 16.5px; font-weight: 700; }
+  .acc-head small { color: var(--ink-dim); font-size: 13px; }
+  .acc-head::after { content: ""; width: 8px; height: 8px; margin-right: 4px; border-right: 2px solid var(--ink-dim); border-bottom: 2px solid var(--ink-dim); transform: translateY(-2px) rotate(45deg); transition: transform .25s, border-color .25s; }
+  .acc-item.open .acc-head::after { border-color: var(--c, var(--brand)); transform: translateY(2px) rotate(-135deg); }
+  .acc-head:focus-visible { outline: 2px solid var(--c, var(--brand)); outline-offset: -2px; border-radius: 12px; }
+  .acc-item:not(.open) .acc-head:hover { background: color-mix(in srgb, var(--c, var(--brand)) 7%, transparent); border-radius: 12px; }
+  .acc.ready .acc-panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .32s cubic-bezier(.4, 0, .2, 1), opacity .25s; }
+  .acc.ready .acc-item.open .acc-panel { grid-template-rows: 1fr; opacity: 1; }
+  .acc-panel > div { min-height: 0; overflow: hidden; }
+  .acc-body { padding: 0 18px 14px 16px; color: var(--ink-2); }
+  .acc-body > p:first-child { margin-top: 0; }
+  .acc-group { padding: 12px 0 2px 4px; color: var(--ink-dim); font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  @media (prefers-reduced-motion: reduce) { .acc-item, .acc-head::after, .acc.ready .acc-panel { transition: none; } }
+
   footer { margin-top: 80px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; }
 
   @media (max-width: 720px) {
@@ -981,6 +1020,49 @@
     root.addEventListener("keydown", (event) => { if (event.key === "Escape") { show(null); } });
     root.classList.add("ready");
     show(null);
+  });
+
+  document.querySelectorAll(".rail").forEach((root) => {
+    const items = [...root.querySelectorAll(".rail-item[data-rail]")];
+    const panels = [...root.querySelectorAll("[data-rail-panel]")];
+    const select = (name, focus = false) => {
+      items.forEach((item) => {
+        const on = item.dataset.rail === name;
+        item.setAttribute("aria-selected", String(on));
+        item.tabIndex = on ? 0 : -1;
+        if (on && focus) { item.focus(); }
+      });
+      panels.forEach((panel) => {
+        const open = panel.dataset.railPanel === name;
+        panel.classList.toggle("open", open);
+        panel.inert = !open;
+      });
+    };
+    items.forEach((item, index) => {
+      item.addEventListener("click", () => select(item.dataset.rail));
+      item.addEventListener("keydown", (event) => {
+        const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+        if (!step) { return; }
+        event.preventDefault();
+        select(items[(index + step + items.length) % items.length].dataset.rail, true);
+      });
+    });
+    root.classList.add("ready");
+    select(items[0]?.dataset.rail);
+  });
+
+  document.querySelectorAll(".acc").forEach((root) => {
+    const items = [...root.querySelectorAll(":scope > .acc-item")];
+    const set = (open) => items.forEach((item) => {
+      const on = item === open;
+      item.classList.toggle("open", on);
+      item.querySelector(".acc-head")?.setAttribute("aria-expanded", String(on));
+      const panel = item.querySelector(".acc-panel");
+      if (panel) { panel.inert = !on; }
+    });
+    items.forEach((item) => item.querySelector(".acc-head")?.addEventListener("click", () => set(item.classList.contains("open") ? null : item)));
+    root.classList.add("ready");
+    set(items[0] ?? null);
   });
 
   const words = (text) => (text ?? "").split(/\s+/).filter(Boolean);
