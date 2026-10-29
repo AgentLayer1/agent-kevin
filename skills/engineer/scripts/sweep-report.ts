@@ -19,6 +19,7 @@ const WHERE = ['inline', 'conversation', 'review', 'issue'];
 const CONFIDENCE = ['confirmed', 'strong', 'unverified'];
 const REVIEW = ['owed', 're-review', 'pending', 'none'];
 const SIZES = ['trivial', 'small', 'medium', 'large'];
+const PROMISE_STATUS = ['open', 'done', 'superseded', 'wrong'];
 const FIRST_MOVES_LIMIT = 10;
 const URL = /^https:\/\/github\.com\//;
 const REPO = /^[\w.-]+\/[\w.-]+$/;
@@ -36,6 +37,7 @@ const KEYS = {
     'firstMoves',
     'needsCode',
     'conflicts',
+    'promises',
     'issues',
     'prs',
     'quiet',
@@ -44,6 +46,7 @@ const KEYS = {
   firstMove: ['ref', 'what', 'why'],
   needsCode: ['pr', 'fix', 'size'],
   conflict: ['pr', 'files', 'note'],
+  promise: ['ref', 'url', 'to', 'at', 'promise', 'status', 'evidence', 'confidence'],
   issue: ['number', 'title', 'url', 'status', 'prs', 'owed'],
   pr: ['number', 'title', 'url', 'author', 'mine', 'draft', 'mergeable', 'reviewDecision', 'review', 'next', 'owed'],
   owed: [
@@ -157,7 +160,9 @@ export const validate = (data: Row): SweepCheck => {
     ...(data.supersedes === null || isText(data.supersedes)
       ? []
       : ["data.supersedes must be the prior sweep's relPath, or null"]),
-    ...['firstMoves', 'needsCode', 'conflicts', 'issues', 'prs', 'quiet'].flatMap((key) => arrayErrors(data, key)),
+    ...['firstMoves', 'needsCode', 'conflicts', 'promises', 'issues', 'prs', 'quiet'].flatMap((key) =>
+      arrayErrors(data, key)
+    ),
     ...['issues', 'prs'].filter((key) => !Array.isArray(data[key])).map((key) => `data.${key} must be a list`),
     ...rows(data.firstMoves).flatMap((move, index) => [
       ...keyErrors(move, KEYS.firstMove, `firstMoves[${index}]`),
@@ -176,6 +181,15 @@ export const validate = (data: Row): SweepCheck => {
       ...keyErrors(row, KEYS.conflict, `conflicts[${index}]`),
       ...(rows(data.prs).some((pr) => pr.number === row.pr) ? [] : [`conflicts[${index}].pr must be a PR in prs`]),
       ...optionalText(row, ['files', 'note'], `conflicts[${index}]`)
+    ]),
+    ...rows(data.promises).flatMap((row, index) => [
+      ...keyErrors(row, KEYS.promise, `promises[${index}]`),
+      ...textErrors(row, ['ref', 'promise', 'evidence'], `promises[${index}]`),
+      ...(URL.test(text(row.url)) ? [] : [`promises[${index}].url must be a https://github.com/ link`]),
+      ...(row.at === undefined || ISO.test(text(row.at)) ? [] : [`promises[${index}].at must be an ISO timestamp`]),
+      ...enumError(row.status, PROMISE_STATUS, `promises[${index}].status`),
+      ...enumError(row.confidence, CONFIDENCE, `promises[${index}].confidence`),
+      ...optionalText(row, ['to'], `promises[${index}]`)
     ]),
     ...rows(data.issues).flatMap((issue, index) => issueErrors(issue, `issues[${index}]`)),
     ...rows(data.prs).flatMap((pr, index) => prErrors(pr, `prs[${index}]`)),

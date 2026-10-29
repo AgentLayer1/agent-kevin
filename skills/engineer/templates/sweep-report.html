@@ -285,6 +285,7 @@
       "next": "Merge main, renumber the migration, push.", "owed": []
     }
   ],
+  "promises": [{ "ref": "#44", "url": "https://github.com/acme/app/pull/44#issuecomment-1", "to": "bob", "at": "2026-10-20T10:00:00Z", "promise": "Open a follow-up issue for renaming a tag that notes still use.", "status": "open", "evidence": "No issue found.", "confidence": "confirmed" }],
   "quiet": [{ "ref": "#38", "note": "Draft; no comments." }],
   "notChecked": ["CI status: the token can't read checks."]
 }
@@ -590,6 +591,10 @@
   }
 
   const sinceLine = DATA.since ? ` · ${counts.fresh} new since ${when(DATA.since)}` : " · first sweep";
+  const PROMISE_TONE = { open: "warn", wrong: "bad", superseded: "zero", done: "ok" };
+  const PROMISE_ORDER = { wrong: 0, open: 1, superseded: 2, done: 3 };
+  const promises = list(DATA.promises).slice().sort((left, right) => (PROMISE_ORDER[left.status] ?? 9) - (PROMISE_ORDER[right.status] ?? 9));
+  const promiseHint = ["wrong", "open", "superseded", "done"].map((status) => [status, promises.filter((row) => row.status === status).length]).filter(([, n]) => n).map(([status, n]) => `${n} ${status}`).join(" · ") || "none";
   const page = [
     h("header", { class: "page" },
       h("div", { class: "eyebrow" }, `GitHub sweep · ${DATA.repo} · @${DATA.login}`),
@@ -615,6 +620,14 @@
       list(DATA.firstMoves).length
         ? h("ol", { class: "moves" }, list(DATA.firstMoves).map((move) => h("li", {}, h("div", {}, h("span", { class: "ref" }, jumpRefs(move.ref)), move.what, move.why ? h("div", { class: "why" }, move.why) : null))))
         : h("p", { class: "empty" }, "Nothing urgent.")),
+    promises.length ? section("promises", "My promises", promiseHint, promises.some((row) => row.status === "open" || row.status === "wrong"), false,
+      table(["Status", "Where", "Promise", "To", "Evidence"], promises.map((row) => [
+        h("span", { class: `pill ${PROMISE_TONE[row.status] || ""}` }, row.status),
+        jumpRefs(row.ref),
+        link(row.url, row.promise),
+        row.to || "",
+        h("span", {}, row.evidence, row.confidence ? h("span", { class: `pill ${row.confidence}` }, row.confidence) : null)
+      ]))) : null,
     list(DATA.needsCode).length ? section("needs-code", "Needs code before replying", "don't post these replies until the commit exists", false, false,
       table(["PR", "Fix", "Size"], list(DATA.needsCode).map((row) => [jumpRefs(`#${row.pr}`), row.fix, row.size]))) : null,
     list(DATA.conflicts).length ? section("conflicts", "Conflicts with main", `${counts.conflicts} PR${counts.conflicts === 1 ? "" : "s"}`, false, false,

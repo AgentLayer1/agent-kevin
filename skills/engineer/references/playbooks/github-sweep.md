@@ -20,6 +20,7 @@ Read-only against GitHub: nothing is posted, reviewed, resolved or submitted. Ev
    - Lift each `needsFirst` into `needsCode` (one row per PR).
    - Build `conflicts` from the PRs whose `mergeable` is `CONFLICTING`: the PR number plus, when a drafter found them, the conflicting files and a note. The page takes the title and owner from `prs`.
    - Write `quiet` for the untouched items.
+   - Build `promises`: every commitment the operator posted in a reply over the last 30 days ("I'll…", "in a follow-up", "before merge", "I'll open a ticket"), on their PRs, issues and teammates' PRs, each checked at its source as `open`, `done` (cite the commit, PR or issue), `superseded`, or `wrong` (the premise was false). Carry the previous sweep's list and re-check each row.
    - Pick at most ten `firstMoves`, ranked by who is blocked, then what touches security, auth, data or money, then new before old.
    - Write the `summary` and a one-line `standup`.
 
@@ -73,6 +74,7 @@ standup: one line the operator can say out loud
 firstMoves: [{ ref: "#142", what, why }]        # at most 10, ranked
 needsCode:  [{ pr, fix, size: trivial | small | medium | large }]
 conflicts:  [{ pr, files, note }]                # pr must be one of prs
+promises:   [{ ref, url, to, at, promise, status: open | done | superseded | wrong, evidence, confidence }]
 issues:     [{ number, title, url, status, prs: [numbers], owed: [Owed] }]
 prs:        [{ number, title, url, author, mine, draft, mergeable, reviewDecision,
                review: owed | re-review | pending | none, next, owed: [Owed] }]

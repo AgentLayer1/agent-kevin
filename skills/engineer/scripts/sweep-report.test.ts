@@ -83,6 +83,20 @@ describe('validate', () => {
     expect(errors).toContain('prs[0].owed[0].url must be a https://github.com/ link');
   });
 
+  test('a promise has a known status, a GitHub link and its evidence', () => {
+    const promise = {
+      ref: '#44',
+      url: 'javascript:alert(1)',
+      promise: 'Open a follow-up issue.',
+      status: 'maybe',
+      confidence: 'strong'
+    };
+    const errors = validate({ ...sample(), promises: [promise] }).errors;
+    expect(errors).toContain('promises[0].status must be one of open, done, superseded, wrong');
+    expect(errors).toContain('promises[0].url must be a https://github.com/ link');
+    expect(errors).toContain('promises[0].evidence must be non-empty text');
+  });
+
   test('a comment belongs to one item', () => {
     const data = withOwed(owed({ id: 'issuecomment-9001' }));
     expect(validate(data).errors).toContain(
