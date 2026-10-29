@@ -29,6 +29,7 @@ import type { Notice, NoticeFact, NoticeLevel } from '@/notices/notices';
 import { collectNotices } from '@/notices/notices';
 import { agentDisplayName } from '@/shared/agent-name';
 import { ANSI, paint } from '@/shared/banner';
+import { env } from '@/shared/env';
 import { readCadence } from '@/shared/cadence';
 import { log as baseLog } from '@/shared/log';
 import { isInside } from '@/shared/paths';
@@ -541,7 +542,7 @@ export async function assembleContext({
   const gathered = await gatherContext(healHistoryLink());
   const subscription =
     host === 'claude'
-      ? subscriptionIssue(existsSync(FILES.CLAUDE_SUBSCRIPTION), process.env[SUBSCRIPTION_MARKER])
+      ? subscriptionIssue(existsSync(FILES.CLAUDE_SUBSCRIPTION), env(SUBSCRIPTION_MARKER))
       : null;
   const entries: ManifestEntry[] = subscription
     ? [...gathered.entries, { label: 'subscription', status: 'unavailable', bytes: 0, note: 'start with agent' }]
