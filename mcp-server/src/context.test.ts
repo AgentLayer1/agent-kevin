@@ -1,5 +1,5 @@
 import { FILES, FOLDERS, TIMEZONE } from '@/config';
-import { pinnedReports, todaysReports } from '@/context';
+import { pinnedReports, subscriptionIssue, todaysReports } from '@/context';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,5 +46,16 @@ describe('pinned reports in the session context', () => {
     expect(entry).toMatchObject({ status: 'loaded', note: '1 pin' });
     expect(pinnedReports(0).content).toEndWith('\n…1 more in reports/pinned.md');
     [plan, pins].forEach((path) => rmSync(path, { force: true }));
+  });
+});
+
+describe('the Claude subscription guard', () => {
+  test('a home with its own subscription warns when the session started without it', () => {
+    expect(subscriptionIssue(true, undefined)).toContain('start it with `agent`');
+  });
+
+  test('a session started with the subscription file, or a home without one, stays quiet', () => {
+    expect(subscriptionIssue(true, '1')).toBeNull();
+    expect(subscriptionIssue(false, undefined)).toBeNull();
   });
 });

@@ -20,10 +20,11 @@ import {
   HOME_TIMEZONE,
   PLUGIN_NAME,
   PLUGIN_VERSION,
+  SUBSCRIPTION_MARKER,
   TIMEZONE
 } from '@/config';
 import { followMove, historyStatus, restorePointer } from '@/home/history';
-import { checkHosts, hostIssues, requiredHosts } from '@/hosts';
+import { checkHosts, hostIssues, requiredHosts, type HostName } from '@/hosts';
 import type { Notice, NoticeFact, NoticeLevel } from '@/notices/notices';
 import { collectNotices } from '@/notices/notices';
 import { agentDisplayName } from '@/shared/agent-name';
@@ -481,6 +482,15 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
 }
 
 /**
+ * A home with its own Claude subscription file, in a session that didn't start with it, bills the default
+ * login. The marker comes from that file's `env`, because Claude Code keeps the token out of hook environments.
+ */
+export const subscriptionIssue = (hasSubscription: boolean, marker: string | undefined): string | null =>
+  hasSubscription && marker !== '1'
+    ? 'This agent has its own Claude subscription, but this session started without it, so it bills your default login. Exit and start it with `agent` from this folder.'
+    : null;
+
+/**
  * Scaffold placeholders left unresolved in the home's identity files.
  *
  * `init` and `upgrade` substitute `{{TOKEN}}` when they write these, and both
@@ -519,13 +529,35 @@ const manualLayoutIssues = (): string[] =>
 /**
  * `promptRow: true` when a prompt row draws nudges and alerts, so the banner keeps only hints.
  */
-export async function assembleContext({ promptRow = false }: { promptRow?: boolean } = {}): Promise<AssembledContext> {
+export async function assembleContext({
+  promptRow = false,
+  host = 'claude'
+}: { promptRow?: boolean; host?: HostName } = {}): Promise<AssembledContext> {
   // Started first so its file reads overlap the git calls gathering does.
   const pendingNotices = collectNotices().catch((err: unknown) => {
     log.error('notices skipped', err);
     return [];
   });
-  const { entries, parts } = await gatherContext(healHistoryLink());
+  const gathered = await gatherContext(healHistoryLink());
+  const subscription =
+    host === 'claude'
+      ? subscriptionIssue(existsSync(FILES.CLAUDE_SUBSCRIPTION), process.env[SUBSCRIPTION_MARKER])
+      : null;
+  const entries: ManifestEntry[] = subscription
+    ? [...gathered.entries, { label: 'subscription', status: 'unavailable', bytes: 0, note: 'start with agent' }]
+    : gathered.entries;
+  const parts = subscription
+    ? [
+        ...gathered.parts,
+        [
+          '## ⚠️ Claude subscription',
+          '',
+          `- ${subscription}`,
+          '',
+          '**Report this to the operator before anything else**: every turn until they restart bills the wrong account.'
+        ].join('\n')
+      ]
+    : gathered.parts;
 
   let context = parts.join('\n\n---\n\n');
   if (context.length > CONTEXT.MAX_CHARS) {

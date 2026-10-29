@@ -115,7 +115,7 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
     });
   // The static files never depend on git or reports, so a dynamic-lane failure costs
   // only the lane, the same containment Claude's path has.
-  const lane = await assembleContext()
+  const lane = await assembleContext({ host: 'codex' })
     .then(({ context, banner, hasIssues }) => {
       (hasIssues ? log.warn.bind(log) : log.info.bind(log))('hook fired (codex)\n' + stripAnsi(banner));
       return {
