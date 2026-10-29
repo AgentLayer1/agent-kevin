@@ -1755,6 +1755,8 @@ Blank line, then the **Next** heading (same style as Ready), then the relaunch p
 >
 > **Always launch <AGENT_NAME> from its home — `<HOME_DIR>`.** The habit is `cd <HOME_DIR> && claude` every time. The home is then resolved from where you launched, and a session that `cd`s off into a repo mid-flight still resolves correctly, because the launch directory doesn't roam even when your shell does.
 >
+> **Should <AGENT_NAME> bill a different Claude account than your `/login`?** Most people skip this. If you do, follow [Billing per agent](https://agentlayer.one/docs/reference/billing): the token goes in `<HOME_DIR>/.state/secrets/.env.claude.json`, and from then on you start <AGENT_NAME> with `agent` instead of `claude`.
+>
 > **Optional pin — only if you run exactly one home.** If you also want sessions started *outside* any home (a bare repo, the user-level session-capture hook from the README) to route here, add this to your **user-level** settings at `~/.claude/settings.json` under `env`:
 >
 > ```json

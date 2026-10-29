@@ -286,6 +286,15 @@ The 0.8.0 script renames legacy `KEVIN_*` keys to `AGENT_*` in the home's settin
 every home on the machine. Quote each as a `manual:` note: delete it there, and put a per-home value (a code path, a
 repo list, a DB connection) into each home's `.claude/settings.local.json` as `AGENT_*` instead. Only a value every home
 should share (a timezone, a log level) is renamed in place, and `AGENT_HOME` belongs there only with a single agent home.
+The 0.9.0 script moves a per-agent Claude subscription: Claude Code 2.1.312 ignores `CLAUDE_CODE_OAUTH_TOKEN` in a home's
+settings, so a token in `settings.local.json` goes to `.state/secrets/.env.claude.json`, which the `agent` shell launcher
+passes as `--settings`. Its report never holds the token. `token` is `none` (no subscription: say nothing about it,
+anywhere in this upgrade), `moved` or `present` (the home has one), or `conflict` (two different tokens: quote its
+`manual` note and change nothing). When the home has one and `launcher.installed` is false with no `conflict` and a
+`shell`, ask with AskUserQuestion, naming the profile file, which lives outside the home:
+**Add it for me** (call `run_upgrade` with `{ version: "0.9.0", options: { installLauncher: true } }`, then confirm
+`launcher.appended`), **Show me the command** (print `launcher.command` verbatim as a one-line `manual:` note), or
+**Skip** (point at the docs page, Billing per agent). A `conflict` or a missing `shell` is already in `manual`: quote it.
 
 **settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
 an entry naming a path on this machine (an absolute folder, as an older release's code-root action
@@ -671,6 +680,11 @@ One concise summary:
   entry backfilled, named one by one (an operator who deleted a grant on purpose moves it to
   `ask` to keep it out), each privacy opt-out added, and the traffic kill removed from which file,
   with `/design`, artifacts and Remote Control back from the next session
+- **Starting with `agent`, whenever the 0.9.0 report says the home has a subscription and the launcher is
+  installed:** "This agent has its own Claude subscription. From now on start it with `agent` from `<HOME_DIR>`
+  instead of `claude`. After you `/exit`, run `<launcher.reload>` or open a new terminal so your shell knows the
+  command. Plain `claude` still works for commands that need your claude.ai login, such as `claude remote-control`."
+  When the launcher isn't installed yet, say the same after the operator adds it.
 - **Codex hooks re-trust, whenever the regeneration reported `changed: true`:** "Run
   `/hooks` in your next Codex session from this home and trust the 4 Kevin entries;
   until then Codex starts without Kevin's context and captures nothing." Verbatim, every time.
