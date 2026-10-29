@@ -667,6 +667,29 @@
   @media (max-width: 880px) { .mock-app, .mock-duo { grid-template-columns: minmax(0, 1fr); } .mock-side { display: none; } .mock-aside { border-left: 0; border-top: 1px solid var(--m-line); } }
   @media (prefers-reduced-motion: reduce) { .mock *, .mock dialog[open] { animation: none !important; transition: none !important; } }
 
+  .reveal { margin: 18px 0 22px; }
+  .reveal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
+  .reveal-card { all: unset; box-sizing: border-box; position: relative; cursor: pointer; min-width: 0; padding: 12px 30px 14px 13px; border: 1px solid var(--line); border-top: 3px solid var(--c, var(--brand)); border-radius: 12px; background: var(--panel-b); transition: transform .18s, box-shadow .18s, background .18s; }
+  .reveal-card b { display: block; color: var(--ink); font-family: "Bricolage Grotesque", sans-serif; font-size: 19px; font-weight: 800; line-height: 1.2; }
+  .reveal-card span { display: block; margin-top: 3px; color: var(--ink-dim); font-size: 12.5px; line-height: 1.4; }
+  .reveal-card::after { content: "+"; position: absolute; top: 9px; right: 11px; color: var(--ink-dim); font-size: 17px; line-height: 1; transition: transform .25s, color .25s; }
+  .reveal-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .reveal-card:focus-visible { outline: 2px solid var(--c, var(--brand)); outline-offset: 2px; }
+  .reveal-card[aria-expanded="true"] { background: color-mix(in srgb, var(--c, var(--brand)) 12%, var(--panel-a)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c, var(--brand)) 45%, transparent), var(--shadow); }
+  .reveal-card[aria-expanded="true"]::after { transform: rotate(45deg); color: var(--c, var(--brand)); }
+  .reveal.ready .reveal-panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .34s cubic-bezier(.4, 0, .2, 1), opacity .25s; }
+  .reveal.ready .reveal-panel.open { grid-template-rows: 1fr; opacity: 1; }
+  .reveal-panel > div { min-height: 0; overflow: hidden; }
+  .reveal-body { margin-top: 10px; padding: 18px 20px 8px; border: 1px solid var(--line); border-top: 3px solid var(--c, var(--brand)); border-radius: var(--r); background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); box-shadow: var(--shadow); }
+  .reveal-body > h4 { margin: 0 0 2px; font-family: "Bricolage Grotesque", sans-serif; font-size: 19px; }
+  .reveal-body > p { margin: 0 0 8px; max-width: var(--read); color: var(--ink-2); }
+  .reveal-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 13px; align-items: start; padding: 11px 0; border-top: 1px solid var(--line-soft); }
+  .reveal-row:first-of-type { border-top: 0; }
+  .reveal-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--c, var(--brand)) 16%, transparent); color: var(--c, var(--brand)); font-size: 16px; font-weight: 700; }
+  .reveal-row b { display: block; color: var(--ink); font-size: 14.5px; }
+  .reveal-row span { display: block; color: var(--ink-dim); font-size: 13.5px; line-height: 1.5; }
+  @media (prefers-reduced-motion: reduce) { .reveal-card, .reveal-card::after, .reveal.ready .reveal-panel { transition: none; } }
+
   footer { margin-top: 80px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 13px; }
 
   @media (max-width: 720px) {
@@ -941,6 +964,23 @@
     const linked = rootIndex === 0 ? /^#wt=(\d+)\.(\d+)$/.exec(location.hash) : null;
     const [linkedScenario, linkedStep] = linked ? [Number(linked[1]), Number(linked[2])] : [0, -1];
     show(scenarios[linkedScenario] ? linkedScenario : 0, scenarios[linkedScenario]?.steps?.[linkedStep] ? linkedStep : -1, false);
+  });
+
+  document.querySelectorAll(".reveal").forEach((root) => {
+    const cards = [...root.querySelectorAll(".reveal-card[data-reveal]")];
+    const panels = [...root.querySelectorAll("[data-reveal-panel]")];
+    const show = (name) => {
+      cards.forEach((card) => card.setAttribute("aria-expanded", String(card.dataset.reveal === name)));
+      panels.forEach((panel) => {
+        const open = panel.dataset.revealPanel === name;
+        panel.classList.toggle("open", open);
+        panel.inert = !open;
+      });
+    };
+    cards.forEach((card) => card.addEventListener("click", () => show(card.getAttribute("aria-expanded") === "true" ? null : card.dataset.reveal)));
+    root.addEventListener("keydown", (event) => { if (event.key === "Escape") { show(null); } });
+    root.classList.add("ready");
+    show(null);
   });
 
   const words = (text) => (text ?? "").split(/\s+/).filter(Boolean);

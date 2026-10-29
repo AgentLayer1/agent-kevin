@@ -101,6 +101,18 @@ const mockErrors = (body: string): string[] => {
   ];
 };
 
+/**
+ * A reveal card opens the panel with its name, so every card needs its panel and every panel its card.
+ */
+const revealErrors = (body: string): string[] => {
+  const cards = new Set(attributeValues(body, 'data-reveal'));
+  const panels = new Set(attributeValues(body, 'data-reveal-panel'));
+  return [
+    ...[...cards].filter((name) => !panels.has(name)).map((name) => `reveal: data-reveal="${name}" has no data-reveal-panel="${name}"`),
+    ...[...panels].filter((name) => !cards.has(name)).map((name) => `reveal: data-reveal-panel="${name}" has no card`),
+  ];
+};
+
 interface BodyCheck {
   errors: string[];
   title: string;
@@ -134,6 +146,7 @@ export const checkBody = (body: string): BodyCheck => {
     ),
     ...walkthroughErrors(body),
     ...mockErrors(body),
+    ...revealErrors(body),
   ];
   return { errors, title: h1s[0] ? textOf(h1s[0][1]) : '', diagrams: diagramBlocks.map((source, index) => ({ label: `diagram ${index + 1}`, source: decode(source) })) };
 };

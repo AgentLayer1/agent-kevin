@@ -185,3 +185,15 @@ describe('mock', () => {
     ]);
   });
 });
+
+describe('reveal', () => {
+  test('every card opens its own panel', () => {
+    const inner = '<div class="reveal"><button class="reveal-card" data-reveal="setup"></button><div data-reveal-panel="setup"></div></div>';
+    expect(checkBody(body(section(inner))).errors).toEqual([]);
+  });
+
+  test('names a card with no panel and a panel with no card', () => {
+    const inner = '<div class="reveal"><button class="reveal-card" data-reveal="setup"></button><div data-reveal-panel="teardown"></div></div>';
+    expect(checkBody(body(section(inner))).errors).toEqual(['reveal: data-reveal="setup" has no data-reveal-panel="setup"', 'reveal: data-reveal-panel="teardown" has no card']);
+  });
+});
