@@ -21,8 +21,8 @@ interface HostFloor {
 export const HOST_FLOORS: readonly HostFloor[] = [
   {
     name: 'claude',
-    version: '2.1.293',
-    why: 'mods (the function hooks behind the mods/ module) with `/done` autocomplete and a sync tool kept out of tool search, Sonnet 5.5 behind the Haiku-tier remap, `bashEditDiffEnabled`, `claude plugin eval`, and the deny-rule fixes of 2.1.268',
+    version: '2.1.312',
+    why: 'a per-agent subscription token is read from `--settings` (2.1.312 ignores it in a home\'s own settings), on top of mods with `/done` autocomplete, Sonnet 5.5 behind the Haiku-tier remap, `bashEditDiffEnabled` and `claude plugin eval`',
     update: 'claude update'
   },
   {
