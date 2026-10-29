@@ -48,10 +48,18 @@ const LOCAL = {
   statusLine: { type: 'command', command: 'status' }
 };
 
+interface Report {
+  ok: boolean;
+  token?: string;
+  subscriptionWritten?: boolean;
+  launcher?: Record<string, unknown> | null;
+  manual?: string[];
+}
+
 interface Run {
   status: number | null;
   stdout: string;
-  report: Record<string, any>;
+  report: Report;
 }
 
 const run = (fixture: Fixture, extra: Record<string, string> = {}): Run => {
@@ -74,6 +82,10 @@ const install = { AGENT_UPGRADE_OPTIONS: JSON.stringify({ installLauncher: true 
 afterAll(() => dirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 describe('0.9.0 subscription move', () => {
+  test('the launcher template reads the same file the migration writes', () => {
+    expect(LAUNCHER).toContain(`$PWD/${SUBSCRIPTION}`);
+  });
+
   test('a home with no subscription token is left alone and gets no launcher step', () => {
     const fixture = makeHome({ env: { AGENT_HOME_TIMEZONE: 'UTC' } });
     const before = read(fixture.home, '.claude/settings.local.json');
@@ -94,7 +106,7 @@ describe('0.9.0 subscription move', () => {
   test.skipIf(!SECRETS_READABLE)('moves the token into the secrets store with the marker, at 0600', () => {
     const fixture = makeHome(LOCAL);
     const { report, stdout } = run(fixture);
-    expect(report).toMatchObject({ ok: true, token: 'moved', markerAdded: true });
+    expect(report).toMatchObject({ ok: true, token: 'moved', subscriptionWritten: true });
     expect(stdout).not.toContain(TOKEN);
     expect(readJson(fixture.home, SUBSCRIPTION)).toEqual({
       env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AGENT_SUBSCRIPTION: '1' }
@@ -112,7 +124,7 @@ describe('0.9.0 subscription move', () => {
     expect(readJson(fixture.home, '.claude/settings.local.json')).toEqual({ permissions: {} });
     const settled = read(fixture.home, SUBSCRIPTION);
     const { report } = run(fixture);
-    expect(report).toMatchObject({ token: 'present', markerAdded: false });
+    expect(report).toMatchObject({ token: 'present', subscriptionWritten: false });
     expect(read(fixture.home, SUBSCRIPTION)).toBe(settled);
   });
 
@@ -132,7 +144,7 @@ describe('0.9.0 subscription move', () => {
     const fixture = makeHome({ env: { AGENT_HOME_TIMEZONE: 'UTC' } });
     write(fixture.home, SUBSCRIPTION, json({ env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN } }));
     const { report } = run(fixture);
-    expect(report).toMatchObject({ token: 'present', markerAdded: true });
+    expect(report).toMatchObject({ token: 'present', subscriptionWritten: true });
     expect(readJson(fixture.home, SUBSCRIPTION)).toEqual({
       env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, AGENT_SUBSCRIPTION: '1' }
     });
@@ -152,7 +164,7 @@ describe.skipIf(!SECRETS_READABLE)('0.9.0 agent launcher', () => {
       appended: false,
       reload: 'source ~/.zshrc'
     });
-    expect(report.launcher.command).toContain('agent.sh');
+    expect(String(report.launcher?.command)).toContain('agent.sh');
     expect(read(fixture.user, '.zshrc')).toBe('export EDITOR=vim\n');
   });
 

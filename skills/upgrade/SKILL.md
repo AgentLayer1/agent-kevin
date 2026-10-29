@@ -291,10 +291,10 @@ settings, so a token in `settings.local.json` goes to `.state/secrets/.env.claud
 passes as `--settings`. Its report never holds the token. `token` is `none` (no subscription: say nothing about it,
 anywhere in this upgrade), `moved` or `present` (the home has one), or `conflict` (two different tokens: quote its
 `manual` note and change nothing). When the home has one and `launcher.installed` is false with no `conflict` and a
-`shell`, ask with AskUserQuestion, naming the profile file, which lives outside the home:
+`command`, ask with AskUserQuestion, naming the profile file, which lives outside the home:
 **Add it for me** (call `run_upgrade` with `{ version: "0.9.0", options: { installLauncher: true } }`, then confirm
 `launcher.appended`), **Show me the command** (print `launcher.command` verbatim as a one-line `manual:` note), or
-**Skip** (point at the docs page, Billing per agent). A `conflict` or a missing `shell` is already in `manual`: quote it.
+**Skip** (point at the docs page, Billing per agent). A `conflict`, or a launcher with no `command`, is already in `manual`: quote it.
 
 **settings (mandatory)** — merge the named entries into `$HOME_DIR/.claude/settings.json`, except
 an entry naming a path on this machine (an absolute folder, as an older release's code-root action

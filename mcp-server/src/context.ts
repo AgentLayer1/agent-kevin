@@ -483,12 +483,11 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
 }
 
 /**
- * A home with its own Claude subscription file, in a session that didn't start with it, bills the default
- * login. The marker comes from that file's `env`, because Claude Code keeps the token out of hook environments.
+ * A home with its own Claude subscription file, in a session that didn't start with it, bills the default login.
  */
 export const subscriptionIssue = (hasSubscription: boolean, marker: string | undefined): string | null =>
   hasSubscription && marker !== '1'
-    ? 'This agent has its own Claude subscription, but this session started without it, so it bills your default login. Exit and start it with `agent` from this folder.'
+    ? `This agent has its own Claude subscription, but this session started without it, so it bills your default login. Exit and start it with \`agent\` from this folder. Already did? Then \`.state/secrets/.env.claude.json\` is missing \`"${SUBSCRIPTION_MARKER}": "1"\` in its \`env\` (Billing per agent in the docs).`
     : null;
 
 /**
@@ -532,8 +531,11 @@ const manualLayoutIssues = (): string[] =>
  */
 export async function assembleContext({
   promptRow = false,
-  host = 'claude'
-}: { promptRow?: boolean; host?: HostName } = {}): Promise<AssembledContext> {
+  host
+}: {
+  promptRow?: boolean;
+  host: HostName;
+}): Promise<AssembledContext> {
   // Started first so its file reads overlap the git calls gathering does.
   const pendingNotices = collectNotices().catch((err: unknown) => {
     log.error('notices skipped', err);
@@ -544,19 +546,17 @@ export async function assembleContext({
     host === 'claude'
       ? subscriptionIssue(existsSync(FILES.CLAUDE_SUBSCRIPTION), env(SUBSCRIPTION_MARKER))
       : null;
-  const entries: ManifestEntry[] = subscription
-    ? [...gathered.entries, { label: 'subscription', status: 'unavailable', bytes: 0, note: 'start with agent' }]
-    : gathered.entries;
+  const flagged: ManifestEntry[] = subscription
+    ? [{ label: 'subscription', status: 'unavailable', bytes: 0, note: 'start with agent' }]
+    : [];
+  const entries = [...gathered.entries, ...flagged];
+  // Right after `## Today`, so the size cap below never cuts it.
+  const [today, ...rest] = gathered.parts;
   const parts = subscription
     ? [
-        ...gathered.parts,
-        [
-          '## ⚠️ Claude subscription',
-          '',
-          `- ${subscription}`,
-          '',
-          '**Report this to the operator before anything else**: every turn until they restart bills the wrong account.'
-        ].join('\n')
+        today,
+        `## ⚠️ Claude subscription\n\n- ${subscription}\n\n**Report this to the operator before anything else**: every turn until they restart bills the wrong account.`,
+        ...rest
       ]
     : gathered.parts;
 

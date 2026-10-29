@@ -162,7 +162,7 @@ export async function sessionStart({
       log.info('hook fired (pre-init)');
       return PRE_INIT_RESULT;
     }
-    const { context, banner, hasIssues } = await assembleContext({ promptRow });
+    const { context, banner, hasIssues } = await assembleContext({ promptRow, host: 'claude' });
     // Mirror what the operator sees into the log file so context-assembly
     // issues (missing knowledge dir, git unavailable, oversized payload) are
     // diagnosable after the fact.
