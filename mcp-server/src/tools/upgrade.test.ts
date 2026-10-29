@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
+import { secretsReadBlocked } from '@/shared/sandbox-probe';
 import { tools } from '@/tools/upgrade';
 
 const runUpgrade = (version: string) => tools[0].handler({ version }) as Promise<Record<string, unknown>>;
@@ -40,5 +41,30 @@ describe('run_upgrade', () => {
       report: { ok: true, askDropped: ['mcp__xcode__RunCodeSnippet'] }
     });
     expect(JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf-8')).permissions.ask).toEqual([]);
+  });
+
+  test.skipIf(secretsReadBlocked())("hands the operator's choices to the script", async () => {
+    const zdot = mkdtempSync(join(tmpdir(), 'run-upgrade-zdot-'));
+    const saved = { SHELL: process.env.SHELL, ZDOTDIR: process.env.ZDOTDIR };
+    mkdirSync(join(home, RUNTIME_DIR, 'secrets'), { recursive: true });
+    writeFileSync(
+      join(home, RUNTIME_DIR, 'secrets', '.env.claude.json'),
+      JSON.stringify({ env: { CLAUDE_CODE_OAUTH_TOKEN: 'fixture-token', AGENT_SUBSCRIPTION: '1' } })
+    );
+    Object.assign(process.env, { AGENT_HOME: home, SHELL: '/bin/zsh', ZDOTDIR: zdot });
+    try {
+      const result = await tools[0].handler({ version: '0.9.0', options: { installLauncher: true } });
+      expect(result).toMatchObject({ ok: true, report: { token: 'present', launcher: { appended: true } } });
+      expect(readFileSync(join(zdot, '.zshrc'), 'utf-8')).toContain('agent()');
+    } finally {
+      Object.entries(saved).forEach(([key, value]) => {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      });
+      rmSync(zdot, { recursive: true, force: true });
+    }
   });
 });

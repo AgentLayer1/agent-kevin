@@ -62,6 +62,12 @@ export const TIMEZONE = env('AGENT_TIMEZONE') || Intl.DateTimeFormat().resolvedO
  *  the SessionStart context flags the operator as traveling. */
 export const HOME_TIMEZONE = env('AGENT_HOME_TIMEZONE') || '';
 
+/**
+ * Set by the subscription file's `env`, so a session can tell it started with that file:
+ * Claude Code keeps the token itself out of hook and tool environments.
+ */
+export const SUBSCRIPTION_MARKER = 'AGENT_SUBSCRIPTION';
+
 /** URL template the dashboard uses to open markdown files in a native app.
  *  `{path}` is replaced with the URL-encoded absolute path. Set via the
  *  `MARKDOWN_URL` env var (e.g. in `.claude/settings.local.json` `env`);
@@ -275,6 +281,10 @@ export const FILES = {
   },
   get FEEDBACK() {
     return resolve(FOLDERS.USER_RAW, 'feedback.md');
+  },
+  /** This agent's own Claude subscription, passed by the `agent` shell launcher as `--settings`. */
+  get CLAUDE_SUBSCRIPTION() {
+    return resolve(secretsRoot(), '.env.claude.json');
   },
   /** Session catalog keyed by sessionId — capture cursor + cross-day resume
    *  tracking. Authoritative for "how far have we captured session X"; itself

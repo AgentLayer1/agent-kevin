@@ -66,9 +66,15 @@ export const tools: ToolDef[] = [
     inputSchema: {
       version: z
         .string()
-        .describe('Semver MAJOR.MINOR.PATCH of the migration to run (resolves skills/upgrade/scripts/<version>.ts).')
+        .describe('Semver MAJOR.MINOR.PATCH of the migration to run (resolves skills/upgrade/scripts/<version>.ts).'),
+      options: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe(
+          "Choices the operator made for this migration, read by the script from AGENT_UPGRADE_OPTIONS (JSON). Only pass what the upgrade skill's step for that version names."
+        )
     },
-    handler: async ({ version }): Promise<RunResult> => {
+    handler: async ({ version, options }): Promise<RunResult> => {
       const scriptPath = resolveUpgradeScript(version);
       if (!scriptPath) {
         return {
@@ -89,7 +95,12 @@ export const tools: ToolDef[] = [
 
       const proc = spawnSync(process.execPath, [scriptPath], {
         cwd: FOLDERS.HOME,
-        env: { ...process.env, AGENT_HOME: FOLDERS.HOME, AGENT_PLUGIN_ROOT: FOLDERS.ROOT },
+        env: {
+          ...process.env,
+          AGENT_HOME: FOLDERS.HOME,
+          AGENT_PLUGIN_ROOT: FOLDERS.ROOT,
+          AGENT_UPGRADE_OPTIONS: JSON.stringify(options ?? {})
+        },
         encoding: 'utf-8',
         timeout: SCRIPT_TIMEOUT_MS
       });
