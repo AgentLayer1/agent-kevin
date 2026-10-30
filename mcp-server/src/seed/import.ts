@@ -79,12 +79,25 @@ const writeJson = (path: string, value: Record<string, unknown>): void => {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 };
 
-const unzip = (bundlePath: string, destination: string): void => {
+/** A zipinfo line whose mode starts with `l`; the entry name follows the seven columns after the mode. */
+const SYMLINK_ENTRY = /^l\S*\s+(?:\S+\s+){7}(.+)$/;
+
+const runUnzip = (bundlePath: string, args: string[]): string => {
   try {
-    execFileSync('unzip', ['-q', bundlePath, '-d', destination], { stdio: 'ignore' });
+    return execFileSync('unzip', args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (cause) {
     throw new Error(`could not unzip seed bundle at ${bundlePath} — is it a valid zip?`, { cause });
   }
+};
+
+const unzip = (bundlePath: string, destination: string): void => {
+  // Refused from the listing, before extraction: macOS's unzip fails the whole extraction on a symlink entry.
+  const symlink = runUnzip(bundlePath, ['-Z', bundlePath])
+    .split('\n')
+    .map((line) => SYMLINK_ENTRY.exec(line)?.[1])
+    .find((name) => name !== undefined);
+  if (symlink !== undefined) throw new Error(`payload is not a regular file: ${symlink.replace(/^files\//, '')}`);
+  runUnzip(bundlePath, ['-q', bundlePath, '-d', destination]);
 };
 
 const parseManifest = (stagingDir: string): SeedManifest => {
