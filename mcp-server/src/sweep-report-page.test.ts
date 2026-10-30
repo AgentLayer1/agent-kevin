@@ -54,6 +54,7 @@ describe('sweep page', () => {
     expect(errors).toEqual([]);
     expect([...document.querySelectorAll('details.sec')].map((node) => node.id)).toEqual([
       'first-moves',
+      'promises',
       'needs-code',
       'conflicts',
       'by-issue',
