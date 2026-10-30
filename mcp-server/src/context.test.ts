@@ -51,7 +51,7 @@ describe('pinned reports in the session context', () => {
 
 describe('the Claude subscription guard', () => {
   test('a home with its own subscription warns when the session started without it', () => {
-    expect(subscriptionIssue(true, undefined)).toContain('start it with `agent`');
+    expect(subscriptionIssue(true, undefined)).toContain('then run "agent"');
   });
 
   test('a session started with the subscription file, or a home without one, stays quiet', () => {

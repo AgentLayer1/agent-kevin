@@ -258,7 +258,12 @@ const welcomePart = (): string =>
     'If that first message is a concrete task, do the task, then run the welcome at the end of the same turn.'
   ].join('\n');
 
-function renderBanner(entries: ManifestEntry[], contextBytes: number, notices: readonly Notice[]): string {
+function renderBanner(
+  entries: ManifestEntry[],
+  contextBytes: number,
+  notices: readonly Notice[],
+  subscription: string | null
+): string {
   const labelWidth = Math.max(...entries.map((e) => e.label.length), 12);
   const sizeWidth = Math.max(...entries.map((e) => formatKB(e.bytes).length));
   const lines = entries.map((e) => {
@@ -276,6 +281,9 @@ function renderBanner(entries: ManifestEntry[], contextBytes: number, notices: r
   head.splice(1, 0, ...notices.map(noticeLine));
   if (welcomePending()) {
     head.splice(1, 0, "  👋 Welcome:   first session, say hi and I'll suggest where to start");
+  }
+  if (subscription) {
+    head.splice(1, 0, `  ⚠️ Billing:   ${subscription}`);
   }
   return [...head, ...lines].join('\n');
 }
@@ -487,7 +495,7 @@ async function gatherContext(restoredHistory = false): Promise<GatheredContext> 
  */
 export const subscriptionIssue = (hasSubscription: boolean, marker: string | undefined): string | null =>
   hasSubscription && marker !== '1'
-    ? `This agent has its own Claude subscription, but this session started without it, so it bills your default login. Exit and start it with \`agent\` from this folder. Already did? Then \`.state/secrets/.env.claude.json\` is missing \`"${SUBSCRIPTION_MARKER}": "1"\` in its \`env\` (Billing per agent in the docs).`
+    ? 'started with "claude" instead of "agent", so it bills your default login. /exit, then run "agent".'
     : null;
 
 /**
@@ -546,16 +554,13 @@ export async function assembleContext({
     host === 'claude'
       ? subscriptionIssue(existsSync(FILES.CLAUDE_SUBSCRIPTION), env(SUBSCRIPTION_MARKER))
       : null;
-  const flagged: ManifestEntry[] = subscription
-    ? [{ label: 'subscription', status: 'unavailable', bytes: 0, note: 'start with agent' }]
-    : [];
-  const entries = [...gathered.entries, ...flagged];
+  const { entries } = gathered;
   // Right after `## Today`, so the size cap below never cuts it.
   const [today, ...rest] = gathered.parts;
   const parts = subscription
     ? [
         today,
-        `## ⚠️ Claude subscription\n\n- ${subscription}\n\n**Report this to the operator before anything else**: every turn until they restart bills the wrong account.`,
+        `## ⚠️ Claude subscription\n\nThis agent has its own Claude subscription, but this session ${subscription} If the operator did start with "agent", \`.state/secrets/.env.claude.json\` is missing \`"${SUBSCRIPTION_MARKER}": "1"\` in its \`env\`.\n\n**Report this to the operator before anything else**: every turn until they restart bills the wrong account.`,
         ...rest
       ]
     : gathered.parts;
@@ -565,8 +570,8 @@ export async function assembleContext({
     context = context.slice(0, CONTEXT.MAX_CHARS) + '\n\n...(truncated)';
   }
   const notices = (await pendingNotices).filter((notice) => !promptRow || notice.level === 'hint');
-  const banner = renderBanner(entries, context.length, notices);
-  const hasIssues = entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
+  const banner = renderBanner(entries, context.length, notices, subscription);
+  const hasIssues = subscription !== null || entries.some((entry) => entry.status !== 'loaded' && entry.status !== 'off');
   return { context, banner, hasIssues };
 }
 
