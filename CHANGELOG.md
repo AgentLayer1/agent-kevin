@@ -53,9 +53,15 @@ and prompts per optional one. The new template files are the source of truth for
 - **The banner warns when a session misses its subscription.** A home with `.state/secrets/.env.claude.json` whose session started with plain `claude`, or from an IDE, gets a warning at the top of the session to exit and start it with `agent`. Codex sessions skip the check, since Codex never reads that file.
 - **`run_upgrade` passes the operator's choices to a migration.** An optional `options` object reaches the script as `AGENT_UPGRADE_OPTIONS`, so an upgrade step can ask first and then act.
 - **Init points at Billing per agent** for an agent that should bill a different account, and never handles the token itself.
+- **The github sweep tracks your own promises.** Each sweep lists the commitments you made in replies over the last 30 days, checks each one where it was made (open, done, superseded or wrong), and carries the previous sweep's list forward to check again.
+
+### Fixed
+- **A seed bundle carrying a symlink is refused by name again.** macOS 27.2's `unzip` refuses to write a symlink entry and failed the whole import as "is it a valid zip?". The import now reads the zip's listing first and refuses any symlink as "payload is not a regular file" before extracting.
 
 ### Upgrade
 - `script: required` — run skills/upgrade/scripts/0.9.0.ts. When `.claude/settings.local.json` sets `CLAUDE_CODE_OAUTH_TOKEN`, it moves the token to `.state/secrets/.env.claude.json` (0600, with `AGENT_SUBSCRIPTION`) and deletes the key, keeping every other setting in place; a different token already in that file stops the move and is named in `manual`. A hand-made file gets the marker. A home without a token is left alone and hears nothing about it. When the home has a subscription, the report says whether the `agent` launcher is in your shell profile; the upgrade then asks to add it (`~/.zshrc`, `~/.bashrc` or the PowerShell profile, which live outside the home), to show the one-line command, or to skip. The report never holds the token.
+- `template/shell/agent.sh: none` — the zsh and bash `agent` launcher; the 0.9.0 script appends it to a shell profile only when the operator agrees, and never copies it into the home.
+- `template/shell/agent.ps1: none` — the PowerShell `agent` launcher, the same way.
 - `manual: optional` — only for an agent with its own subscription: start it with `agent` from its home from now on. After this session exits, run `source ~/.zshrc` (bash: `source ~/.bashrc`; PowerShell: `. $PROFILE.CurrentUserAllHosts`) or open a new terminal so the shell knows the command.
 - `manual: none` — run `claude update` first if `claude --version` is below 2.1.314; the upgrade refuses to start until it is.
 
