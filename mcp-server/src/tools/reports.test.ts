@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { FOLDERS } from '@/config';
+import { writeReport } from '@/reports';
 import { z } from 'zod';
 import { tools } from './reports';
 
@@ -16,6 +17,26 @@ describe('report_write extra frontmatter', () => {
   test('rejects nested objects and lists of objects, which Obsidian shows as raw JSON', () => {
     expect(accepts({ repos: [{ name: 'acme', head: 'abc123' }] })).toBe(false);
     expect(accepts({ owner: { name: 'Ada' } })).toBe(false);
+  });
+});
+
+describe('writeReport frontmatter', () => {
+  test('quotes strings YAML would read back as numbers, booleans or null', async () => {
+    const { path } = await writeReport({
+      category: 'radar',
+      slug: 'typed-strings',
+      title: 'Typed strings',
+      skill: 'attention',
+      body: 'Body.',
+      tags: ['acme', '745', 'true'],
+      extra: { related_ids: ['abc123', '4096', 'null', ''], count: 3 },
+    });
+    const block = readFileSync(path, 'utf-8').split('---')[1] ?? '';
+    expect(Bun.YAML.parse(block)).toMatchObject({
+      tags: ['acme', '745', 'true'],
+      related_ids: ['abc123', '4096', 'null', ''],
+      count: 3,
+    });
   });
 });
 

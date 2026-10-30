@@ -151,10 +151,20 @@ function renderReport(input: WriteReportInput, created: string): string {
 function yamlScalar(value: string): string {
   // Quote when the value contains YAML-significant characters or has leading
   // whitespace / a leading `-` (list marker). Mid-value hyphens are fine bare.
-  if (/^\s|\s$|^-|[:#?{}\[\],&*!|>'%@`"]/.test(value)) {
+  // Text YAML reads back as another type (`745`, `true`, `null`) is quoted too,
+  // or Obsidian flags a mixed-type list in Properties.
+  if (/^\s|\s$|^-|[:#?{}\[\],&*!|>'%@`"]/.test(value) || !readsBackAsString(value)) {
     return JSON.stringify(value);
   }
   return value;
+}
+
+function readsBackAsString(value: string): boolean {
+  try {
+    return Bun.YAML.parse(value) === value;
+  } catch {
+    return false;
+  }
 }
 
 function yamlValue(value: FrontmatterValue): string {
