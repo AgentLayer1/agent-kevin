@@ -43,6 +43,34 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.9.1] - 2026-11-02
+
+### Added
+- **`/task <id>` shows a task as a card and closes or cancels it, replacing `/done`.** The card above the prompt carries status, priority, project, due date, the description's first paragraph, checklist progress, an Open link to the file and a Done button. `/task <id> done` closes the task and `cancel` (or `archive`) cancels it, for an open, active or blocked task. Autocomplete suggests ids, then the actions that task can take, and `ab-42` reads as `ab-042`. In the terminal, every known task id in a reply is drawn as a `file://` link to its file; only the drawing changes, never the stored reply. The card counts days late in the same timezone as `/today`.
+- **`kevin task query` rows carry `filePath`** beside the frontmatter, so a caller can link a task without a `task get` per id.
+- **Xcode pack: Xcode 27.2 and Apple's own skills.** The xcode rule routes to the agent skills Xcode exports per build (SwiftUI, App Intents, resizability, translation, device interaction, `xctrace`, accessibility and more), read as files rather than loaded as a second plugin. It also covers picking a preview's device with `preferredRenderDestination`, launching on the deployment-floor OS to catch strongly imported symbols, putting back the scheme changes `RunProject` saves, and a new "After an Xcode update" section. configure-skills allows and excludes `xcrun xctrace *`, gates `xcrun simctl runtime delete *` behind ask, and hands over the skills export command. The Apple app manual template gains a Skills section.
+
+### Changed
+- **Bun 1.4.4 is the new floor.** The host check carries bun beside Claude Code and Codex, read from the running runtime; init and upgrade refuse below it and the banner names `bun upgrade`. Bun 1.4 parses YAML 1.2, so an unquoted month (`from: 2026-07`) in the tax config now reads as the month; quoting stays the recommended form.
+- **The browser tools drop their bun workarounds.** With bun 1.4 running Playwright's pipe transport on Windows, the Windows CDP launch path, the playwright-core `ws` patch and the `ws` dependency are gone, `browser_record` no longer refuses on Windows, and the 0.5.3 migration's render check runs there too.
+- **Init's Windows notes** give winget installs for poppler, gh and jq, and say plainly that native Windows runs unsandboxed, so only the Read deny rule guards `.state/secrets/` (WSL2 runs the sandbox).
+
+### Removed
+- **`/done`.** Use `/task <id> done` instead.
+
+### Fixed
+- **A home on Windows reads and writes LF.** Git for Windows checks out CRLF by default, which made init's and upgrade's setup scripts throw, dropped every CHANGELOG item from upgrade's parse, and left several readers empty (dashboard rule paths and sections, project hues, lint's See Also backlinks, seed import's manual check). A `.gitattributes` pins LF for new checkouts, and home reads go through one `readText` that normalizes line endings. Files edited in place (task files, the reports index, TASKS.md's goals, wiki link rewrites, daily-memory pruning, seed files, `.codex/config.toml`) come back LF throughout instead of mixed. The mermaid validator checks a CRLF file instead of passing it with zero blocks.
+- **Init's first history snapshot comes after the packs are configured**, so it holds the permissions they add.
+- **Closing a closed task again keeps its closed date.**
+- **Report frontmatter quotes any string YAML would read back as another type**, so an id like `745` stays a string.
+
+### Upgrade
+- `deps: required` — `ws` and the playwright-core patch are removed and `playwright` moves from `1.60.0` to `~1.60.0`; run bun install in mcp-server (its postinstall downloads Chromium again).
+- `manual: none` — run `bun upgrade` first if `bun --version` is below 1.4.4; the upgrade refuses to start until it is.
+- `manual: none` — `/done` is gone: use `/task <id> done`. A schedule or script outside the home that runs `/done` needs the new command.
+- `manual: optional` — Xcode pack homes only: replace `.claude/rules/xcode.md` with the plugin's `templates/rules/xcode.md` (Apple's skills routing, 27.2 preview destinations, the floor-OS launch check, After an Xcode update), merging by hand if you edited it. Then re-run `/agent-kevin:configure-skills` → Xcode: it adds `Bash(xcrun xctrace *)` to allow and `Bash(xcrun simctl runtime delete *)` to ask, and prints the `xcrun xctrace *` sandbox exclusion and the `xcrun agent plugin path --plugin-format claude` export for you to run. Homes without the pack skip this.
+- `template/repo/AGENTS-apple-app.md: none` — a repo scaffold, never copied into a home.
+
 ## [0.9.0] - 2026-10-30
 
 ### Changed
