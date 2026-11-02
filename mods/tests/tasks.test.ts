@@ -3,7 +3,7 @@ import type { Engine, EngineCall } from 'claude-code/testing';
 import type { On } from 'claude-code';
 
 import { linkTaskIds } from '../tasks/link';
-import { clip, normalizeId, parseTaskArgs, progressBar } from '../tasks/task';
+import { buildCard, clip, normalizeId, parseTaskArgs, progressBar } from '../tasks/task';
 import { BAND_PROPS, PLUGIN, fakeHost, machine, run } from './fake-host';
 
 const HREF = 'file:///fixture/home/projects/acme/tasks/ac-001-fixture%20task.md';
@@ -27,6 +27,18 @@ describe('task helpers', () => {
   test('a long summary is cut on a word with an ellipsis', () => {
     expect(clip('short', 40)).toBe('short');
     expect(clip('one two three four five', 14)).toBe('one two three…');
+  });
+
+  test("days late count from midnight in the CLI's timezone", () => {
+    const task = {
+      frontmatter: { id: 'ac-001', title: 'Fixture', status: 'open', due: '2026-03-09' },
+      description: '',
+      checklist: [],
+      filePath: '/fixture/ac-001.md'
+    };
+    const evening = Date.parse('2026-03-09T20:00:00Z');
+    expect(buildCard(task, evening, 'Asia/Kuala_Lumpur').due?.daysLate).toBe(1);
+    expect(buildCard(task, evening, 'America/New_York').due?.daysLate).toBe(0);
   });
 
   test('the checklist bar fills in proportion', () => {
@@ -188,7 +200,7 @@ describe('/task card', () => {
       const card = await drawn($, surface);
       expect(card).toContain('ac-001|Licence fixture');
       expect(card).toContain('● active|·|P1|·|acme|·|');
-      expect(card).toMatch(/due Mar 1 · \d+d late/);
+      expect(card).toContain('due Mar 1 · 9d late');
       expect(card).toContain('Bug. The ac-001 fixture breaks.');
       expect(card).not.toContain('Second paragraph');
       expect(card).toContain('▰▰▱▱▱▱▱▱|1 of 4');

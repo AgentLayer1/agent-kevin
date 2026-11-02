@@ -31,6 +31,7 @@ const TASKS_FRESH_MS = 60_000;
 let cache: { readAt: number; tasks: Promise<readonly TaskRow[]> } | undefined;
 let known: readonly TaskRow[] = [];
 let hrefs: ReadonlyMap<string, string> = new Map();
+let timeZone: Promise<string | undefined> | undefined;
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -66,8 +67,18 @@ async function readTask($: EngineInterface, id: string): Promise<TaskFile | null
   );
 }
 
+// Read once per load: `ping` reports AGENT_TIMEZONE when set, the machine's zone otherwise.
+function cliTimeZone($: EngineInterface): Promise<string | undefined> {
+  timeZone ??= runCli($, ['ping']).then(
+    (stdout) => (JSON.parse(stdout) as { timezone?: string }).timezone,
+    () => undefined
+  );
+  return timeZone;
+}
+
 async function showCard($: EngineInterface, task: TaskFile): Promise<TaskCard> {
-  const card = buildCard(task, await $.clock.now());
+  const [now, zone] = await Promise.all([$.clock.now(), cliTimeZone($)]);
+  const card = buildCard(task, now, zone);
   await update($, taskCard, () => card);
   return card;
 }
@@ -95,6 +106,7 @@ export const registerTasks = (on: On): void => {
   on('session.start', { isInteractive: true }, async ($, e, next) => {
     await Promise.all(TASKS_FEATURE.commands.map((command) => $.command.register(command)));
     void tasksAt($);
+    void cliTimeZone($);
     return next(e);
   });
 

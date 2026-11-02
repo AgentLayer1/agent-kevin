@@ -121,14 +121,19 @@ const plainText = (markdown: string): string =>
 const shortDate = (iso: string): string =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(Date.parse(iso));
 
-const localDay = (now: number): number =>
-  Date.parse(new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(now));
+const dayIn = (now: number, timeZone: string | undefined): number =>
+  Date.parse(
+    new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  );
 
 export const fileHref = (path: string): string => `file://${encodeURI(path)}`;
 
-export const buildCard = (task: TaskFile, now: number): TaskCard => {
+/**
+ * Days late are counted from midnight in `timeZone`, the CLI's own (`/today` counts the same way); absent, the machine's.
+ */
+export const buildCard = (task: TaskFile, now: number, timeZone?: string): TaskCard => {
   const { id, title, status, priority, project, due } = task.frontmatter;
-  const daysLate = due ? Math.round((localDay(now) - Date.parse(due)) / DAY_MS) : 0;
+  const daysLate = due ? Math.round((dayIn(now, timeZone) - Date.parse(due)) / DAY_MS) : 0;
   const summary = plainText(task.description.split(/\n\s*\n/)[0] ?? '');
   return {
     id,
