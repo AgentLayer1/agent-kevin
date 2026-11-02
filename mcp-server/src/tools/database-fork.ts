@@ -130,7 +130,7 @@ export const readEnvLine = (content: string, envVar: string): string | null => {
 /** Remove the `<envVar>=` line; returns null when nothing meaningful remains. */
 export const removeEnvLine = (content: string, envVar: string): string | null => {
   const escaped = envVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const stripped = content.replace(new RegExp(`^${escaped}=.*\\n?`, 'm'), '');
+  const stripped = content.replace(new RegExp(`^${escaped}=.*\\r?\\n?`, 'm'), '');
   return stripped.trim() === '' ? null : stripped;
 };
 

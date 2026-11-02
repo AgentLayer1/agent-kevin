@@ -32,6 +32,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { readText } from '../../../mcp-server/src/shared/text';
 
 interface HookItem {
   type: string;
@@ -387,7 +388,7 @@ const userClaudeDenyList = Array.isArray(userClaude.permissions?.deny)
 const inheritedDenies = denyGlobs(userClaudeDenyList).filter((glob) => !userDenied.has(glob));
 const absoluteDenies = [...new Set([...readDenies, ...inheritedDenies])].filter((glob) => glob.startsWith('/'));
 const relativeDenies = [...new Set([...readDenies, ...inheritedDenies])].filter((glob) => !glob.startsWith('/'));
-const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : '';
+const existingConfig = existsSync(configPath) ? readText(configPath) : '';
 const existingTables = parseToml(existingConfig, configPath);
 const legacySandboxKeys = ['sandbox_mode', 'sandbox_workspace_write'].filter((key) => key in existingTables);
 if (legacySandboxKeys.length > 0) {

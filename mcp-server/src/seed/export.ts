@@ -10,6 +10,7 @@
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { agentNameIn, NAME_RE, renameAgent, withoutFormerNames } from '@/shared/agent-name';
 import { env } from '@/shared/env';
+import { readText } from '@/shared/text';
 import {
   CREDENTIAL_KEY_RE,
   HOME_PLACEHOLDER,
@@ -147,14 +148,14 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
       const destination = join(staging, 'files', path);
       mkdirSync(dirname(destination), { recursive: true });
       if (IDENTITY_FILES.has(path)) {
-        const original = readFileSync(resolve(home, path), 'utf-8');
+        const original = readText(resolve(home, path));
         const content = renameFrom ? renameAgent(original, renameFrom, options.agentName) : original;
         // The bundle seeds a new agent: this one's former names aren't its history.
         writeFileSync(destination, withoutFormerNames(content));
         if (content !== original) renamed.push(path);
       } else if (PROJECT_README_RE.test(path)) {
         // Pins point at reports and project files a seed never carries.
-        writeFileSync(destination, withoutPins(readFileSync(resolve(home, path), 'utf-8')));
+        writeFileSync(destination, withoutPins(readText(resolve(home, path))));
       } else {
         copyFileSync(resolve(home, path), destination);
       }

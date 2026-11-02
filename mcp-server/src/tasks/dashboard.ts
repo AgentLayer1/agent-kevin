@@ -10,7 +10,8 @@ import { FOLDERS } from '@/config';
 import { agentDisplayName } from '@/shared/agent-name';
 import type { TaskFile, TaskFrontmatter } from '@/shared/types';
 import { daysAgoDate, todayDate } from '@/shared/date';
-import { readFileSync, writeFileSync } from 'fs';
+import { readText } from '@/shared/text';
+import { writeFileSync } from 'fs';
 import { basename, join } from 'path';
 import { issueLabel } from './issue';
 import { scanAllTasks, scanMalformedTasks } from './scan';
@@ -220,7 +221,7 @@ export const writeDashboard = (): DashboardCounts => {
   const tasksFile = join(FOLDERS.PROJECTS, 'TASKS.md');
   let existing = '';
   try {
-    existing = readFileSync(tasksFile, 'utf-8');
+    existing = readText(tasksFile);
   } catch {
     // first run — no existing file, use empty goals scaffold
   }

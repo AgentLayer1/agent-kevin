@@ -10,8 +10,9 @@ import {
   type UpdateTaskOptions
 } from '@/shared/types';
 import { todayDate } from '@/shared/date';
+import { readText } from '@/shared/text';
 import { writeFileAtomic } from '@/shared/utils';
-import { existsSync, readFileSync, renameSync } from 'fs';
+import { existsSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { withDashboardBatch, writeDashboardSafe } from './dashboard';
 import { normalizeHorizon } from './horizon';
@@ -62,7 +63,7 @@ const updateTaskOnDisk = (
   apply: (fm: TaskFrontmatter) => void,
   editBody = (content: string) => content
 ): TaskFrontmatter => {
-  const content = editBody(readFileSync(filePath, 'utf-8'));
+  const content = editBody(readText(filePath));
   const fm = parseFrontmatter(content);
   if (!fm) throw new Error(`Failed to parse frontmatter: ${filePath}`);
 
@@ -79,7 +80,7 @@ const updateTaskOnDisk = (
  * Body content is never parsed or modified.
  */
 const appendThreadToDisk = (filePath: string, type: ThreadEntry['type'], author: string, message: string): void => {
-  let content = readFileSync(filePath, 'utf-8');
+  let content = readText(filePath);
   const fm = parseFrontmatter(content);
   if (!fm) throw new Error(`Failed to parse frontmatter: ${filePath}`);
 

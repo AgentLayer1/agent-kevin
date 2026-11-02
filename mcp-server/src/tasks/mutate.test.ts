@@ -148,3 +148,17 @@ describe('updateTask description', () => {
     expect(readFileSync(created.filePath, 'utf-8')).toBe(before);
   });
 });
+
+describe('line endings', () => {
+  test('a task file saved with CRLF comes back with LF only after an update and a thread entry', () => {
+    const created = newTask();
+    writeFileSync(created.filePath, readFileSync(created.filePath, 'utf-8').replace(/\n/g, '\r\n'));
+
+    updateTask(created.frontmatter.id, { priority: 'P1' });
+    appendThread(created.frontmatter.id, 'Ada', 'Picked up.');
+
+    const content = readFileSync(created.filePath, 'utf-8');
+    expect(content).not.toContain('\r');
+    expect(findTaskById(created.frontmatter.id)?.frontmatter.priority).toBe('P1');
+  });
+});

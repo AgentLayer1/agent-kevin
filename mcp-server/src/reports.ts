@@ -16,6 +16,7 @@
  */
 import { FILES, FOLDERS, PLUGIN_NAME } from '@/config';
 import { nowISO, nowTimeCompact, todayDate } from '@/shared/date';
+import { toLf } from '@/shared/text';
 import { writeFileAtomic } from '@/shared/utils';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -194,7 +195,7 @@ async function updateIndex(entry: IndexEntry): Promise<boolean> {
 
 async function readIndexOrInit(): Promise<string> {
   try {
-    return await readFile(FILES.REPORTS_INDEX, 'utf-8');
+    return toLf(await readFile(FILES.REPORTS_INDEX, 'utf-8'));
   } catch {
     return INDEX_PREAMBLE;
   }

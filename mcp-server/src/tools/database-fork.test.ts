@@ -89,6 +89,10 @@ describe('removeEnvLine', () => {
   test('keeps other lines when present', () => {
     expect(removeEnvLine('FOO=bar\nDATABASE_URL="x"\n', 'DATABASE_URL')).toBe('FOO=bar\n');
   });
+
+  test('removes a CRLF line whole and leaves the file its own line endings', () => {
+    expect(removeEnvLine('DATABASE_URL="x"\r\nFOO=bar\r\n', 'DATABASE_URL')).toBe('FOO=bar\r\n');
+  });
 });
 
 describe('configuredDatabases', () => {

@@ -9,7 +9,7 @@ import type {
   ThreadEntry
 } from '@/shared/types';
 import { todayDate } from '@/shared/date';
-import { readFileSync } from 'fs';
+import { readText } from '@/shared/text';
 
 // ── Valid Status Transitions ──────────────────────────────────────────
 
@@ -231,7 +231,7 @@ const sectionName = (line: string): string => (line.startsWith('## ') ? line.sli
 export const isSectionHeader = (line: string): boolean => KNOWN_SECTIONS.has(sectionName(line));
 
 export const parseTaskFile = (filePath: string): TaskFile | null => {
-  const content = readFileSync(filePath, 'utf-8');
+  const content = readText(filePath);
   const frontmatter = parseFrontmatter(content);
   if (!frontmatter) return null;
 

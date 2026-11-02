@@ -20,6 +20,7 @@
  */
 
 import { FILES, FOLDERS } from '@/config';
+import { toLf } from '@/shared/text';
 import { readFile, writeFile } from 'fs/promises';
 import { basename, dirname, relative, resolve, sep } from 'path';
 import { listWikiArticles, splitFrontmatter } from './utils';
@@ -108,7 +109,7 @@ export function rewriteWikilinks(content: string, fromFile: string, links: Wikil
 async function readLinkInfo(filePath: string, fallback: string): Promise<LinkInfo | null> {
   let content: string;
   try {
-    content = await readFile(filePath, 'utf-8');
+    content = toLf(await readFile(filePath, 'utf-8'));
   } catch {
     return null;
   }
@@ -157,7 +158,7 @@ export async function rewriteAllWikilinks(): Promise<string[]> {
   for (const path of targets) {
     let content: string;
     try {
-      content = await readFile(path, 'utf-8');
+      content = toLf(await readFile(path, 'utf-8'));
     } catch {
       continue;
     }
