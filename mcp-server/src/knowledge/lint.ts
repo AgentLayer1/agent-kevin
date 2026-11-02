@@ -16,6 +16,7 @@
 import { FOLDERS } from '@/config';
 import { createLogger } from '@/shared/log';
 import { nowISO } from '@/shared/date';
+import { toLf } from '@/shared/text';
 import { repoRelative } from '@/shared/utils';
 import { readFile, writeFile } from 'fs/promises';
 import { basename, dirname, relative, resolve } from 'path';
@@ -417,7 +418,7 @@ export async function fixWikilinks(articles?: Map<string, string>): Promise<Lint
       const relPath = relative(FOLDERS.KNOWLEDGE, absPath);
       if (articles) {
         try {
-          articles.set(relPath, await readFile(absPath, 'utf-8'));
+          articles.set(relPath, toLf(await readFile(absPath, 'utf-8')));
         } catch {
           // best-effort sync — file might have been removed mid-flight
         }

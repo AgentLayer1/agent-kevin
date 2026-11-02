@@ -1,5 +1,6 @@
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { scrubValues } from '@/shared/env';
+import { toLf } from '@/shared/text';
 import { createHash } from 'crypto';
 import { readdirSync, readFileSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
@@ -172,7 +173,7 @@ export async function listWikiArticles(): Promise<string[]> {
 export async function readAllWikiContent(): Promise<Map<string, string>> {
   const articles = await listWikiArticles();
   const pairs = await Promise.all(
-    articles.map(async (path) => [relative(FOLDERS.KNOWLEDGE, path), await readFile(path, 'utf-8')] as const)
+    articles.map(async (path) => [relative(FOLDERS.KNOWLEDGE, path), toLf(await readFile(path, 'utf-8'))] as const)
   );
   return new Map(pairs);
 }

@@ -101,4 +101,11 @@ describe('projectHues', () => {
     expect(Object.keys(projectHues())).not.toContain('gamma');
     ['alpha', 'beta', 'gamma'].forEach((name) => rmSync(join(FOLDERS.PROJECTS, name), { recursive: true, force: true }));
   });
+
+  test('reads the hue from a README saved with CRLF line endings', () => {
+    mkdirSync(join(FOLDERS.PROJECTS, 'delta'), { recursive: true });
+    writeFileSync(join(FOLDERS.PROJECTS, 'delta', 'README.md'), '---\r\nhue: 200\r\n---\r\n\r\n# Delta\r\n');
+    expect(projectHues()).toMatchObject({ delta: 200 });
+    rmSync(join(FOLDERS.PROJECTS, 'delta'), { recursive: true, force: true });
+  });
 });

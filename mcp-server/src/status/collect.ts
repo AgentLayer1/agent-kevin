@@ -43,6 +43,7 @@ import {
   type RadarTaskRef
 } from './radar-refs';
 import { sanitizeHtml } from '@/shared/sanitize-html';
+import { readText } from '@/shared/text';
 import type { TaskFile } from '@/shared/types';
 import { discoverProjects, scanAllTasks, scanArchivedTasks, scanMalformedTasks } from '@/tasks/scan';
 import { resolveTasks } from '@/tasks/resolve';
@@ -1013,7 +1014,7 @@ const collectRulesFrom = (dir: string, level: RuleEntry['level']): RuleEntry[] =
         return {
           name: name.replace(MARKDOWN_RE, ''),
           level,
-          paths: parseRulePaths(readFileSync(path, 'utf-8')),
+          paths: parseRulePaths(readText(path)),
           bytes: safeBytes(path),
           path: level === 'project' ? relative(FOLDERS.HOME, path) : path
         };
@@ -1236,7 +1237,7 @@ const PROFILE_SECTION_LINES = 12;
 /** Every `## Section` of a markdown file as stripped text lines. */
 const mdSections = (file: string): ProfileSection[] => {
   try {
-    const lines = readFileSync(file, 'utf-8').split('\n');
+    const lines = readText(file).split('\n');
     const sections: ProfileSection[] = [];
     let current: ProfileSection | null = null;
     for (const line of lines) {
@@ -1602,7 +1603,7 @@ const collectReports = (): ReportRef[] => {
       const full = resolve(dir, fileName);
       let body = '';
       try {
-        body = readFileSync(full, 'utf-8');
+        body = readText(full);
       } catch {
         continue;
       }
@@ -1681,7 +1682,7 @@ const collectRadarLatest = async (reports: ReportRef[]): Promise<RadarLatest | n
   if (!ref) return null;
   let body = '';
   try {
-    body = readFileSync(resolve(FOLDERS.HOME, ref.href), 'utf-8');
+    body = readText(resolve(FOLDERS.HOME, ref.href));
   } catch {
     return null;
   }

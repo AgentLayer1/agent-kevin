@@ -38,3 +38,19 @@ describe('lint broken links', () => {
     expect(report).toContain('[[ac-999-never-filed]] in concepts/acme-links.md points to non-existent article');
   });
 });
+
+describe('lint backlinks', () => {
+  test('a CRLF article with a See Also section gets the backlink under it, once', async () => {
+    const concepts = join(FOLDERS.KNOWLEDGE, 'concepts');
+    mkdirSync(concepts, { recursive: true });
+    writeFileSync(join(concepts, 'acme-source.md'), '---\ntitle: Acme source\n---\n\nSee [[concepts/acme-target]].\n');
+    writeFileSync(
+      join(concepts, 'acme-target.md'),
+      '---\r\ntitle: Acme target\r\n---\r\n\r\nBody.\r\n\r\n## See Also\r\n\r\n- [[concepts/acme-other]]\r\n'
+    );
+    await run({ fixMode: true });
+    const target = readFileSync(join(concepts, 'acme-target.md'), 'utf-8');
+    expect(target).toContain('acme-source');
+    expect(target.match(/## See Also/g)).toHaveLength(1);
+  });
+});

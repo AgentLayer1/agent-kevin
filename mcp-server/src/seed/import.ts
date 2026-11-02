@@ -25,6 +25,7 @@ import {
   validateSeedPath
 } from '@/seed/format';
 import { migrateGrants } from '@/shared/retired-skills';
+import { readText } from '@/shared/text';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -157,9 +158,9 @@ export const importSeed = (options: SeedImportOptions): SeedImportResult => {
       if (file.path === MANUAL_SEED_PATH) {
         const manual = resolve(home, MANUAL_SEED_PATH);
         const manualRel = relative(home, manual).split(/[\\/]/).join('/');
-        const section = readFileSync(source, 'utf-8');
+        const section = readText(source);
         if (existsSync(manual)) {
-          if (readFileSync(manual, 'utf-8').includes(section)) {
+          if (readText(manual).includes(section)) {
             unchanged.push(manualRel);
             continue;
           }

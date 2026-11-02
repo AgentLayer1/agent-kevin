@@ -1,6 +1,7 @@
 import { FILES, FOLDERS } from '@/config';
 import { isInside } from '@/shared/paths';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readText } from '@/shared/text';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { titleize } from './format';
 
@@ -38,7 +39,7 @@ const targetPath = (href: string): string => {
 // A project README's `## Pinned` section, up to the next `## ` heading or the end of the file.
 const PINNED_SECTION = /^## Pinned[ \t]*$([\s\S]*?)(?=^## |(?![\s\S]))/m;
 
-const readText = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
+const readIfExists = (path: string): string => (existsSync(path) ? readText(path) : '');
 
 /** The pin lines in `body`, in file order, each file once, links resolved against `source`'s folder.
  *  A pin that no longer points at a file in the home stays in the list with `exists: false`. */
@@ -52,12 +53,12 @@ const pinsIn = (source: string, body: string): Pin[] => {
 };
 
 /** The pins in reports/pinned.md. */
-export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readText(FILES.REPORTS_PINNED));
+export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readIfExists(FILES.REPORTS_PINNED));
 
 /** The pins in a project README's `## Pinned` section, which its card and attention page show. */
 export const projectPins = (project: string): Pin[] => {
   const readme = resolve(FOLDERS.PROJECTS, project, 'README.md');
-  return pinsIn(readme, PINNED_SECTION.exec(readText(readme))?.[1] ?? '');
+  return pinsIn(readme, PINNED_SECTION.exec(readIfExists(readme))?.[1] ?? '');
 };
 
 /** A project README without its `## Pinned` section. */
@@ -86,7 +87,7 @@ export const projectHues = (): Record<string, number> =>
       .filter((entry) => entry.isDirectory())
       .flatMap((entry) => {
         const readme = resolve(FOLDERS.PROJECTS, entry.name, 'README.md');
-        const front = existsSync(readme) ? /^---\n([\s\S]*?)\n---/.exec(readFileSync(readme, 'utf-8'))?.[1] : undefined;
+        const front = existsSync(readme) ? /^---\n([\s\S]*?)\n---/.exec(readText(readme))?.[1] : undefined;
         const hue = Number(/^hue:\s*(\d{1,3})\s*$/m.exec(front ?? '')?.[1]);
         return Number.isInteger(hue) && hue < 360 ? [[entry.name, hue] as const] : [];
       })
