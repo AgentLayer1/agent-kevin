@@ -301,7 +301,7 @@ export const parseEntity = (slug: string, raw: string): Entity => {
     .filter(isObligation)
     .find((item) => [item.from, item.until].some((bound) => bound !== undefined && (typeof bound !== "string" || !MONTH_RE.test(bound))));
   if (badBound !== undefined) {
-    throw new Error(`entities/${slug}.md: obligation ${badBound.id} needs from and until as a quoted "YYYY-MM" with a month from 01 to 12 (YAML reads an unquoted 2026-07 as a number)`);
+    throw new Error(`entities/${slug}.md: obligation ${badBound.id} needs from and until as a quoted "YYYY-MM" with a month from 01 to 12`);
   }
   const accounts = listBlock(`entities/${slug}.md`, raw, "Accounts");
   if (accounts.some((item) => !isAccount(item))) {

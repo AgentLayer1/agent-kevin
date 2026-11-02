@@ -184,10 +184,11 @@ test("parseEntity refuses an impossible month in a bound or in booked_through", 
   expect(parseEntity("acme", profile.replace("close: monthly", 'close: monthly\nbooked_through: "2026-12"')).bookedThrough).toBe("2026-12");
 });
 
-test("parseEntity refuses an unquoted from or until month instead of dropping every deadline", () => {
+test("parseEntity reads an unquoted from month as the month and refuses a bare year instead of dropping every deadline", () => {
   const unquoted = profile.replace('from: "2026-07" }', "from: 2026-07 }");
   expect(unquoted).not.toBe(profile);
-  expect(() => parseEntity("acme", unquoted)).toThrow("form-c");
+  expect(parseEntity("acme", unquoted).obligations).toEqual(parseEntity("acme", profile).obligations);
+  expect(() => parseEntity("acme", profile.replace('from: "2026-07" }', "from: 2026 }"))).toThrow("form-c");
   expect(parseEntity("acme", profile).obligations).toHaveLength(2);
 });
 
@@ -307,9 +308,11 @@ describe("renderDashboard", () => {
     expect(html).not.toContain("<Main>");
   });
 
-  test("a profile with booked_through unquoted stops the run instead of reading a wrong month", () => {
+  test("an unquoted booked_through reads as the month, and a bare year stops the run instead of reading a wrong month", () => {
     const dir = scratch();
     write(dir, "entities/acme.md", profile.replace("close: monthly", "close: monthly\nbooked_through: 2026-07"));
+    expect(renderDashboard(dir, "2026-10-08")).toContain("booked through Jul 2026");
+    write(dir, "entities/acme.md", profile.replace("close: monthly", "close: monthly\nbooked_through: 2026"));
     expect(() => renderDashboard(dir, "2026-10-08")).toThrow("booked_through");
   });
 
