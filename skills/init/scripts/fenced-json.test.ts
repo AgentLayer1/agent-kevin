@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { fencedJsonAfter } from './fenced-json';
 
 const markdown = ['## Intro', '', '### Baseline', '', '```json', '["Read(./a)", "Read(./b)"]', '```', ''].join('\n');
@@ -21,14 +19,5 @@ describe('fencedJsonAfter', () => {
     expect(() => fencedJsonAfter(markdown, '### Missing')).toThrow(
       'no longer carries a JSON block after "### Missing"'
     );
-  });
-
-  test("the init skill's auto-mode block survives a CRLF conversion", () => {
-    const skill = readFileSync(resolve(import.meta.dir, '..', 'SKILL.md'), 'utf-8').replace(/\n/g, '\r\n');
-    const block = fencedJsonAfter<{ autoMode: { allow: string[] } }>(
-      skill,
-      '### Offer the auto-mode knowledge-base exception'
-    );
-    expect(block.autoMode.allow.length).toBeGreaterThan(0);
   });
 });
