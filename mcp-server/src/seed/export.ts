@@ -128,7 +128,7 @@ export const exportSeed = (options: SeedExportOptions): SeedExportResult => {
   const paths = expanded.filter(
     (path) => !skippedEnvFiles.includes(path) && !extras.some((extra) => extra.path === path)
   );
-  const sourceName = existsSync(FILES.IDENTITY) ? agentNameIn(readFileSync(FILES.IDENTITY, 'utf-8')) : '';
+  const sourceName = existsSync(FILES.IDENTITY) ? agentNameIn(readText(FILES.IDENTITY)) : '';
   const renameFrom = sourceName !== options.agentName && NAME_RE.test(sourceName) ? sourceName : null;
   const errors = [...paths, ...extras.map((extra) => extra.path)]
     .map((path) => validateSeedPath(path))

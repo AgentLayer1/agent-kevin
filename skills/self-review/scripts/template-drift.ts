@@ -11,6 +11,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { readText } from '../../../mcp-server/src/shared/text';
 
 interface Section {
   heading: string;
@@ -60,7 +61,6 @@ const toPattern = (line: string): RegExp =>
 
 const sectionsOf = (text: string): Section[] =>
   text
-    .replace(/\r\n/g, '\n')
     .split('\n')
     .reduce<{ sections: Section[]; inFence: boolean }>(
       ({ sections, inFence }, line) => {
@@ -89,13 +89,13 @@ const isContent = (line: string): boolean => {
 };
 
 const linePatternsOf = (path: string): RegExp[] =>
-  sectionsOf(readFileSync(path, 'utf-8')).flatMap((section) => section.lines.filter(isContent).map(toPattern));
+  sectionsOf(readText(path)).flatMap((section) => section.lines.filter(isContent).map(toPattern));
 
 const known = (line: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(normalize(line)));
 
 const driftOf = (file: string, homePath: string, templatePath: string, basePath?: string): FileDrift => {
-  const homeSections = sectionsOf(readFileSync(homePath, 'utf-8'));
-  const headingPatterns = sectionsOf(readFileSync(templatePath, 'utf-8')).map((section) => toPattern(section.heading));
+  const homeSections = sectionsOf(readText(homePath));
+  const headingPatterns = sectionsOf(readText(templatePath)).map((section) => toPattern(section.heading));
   const linePatterns = linePatternsOf(templatePath);
   const basePatterns = basePath !== undefined && existsSync(basePath) ? linePatternsOf(basePath) : undefined;
   return {

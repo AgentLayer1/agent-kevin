@@ -13,6 +13,7 @@ import { hashBuffer, listInboxFiles, listRawFiles, loadScriptTemplate, renderTem
 import type { CompileState, IngestedEntry, PartialEntry } from '@/shared/types';
 import { agentDisplayName, agentFormerNames } from '@/shared/agent-name';
 import { nowISO } from '@/shared/date';
+import { toLf } from '@/shared/text';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
@@ -177,7 +178,7 @@ function buildSessionPrompt(fileName: string, chunkContent: string): string {
 }
 
 async function buildFeedbackPrompt(): Promise<string> {
-  const feedback = await readFile(FILES.FEEDBACK, 'utf-8');
+  const feedback = toLf(await readFile(FILES.FEEDBACK, 'utf-8'));
   return renderTemplate(FEEDBACK_TEMPLATE, {
     ...agentVars(),
     memoryIndexPath: FILES.MEMORY,

@@ -33,12 +33,13 @@ import { env } from '@/shared/env';
 import { readCadence } from '@/shared/cadence';
 import { log as baseLog } from '@/shared/log';
 import { isInside } from '@/shared/paths';
+import { readText, toLf } from '@/shared/text';
 import { countOf } from '@/shared/utils';
 import { livePins } from '@/status/surfaces';
 import { statusLineDrift } from '@/statusline/setting';
 import { getUpgradeStatus } from '@/version';
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, relative, resolve, sep } from 'node:path';
 import { FIRST_SESSION_HEADER_RE, SESSION_BLOCK_SEPARATOR_RE, TRAILING_SEPARATOR_RE } from './knowledge/session-format';
@@ -149,7 +150,7 @@ export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   let raw: string;
   try {
-    raw = await readFile(FILES.REPORTS_INDEX, 'utf-8');
+    raw = toLf(await readFile(FILES.REPORTS_INDEX, 'utf-8'));
   } catch {
     return {
       content: null,
@@ -515,7 +516,7 @@ const unresolvedPlaceholders = (): string[] => {
   const files = [FILES.AGENTS, FILES.CLAUDE, FILES.SOUL, FILES.IDENTITY, FILES.USER];
   return files.flatMap((file) => {
     try {
-      const found = [...readFileSync(file, 'utf-8').matchAll(/\{\{[A-Z][A-Z0-9_]*\}\}/g)].map((match) => match[0]);
+      const found = [...readText(file).matchAll(/\{\{[A-Z][A-Z0-9_]*\}\}/g)].map((match) => match[0]);
       return found.length > 0 ? [`${basename(file)}: ${[...new Set(found)].join(', ')}`] : [];
     } catch {
       return []; // absent file — normal (the bridge before migration, USER.md pre-init)

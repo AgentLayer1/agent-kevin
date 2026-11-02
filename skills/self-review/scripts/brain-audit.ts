@@ -7,8 +7,9 @@
  *
  * Usage: brain-audit.ts [--home <dir>] [--today YYYY-MM-DD]   (else the agent's home variable, else the cwd)
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
+import { readText } from '../../../mcp-server/src/shared/text';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -44,7 +45,7 @@ const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
 
 const isDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const age = (date: string): number | null => (isDate(date) ? daysBetween(date, TODAY) : null);
-const read = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf-8').replace(/\r\n/g, '\n') : '');
+const read = (path: string): string => (existsSync(path) ? readText(path) : '');
 // Forward slashes on every OS: these paths become `asked` keys and must not change with the host.
 const homeRelative = (path: string): string => relative(FOLDERS.HOME, path).split(sep).join('/');
 const hash = (text: string): string => hashBuffer(text.trim().replace(/\s+/g, ' '));

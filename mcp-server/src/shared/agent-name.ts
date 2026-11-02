@@ -1,5 +1,5 @@
 import { AGENT_SLUG, FILES } from '@/config';
-import { readFileSync } from 'node:fs';
+import { readText } from '@/shared/text';
 
 /**
  * The agent's display name — what it calls itself, as opposed to the plugin's
@@ -75,7 +75,7 @@ export const withoutFormerNames = (identity: string): string =>
 
 const readIdentity = (): string => {
   try {
-    return readFileSync(FILES.IDENTITY, 'utf-8');
+    return readText(FILES.IDENTITY);
   } catch {
     // no IDENTITY.md — pre-init home
     return '';

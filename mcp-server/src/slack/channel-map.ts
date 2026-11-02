@@ -3,7 +3,8 @@
  * a channel joined since the map was last edited can be flagged instead of going unchecked.
  */
 import { FOLDERS } from '@/config';
-import { existsSync, readFileSync } from 'node:fs';
+import { readText } from '@/shared/text';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const BULLET = /^\s*[-*]\s+`?#?([A-Za-z0-9][\w.-]*)`?/;
@@ -26,7 +27,7 @@ export const parseChannelMap = (markdown: string): Set<string> => {
 
 export const readChannelMap = (): Set<string> | undefined => {
   const file = resolve(FOLDERS.CONCEPTS, 'slack-channels.md');
-  return existsSync(file) ? parseChannelMap(readFileSync(file, 'utf8')) : undefined;
+  return existsSync(file) ? parseChannelMap(readText(file)) : undefined;
 };
 
 export const unmappedChannels = (

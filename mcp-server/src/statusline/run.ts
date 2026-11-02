@@ -10,8 +10,8 @@ import { renderStatusLine, type StatusLinePayload } from '@/statusline/render';
 import { statusLineSetting } from '@/statusline/setting';
 import { renderSubagentRows, type SubagentPayload } from '@/statusline/subagent';
 import { terminalTheme } from '@/statusline/theme';
+import { readText } from '@/shared/text';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const GIT_TIMEOUT_MS = 1000;
@@ -35,7 +35,7 @@ const currentBranch = (dir: string): string => {
 const identityEmoji = (dir: string | undefined): string | undefined => {
   if (!dir) return undefined;
   try {
-    const emoji = readFileSync(resolve(dir, 'IDENTITY.md'), 'utf-8').match(/\*\*Emoji:\*\*[ \t]*(\S+)/)?.[1];
+    const emoji = readText(resolve(dir, 'IDENTITY.md')).match(/\*\*Emoji:\*\*[ \t]*(\S+)/)?.[1];
     return emoji && !emoji.includes('{{') ? emoji : undefined;
   } catch {
     return undefined;

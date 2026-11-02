@@ -141,7 +141,7 @@ export async function wikiArticleExists(link: string, taskTargets?: Set<string>)
 
 export async function readWikiIndex(): Promise<string> {
   try {
-    return await readFile(FILES.KNOWLEDGE, 'utf-8');
+    return toLf(await readFile(FILES.KNOWLEDGE, 'utf-8'));
   } catch {
     return '(empty - no articles compiled yet)';
   }

@@ -30,7 +30,8 @@ import { drainDeferredCaptures } from '@/knowledge/session-capture';
 import { BANNER, BANNER_LINES, BANNER_TAG, stripAnsi } from '@/shared/banner';
 import { log as baseLog } from '@/shared/log';
 import { RUNTIME_DIR, resolveEnv } from '@/shared/naming';
-import { existsSync, readFileSync } from 'node:fs';
+import { readText } from '@/shared/text';
+import { existsSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 
 const log = baseLog.session.with('start');
@@ -107,7 +108,7 @@ export async function sessionStartCodex(): Promise<SessionStartResult> {
     .map((path) => {
       const name = relative(FOLDERS.HOME, path).split(sep).join('/');
       try {
-        return `<!-- file: ${name} -->\n${readFileSync(path, 'utf-8').trimEnd()}`;
+        return `<!-- file: ${name} -->\n${readText(path).trimEnd()}`;
       } catch (err) {
         log.error(`hook failed (codex): ${name} unreadable`, err);
         return `<!-- ${AGENT_SLUG}: ${name} unreadable: ${err instanceof Error ? err.message : String(err)} -->`;

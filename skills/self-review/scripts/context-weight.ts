@@ -8,9 +8,10 @@
  *
  * Usage: context-weight.ts [--home <dir>]   (else the agent's home variable, else the cwd)
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { readText } from '../../../mcp-server/src/shared/text';
 
 const args = process.argv.slice(2);
 const homeFlag = args.indexOf('--home') === -1 ? undefined : args[args.indexOf('--home') + 1];
@@ -38,8 +39,7 @@ const IMPORT_DEPTH = 5;
  *  (`@README`); one that does not resolve is an import only when it looks like a path, so a bare
  *  word such as `@Observable` in a task title is a mention rather than an unresolved import. */
 const importsOf = (path: string): string[] => {
-  const prose = readFileSync(path, 'utf-8')
-    .replace(/\r\n/g, '\n')
+  const prose = readText(path)
     .replace(/^ {0,3}(([`~])\2{2,})[^\n]*\n[\s\S]*?^ {0,3}\1\2*[ \t]*$/gm, '')
     .replace(/^ {0,3}([`~])\1{2,}[\s\S]*$/m, '')
     .replace(/`[^`\n]*`/g, '');
@@ -73,7 +73,7 @@ const unscopedRules = (): string[] => {
   return readdirSync(dir, { recursive: true, encoding: 'utf-8' })
     .filter((name) => name.endsWith('.md'))
     .map((name) => join(dir, name))
-    .filter((path) => !isScoped(readFileSync(path, 'utf-8')));
+    .filter((path) => !isScoped(readText(path)));
 };
 
 const stack = (roots: string[], followImports: boolean): Stack => {

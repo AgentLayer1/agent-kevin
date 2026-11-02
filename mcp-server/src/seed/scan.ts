@@ -10,6 +10,7 @@
 import { FILES, FOLDERS } from '@/config';
 import { classifyGrant, CREDENTIAL_KEY_RE, type GrantClass, PACKS, sha256 } from '@/seed/format';
 import { agentNameIn } from '@/shared/agent-name';
+import { readText } from '@/shared/text';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -79,7 +80,7 @@ const sameAsTemplate = (homePath: string, templatePath: string): boolean => {
 };
 
 const parseAgentName = (identityPath: string): string =>
-  existsSync(identityPath) ? agentNameIn(readFileSync(identityPath, 'utf-8')) : '';
+  existsSync(identityPath) ? agentNameIn(readText(identityPath)) : '';
 
 const readJson = (path: string): Record<string, unknown> | null => {
   try {

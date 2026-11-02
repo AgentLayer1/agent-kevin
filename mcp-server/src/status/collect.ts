@@ -563,7 +563,7 @@ const firstSentence = (text: string, max = 160): string => {
  *  (`description: >` followed by indented lines). */
 const skillMeta = (skillDir: string): { description: string; auto: boolean; playbooks: string[] } => {
   try {
-    const raw = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8');
+    const raw = readText(resolve(skillDir, 'SKILL.md'));
     const auto = !/^disable-model-invocation:\s*true/m.test(raw);
     const playbooks = routerPlaybooks(raw);
     const lines = raw.split('\n');
@@ -688,7 +688,7 @@ const treeBytes = (dir: string): number => {
 /** Non-empty lines under a `## Heading` (prefix match, or a pattern over the whole line), until the next `##`. */
 const sectionLines = (file: string, heading: string | RegExp): string[] => {
   try {
-    const lines = readFileSync(file, 'utf-8').split('\n');
+    const lines = readText(file).split('\n');
     const isHeading = (line: string): boolean =>
       typeof heading === 'string' ? line.trim().startsWith(`## ${heading}`) : heading.test(line.trim());
     const start = lines.findIndex(isHeading);
@@ -931,7 +931,7 @@ const collectContext = async (): Promise<StatusSnapshot['context']> => {
   let labels: string[] = [];
   try {
     labels = source
-      ? readFileSync(source, 'utf-8')
+      ? readText(source)
           .split('\n')
           .map((line) => line.match(/^@(\S+)/)?.[1])
           .filter((value): value is string => Boolean(value))
@@ -1167,7 +1167,7 @@ const collectLogs = (): StatusSnapshot['logs'] => {
 export const boldField = (file: string, label: string): string => {
   try {
     return (
-      readFileSync(file, 'utf-8')
+      readText(file)
         .match(new RegExp(`\\*\\*${label}:\\*\\*[ \\t]*(.+)$`, 'm'))?.[1]
         ?.trim() ?? ''
     );
@@ -1185,7 +1185,7 @@ export const operatorGithubLogin = (): string =>
 /** First markdown image path in a file, kept only if it exists under HOME. */
 const firstImage = (file: string): string => {
   try {
-    const path = readFileSync(file, 'utf-8').match(/!\[[^\]]*\]\(([^)]+)\)/)?.[1] ?? '';
+    const path = readText(file).match(/!\[[^\]]*\]\(([^)]+)\)/)?.[1] ?? '';
     return path && existsSync(resolve(FOLDERS.HOME, path)) ? path : '';
   } catch {
     return '';
@@ -1205,7 +1205,7 @@ const wikiIndexDescriptions = (prefix: string): Map<string, string> => {
   const map = new Map<string, string>();
   try {
     const re = new RegExp(`^- \\[\\[${prefix}/([^\\]]+)\\]\\]\\s*—\\s*(.+)$`, 'gm');
-    for (const match of readFileSync(FILES.KNOWLEDGE, 'utf-8').matchAll(re)) {
+    for (const match of readText(FILES.KNOWLEDGE).matchAll(re)) {
       map.set(match[1], stripMarkdown(match[2]));
     }
   } catch {
@@ -1458,7 +1458,7 @@ const collectLint = (): LintReport => {
 const collectCli = (): CliSection[] => {
   let content = '';
   try {
-    content = readFileSync(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG), 'utf-8');
+    content = readText(resolve(FOLDERS.ROOT, 'bin', AGENT_SLUG));
   } catch {
     return [];
   }
@@ -1569,7 +1569,7 @@ const collectReports = (): ReportRef[] => {
 
   try {
     let day = '';
-    for (const line of readFileSync(FILES.REPORTS_INDEX, 'utf-8').split('\n')) {
+    for (const line of readText(FILES.REPORTS_INDEX).split('\n')) {
       const heading = line.match(/^## (\d{4}-\d{2}-\d{2})/);
       if (heading) {
         day = heading[1];
