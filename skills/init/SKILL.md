@@ -630,8 +630,8 @@ Stage the answer as `AGENT_MODEL` — the literal string `opus` or `fable` — f
 
 Ask the offer from step 2 of `${CLAUDE_PLUGIN_ROOT}/skills/history/SKILL.md` (read it now), worded
 exactly as there. The synced-folder sentence can't be judged yet (the tool that checks runs once
-the home exists), so leave it out here; Step 7d says it if it applies. Stage the answer as
-`AGENT_HISTORY` (`on` or `off`). Nothing is written until Step 7d.
+the home exists), so leave it out here; Step 8b says it if it applies. Stage the answer as
+`AGENT_HISTORY` (`on` or `off`). Nothing is written until Step 8b.
 
 ---
 
@@ -1647,14 +1647,6 @@ bun "$PLUGIN_ROOT/skills/init/scripts/codex-user-config.ts" --home "$HOME_DIR" -
 
 **Trust is the operator's step.** Codex reads a project's `.codex/config.toml` only for a trusted folder (it asks on first launch), and trusts hooks per command by content hash: an untrusted hook does not run at all (silently, under `codex exec`). Note for Step 9: the operator must trust the folder, then run `/hooks` in their next Codex session from this home and trust all four entries, or Codex sessions start without Kevin's context and are never captured.
 
-## Step 7d — History (when Step 6d staged `on`)
-
-The home exists now, so the history flow can run. Follow `skills/history/SKILL.md` from its step 1
-with the offer already answered: skip its step 2 question, then run its steps 3 and 4. Its single
-source is the skill; don't restate it here. When
-`homeSyncedBy` is set, add the skill's synced-folder sentence to the confirmation line. Record the
-outcome for the `<HISTORY_ROW>` in Step 9. `AGENT_HISTORY=off` writes nothing.
-
 ## Step 8 — Optional: configure skill packs
 
 The scaffold is done. Before showing the final confirmation, offer to wire up API keys + MCP servers + permissions for the optional packs. This is exactly what `/agent-kevin:configure-skills` does — invoking inline so the user doesn't have to run it as a separate command after relaunch.
@@ -1683,6 +1675,15 @@ Behavior on the response:
 - **Nothing ticked**: skip — note "skill packs not activated — run `/agent-kevin:configure-skills` after relaunch" for Step 9's status block. Don't touch settings files.
 
 For each picked option: **delegate to configure-skills** — open `${CLAUDE_PLUGIN_ROOT}/skills/configure-skills/SKILL.md` and follow the matching section. Honor every per-skill skip option inside that flow; don't force the user through items they don't want.
+
+## Step 8b — History (when Step 6d staged `on`)
+
+This runs whether or not Step 8 activated a pack. The home and its packs are written now, so its
+first snapshot holds every setting init wrote. Follow `skills/history/SKILL.md` from its step 1
+with the offer already answered: skip its step 2 question, then run its steps 3 and 4. Its single
+source is the skill; don't restate it here. When
+`homeSyncedBy` is set, add the skill's synced-folder sentence to the confirmation line. Record the
+outcome for the `<HISTORY_ROW>` in Step 9. `AGENT_HISTORY=off` writes nothing.
 
 ---
 
