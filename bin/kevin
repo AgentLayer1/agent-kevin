@@ -369,7 +369,7 @@ async function run(): Promise<void> {
         const result = queryTasks(filters);
         console.log(
           JSON.stringify(
-            result.map((t: { frontmatter: unknown }) => t.frontmatter),
+            result.map((t: { frontmatter: object; filePath: string }) => ({ ...t.frontmatter, filePath: t.filePath })),
             null,
             2
           )
