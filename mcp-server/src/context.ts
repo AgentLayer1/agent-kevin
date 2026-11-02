@@ -33,7 +33,7 @@ import { env } from '@/shared/env';
 import { readCadence } from '@/shared/cadence';
 import { log as baseLog } from '@/shared/log';
 import { isInside } from '@/shared/paths';
-import { readText, toLf } from '@/shared/text';
+import { readText, readTextAsync } from '@/shared/text';
 import { countOf } from '@/shared/utils';
 import { livePins } from '@/status/surfaces';
 import { statusLineDrift } from '@/statusline/setting';
@@ -150,7 +150,7 @@ export async function todaysReports(maxBytes: number): Promise<ReportsResult> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
   let raw: string;
   try {
-    raw = toLf(await readFile(FILES.REPORTS_INDEX, 'utf-8'));
+    raw = await readTextAsync(FILES.REPORTS_INDEX);
   } catch {
     return {
       content: null,

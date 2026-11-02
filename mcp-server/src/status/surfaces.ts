@@ -1,6 +1,6 @@
 import { FILES, FOLDERS } from '@/config';
 import { isInside } from '@/shared/paths';
-import { readText } from '@/shared/text';
+import { readText, readTextIfExists } from '@/shared/text';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { titleize } from './format';
@@ -39,8 +39,6 @@ const targetPath = (href: string): string => {
 // A project README's `## Pinned` section, up to the next `## ` heading or the end of the file.
 const PINNED_SECTION = /^## Pinned[ \t]*$([\s\S]*?)(?=^## |(?![\s\S]))/m;
 
-const readIfExists = (path: string): string => (existsSync(path) ? readText(path) : '');
-
 /** The pin lines in `body`, in file order, each file once, links resolved against `source`'s folder.
  *  A pin that no longer points at a file in the home stays in the list with `exists: false`. */
 const pinsIn = (source: string, body: string): Pin[] => {
@@ -53,12 +51,12 @@ const pinsIn = (source: string, body: string): Pin[] => {
 };
 
 /** The pins in reports/pinned.md. */
-export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readIfExists(FILES.REPORTS_PINNED));
+export const readPins = (): Pin[] => pinsIn(FILES.REPORTS_PINNED, readTextIfExists(FILES.REPORTS_PINNED));
 
 /** The pins in a project README's `## Pinned` section, which its card and attention page show. */
 export const projectPins = (project: string): Pin[] => {
   const readme = resolve(FOLDERS.PROJECTS, project, 'README.md');
-  return pinsIn(readme, PINNED_SECTION.exec(readIfExists(readme))?.[1] ?? '');
+  return pinsIn(readme, PINNED_SECTION.exec(readTextIfExists(readme))?.[1] ?? '');
 };
 
 /** A project README without its `## Pinned` section. */

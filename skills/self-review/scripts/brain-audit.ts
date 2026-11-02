@@ -9,7 +9,7 @@
  */
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
-import { readText } from '../../../mcp-server/src/shared/text';
+import { readTextIfExists } from '../../../mcp-server/src/shared/text';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -45,7 +45,6 @@ const TASK_ID = /\b[a-z]{2}-\d{3}\b/g;
 
 const isDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const age = (date: string): number | null => (isDate(date) ? daysBetween(date, TODAY) : null);
-const read = (path: string): string => (existsSync(path) ? readText(path) : '');
 // Forward slashes on every OS: these paths become `asked` keys and must not change with the host.
 const homeRelative = (path: string): string => relative(FOLDERS.HOME, path).split(sep).join('/');
 const hash = (text: string): string => hashBuffer(text.trim().replace(/\s+/g, ' '));
@@ -61,7 +60,7 @@ interface Watermark {
 }
 const watermark: Watermark = (() => {
   try {
-    return JSON.parse(read(join(FOLDERS.DATA, 'review.json')) || '{}') as Watermark;
+    return JSON.parse(readTextIfExists(join(FOLDERS.DATA, 'review.json')) || '{}') as Watermark;
   } catch {
     return {};
   }
@@ -93,7 +92,7 @@ const windowDays = sessionDays.filter((day) => (age(day) ?? Infinity) <= SESSION
 const wordsByDay = windowDays.map((day) => ({
   day,
   words: new Set(
-    userTurns(read(join(FOLDERS.SESSIONS, `${day}.md`)))
+    userTurns(readTextIfExists(join(FOLDERS.SESSIONS, `${day}.md`)))
       .toLowerCase()
       .match(/[\w-]+/g) ?? []
   )
@@ -176,7 +175,7 @@ const dormantProjects = discoverProjects()
 
 // Memory index: every line of the sections loaded into each session, strongest signal first. A line
 // with no task reference is still a candidate; verification decides whether it gets asked.
-const memoryIndex = read(join(FOLDERS.MEMORY, 'index.md'));
+const memoryIndex = readTextIfExists(join(FOLDERS.MEMORY, 'index.md'));
 const section = (name: string): string[] =>
   (memoryIndex.split(/^## /m).find((part) => part.startsWith(`${name}\n`)) ?? '')
     .split('\n')
@@ -209,7 +208,7 @@ const archiveDir = join(FOLDERS.MEMORY, 'archive');
 const archivedDecisions = (existsSync(archiveDir) ? readdirSync(archiveDir) : [])
   .filter((name) => /^decisions-\d{4}-\d{2}\.md$/.test(name))
   .flatMap((name) =>
-    read(join(archiveDir, name))
+    readTextIfExists(join(archiveDir, name))
       .split('\n')
       .map((line) => ({
         key: `decision:${hash(line)}`,
@@ -233,7 +232,7 @@ const staleArticles = articleDirs
       : []
   )
   .map((path) => {
-    const content = read(path);
+    const content = readTextIfExists(path);
     const updated = splitFrontmatter(content).frontmatter.match(/^updated:\s*['"]?(\d{4}-\d{2}-\d{2})/m)?.[1] ?? '';
     const slug = basename(path, '.md');
     return {
@@ -321,7 +320,7 @@ const staleSurfaces = [
     key: `surface:${homeRelative(path)}`,
     ...surface,
     path: homeRelative(path),
-    hash: hash(read(path))
+    hash: hash(readTextIfExists(path))
   }))
   .filter((row) => !keptQuiet(row.key, row.hash))
   .toSorted((left, right) => left.modified.localeCompare(right.modified));

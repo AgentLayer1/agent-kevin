@@ -1,9 +1,9 @@
 import { FILES, FOLDERS, KNOWLEDGE } from '@/config';
 import { scrubValues } from '@/shared/env';
-import { toLf } from '@/shared/text';
+import { readTextAsync } from '@/shared/text';
 import { createHash } from 'crypto';
 import { readdirSync, readFileSync } from 'fs';
-import { readdir, readFile, stat } from 'fs/promises';
+import { readdir, stat } from 'fs/promises';
 import { dirname, relative, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -141,7 +141,7 @@ export async function wikiArticleExists(link: string, taskTargets?: Set<string>)
 
 export async function readWikiIndex(): Promise<string> {
   try {
-    return toLf(await readFile(FILES.KNOWLEDGE, 'utf-8'));
+    return await readTextAsync(FILES.KNOWLEDGE);
   } catch {
     return '(empty - no articles compiled yet)';
   }
@@ -173,7 +173,7 @@ export async function listWikiArticles(): Promise<string[]> {
 export async function readAllWikiContent(): Promise<Map<string, string>> {
   const articles = await listWikiArticles();
   const pairs = await Promise.all(
-    articles.map(async (path) => [relative(FOLDERS.KNOWLEDGE, path), toLf(await readFile(path, 'utf-8'))] as const)
+    articles.map(async (path) => [relative(FOLDERS.KNOWLEDGE, path), await readTextAsync(path)] as const)
   );
   return new Map(pairs);
 }

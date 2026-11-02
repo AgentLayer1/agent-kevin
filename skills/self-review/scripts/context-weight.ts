@@ -56,9 +56,8 @@ const importsOf = (path: string): string[] => {
 /** A rule is scoped when its leading YAML frontmatter has a top-level `paths` key; frontmatter
  *  that does not parse scopes nothing, so the file counts as always loaded. */
 const isScoped = (text: string): boolean => {
-  const normalised = text.replace(/\r\n/g, '\n');
-  if (!normalised.startsWith('---\n')) return false;
-  const frontmatter = normalised.slice(4).split('\n---')[0];
+  if (!text.startsWith('---\n')) return false;
+  const frontmatter = text.slice(4).split('\n---')[0];
   try {
     const parsed: unknown = Bun.YAML.parse(frontmatter);
     return typeof parsed === 'object' && parsed !== null && 'paths' in parsed;

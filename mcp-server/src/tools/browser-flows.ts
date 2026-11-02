@@ -20,7 +20,7 @@
 
 import { FOLDERS } from '@/config';
 import { readEnvFile } from '@/shared/env';
-import { readText } from '@/shared/text';
+import { readTextIfExists } from '@/shared/text';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync, readdirSync } from 'node:fs';
 import { delimiter, resolve } from 'node:path';
@@ -59,7 +59,7 @@ const tail = (text: string, limit: number): string =>
 // agent direction (e.g. "read these source files to navigate the site").
 const readGuidance = (flowDir: string): string => {
   const guidancePath = resolve(flowDir, 'index.md');
-  return existsSync(guidancePath) ? readText(guidancePath).trim() : '';
+  return readTextIfExists(guidancePath).trim();
 };
 
 export const tools: ToolDef[] = [

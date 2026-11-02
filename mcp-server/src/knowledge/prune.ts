@@ -4,9 +4,9 @@
 
 import { FOLDERS, KNOWLEDGE, TIMEZONE } from '@/config';
 import { log as baseLog } from '@/shared/log';
-import { toLf } from '@/shared/text';
+import { readTextAsync } from '@/shared/text';
 import { existsSync } from 'fs';
-import { readFile, readdir, unlink, writeFile } from 'fs/promises';
+import { readdir, unlink, writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
 const log = baseLog.knowledge.with('prune');
@@ -64,7 +64,7 @@ async function scrubManifestEntries(dates: string[]): Promise<number> {
 
   let content: string;
   try {
-    content = toLf(await readFile(indexPath, 'utf-8'));
+    content = await readTextAsync(indexPath);
   } catch {
     return 0;
   }
@@ -94,7 +94,7 @@ async function relinkArchive(): Promise<number> {
       .filter((name) => name.endsWith('.md'))
       .map(async (name) => {
         const path = resolve(archiveDir, name);
-        const content = toLf(await readFile(path, 'utf-8'));
+        const content = await readTextAsync(path);
         const dead = [...content.matchAll(DAILY_LINK)].filter(([, date]) => isGone(date)).length;
         if (dead === 0) {
           return 0;

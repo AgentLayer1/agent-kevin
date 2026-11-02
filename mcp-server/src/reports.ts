@@ -16,10 +16,10 @@
  */
 import { FILES, FOLDERS, PLUGIN_NAME } from '@/config';
 import { nowISO, nowTimeCompact, todayDate } from '@/shared/date';
-import { toLf } from '@/shared/text';
+import { readTextAsync } from '@/shared/text';
 import { writeFileAtomic } from '@/shared/utils';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 
 export type ReportCategory = 'briefings' | 'plans' | 'radar' | 'api' | 'reviews' | 'helpdesk' | 'slack';
@@ -195,7 +195,7 @@ async function updateIndex(entry: IndexEntry): Promise<boolean> {
 
 async function readIndexOrInit(): Promise<string> {
   try {
-    return toLf(await readFile(FILES.REPORTS_INDEX, 'utf-8'));
+    return await readTextAsync(FILES.REPORTS_INDEX);
   } catch {
     return INDEX_PREAMBLE;
   }
