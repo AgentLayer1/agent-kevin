@@ -121,11 +121,24 @@ contract: which types are @MainActor, which protocol witnesses are deliberately 
 why, and any executor-check trap this codebase has already hit. This section is where hard-won
 crash knowledge belongs; the agent home's swift rule carries only the general form.}}
 
+## Skills
+
+Apple's own skills ship with Xcode and are read from the folder the agent home's `xcode.md` rule
+names. Map them to this app's areas, plus any third-party skills the repo vendors:
+
+| Before working on… | Read |
+|---|---|
+| {{area, e.g. widgets and Live Activities}} | {{Apple skill and/or `.claude/skills/<name>/SKILL.md`}} |
+
+{{Delete the rows that don't apply. Where Apple's skill and a vendored one cover the same area,
+Apple's wins on API correctness; the vendored one keeps the repo's conventions.}}
+
 ## Toolchain
 
-Pinned via `.xcode-version` (currently {{XCODE_VERSION}}). If the installed Xcode does not match,
-stop and say so instead of building against a different SDK. Version bumps are a deliberate,
-reviewed change.
+Pinned via `.xcode-version` (currently {{XCODE_VERSION}}; every scheme and test plan verified on
+it {{DATE}}). If the installed Xcode does not match, stop and say so instead of building against a
+different SDK. Version bumps are a deliberate, reviewed change: bump the pin on its own, rebuild
+every scheme and rerun every test plan on the new toolchain, then update this line.
 
 ## Time is an input
 

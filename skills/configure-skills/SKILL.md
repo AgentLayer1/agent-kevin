@@ -490,11 +490,12 @@ The bare server form `mcp__xcode` grants exactly the same set and behaves identi
 
 - `Bash(xcodebuild *)`
 - `Bash(xcrun simctl *)`
+- `Bash(xcrun xctrace *)` — Instruments from the command line, for Apple's `xctrace` skill (profiling, hangs, memory).
 - `Bash(xcrun mcp-server status)`
 
 And to `permissions.ask`, so each one waits for the operator:
 
-- `Bash(xcrun simctl delete *)` · `Bash(xcrun simctl erase *)` — destroy simulator state and its installed apps.
+- `Bash(xcrun simctl delete *)` · `Bash(xcrun simctl erase *)` · `Bash(xcrun simctl runtime delete *)` — destroy simulator state, its installed apps, or a whole runtime with every device on it. The runtime rule is its own entry because `xcrun simctl delete *` does not match a command whose next word is `runtime`, while the `xcrun simctl *` allow does.
 - `Bash(xcodebuild *-exportArchive*)` · `Bash(xcrun altool *)` · `Bash(xcrun notarytool *)` — these are the upload path. **An App Store or TestFlight submission can never happen without the operator's tap**, which is the whole point of the pair: `xcodebuild archive` is routine, everything that leaves the machine is gated.
 
 `ask` rules are evaluated before `allow` rules (specificity does not reorder them), which is what makes the `xcodebuild *` allow safe to pair with the `-exportArchive` ask.
@@ -505,16 +506,16 @@ And to `permissions.ask`, so each one waits for the operator:
 
 ```json
 "sandbox": {
-  "excludedCommands": ["xcrun simctl *", "xcodebuild *"]
+  "excludedCommands": ["xcrun simctl *", "xcodebuild *", "xcrun xctrace *"]
 }
 ```
 
-`simctl` needs it to reach CoreSimulatorService over XPC and write its log under `~/Library/Logs/CoreSimulator`; `xcodebuild` needs it for the keychain (distribution certificate) and DerivedData. Nothing else leaves the sandbox — this is a per-command exclusion, not a sandbox disable.
+`simctl` needs it to reach CoreSimulatorService over XPC and write its log under `~/Library/Logs/CoreSimulator`; `xcodebuild` needs it for the keychain (distribution certificate) and DerivedData; `xctrace` needs it for Instruments' analysis cache under `/var/folders/…/C/com.apple.dt.InstrumentsCLI` (sandboxed, `xctrace version` answers but `xctrace list devices` and every recording abort with "Cannot create temporary directory for Instruments Analysis Core"). Nothing else leaves the sandbox — this is a per-command exclusion, not a sandbox disable.
 
 **Kevin does not write this line.** An agent widening its own sandbox reads as self-modification, and the auto-mode classifier refuses it (observed 2026-09-18, and correctly). So generate the paste-ready block and hand it over, following the `automode-block.ts` precedent — an operator instruction is a generated artifact, never a description:
 
 1. Read `$PROJECT_SETTINGS`, `$SETTINGS_FILE` and the user-global `~/.claude/settings.json`. If none enables the sandbox, say so and stop here: the exclusion is unnecessary, and no file is written.
-2. `excludedCommands` merges across layers, so union the three files' arrays and compute only the *missing* entries. If both patterns are already present, skip the rest of this step and say so.
+2. `excludedCommands` merges across layers, so union the three files' arrays and compute only the *missing* entries. If all three patterns are already present, skip the rest of this step and say so.
 3. Write `<HOME>/.state/updates/xcode-sandbox.md` containing the exact JSON to merge, the file path to merge it into, and one line on what each pattern buys.
 4. Quote that file verbatim in the summary (step 10). Do not paraphrase it.
 
@@ -531,6 +532,14 @@ Use the resolved `AGENT_CODE_PATH` / `AGENT_GIT_REPOS` root for `<CODE_ROOT>`, a
 
 - **Apple approves each agent individually.** A home that also runs Codex queues a second id on that harness's first connect, cleared the same way. `xcrun mcp-server status` lists both.
 - Until the chain completes, `/mcp` shows `xcode` failing and calls return "not approved" or a `-32001` timeout. That is the missing step, not a broken pack.
+
+Then the export of **Apple's skills**, also the operator's, because it talks to a running Xcode over XPC, which the sandbox blocks. With Xcode open:
+
+```sh
+xcrun agent plugin path --plugin-format claude
+```
+
+It materializes Xcode's own agent plugin, `xcode-integration`, at `~/Library/Developer/Xcode/CodingAssistant/ExportedPlugins/<build>/claude/` and prints that path. The skills inside (SwiftUI, App Intents, app resizability, translation with per-language style guides, device interaction, `xctrace`, test modernization, accessibility audits, build-setting hardening) are written by Apple's framework teams, and the Xcode tools' own descriptions tell the agent to load them. `xcode.md` routes the agent to read them as files from that folder. **Do not load the folder as a plugin** (`--plugin-dir` or a directory marketplace): its `.mcp.json` registers a second `xcode` server under the plugin's namespace, which `mcp__xcode__*` does not cover, so every Xcode tool would exist twice and the copy would prompt. Don't use `xcrun mcpbridge run-agent claude` either: it launches Xcode's own copy of Claude Code with its own config directory, so the home's settings, plugins and launcher never load. The folder is per Xcode build, so each Xcode update needs this command run again; until then the agent finds no folder and says so.
 
 **(7) Seed the coding rules.** Copy the pack's two rules into the home if absent, preservation-aware (the same shape as init's rule seeding):
 
@@ -567,7 +576,7 @@ On yes, ask for the repo path. If it sits outside the code root init granted, sa
 
 - Run the `codex_setup` MCP tool. Nothing is hand-merged: the generator at `skills/init/scripts/codex-setup.ts` mirrors the `xcode` entry of `$MCP_FILE` into an `[mcp_servers.xcode]` table it owns (regenerated each run, the operator's own keys inside it kept), turns the ask patterns into `prefix_rule` entries in `.codex/rules/kevin.rules`, and derives `[permissions.<agent>.workspace_roots]` from Claude's `permissions.additionalDirectories`. A hand edit to any of those is overwritten on the next run, so do not write them. The report's `profile.servers` lists the pack servers mirrored; expect `["xcode"]`.
 
-  **Four of the five carry over, not all five.** The generator turns `Bash(<words> *)` into a prefix rule by stripping the trailing ` *` and then dropping anything that still contains a glob character (`askPrefixes` in `skills/init/scripts/codex-setup.ts`). So `xcrun simctl delete`, `xcrun simctl erase`, `xcrun altool` and `xcrun notarytool` all become rules, but **`Bash(xcodebuild *-exportArchive*)` does not**: its wildcard is mid-pattern, and a Codex prefix rule matches leading argv words, which a flag in an arbitrary position is not. State this plainly in the summary rather than implying parity. In practice the gap is moot today: Codex's Seatbelt blocks `xcodebuild` outright ([openai/codex#4987](https://github.com/openai/codex/issues/4987)) and no per-command exclusion is wired on that host, so an export cannot run from Codex at all, and `altool`/`notarytool` are gated regardless. If Codex ever gains an exclusion, the export rule belongs in a *separate* `.rules` file in that directory (Codex loads every one), since the generated file is overwritten on each run.
+  **Five of the six carry over, not all six.** The generator turns `Bash(<words> *)` into a prefix rule by stripping the trailing ` *` and then dropping anything that still contains a glob character (`askPrefixes` in `skills/init/scripts/codex-setup.ts`). So `xcrun simctl delete`, `xcrun simctl erase`, `xcrun simctl runtime delete`, `xcrun altool` and `xcrun notarytool` all become rules, but **`Bash(xcodebuild *-exportArchive*)` does not**: its wildcard is mid-pattern, and a Codex prefix rule matches leading argv words, which a flag in an arbitrary position is not. State this plainly in the summary rather than implying parity. In practice the gap is moot today: Codex's Seatbelt blocks `xcodebuild` outright ([openai/codex#4987](https://github.com/openai/codex/issues/4987)) and no per-command exclusion is wired on that host, so an export cannot run from Codex at all, and `altool`/`notarytool` are gated regardless. If Codex ever gains an exclusion, the export rule belongs in a *separate* `.rules` file in that directory (Codex loads every one), since the generated file is overwritten on each run.
 - Note that Codex's non-interactive `codex exec` auto-cancels MCP calls, so headless Codex builds are not there yet; interactive `codex` sessions are fine.
 
 **(10) Summary:**
@@ -578,26 +587,29 @@ On yes, ask for the repo path. If it sits outside the code root init granted, sa
 MCP server registered:     xcode → xcrun mcpbridge  (in <HOME>/.mcp.json)
 Tool permissions granted:  mcp__xcode__*  (the whole server), mcp__xcode__DocumentationSearch
 Gated (ask):               InvokeDebuggerCommand  ← LLDB can shell out, outside the sandbox
-Bash allowed:              xcodebuild *, xcrun simctl *, xcrun mcp-server status
-Bash gated (ask):          simctl delete/erase, -exportArchive, altool, notarytool  ← uploads need your tap
+Bash allowed:              xcodebuild *, xcrun simctl *, xcrun xctrace *, xcrun mcp-server status
+Bash gated (ask):          simctl delete/erase/runtime delete, -exportArchive, altool, notarytool  ← uploads need your tap
 Rules seeded:              .claude/rules/xcode.md (always on), xcode-project.md (path-scoped)
 Repo scaffold:             <path written, or "skipped">
-Codex:                     <codex_setup re-run: [mcp_servers.xcode] mirrored from .mcp.json, 4 of 5 ask
+Codex:                     <codex_setup re-run: [mcp_servers.xcode] mirrored from .mcp.json, 5 of 6 ask
                            rules carry over (-exportArchive has no prefix-rule form), or "not wired here;
                            picked up when Codex is">
 
-⚠️ Two steps are yours — I can't do either:
+⚠️ Three steps are yours — I can't do any of them:
 
 1. Sandbox exclusion (I'm not allowed to widen my own sandbox). Merge into
    <HOME>/.claude/settings.json — the exact block is in <HOME>/.state/updates/xcode-sandbox.md:
 
-   "sandbox": { "excludedCommands": ["xcrun simctl *", "xcodebuild *"] }
+   "sandbox": { "excludedCommands": ["xcrun simctl *", "xcodebuild *", "xcrun xctrace *"] }
 
 2. Headless enablement (sudo):
    sudo xcrun mcp-server enable
    sudo xcrun mcp-server allow-folder <CODE_ROOT> --always
    xcrun mcp-server status          # note the pending agent id
    sudo xcrun mcp-server approve <id>
+
+3. Apple's skills, with Xcode open (again after every Xcode update):
+   xcrun agent plugin path --plugin-format claude
 
 Then relaunch Claude Code and check /mcp — `xcode` should be connected.
 ```
@@ -919,10 +931,10 @@ Print per library: install status + symlink path + upstream LICENSE first-line. 
 
 **Xcode deconfigure:**
 - Remove the `xcode` entry from `$MCP_FILE` `mcpServers` (leave every other server alone), then parse-check the result. If `<HOME>/.codex/hooks.json` exists, run the `codex_setup` MCP tool afterwards: it regenerates `[mcp_servers.xcode]` from `$MCP_FILE`, so with the entry gone the table goes with it. Never hand-edit that table.
-- Revoke `mcp__xcode__*` and `mcp__xcode__DocumentationSearch` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)` and `Bash(xcrun mcp-server status)`.
-- **Leave every `permissions.ask` entry in place** — the two `mcp__xcode__` ones and the five Bash ones. They gate arbitrary code execution, simulator destruction and the upload path; keeping them costs nothing once the server is gone, and removing them is the one change here that *widens* what can happen silently. Say so rather than asking.
+- Revoke `mcp__xcode__*` and `mcp__xcode__DocumentationSearch` from `permissions.allow` (§E remove helper), plus `Bash(xcodebuild *)`, `Bash(xcrun simctl *)`, `Bash(xcrun xctrace *)` and `Bash(xcrun mcp-server status)`.
+- **Leave every `permissions.ask` entry in place** — the `mcp__xcode__` one and the six Bash ones. They gate arbitrary code execution, simulator destruction and the upload path; keeping them costs nothing once the server is gone, and removing them is the one change here that *widens* what can happen silently. Say so rather than asking.
 - `AskUserQuestion`: "Also delete the seeded rules `.claude/rules/xcode.md` and `xcode-project.md`?" (Yes/No). Default to keeping them — they're instruction-only and harmless without the server, and the operator may have edited them.
-- Tell the operator the two steps they own are also theirs to undo, and that neither is done for them: remove `"xcrun simctl *"` and `"xcodebuild *"` from `sandbox.excludedCommands` in `.claude/settings.json`, and, to revoke this harness's access to the headless server, `sudo xcrun mcp-server deny <id>` with the agent id that `xcrun mcp-server status` lists (Claude Code and Codex are separate ids). `sudo xcrun mcp-server disable` is the wider switch: it turns headless mode off for every agent on the box, not just this home.
+- Tell the operator the two steps they own are also theirs to undo, and that neither is done for them: remove `"xcrun simctl *"`, `"xcodebuild *"` and `"xcrun xctrace *"` from `sandbox.excludedCommands` in `.claude/settings.json`, and, to revoke this harness's access to the headless server, `sudo xcrun mcp-server deny <id>` with the agent id that `xcrun mcp-server status` lists (Claude Code and Codex are separate ids). `sudo xcrun mcp-server disable` is the wider switch: it turns headless mode off for every agent on the box, not just this home.
 
 Print summary of what was removed.
 
