@@ -76,6 +76,29 @@ describe('closeTask', () => {
     closeTask(id);
     expect(findTaskById(id)?.frontmatter.status).toBe('done');
   });
+
+  const backdateClosed = (id: string) => {
+    const path = findTaskById(id)?.filePath ?? '';
+    writeFileSync(path, readFileSync(path, 'utf-8').replace(/^closed: .*$/m, 'closed: 2026-01-05'));
+  };
+
+  test('closing a done task again keeps the date it was closed', () => {
+    const id = newTask().frontmatter.id;
+    closeTask(id);
+    backdateClosed(id);
+
+    closeTask(id);
+    expect(findTaskById(id)?.frontmatter.closed).toBe('2026-01-05');
+  });
+
+  test('cancelling a cancelled task again keeps the date it was cancelled', () => {
+    const id = newTask().frontmatter.id;
+    updateTask(id, { status: 'cancelled' });
+    backdateClosed(id);
+
+    updateTask(id, { status: 'cancelled' });
+    expect(findTaskById(id)?.frontmatter.closed).toBe('2026-01-05');
+  });
 });
 
 describe('updateTask description', () => {

@@ -186,7 +186,7 @@ export const updateTask = (id: string, { description, ...requested }: UpdateTask
     task.filePath,
     (fm) => {
       Object.assign(fm, fields);
-      if (fields.status === 'done' || fields.status === 'cancelled') {
+      if ((fields.status === 'done' || fields.status === 'cancelled') && fields.status !== task.frontmatter.status) {
         fm.closed = todayDate();
       }
     },
