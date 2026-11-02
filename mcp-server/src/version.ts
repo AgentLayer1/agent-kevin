@@ -101,7 +101,7 @@ export const parseChangelog = (): ChangelogEntry[] => {
     return [];
   }
 
-  const lines = raw.split('\n');
+  const lines = raw.split(/\r?\n/);
   const entries: ChangelogEntry[] = [];
   let current: ChangelogEntry | null = null;
   let sub: ChangelogSection | null = null;
