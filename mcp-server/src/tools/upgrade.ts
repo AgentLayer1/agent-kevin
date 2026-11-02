@@ -12,9 +12,8 @@
  * resolves the script by name, spawns it with bun, and returns its JSON report.
  * New migrations are a new script file + one CHANGELOG line — no change here.
  *
- * `install: true` runs the `deps:` action, `bun install` in the plugin's mcp-server, from the
- * same seat: a sandboxed shell can't write bun's cache, and the upgrade stamps its baseline only
- * once the install has run in the same turn.
+ * `install: true` runs `bun install` from the same seat, because a sandboxed shell can't write
+ * bun's cache.
  */
 import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -40,9 +39,8 @@ const realpathOrNull = (path: string): string | null => {
 };
 
 /**
- * The plugin root `bun install` may run in: this server's own, or a sibling version folder in a
- * marketplace cache (`<marketplace>/<plugin>/<version>`), where an update lands while the
- * server still runs from the previous version. Null for anything else.
+ * This server's own root, or a sibling version folder in a marketplace cache, where an update
+ * lands while the server still runs from the previous version; null for anything else.
  */
 export const installRoot = (requested: string, serverRoot: string): string | null => {
   const target = realpathOrNull(requested);
@@ -189,7 +187,7 @@ export const tools: ToolDef[] = [
         return installDeps(join(root, 'mcp-server'));
       }
       if (version === undefined) {
-        return { ok: false, found: false, version: '', message: 'Pass a version, or install: true.' };
+        return { ok: false, found: false, version: '', message: 'Pass a version, or install: true with pluginRoot.' };
       }
       const scriptPath = resolveUpgradeScript(version);
       if (!scriptPath) {
@@ -222,7 +220,7 @@ export const tools: ToolDef[] = [
       });
 
       const stdout = proc.stdout ?? '';
-      const stderr = (proc.stderr ?? '').slice(-2000);
+      const stderr = (proc.stderr ?? '').slice(-OUTPUT_TAIL);
       const exitCode = proc.status ?? -1;
       const ok = exitCode === 0;
       return {
@@ -231,7 +229,7 @@ export const tools: ToolDef[] = [
         version,
         exitCode,
         report: parseReport(stdout),
-        stdout: stdout.slice(-2000),
+        stdout: stdout.slice(-OUTPUT_TAIL),
         stderr,
         message: ok ? `Migration ${version} completed.` : `Migration ${version} failed (exit ${exitCode}).`
       };

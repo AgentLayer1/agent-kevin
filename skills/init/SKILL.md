@@ -2,7 +2,7 @@
 name: init
 description: Guided first-run onboarding for the agent-kevin plugin. Walks through Kevin's character (SOUL), role (IDENTITY), your basics (name, timezone), an optional web pull from your blog/site/LinkedIn/etc., your projects, goals, company and documents, and communication style — then scaffolds AGENTS.md (the harness-neutral operating manual), .claude/CLAUDE.md (the Claude Code bridge that @-imports it plus the identity stack), SOUL.md, IDENTITY.md, USER.md, .claude/settings.json, and seeds four system-architecture concept articles into knowledge/concepts/. If an AGENTS.md already exists at the home directory, Kevin's manual is appended to it; a pre-existing CLAUDE.md is never touched. Skill packs are configured inline at the end or via /agent-kevin:configure-skills any time later. Invoke once after installing the plugin.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
+allowed-tools: Read, Write, Edit, AskUserQuestion, WebFetch, mcp__plugin_agent-kevin_kevin__codex_setup, mcp__plugin_agent-kevin_kevin__home_history, mcp__plugin_agent-kevin_kevin__run_upgrade, Bash(mkdir *), Bash(cp *), Bash(cat *), Bash(ls *), Bash(find *), Bash(git config *), Bash(readlink *), Bash(uname *), Bash(date *), Bash(echo *), Bash(test *), Bash([ *), Bash(grep *), Bash(printf *), Bash(sed *), Bash(bun *), Bash(unzip -l *)
 ---
 
 > Operator-invoked only. Run this when the operator named this skill, or when a skill the operator invoked calls for it as a documented step; otherwise stop and ask before doing anything. Claude Code enforces this through the frontmatter above, Codex through `agents/openai.yaml`; this line is the backstop for any host that reads neither.
@@ -118,9 +118,8 @@ fi
 if [ "$AGENT_PLATFORM" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
   echo "NOTE: Homebrew not found — needed only to install gh/poppler if you want them (https://brew.sh)."
 fi
-# Init itself calls the plugin's server (dashboard, history, Codex wiring), and only
-# `bun install` puts all of its packages in place: Bun's auto-install skips the patched
-# Playwright and the Chromium download in postinstall.
+# Without node_modules the plugin's server still starts on Bun's auto-install, but only
+# `bun install` runs the postinstall that downloads Chromium for the browser tools.
 test -d "${CLAUDE_PLUGIN_ROOT}/mcp-server/node_modules" || echo "DEPS_MISSING"
 printf 'MISSING: %s\n' "${MISSING[@]}"
 ```
@@ -147,7 +146,7 @@ Act on the result **before** anything else:
   >
   > Install them, then re-run `/agent-kevin:init` — it's idempotent and picks up where you left off.
 
-- **`DEPS_MISSING`** (and `bun` not in `MISSING`) — the plugin's packages were never installed, which is the normal state after `/plugin install` from a marketplace. Substitute the real `${CLAUDE_PLUGIN_ROOT}` path and **STOP**; the sandbox can't write to the plugin folder, so this runs in the operator's own terminal:
+- **`DEPS_MISSING`** (and `bun` not in `MISSING`) — the plugin's packages were never installed, which is the normal state after `/plugin install` from a marketplace. Say *"Installing the plugin's packages (~150 MB, most of it the browser the web tools use); this can take a few minutes."*, then call `run_upgrade` with `{ install: true, pluginRoot: "<PLUGIN_ROOT>" }`, the real path substituted. It runs `bun install` from the plugin's server, outside the sandbox, which can't write to the plugin folder. On `ok: true`, continue: the relaunch at the end of init loads the installed packages, and the browser tools work from then on. On `ok: false`, or when `run_upgrade` isn't available (the server didn't connect), show its `message` and `stderr` if any, substitute the real `${CLAUDE_PLUGIN_ROOT}` path below, and **STOP**:
 
   > 🛑 **One-time install first** (~150 MB, most of it the browser the web tools use). In a normal terminal, not this session, run:
   >
