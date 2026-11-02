@@ -5,17 +5,12 @@ import type { AgendaItem, TodayView } from '../types';
 
 import { COMMANDS_FEATURE } from '../shared/catalog';
 import { cliArgv, cliError } from '../shared/cli';
-import { doneSuggestions, isDoneArgument } from './done';
+import { PRIORITY_COLORS } from '../shared/priority';
 import type { TaskFrontmatter } from './today';
 import { STALE_SYNC_HOURS, buildToday, formatAge, parseEmoji, summarize } from './today';
 
 const todayBand = atom({ plugin: 'agent-kevin', key: 'todayBand' } as const, null);
 const sessionBand = atom({ plugin: 'agent-kevin', key: 'sessionBand' } as const, null);
-const TASKS_FRESH_MS = 60_000;
-const PRIORITY_COLORS: Record<string, string> = { P0: 'red', P1: 'yellow' };
-
-// The read itself is cached, so keystrokes that land before it finishes share it.
-let doneTasks: { readAt: number; tasks: Promise<TaskFrontmatter[]> } | undefined;
 
 // The session root, not its cwd: a shell `cd` in a turn moves the cwd out of the home.
 async function runCli($: EngineInterface, args: readonly string[]): Promise<string> {
@@ -70,27 +65,6 @@ export const registerCommands = (on: On): void => {
   on('command.run', { command: 'capture' }, ($, e) => captureAs($, 'inbox', e.args));
 
   on('command.run', { command: 'lesson' }, ($, e) => captureAs($, 'feedback', e.args));
-
-  on('command.run', { command: 'done' }, async ($, e) => {
-    const id = e.args.trim();
-    if (!id) {
-      return { text: 'Usage: /done <task-id>' };
-    }
-    await runCli($, ['task', 'close', id]);
-    doneTasks = undefined;
-    return { text: `Closed ${id}` };
-  });
-
-  on('prompt.autocomplete', async ($, e, next) => {
-    if (!isDoneArgument(e.text.slice(0, e.start))) {
-      return next(e);
-    }
-    const [result, now] = await Promise.all([next(e), $.clock.now()]);
-    if (doneTasks === undefined || now - doneTasks.readAt > TASKS_FRESH_MS) {
-      doneTasks = { readAt: now, tasks: readTasks($).catch((): TaskFrontmatter[] => []) };
-    }
-    return { suggestions: [...result.suggestions, ...doneSuggestions(await doneTasks.tasks, e.token)] };
-  });
 
   // Claude reads the one-line summary; the person sees the agenda in the band until they dismiss it.
   on('command.run', { command: 'today' }, async ($) => {

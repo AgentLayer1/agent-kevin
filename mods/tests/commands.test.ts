@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing';
-import type { Engine, EngineCall } from 'claude-code/testing';
+import type { Engine } from 'claude-code/testing';
 
 import { BAND_PROPS, CLI, HOME, PLUGIN, fakeHost, machine, run } from './fake-host';
 
@@ -29,66 +29,6 @@ describe('commands', () => {
     const { text } = await run($, 'capture', ' ');
     expect(text).toBe('Usage: /capture <text>');
     expect(host.argv).toHaveLength(0);
-  });
-
-  test('/done closes the task by id', async ($, on) => {
-    const host = fakeHost(on);
-    expect((await run($, 'done', '  ')).text).toBe('Usage: /done <task-id>');
-    expect((await run($, 'done', 'ac-001')).text).toBe('Closed ac-001');
-    expect(host.argv.at(-1)?.slice(2)).toEqual(['task', 'close', 'ac-001']);
-  });
-
-  const typed = ($: Engine, text: string) => {
-    const start = text.lastIndexOf(' ') + 1;
-    // The kit raises `prompt.autocomplete` on `$.prompt`, but its 2.1.296 typings leave the call out.
-    const prompt = $.prompt as unknown as { autocomplete: EngineCall<'prompt.autocomplete'> };
-    return prompt.autocomplete({ text, cursor: text.length, token: text.slice(start), start });
-  };
-
-  const taskReads = (argv: string[][]) => argv.filter((args) => args.slice(2).join(' ') === 'task query').length;
-
-  test('/done suggests id matches before title matches, in task list order, and never a blocked task', async ($, on) => {
-    fakeHost(on);
-    const { suggestions } = await typed($, '/done ac');
-    expect(suggestions.map((row) => row.text)).toEqual(['ac-001', 'ac-002', 'ac-005', 'bx-001']);
-    expect(suggestions[0]?.description).toBe('Licence fixture');
-  });
-
-  test('/done suggests under its namespaced name too', async ($, on) => {
-    fakeHost(on);
-    expect((await typed($, `/${PLUGIN}:done ac-001`)).suggestions.map((row) => row.text)).toEqual(['ac-001']);
-  });
-
-  test('/done also matches a word of the title', async ($, on) => {
-    fakeHost(on);
-    expect((await typed($, '/done licence')).suggestions.map((row) => row.text)).toEqual(['ac-001']);
-  });
-
-  test('a token that is not the argument of /done adds nothing and runs nothing', async ($, on) => {
-    const host = fakeHost(on);
-    expect((await typed($, '/capture ac')).suggestions).toEqual([]);
-    expect((await typed($, '/done ac-001 ac')).suggestions).toEqual([]);
-    expect(host.argv).toHaveLength(0);
-  });
-
-  test('/done reads the task list once a minute, and again after it closes one', async ($, on) => {
-    const host = fakeHost(on);
-    await typed($, '/done a');
-    await typed($, '/done ac');
-    expect(taskReads(host.argv)).toBe(1);
-    await run($, 'done', 'ac-001');
-    await typed($, '/done ac');
-    expect(taskReads(host.argv)).toBe(2);
-    await host.clock.advance(61_000);
-    await typed($, '/done ac');
-    expect(taskReads(host.argv)).toBe(3);
-  });
-
-  test('/done suggests nothing, and throws nothing, when the task list cannot be read', async ($, on) => {
-    const host = fakeHost(on, machine({ failing: ['task query'] }));
-    expect((await typed($, '/done a')).suggestions).toEqual([]);
-    await typed($, '/done ac');
-    expect(taskReads(host.argv)).toBe(1);
   });
 
   test("/today tells Claude the summary, with the sync stamp from the CLI's data folder", async ($, on) => {

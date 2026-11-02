@@ -22,7 +22,7 @@ export const COMMANDS_FEATURE = {
   id: 'commands',
   title: 'Instant commands',
   summary:
-    "Capture a thought, log a lesson, close a task, see today or copy this conversation's session id, answered at once without a model turn.",
+    "Capture a thought, log a lesson, see today or copy this conversation's session id, answered at once without a model turn.",
   where: 'slash commands · the Today and Session rows above the prompt',
   commands: [
     {
@@ -37,9 +37,25 @@ export const COMMANDS_FEATURE = {
       argumentHint: '<text>',
       immediate: true
     },
-    { name: 'done', description: 'Close a task by id (no Claude turn)', argumentHint: '<task-id>', immediate: true },
     { name: 'today', description: "Overdue work, what's due today and the last sync (no Claude turn)" },
     { name: 'session', description: "This conversation's session id, with a Copy button (no Claude turn)" }
+  ],
+  tools: []
+} as const satisfies ModFeature;
+
+export const TASKS_FEATURE = {
+  id: 'tasks',
+  title: 'Tasks',
+  summary:
+    'Look up a task by id as a card, close or cancel it, and see every task id in a reply as a link that opens its file.',
+  where: 'slash command · a task card above the prompt · links in replies',
+  commands: [
+    {
+      name: 'task',
+      description: 'Show a task, or close or cancel it (no Claude turn)',
+      argumentHint: '<id> [done|cancel]',
+      immediate: true
+    }
   ],
   tools: []
 } as const satisfies ModFeature;
@@ -118,6 +134,7 @@ export const SETUP_FEATURE = {
 
 export const MOD_FEATURES: readonly ModFeature[] = [
   COMMANDS_FEATURE,
+  TASKS_FEATURE,
   MANUALS_FEATURE,
   REPORTS_FEATURE,
   SYNC_FEATURE,

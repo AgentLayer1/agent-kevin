@@ -137,6 +137,22 @@ export interface Queue {
   isPaused: boolean;
 }
 
+/**
+ * The /task card: one task, laid out for the row above the prompt.
+ */
+export interface TaskCard {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  project?: string;
+  due?: { label: string; daysLate: number };
+  /** The description's first paragraph as plain text. */
+  summary?: string;
+  checklist?: { done: number; total: number };
+  href: string;
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'agent-kevin': {
@@ -151,6 +167,7 @@ declare module 'claude-code' {
       noticeActing: NoticeActing | null;
       queue: Queue;
       needsSetup: boolean;
+      taskCard: TaskCard | null;
     };
   }
 }

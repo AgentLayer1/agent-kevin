@@ -25,6 +25,8 @@ export const QUESTION_MS = 30_000;
 export const SKILL_MS = 1_000;
 export const NOW = Date.parse('2026-03-10T09:00:00+08:00');
 
+const taskPath = (id: string): string => `${HOME}/projects/acme/tasks/${id}-fixture task.md`;
+
 export const TASKS = [
   { id: 'ac-001', title: 'Licence fixture', status: 'active', priority: 'P1', due: '2026-03-01' },
   { id: 'ac-002', title: 'Due today fixture', status: 'open', priority: 'P2', due: '2026-03-10' },
@@ -32,7 +34,7 @@ export const TASKS = [
   { id: 'ac-005', title: 'Urgent fixture', status: 'open', priority: 'P0', due: '2026-03-08' },
   { id: 'ac-006', title: 'Blocked fixture', status: 'blocked', priority: 'P0' },
   { id: 'bx-001', title: 'Acme fixture', status: 'open', priority: 'P0' }
-];
+].map((task) => ({ ...task, project: 'acme', filePath: taskPath(task.id) }));
 
 /**
  * A fake machine: files and folders by absolute path, and the CLI's answers, mutable mid-test.
@@ -56,6 +58,8 @@ export interface FakeMachine {
   commands: string[];
   /** CLI calls (`task query`) that exit 1. */
   failing: string[];
+  /** Status changes the CLI made (`task close`, `task update --status`), by task id. */
+  statuses: Record<string, string>;
   /** The folder the session started in. */
   root: string;
   /** The subagents `$.agent.list()` answers; a spawn adds one running. */
@@ -91,6 +95,7 @@ export const machine = (overrides: Partial<FakeMachine> = {}): FakeMachine => ({
   suggestions: [],
   commands: [],
   failing: [],
+  statuses: {},
   root: HOME,
   agents: [],
   sessionId: 'session-1',
@@ -128,8 +133,31 @@ const cliAnswer = (host: FakeMachine, args: string): { value: ProcessRunResult }
       JSON.stringify({ ok: host.isHome, home: HOME, data: `${HOME}/.data`, timezone: 'Asia/Kuala_Lumpur' })
     );
   }
+  const tasks = TASKS.map((task) => ({ ...task, status: host.statuses[task.id] ?? task.status }));
   if (args === 'task query') {
-    return ran(0, JSON.stringify(TASKS));
+    return ran(0, JSON.stringify(tasks));
+  }
+  const [verb, id, flag] = args.split(' ').slice(1);
+  const task = tasks.find((item) => item.id === id);
+  if (args.startsWith('task ') && verb !== 'scan' && task === undefined) {
+    return ran(1, '', `Task not found: ${id}`);
+  }
+  if (verb === 'get' && task) {
+    return ran(
+      0,
+      JSON.stringify({
+        frontmatter: task,
+        description: `**Bug.** The \`${task.id}\` [fixture](https://example.com) breaks.\n\nSecond paragraph.`,
+        checklist: [{ checked: true }, { checked: false }, { checked: false }, { checked: false }],
+        filePath: task.filePath
+      })
+    );
+  }
+  if (verb === 'close' && id) {
+    host.statuses[id] = 'done';
+  }
+  if (verb === 'update' && id && flag?.startsWith('--status=')) {
+    host.statuses[id] = flag.slice('--status='.length);
   }
   if (args === 'compile status') {
     return ran(0, JSON.stringify({ pending: host.compilePending }));
