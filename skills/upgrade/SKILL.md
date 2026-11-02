@@ -261,8 +261,16 @@ Tell the user the backup path. If anything looks wrong afterward, they restore f
 
 ## Step 4 — Execute (auto for mandatory/additive/deps; ask for optional)
 
-**deps** — install in the plugin's MCP server (also do this unconditionally if
-`$PLUGIN_ROOT/mcp-server/node_modules` is missing, regardless of flags):
+**deps** — install in the plugin's MCP server by calling `run_upgrade` with
+`{ install: true }`. It runs `bun install` outside the Bash sandbox, which can't write
+bun's cache, and can take several minutes while the postinstall downloads Chromium. On
+`ok: false`, **stop**: show its `message` and `stderr`, do not stamp the baseline, and hand
+the operator the command below to run, then re-run the upgrade, which finds the work done
+and stamps. Never hand the install over and carry on as if it ran: the stamp would wait on a
+turn that may never come, and the home stays "upgrade ready" for good.
+
+`$PLUGIN_ROOT/mcp-server/node_modules` missing means the server can't start, so
+`run_upgrade` isn't there: hand the operator this command, regardless of flags, and stop:
 
 ```bash
 ( cd "$PLUGIN_ROOT/mcp-server" && bun install )

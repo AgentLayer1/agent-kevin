@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { secretsReadBlocked } from '@/shared/sandbox-probe';
-import { tools } from '@/tools/upgrade';
+import { installDeps, tools } from '@/tools/upgrade';
 
 const runUpgrade = (version: string) => tools[0].handler({ version }) as Promise<Record<string, unknown>>;
 
@@ -41,6 +41,34 @@ describe('run_upgrade', () => {
       report: { ok: true, askDropped: ['mcp__xcode__RunCodeSnippet'] }
     });
     expect(JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf-8')).permissions.ask).toEqual([]);
+  });
+
+  test('takes a version or install, never both and never neither', async () => {
+    expect(await tools[0].handler({ version: '0.7.2', install: true })).toMatchObject({ ok: false });
+    expect(await tools[0].handler({})).toMatchObject({ ok: false });
+  });
+
+  test('install reports a clean bun install as ok', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'run-upgrade-install-'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.0.0' }));
+    try {
+      expect(await installDeps(dir)).toMatchObject({ ok: true, exitCode: 0 });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('install reports a failing bun install with its exit code and stderr', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'run-upgrade-install-'));
+    writeFileSync(join(dir, 'package.json'), '{ not json');
+    try {
+      const result = await installDeps(dir);
+      expect(result.ok).toBe(false);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).not.toBe('');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test.skipIf(secretsReadBlocked())("hands the operator's choices to the script", async () => {

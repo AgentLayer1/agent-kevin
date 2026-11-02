@@ -11,16 +11,75 @@
  * The tool is GENERIC: it carries no per-version logic. It validates the version,
  * resolves the script by name, spawns it with bun, and returns its JSON report.
  * New migrations are a new script file + one CHANGELOG line — no change here.
+ *
+ * `install: true` runs the `deps:` action, `bun install` in the plugin's mcp-server, from the
+ * same seat: a sandboxed shell can't write bun's cache, and the upgrade stamps its baseline only
+ * once the install has run in the same turn.
  */
 import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { defineTool, type ToolDef } from '@/shared/types';
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { z } from 'zod';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const SCRIPT_TIMEOUT_MS = 120_000;
+const INSTALL_TIMEOUT_MS = 600_000;
+const OUTPUT_TAIL = 2000;
+
+const execFileAsync = promisify(execFile);
+
+interface InstallResult {
+  ok: boolean;
+  dir: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  message: string;
+}
+
+/**
+ * Uses the bun running this server. Async, so the server keeps answering while the
+ * postinstall downloads Chromium.
+ */
+export const installDeps = async (dir: string): Promise<InstallResult> => {
+  try {
+    const { stdout, stderr } = await execFileAsync(process.execPath, ['install'], {
+      cwd: dir,
+      timeout: INSTALL_TIMEOUT_MS,
+      maxBuffer: 16 * 1024 * 1024
+    });
+    return {
+      ok: true,
+      dir,
+      exitCode: 0,
+      stdout: stdout.slice(-OUTPUT_TAIL),
+      stderr: stderr.slice(-OUTPUT_TAIL),
+      message: 'bun install completed.'
+    };
+  } catch (error) {
+    const failure = error as {
+      code?: number | string;
+      killed?: boolean;
+      stdout?: string;
+      stderr?: string;
+      message?: string;
+    };
+    const exitCode = typeof failure.code === 'number' ? failure.code : -1;
+    return {
+      ok: false,
+      dir,
+      exitCode,
+      stdout: (failure.stdout ?? '').slice(-OUTPUT_TAIL),
+      stderr: (failure.stderr || failure.message || String(error)).slice(-OUTPUT_TAIL),
+      message: failure.killed
+        ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
+        : `bun install failed (exit ${exitCode}).`
+    };
+  }
+};
 
 /**
  * Resolve a version to `<PLUGIN_ROOT>/skills/upgrade/scripts/<version>.ts`, or null
@@ -62,11 +121,16 @@ function parseReport(stdout: string): unknown {
 export const tools: ToolDef[] = [
   defineTool({
     name: 'run_upgrade',
-    description: `Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /${PLUGIN_NAME}:upgrade for each \`script:\` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error.`,
+    description: `Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /${PLUGIN_NAME}:upgrade for each \`script:\` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error. With install:true instead of a version, runs the \`deps:\` action: bun install in the plugin's mcp-server, also outside the sandbox (up to 10 minutes while Chromium downloads).`,
     inputSchema: {
       version: z
         .string()
+        .optional()
         .describe('Semver MAJOR.MINOR.PATCH of the migration to run (resolves skills/upgrade/scripts/<version>.ts).'),
+      install: z
+        .boolean()
+        .optional()
+        .describe("true runs bun install in the plugin's mcp-server instead of a migration. Never with version."),
       options: z
         .record(z.string(), z.unknown())
         .optional()
@@ -74,7 +138,16 @@ export const tools: ToolDef[] = [
           "Choices the operator made for this migration, read by the script from AGENT_UPGRADE_OPTIONS (JSON). Only pass what the upgrade skill's step for that version names."
         )
     },
-    handler: async ({ version, options }): Promise<RunResult> => {
+    handler: async ({ version, install, options }): Promise<RunResult | InstallResult> => {
+      if (install) {
+        if (version !== undefined) {
+          return { ok: false, found: false, version, message: 'Pass install or version, not both.' };
+        }
+        return installDeps(resolve(FOLDERS.ROOT, 'mcp-server'));
+      }
+      if (version === undefined) {
+        return { ok: false, found: false, version: '', message: 'Pass a version, or install: true.' };
+      }
       const scriptPath = resolveUpgradeScript(version);
       if (!scriptPath) {
         return {
