@@ -19,8 +19,8 @@
 import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { execFile, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 
@@ -30,6 +30,32 @@ const INSTALL_TIMEOUT_MS = 600_000;
 const OUTPUT_TAIL = 2000;
 
 const execFileAsync = promisify(execFile);
+
+const realpathOrNull = (path: string): string | null => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The plugin root `bun install` may run in: this server's own, or a sibling version folder in a
+ * marketplace cache (`<marketplace>/<plugin>/<version>`), where an update lands while the
+ * server still runs from the previous version. Null for anything else.
+ */
+export const installRoot = (requested: string, serverRoot: string): string | null => {
+  const target = realpathOrNull(requested);
+  const own = realpathOrNull(serverRoot);
+  if (!target || !own) return null;
+  if (target === own) return target;
+  const siblingVersion =
+    dirname(target) === dirname(own) &&
+    SEMVER_RE.test(basename(target)) &&
+    SEMVER_RE.test(basename(own)) &&
+    existsSync(join(target, 'mcp-server', 'package.json'));
+  return siblingVersion ? target : null;
+};
 
 interface InstallResult {
   ok: boolean;
@@ -121,7 +147,7 @@ function parseReport(stdout: string): unknown {
 export const tools: ToolDef[] = [
   defineTool({
     name: 'run_upgrade',
-    description: `Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /${PLUGIN_NAME}:upgrade for each \`script:\` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error. With install:true instead of a version, runs the \`deps:\` action: bun install in the plugin's mcp-server, also outside the sandbox (up to 10 minutes while Chromium downloads).`,
+    description: `Run the versioned upgrade migration at skills/upgrade/scripts/<version>.ts, outside the Bash sandbox (so it can touch deny-gated paths). Called by /${PLUGIN_NAME}:upgrade for each \`script:\` action in the CHANGELOG. Generic — no per-version logic. Returns the script's JSON report; a missing script means already-applied/pruned (found:false), not an error. With install:true and pluginRoot instead of a version, runs the \`deps:\` action: bun install in that plugin root's mcp-server, also outside the sandbox (up to 10 minutes while Chromium downloads). pluginRoot must be this server's root or a sibling version folder of it in a marketplace cache.`,
     inputSchema: {
       version: z
         .string()
@@ -130,7 +156,13 @@ export const tools: ToolDef[] = [
       install: z
         .boolean()
         .optional()
-        .describe("true runs bun install in the plugin's mcp-server instead of a migration. Never with version."),
+        .describe("true runs bun install in pluginRoot's mcp-server instead of a migration. Never with version."),
+      pluginRoot: z
+        .string()
+        .optional()
+        .describe(
+          'Required with install: the plugin root the upgrade skill loaded from ($PLUGIN_ROOT), which after a marketplace update can be a newer version folder than the one this server runs from.'
+        ),
       options: z
         .record(z.string(), z.unknown())
         .optional()
@@ -138,12 +170,23 @@ export const tools: ToolDef[] = [
           "Choices the operator made for this migration, read by the script from AGENT_UPGRADE_OPTIONS (JSON). Only pass what the upgrade skill's step for that version names."
         )
     },
-    handler: async ({ version, install, options }): Promise<RunResult | InstallResult> => {
+    handler: async ({ version, install, pluginRoot, options }): Promise<RunResult | InstallResult> => {
       if (install) {
         if (version !== undefined) {
           return { ok: false, found: false, version, message: 'Pass install or version, not both.' };
         }
-        return installDeps(resolve(FOLDERS.ROOT, 'mcp-server'));
+        const root = pluginRoot === undefined ? null : installRoot(pluginRoot, FOLDERS.ROOT);
+        if (!root) {
+          return {
+            ok: false,
+            dir: pluginRoot ?? '',
+            exitCode: -1,
+            stdout: '',
+            stderr: '',
+            message: `Install refused: pluginRoot must be this server's plugin root (${FOLDERS.ROOT}) or a sibling version folder of it.`
+          };
+        }
+        return installDeps(join(root, 'mcp-server'));
       }
       if (version === undefined) {
         return { ok: false, found: false, version: '', message: 'Pass a version, or install: true.' };

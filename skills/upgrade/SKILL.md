@@ -261,20 +261,27 @@ Tell the user the backup path. If anything looks wrong afterward, they restore f
 
 ## Step 4 — Execute (auto for mandatory/additive/deps; ask for optional)
 
-**deps** — install in the plugin's MCP server by calling `run_upgrade` with
-`{ install: true }`. It runs `bun install` outside the Bash sandbox, which can't write
-bun's cache, and can take several minutes while the postinstall downloads Chromium. On
-`ok: false`, **stop**: show its `message` and `stderr`, do not stamp the baseline, and hand
-the operator the command below to run, then re-run the upgrade, which finds the work done
-and stamps. Never hand the install over and carry on as if it ran: the stamp would wait on a
-turn that may never come, and the home stays "upgrade ready" for good.
+**deps** — runs when a release requires it, and regardless of flags when
+`$PLUGIN_ROOT/mcp-server/node_modules` is missing, the normal state of a marketplace version
+folder right after `/plugin update`. Call `run_upgrade` with
+`{ install: true, pluginRoot: "<PLUGIN_ROOT>" }`, the real path substituted. The running
+server may still be the previous version's, from its own folder; `pluginRoot` points the
+install at the copy this skill loaded from, which the tool accepts only when it is the
+server's own root or a sibling version folder of it. It runs `bun install` outside the Bash
+sandbox, which can't write bun's cache, and can take several minutes while the postinstall
+downloads Chromium.
 
-`$PLUGIN_ROOT/mcp-server/node_modules` missing means the server can't start, so
-`run_upgrade` isn't there: hand the operator this command, regardless of flags, and stop:
+On `ok: false`, or when `run_upgrade` isn't available (the server didn't start, or it is a
+version without `install`), **stop**: show the `message` and `stderr`, do not stamp the
+baseline, and hand the operator this command, then re-run the upgrade, which finds the work
+done and stamps:
 
 ```bash
 ( cd "$PLUGIN_ROOT/mcp-server" && bun install )
 ```
+
+Never hand the install over and carry on as if it ran: the stamp would wait on a turn that may
+never come, and the home stays "upgrade ready" for good.
 
 **script** — run each version's migration via the `run_upgrade` MCP tool,
 in ascending version order, **after the backup (Step 3)** and after any `deps`

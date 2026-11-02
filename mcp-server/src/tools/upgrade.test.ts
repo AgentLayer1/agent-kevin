@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HOME_MARKER_FILES, RUNTIME_DIR, pluginName } from '@/shared/naming';
 import { secretsReadBlocked } from '@/shared/sandbox-probe';
-import { installDeps, tools } from '@/tools/upgrade';
+import { installDeps, installRoot, tools } from '@/tools/upgrade';
 
 const runUpgrade = (version: string) => tools[0].handler({ version }) as Promise<Record<string, unknown>>;
 
@@ -46,6 +46,59 @@ describe('run_upgrade', () => {
   test('takes a version or install, never both and never neither', async () => {
     expect(await tools[0].handler({ version: '0.7.2', install: true })).toMatchObject({ ok: false });
     expect(await tools[0].handler({})).toMatchObject({ ok: false });
+  });
+
+  test('install needs a pluginRoot it accepts', async () => {
+    expect(await tools[0].handler({ install: true })).toMatchObject({ ok: false, exitCode: -1 });
+    expect(await tools[0].handler({ install: true, pluginRoot: tmpdir() })).toMatchObject({ ok: false, exitCode: -1 });
+  });
+
+  describe('installRoot', () => {
+    const cache = mkdtempSync(join(tmpdir(), 'run-upgrade-cache-'));
+    const plugin = join(cache, 'acme-market', 'acme-agent');
+    const versionDir = (version: string, withPackage = true) => {
+      const dir = join(plugin, version);
+      mkdirSync(join(dir, 'mcp-server'), { recursive: true });
+      if (withPackage) writeFileSync(join(dir, 'mcp-server', 'package.json'), '{}');
+      return dir;
+    };
+    const running = versionDir('0.9.1');
+
+    afterAll(() => rmSync(cache, { recursive: true, force: true }));
+
+    test("accepts the server's own root", () => {
+      expect(installRoot(running, running)).toBe(realpathSync(running));
+    });
+
+    test('accepts the newer version folder an update landed beside it', () => {
+      const updated = versionDir('0.9.2');
+      expect(installRoot(updated, running)).toBe(realpathSync(updated));
+    });
+
+    test('refuses a sibling version folder with no mcp-server package', () => {
+      expect(installRoot(versionDir('0.9.3', false), running)).toBeNull();
+    });
+
+    test('refuses a version folder of another plugin', () => {
+      const other = join(cache, 'acme-market', 'other-agent', '0.9.2');
+      mkdirSync(join(other, 'mcp-server'), { recursive: true });
+      writeFileSync(join(other, 'mcp-server', 'package.json'), '{}');
+      expect(installRoot(other, running)).toBeNull();
+    });
+
+    test('refuses a sibling of a checkout that is not a version folder', () => {
+      const checkout = join(cache, 'acme-agent');
+      const neighbour = join(cache, '1.0.0');
+      [checkout, neighbour].forEach((dir) => {
+        mkdirSync(join(dir, 'mcp-server'), { recursive: true });
+        writeFileSync(join(dir, 'mcp-server', 'package.json'), '{}');
+      });
+      expect(installRoot(neighbour, checkout)).toBeNull();
+    });
+
+    test('refuses a path that does not exist', () => {
+      expect(installRoot(join(plugin, '9.9.9'), running)).toBeNull();
+    });
   });
 
   test('install reports a clean bun install as ok', async () => {
