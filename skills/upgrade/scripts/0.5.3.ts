@@ -283,11 +283,6 @@ const migratePage = async (browser: Browser, home: string, path: string, evidenc
 
 export const migrateHome = async (home: string, projects: string, dataDir: string): Promise<PageReport[]> => {
   const pages = roadmapPages(home, projects);
-  if (process.platform === 'win32') {
-    // TODO(windows): bun can't drive Playwright's pipe transport there, so the render check can't run.
-    const reason = 'native Windows cannot run the render check yet; the page keeps working as it is';
-    return pages.map((path) => ({ path: relative(home, path), verdict: 'left', reason }));
-  }
   if (pages.length === 0) {
     return [];
   }

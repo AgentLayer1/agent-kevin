@@ -1,26 +1,6 @@
-/**
- * Browser MCP tools (browser_screenshot/pdf/markdown/record) — in-process
- * browser via the playwright npm package. On native Windows the context comes
- * from a CDP attach instead of an in-process launch (see shared/browser-deps.ts),
- * and browser_record is unavailable there.
- *
- * Chromium is bundled inside the plugin's own `node_modules/playwright/.local-browsers/`
- * (via the `PLAYWRIGHT_BROWSERS_PATH=0` mode used in the package.json postinstall),
- * so the plugin is self-contained — moving or cleaning the plugin dir takes
- * chromium with it. We mirror that env var at runtime so the runtime lookup
- * resolves to the same in-plugin location.
- *
- * Captures land in `<HOME>/reports/captures/<timestamp>-<name>.{png,pdf,webm}`.
- *
- * macOS caveat: browser launch can fail inside sandboxed Claude Code subprocesses
- * (XPC/Crashpad walls). When that happens, the playwright launch promise
- * rejects with a recognizable error; we surface a clean message rather than
- * leaking the stack trace.
- */
-
 import { BROWSER } from '@/config';
 import { stampedPath } from '@/media/files';
-import { acquireContext, getChromium, withBrowserLaunch, type PageLike } from '@/shared/browser-deps';
+import { acquireContext, getChromium } from '@/shared/browser-deps';
 import { htmlToMarkdown, renderExtracted } from '@/shared/html-to-markdown';
 import { log } from '@/shared/log';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -29,6 +9,7 @@ import { mkdirSync, rmdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import type { Page } from 'playwright';
 import { z } from 'zod';
 
 const StepSchema = z.object({
@@ -135,7 +116,7 @@ async function renderMarkdownFile(filePath: string): Promise<RenderedMarkdown> {
 
 const MARKDOWN_EXT = /\.(md|markdown|mdown|mkdn)$/i;
 
-async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> {
+async function loadInto(page: Page, target: NormalizedInput): Promise<void> {
   if (target.isFile && target.filePath && MARKDOWN_EXT.test(target.filePath)) {
     const { html, hasMermaid } = await renderMarkdownFile(target.filePath);
     await page.setContent(html, { waitUntil: 'load' });
@@ -158,7 +139,7 @@ async function loadInto(page: PageLike, target: NormalizedInput): Promise<void> 
 
 // Explainer and PR report pages draw Mermaid and highlight code after `load`; they hold __renderDone at false
 // until both have finished or failed, so a page that never sets it is captured at once.
-async function waitForDiagrams(page: PageLike): Promise<void> {
+async function waitForDiagrams(page: Page): Promise<void> {
   try {
     await page.waitForFunction(() => (globalThis as { __renderDone?: boolean }).__renderDone !== false, {
       timeout: BROWSER.RENDER_TIMEOUT_MS
@@ -168,7 +149,7 @@ async function waitForDiagrams(page: PageLike): Promise<void> {
   }
 }
 
-async function runStep(page: PageLike, step: Step): Promise<void> {
+async function runStep(page: Page, step: Step): Promise<void> {
   switch (step.kind) {
     case 'navigate':
       if (!step.url) throw new Error('navigate step missing `url`');
@@ -301,22 +282,14 @@ export const tools: ToolDef[] = [
       viewport: z.object({ width: z.number().int(), height: z.number().int() }).optional()
     },
     handler: async ({ input, steps, name, viewport }) => {
-      if (process.platform === 'win32') {
-        throw new Error(
-          'browser_record is unavailable on native Windows: video needs a Playwright-launched browser, and bun ' +
-            'on win32 can only attach over CDP (oven-sh/bun#27977). Use browser_screenshot or browser_markdown instead.'
-        );
-      }
       const chromium = await getChromium();
-      mkdirSync(BROWSER.CAPTURES_DIR, { recursive: true });
-      const browser = await withBrowserLaunch((timeout) => chromium.launch({ headless: true, timeout }));
       const videoDir = stampedPath(BROWSER.CAPTURES_DIR, `${name ?? 'record'}-tmp`);
       mkdirSync(videoDir, { recursive: true });
+      const { context, close } = await acquireContext(chromium, {
+        recordVideo: { dir: videoDir, size: viewport },
+        viewport: viewport ?? null
+      });
       try {
-        const context = await browser.newContext({
-          recordVideo: { dir: videoDir, size: viewport },
-          viewport: viewport ?? null
-        });
         const page = await context.newPage();
         await page.goto(input, { waitUntil: 'load' });
         for (const step of steps) {
@@ -340,7 +313,7 @@ export const tools: ToolDef[] = [
         log.info(`record -> ${outPath}`);
         return { path: outPath };
       } finally {
-        await browser.close();
+        await close();
       }
     }
   })
