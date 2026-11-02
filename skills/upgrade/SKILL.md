@@ -143,11 +143,11 @@ bun "$PLUGIN_ROOT/bin/kevin" hosts            # add --codex when this session ru
 ```
 
 It prints `{ ok, hosts: [{ name, required, installed, floor, state, update }] }` and exits 1 when
-a required host is below its floor. Codex is required for a home wired for it (`.codex/hooks.json`)
-or a Codex session (`--codex`); an absent optional host is fine. `ok: true` → continue. Otherwise
-print each `outdated` or required-`absent` host on its own line with its `update` command, tell the
-operator to update and relaunch, then re-run this, and **stop**: nothing below this line runs on an
-outdated host.
+a required host is below its floor. Claude Code and bun are always required; Codex for a home
+wired for it (`.codex/hooks.json`) or a Codex session (`--codex`); an absent optional host is fine.
+`ok: true` → continue. Otherwise print each `outdated` or required-`absent` host on its own line
+with its `update` command, tell the operator to update and relaunch, then re-run this, and
+**stop**: nothing below this line runs on an outdated host.
 
 ## Step 1 — Determine what to apply (guards + window)
 

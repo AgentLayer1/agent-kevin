@@ -50,7 +50,7 @@ Every session is captured on exit. Captured sessions compile into a wiki. The wi
 
 ## Quick start
 
-You need **Bun ≥ 1.1**, **Git**, and a host: **Claude Code** or **Codex**. Full prerequisites, the local clone install, and Windows notes are in [Install](https://agentlayer.one/docs/getting-started/install).
+You need **Bun ≥ 1.4.4**, **Git**, and a host: **Claude Code** or **Codex**. Full prerequisites, the local clone install, and Windows notes are in [Install](https://agentlayer.one/docs/getting-started/install).
 
 Pick a home for the brain, then install the plugin from it:
 

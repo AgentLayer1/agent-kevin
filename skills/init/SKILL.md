@@ -180,8 +180,8 @@ Default: abort. The preservation guards below in Step 7 are what make these clai
 
 ## Step 0b — Host version gate
 
-The plugin is built against the Claude Code and Codex versions in `mcp-server/src/hosts.ts`, with
-no backwards compatibility. Check before scaffolding anything:
+The plugin is built against the Claude Code, Codex and bun versions in `mcp-server/src/hosts.ts`,
+with no backwards compatibility. Check before scaffolding anything:
 
 ```bash
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-<SKILL_BASE_DIR>/../..}"   # Claude Code fills the variable in; under Codex replace <SKILL_BASE_DIR> with this skill's base directory

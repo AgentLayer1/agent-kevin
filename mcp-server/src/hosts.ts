@@ -1,18 +1,14 @@
-/**
- * The host CLIs this plugin is built against. There is no backwards compatibility: a
- * release that leans on a host feature raises the floor here in the same commit, and
- * init, upgrade, and the SessionStart banner refuse or warn below it.
- */
 import { compareSemver } from '@/version';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export type HostName = 'claude' | 'codex';
+export type ToolName = HostName | 'bun';
 export type HostState = 'ok' | 'outdated' | 'absent';
 
 interface HostFloor {
-  name: HostName;
+  name: ToolName;
   version: string;
   why: string;
   update: string;
@@ -30,11 +26,17 @@ export const HOST_FLOORS: readonly HostFloor[] = [
     version: '0.154.0',
     why: 'a running session refreshes plugin tools, skills, and hooks after an upgrade',
     update: 'npm install -g @openai/codex@latest'
+  },
+  {
+    name: 'bun',
+    version: '1.4.4',
+    why: "YAML 1.2 parsing and Playwright's pipe transport on Windows (oven-sh/bun#11044, #27977)",
+    update: 'bun upgrade'
   }
 ];
 
 export interface HostStatus {
-  name: HostName;
+  name: ToolName;
   required: boolean;
   installed: string | null;
   floor: string;
@@ -51,10 +53,13 @@ export interface HostReport {
 /** The first `x.y.z` in a `--version` line: `2.1.270 (Claude Code)`, `codex-cli 0.154.0`. */
 export const parseHostVersion = (output: string): string | null => output.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
 
-export type VersionRunner = (name: HostName) => string | null;
+export type VersionRunner = (name: ToolName) => string | null;
 
 // TODO(windows): the npm shims are .cmd files, which execFile cannot start without a shell, so a Windows box reports both hosts absent.
 const runVersion: VersionRunner = (name) => {
+  if (name === 'bun') {
+    return Bun.version;
+  }
   try {
     return execFileSync(name, ['--version'], {
       encoding: 'utf-8',
@@ -66,11 +71,15 @@ const runVersion: VersionRunner = (name) => {
   }
 };
 
-/** Claude Code is always required; Codex only for a home wired for it, or when the caller says so. */
-export const requiredHosts = (home: string, codex = false): ReadonlySet<HostName> =>
-  new Set<HostName>(codex || existsSync(resolve(home, '.codex', 'hooks.json')) ? ['claude', 'codex'] : ['claude']);
+/**
+ * Claude Code and bun always; Codex when `codex` is true or the home has `.codex/hooks.json`.
+ */
+export const requiredHosts = (home: string, codex = false): ReadonlySet<ToolName> =>
+  new Set<ToolName>(
+    codex || existsSync(resolve(home, '.codex', 'hooks.json')) ? ['claude', 'codex', 'bun'] : ['claude', 'bun']
+  );
 
-export const checkHosts = (required: ReadonlySet<HostName>, run: VersionRunner = runVersion): HostReport => {
+export const checkHosts = (required: ReadonlySet<ToolName>, run: VersionRunner = runVersion): HostReport => {
   const hosts = HOST_FLOORS.map((floor): HostStatus => {
     const output = run(floor.name);
     const installed = output === null ? null : parseHostVersion(output);

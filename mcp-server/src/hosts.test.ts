@@ -1,12 +1,12 @@
-import { HOST_FLOORS, checkHosts, hostIssues, parseHostVersion, requiredHosts, type HostName } from '@/hosts';
+import { HOST_FLOORS, checkHosts, hostIssues, parseHostVersion, requiredHosts, type ToolName } from '@/hosts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const runner = (versions: Partial<Record<HostName, string | null>>) => (name: HostName) => versions[name] ?? null;
+const runner = (versions: Partial<Record<ToolName, string | null>>) => (name: ToolName) => versions[name] ?? null;
 
-const aboveFloor = (name: HostName): string =>
+const aboveFloor = (name: ToolName): string =>
   (HOST_FLOORS.find((floor) => floor.name === name)?.version ?? '').replace(/\d+$/, (patch) => `${Number(patch) + 1}`);
 
 describe('hosts', () => {
@@ -48,12 +48,22 @@ describe('hosts', () => {
     expect(report.ok).toBe(true);
   });
 
+  test('an outdated bun fails the report and names bun upgrade', () => {
+    const report = checkHosts(
+      new Set(['claude', 'bun']),
+      runner({ claude: `${aboveFloor('claude')} (Claude Code)`, bun: '1.3.11' })
+    );
+    expect(report.ok).toBe(false);
+    expect(hostIssues(report)).toEqual([expect.stringContaining("bun 1.3.11 is below the plugin's floor")]);
+    expect(hostIssues(report)[0]).toContain('`bun upgrade`');
+  });
+
   test('codex is required for a wired home or when the caller says so', () => {
     const home = mkdtempSync(join(tmpdir(), 'hosts-'));
-    expect([...requiredHosts(home)]).toEqual(['claude']);
-    expect([...requiredHosts(home, true)]).toEqual(['claude', 'codex']);
+    expect([...requiredHosts(home)]).toEqual(['claude', 'bun']);
+    expect([...requiredHosts(home, true)]).toEqual(['claude', 'codex', 'bun']);
     mkdirSync(join(home, '.codex'));
     writeFileSync(join(home, '.codex', 'hooks.json'), '{}');
-    expect([...requiredHosts(home)]).toEqual(['claude', 'codex']);
+    expect([...requiredHosts(home)]).toEqual(['claude', 'codex', 'bun']);
   });
 });
