@@ -35,7 +35,7 @@ Object.assign(globalThis, {
 const { default: mermaid } = await import('mermaid');
 mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
 
-const MERMAID_BLOCK_RE = /```mermaid\n([\s\S]*?)```/g;
+const MERMAID_BLOCK_RE = /```mermaid\r?\n([\s\S]*?)```/g;
 
 interface BlockResult {
   file: string;

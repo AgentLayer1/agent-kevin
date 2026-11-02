@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { pluginName } from '../../../mcp-server/src/shared/naming';
+import { fencedJsonAfter } from './fenced-json';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -26,23 +27,16 @@ if (!home) {
   process.exit(2);
 }
 
-const skill = readFileSync(resolve(import.meta.dir, '..', 'SKILL.md'), 'utf-8');
-const heading = skill.indexOf('### Offer the auto-mode knowledge-base exception');
-const fence = skill.indexOf('```json\n', heading);
-const close = skill.indexOf('\n```', fence + 8);
-if (heading === -1 || fence === -1 || close === -1) {
-  throw new Error('init SKILL.md no longer carries the auto-mode JSON block where this script expects it');
-}
 interface AutoModeBlock {
   permissions?: { defaultMode?: string };
   autoMode: { environment: string[]; allow: string[]; soft_deny: string[] };
 }
-const canonical = JSON.parse(
-  skill
-    .slice(fence + 8, close)
+const canonical = fencedJsonAfter<AutoModeBlock>(
+  readFileSync(resolve(import.meta.dir, '..', 'SKILL.md'), 'utf-8')
     .split('<HOME_DIR>')
-    .join(home)
-) as AutoModeBlock;
+    .join(home),
+  '### Offer the auto-mode knowledge-base exception'
+);
 
 const settingsPath = flag('settings') ?? resolve(homedir(), '.claude', 'settings.json');
 const settings = existsSync(settingsPath)

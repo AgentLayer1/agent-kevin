@@ -21,6 +21,7 @@ import { dataDirOf, pluginName, recordedPlugin, resolveEnv } from '../../../mcp-
 import { migrateGrant, migrateGrants } from '../../../mcp-server/src/shared/retired-skills';
 import { expandTilde, isInside } from '../../../mcp-server/src/shared/paths';
 import { readMergedSettings } from '../../../mcp-server/src/home/settings-scope';
+import { fencedJsonAfter } from './fenced-json';
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -83,15 +84,7 @@ const stampPlugin = (dataDir: string): Identity => {
 const identity = stampPlugin(dataDirOf(home));
 
 const skill = readFileSync(join(pluginRoot, 'skills', 'init', 'SKILL.md'), 'utf-8');
-const jsonBlockAfter = <T>(anchor: string): T => {
-  const at = skill.indexOf(anchor);
-  const fence = skill.indexOf('```json\n', at);
-  const close = skill.indexOf('\n```', fence + 8);
-  if (at === -1 || fence === -1 || close === -1) {
-    throw new Error(`init SKILL.md no longer carries a JSON block after "${anchor}"`);
-  }
-  return JSON.parse(skill.slice(fence + 8, close)) as T;
-};
+const jsonBlockAfter = <T>(anchor: string): T => fencedJsonAfter<T>(skill, anchor);
 const baselineAllow = jsonBlockAfter<{ permissions: { allow: string[] } }>(
   'Concrete approach: `Read` the existing file'
 ).permissions.allow;
