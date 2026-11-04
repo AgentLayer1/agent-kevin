@@ -20,9 +20,11 @@ const CONFIDENCE = ['confirmed', 'strong', 'unverified'];
 const REVIEW = ['owed', 're-review', 'pending', 'none'];
 const SIZES = ['trivial', 'small', 'medium', 'large'];
 const PROMISE_STATUS = ['open', 'done', 'superseded', 'wrong'];
+const DESCRIPTION_KINDS = ['update', 'open'];
 const FIRST_MOVES_LIMIT = 10;
 const URL = /^https:\/\/github\.com\//;
 const REPO = /^[\w.-]+\/[\w.-]+$/;
+const PR_REF = /^#\d+$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 
 const KEYS = {
@@ -35,6 +37,7 @@ const KEYS = {
     'summary',
     'standup',
     'firstMoves',
+    'descriptions',
     'needsCode',
     'conflicts',
     'promises',
@@ -44,6 +47,7 @@ const KEYS = {
     'notChecked'
   ],
   firstMove: ['ref', 'what', 'why'],
+  description: ['ref', 'url', 'kind', 'base', 'title', 'body', 'why'],
   needsCode: ['pr', 'fix', 'size'],
   conflict: ['pr', 'files', 'note'],
   promise: ['ref', 'url', 'to', 'at', 'promise', 'status', 'evidence', 'confidence'],
@@ -141,6 +145,16 @@ const issueErrors = (issue: Row, path: string): string[] => [
   ...(list(issue.prs).every(isNumber) ? [] : [`${path}.prs must be a list of PR numbers`])
 ];
 
+const descriptionErrors = (row: Row, path: string): string[] => [
+  ...keyErrors(row, KEYS.description, path),
+  ...textErrors(row, ['ref', 'title', 'body', 'why'], path),
+  ...(URL.test(text(row.url)) ? [] : [`${path}.url must be a https://github.com/ link`]),
+  ...enumError(row.kind, DESCRIPTION_KINDS, `${path}.kind`),
+  ...(row.kind === 'update' && !PR_REF.test(text(row.ref)) ? [`${path}.ref must be "#<number>" for an update`] : []),
+  ...(row.kind === 'update' && row.base !== undefined ? [`${path}.base is only for kind open`] : []),
+  ...(row.kind === 'open' && !isText(row.base) ? [`${path}.base must name the base branch for kind open`] : [])
+];
+
 const duplicateIds = (data: Row): string[] => {
   const ids = [...rows(data.issues), ...rows(data.prs)].flatMap((item) => rows(item.owed).map((owed) => text(owed.id)));
   return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))].map(
@@ -160,7 +174,7 @@ export const validate = (data: Row): SweepCheck => {
     ...(data.supersedes === null || isText(data.supersedes)
       ? []
       : ["data.supersedes must be the prior sweep's relPath, or null"]),
-    ...['firstMoves', 'needsCode', 'conflicts', 'promises', 'issues', 'prs', 'quiet'].flatMap((key) =>
+    ...['firstMoves', 'descriptions', 'needsCode', 'conflicts', 'promises', 'issues', 'prs', 'quiet'].flatMap((key) =>
       arrayErrors(data, key)
     ),
     ...['issues', 'prs'].filter((key) => !Array.isArray(data[key])).map((key) => `data.${key} must be a list`),
@@ -171,6 +185,7 @@ export const validate = (data: Row): SweepCheck => {
     ...(list(data.firstMoves).length > FIRST_MOVES_LIMIT
       ? [`firstMoves holds at most ${FIRST_MOVES_LIMIT}; the rest live in their sections`]
       : []),
+    ...rows(data.descriptions).flatMap((row, index) => descriptionErrors(row, `descriptions[${index}]`)),
     ...rows(data.needsCode).flatMap((row, index) => [
       ...keyErrors(row, KEYS.needsCode, `needsCode[${index}]`),
       ...(isNumber(row.pr) ? [] : [`needsCode[${index}].pr must be a PR number`]),
@@ -203,6 +218,8 @@ export const validate = (data: Row): SweepCheck => {
     ...duplicateIds(data)
   ];
   const prNumbers = new Set(rows(data.prs).map((pr) => pr.number));
+  const prOf = (ref: unknown): Row | undefined => rows(data.prs).find((pr) => `#${String(pr.number)}` === ref);
+  const updates = rows(data.descriptions).filter((row) => row.kind === 'update' && PR_REF.test(text(row.ref)));
   const warnings = [
     ...rows(data.issues).flatMap((issue) =>
       list(issue.prs)
@@ -214,14 +231,28 @@ export const validate = (data: Row): SweepCheck => {
     ),
     ...rows(data.prs)
       .filter((pr) => pr.review !== 'none' && pr.mine === true)
-      .map((pr) => `PR #${String(pr.number)} is the operator's own, so review "${String(pr.review)}" is ignored`)
+      .map((pr) => `PR #${String(pr.number)} is the operator's own, so review "${String(pr.review)}" is ignored`),
+    ...updates
+      .filter((row) => !prOf(row.ref))
+      .map((row) => `description ${text(row.ref)} is for a PR that isn't in prs, so the sweep didn't check it's open`),
+    ...updates
+      .filter((row) => prOf(row.ref)?.mine === false)
+      .map((row) => `description ${text(row.ref)} is for a teammate's PR; descriptions are for the operator's own`)
   ];
   return { errors, warnings };
 };
 
 export const countsOf = (
   data: Row
-): { owed: number; newOwed: number; reviews: number; pending: number; conflicts: number; needsCode: number } => {
+): {
+  owed: number;
+  newOwed: number;
+  reviews: number;
+  pending: number;
+  conflicts: number;
+  needsCode: number;
+  descriptions: number;
+} => {
   const owed = [...rows(data.issues), ...rows(data.prs)].flatMap((item) => rows(item.owed));
   const theirs = rows(data.prs).filter((pr) => pr.mine !== true);
   return {
@@ -230,7 +261,8 @@ export const countsOf = (
     reviews: theirs.filter((pr) => pr.review === 'owed' || pr.review === 're-review').length,
     pending: theirs.filter((pr) => pr.review === 'pending').length,
     conflicts: list(data.conflicts).length,
-    needsCode: list(data.needsCode).length
+    needsCode: list(data.needsCode).length,
+    descriptions: list(data.descriptions).length
   };
 };
 
@@ -245,7 +277,7 @@ const renderCard = (data: Row): string => {
   const counts = countsOf(data);
   const moves = rows(data.firstMoves).map((move, index) => `${index + 1}. **${md(move.ref)}** ${md(move.what)}`);
   return [
-    `**Waiting on you:** ${plural(counts.owed, 'reply', 'replies')} owed (${counts.newOwed} new) · ${plural(counts.reviews, 'review')} · ${counts.pending} pending · ${plural(counts.conflicts, 'conflict')} · ${counts.needsCode} need code first`,
+    `**Waiting on you:** ${plural(counts.owed, 'reply', 'replies')} owed (${counts.newOwed} new) · ${plural(counts.reviews, 'review')} · ${counts.pending} pending · ${plural(counts.conflicts, 'conflict')} · ${counts.needsCode} need code first${counts.descriptions ? ` · ${plural(counts.descriptions, 'description')}` : ''}`,
     '',
     md(data.summary),
     '',

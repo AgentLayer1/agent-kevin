@@ -53,6 +53,16 @@ const owed = (overrides: Data = {}): Data => ({
   ...overrides
 });
 
+const description = (overrides: Data = {}): Data => ({
+  ref: '#42',
+  url: 'https://github.com/acme/app/pull/42',
+  kind: 'update',
+  title: 'Match accented text in search',
+  body: '## Summary\n\nSearch strips accents from the query too.',
+  why: 'The body describes the dropped approach.',
+  ...overrides
+});
+
 const run = (...args: string[]) => {
   const proc = spawnSync(process.execPath, [SCRIPT, ...args], {
     env: { ...process.env, NODE_PATH: join(import.meta.dir, '..', '..', '..', 'mcp-server', 'node_modules') }
@@ -111,6 +121,43 @@ describe('validate', () => {
     );
   });
 
+  test('a description updates a PR by number or opens one from a branch onto its base', () => {
+    const opened = description({
+      ref: 'alice/rename-used-tags',
+      url: 'https://github.com/acme/app/compare/main...alice/rename-used-tags?expand=1',
+      kind: 'open',
+      base: 'main'
+    });
+    expect(validate({ ...sample(), descriptions: [description(), opened] })).toEqual({ errors: [], warnings: [] });
+  });
+
+  test('a description has known keys, a GitHub link, and a base only when it opens a PR', () => {
+    const errors = validate({
+      ...sample(),
+      descriptions: [
+        description({ labels: ['x'] }),
+        description({ ref: 'alice/rename-used-tags', kind: 'open' }),
+        description({ base: 'main' }),
+        description({ url: 'javascript:alert(1)', ref: '42', body: ' ' })
+      ]
+    }).errors;
+    expect(errors).toContain('descriptions[0]: unknown key "labels"');
+    expect(errors).toContain('descriptions[1].base must name the base branch for kind open');
+    expect(errors).toContain('descriptions[2].base is only for kind open');
+    expect(errors).toContain('descriptions[3].url must be a https://github.com/ link');
+    expect(errors).toContain('descriptions[3].ref must be "#<number>" for an update');
+    expect(errors).toContain('descriptions[3].body must be non-empty text');
+  });
+
+  test("an update for a PR outside the sweep, or a teammate's, is a warning", () => {
+    const result = validate({ ...sample(), descriptions: [description({ ref: '#99' }), description({ ref: '#51' })] });
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([
+      "description #99 is for a PR that isn't in prs, so the sweep didn't check it's open",
+      "description #51 is for a teammate's PR; descriptions are for the operator's own"
+    ]);
+  });
+
   test('a link to a PR outside the sweep is a warning, not an error', () => {
     const data = sample();
     const issues = (data.issues as Data[]).map((issue) => ({ ...issue, prs: [42, 99] }));
@@ -122,7 +169,15 @@ describe('validate', () => {
 
 describe('card', () => {
   test('counts come from the data, not from hand-typed numbers', () => {
-    expect(countsOf(sample())).toEqual({ owed: 3, newOwed: 2, reviews: 0, pending: 1, conflicts: 1, needsCode: 1 });
+    expect(countsOf(sample())).toEqual({
+      owed: 3,
+      newOwed: 2,
+      reviews: 0,
+      pending: 1,
+      conflicts: 1,
+      needsCode: 1,
+      descriptions: 2
+    });
   });
 
   test('report_write arguments carry the counts, the supersedes link and the page token', () => {
@@ -137,6 +192,8 @@ describe('card', () => {
       conflicts: 1
     });
     expect(args.body).toContain('**Waiting on you:** 3 replies owed (2 new)');
+    expect(args.body).toContain('1 need code first · 2 descriptions');
+    expect(reportArgs({ ...sample(), descriptions: [] }).body).not.toContain('description');
     expect(args.body).toContain('1. **#42** Answer Bob');
     expect(args.body).toContain(`(${PAGE_TOKEN})`);
   });

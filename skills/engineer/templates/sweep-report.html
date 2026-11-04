@@ -175,18 +175,20 @@
   .next { color: var(--ink-2); font-size: 13.5px; margin: 0 0 8px; }
   .next .k, .field .k { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
 
-  .owed { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
-  .owed > input { margin-top: 13px; width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; flex: none; }
-  .owed > details.item { flex: 1; min-width: 0; }
-  .owed.handled > details.item { opacity: .45; }
-  .owed.handled .point { text-decoration: line-through; }
+  .tick { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+  .tick > input { margin-top: 13px; width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; flex: none; }
+  .tick > details.item { flex: 1; min-width: 0; }
+  .tick.handled > details.item { opacity: .45; }
+  .tick.handled .point { text-decoration: line-through; }
   details.item { border: 1px solid var(--line-soft); border-left-width: 4px; border-left-color: var(--logic); border-radius: 10px; background: var(--panel-a); }
   details.item.bot { border-left-color: var(--mech); }
   details.item.isnew { border-left-color: var(--risk); }
+  details.item.desc { border-left-color: var(--brand); }
   details.item > summary { list-style: none; cursor: pointer; padding: 9px 12px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   details.item > summary .who { font-weight: 600; color: var(--ink); }
   details.item > summary .point { flex: 1 1 260px; color: var(--ink-2); }
   details.item > summary .meta { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+  details.item > summary .why { flex-basis: 100%; color: var(--ink-dim); font-size: 13px; }
   details.item > .body { padding: 0 12px 12px 30px; font-size: 14px; color: var(--ink-2); }
   .quote { border-left: 3px solid var(--line); padding: 2px 10px; margin: 4px 0 8px; color: var(--ink-2); font-style: italic; white-space: pre-line; }
   .needs { border: 1px solid color-mix(in srgb, var(--risk) 45%, transparent); background: color-mix(in srgb, var(--risk) 8%, transparent); color: var(--ink); border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 13.5px; }
@@ -198,6 +200,7 @@
   .pill.bad { color: var(--risk); } .pill.warn { color: var(--logic); } .pill.ok { color: var(--ok); }
   .pill.confirmed { color: var(--ok); } .pill.strong { color: var(--cool); } .pill.unverified { color: var(--logic); }
   .pill.zero { opacity: .5; }
+  .pill.cool { color: var(--cool); }
 
   ol.moves { margin: 0; padding: 0; list-style: none; counter-reset: move; display: grid; gap: 8px; }
   ol.moves li { counter-increment: move; display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; background: var(--panel-a); border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 12px; }
@@ -222,10 +225,16 @@
   .paste .bar button.preview { border-color: var(--line); background: transparent; color: var(--ink-2); }
   .paste .bar button.preview.on { border-color: var(--brand); color: var(--ink); }
   .paste .bar button.done { border-color: var(--ok); color: var(--ok); background: transparent; }
+  .paste .clip { position: relative; max-height: 13em; overflow: hidden; }
+  .paste .clip::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3.5em; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--panel-a)); }
+  .paste .clip.open { max-height: none; }
+  .paste .clip.open::after { display: none; }
   .paste pre { margin: 0; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink); background: var(--panel-a); }
   .md { padding: 12px 14px; font-size: 14px; line-height: 1.55; color: var(--ink); background: var(--panel-a); }
   .md > :last-child { margin-bottom: 0; }
   .md p, .md ul, .md ol, .md pre { margin: 0 0 10px; }
+  .md h4 { margin: 14px 0 6px; font-size: 14.5px; font-weight: 600; }
+  .md h4:first-child { margin-top: 0; }
   .md ul, .md ol { padding-left: 22px; }
   .md code { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--line) 45%, transparent); }
   .md pre { padding: 10px 12px; border-radius: 6px; background: color-mix(in srgb, var(--line) 30%, transparent); white-space: pre-wrap; word-break: break-word; }
@@ -233,7 +242,7 @@
   footer { margin-top: 48px; color: var(--ink-dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
   footer ul { margin: 6px 0 0; padding-left: 20px; }
   @media (max-width: 640px) { .wrap { padding: 40px 16px 80px; } .toolbar { margin: 0 -16px; padding: 10px 16px; } details.grp > .inner { padding-left: 14px; } }
-  @media print { .toolbar, .owed > input { display: none; } details { display: block; } }
+  @media print { .toolbar, .tick > input { display: none; } details { display: block; } .paste .clip { max-height: none; } .paste .clip::after { display: none; } }
 </style>
 </head>
 <body>
@@ -251,6 +260,14 @@
   "firstMoves": [
     { "ref": "#42", "what": "Answer Bob's two search questions", "why": "He wants to merge it today" },
     { "ref": "#51", "what": "Submit your pending review", "why": "Carol can't see it until you do" }
+  ],
+  "descriptions": [
+    { "ref": "#42", "url": "https://github.com/acme/app/pull/42", "kind": "update", "title": "Match accented text in search",
+      "body": "## Summary\n\nSearch strips accents from both the index and the query, so \"café\" and \"cafe\" find the same notes.\n\n## What changed\n\n- The query now goes through the same `normalize()` as the index, not only the stored text.\n- The index is rebuilt once on upgrade, so notes saved before this change match too.\n\n## How to test\n\n```bash\nbun test search\n```\n\nCloses #40.",
+      "why": "The body says only the index is normalized; the branch now normalizes the query too." },
+    { "ref": "alice/rename-used-tags", "url": "https://github.com/acme/app/compare/main...alice/rename-used-tags?expand=1", "kind": "open", "base": "main", "title": "Rename a tag that notes still use",
+      "body": "Renaming a tag now updates every note that carries it, instead of refusing while the tag is in use.\n\nFollow-up promised on #44.",
+      "why": "The branch is pushed with no PR yet." }
   ],
   "needsCode": [{ "pr": 42, "fix": "Run the search query through the same normalize() as the index, so an accented query matches", "size": "small" }],
   "conflicts": [{ "pr": 44, "files": "migrations/0012_tags.sql", "note": "from #49's migration" }],
@@ -321,6 +338,12 @@
   const stored = (id) => { try { return localStorage.getItem(STORE + id) === "1"; } catch (e) { return false; } };
   const store = (id, done) => { try { if (done) { localStorage.setItem(STORE + id, "1"); } else { localStorage.removeItem(STORE + id); } } catch (e) {} };
 
+  const shortHash = (value) => {
+    let hash = 0x811c9dc5;
+    for (const char of String(value)) { hash = Math.imul(hash ^ char.codePointAt(0), 0x01000193); }
+    return (hash >>> 0).toString(36);
+  };
+
   const copyText = async (value) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -361,7 +384,11 @@
       const line = lines[i];
       const fence = /^\s*```(\w*)\s*$/.exec(line);
       const item = /^(\s*)([-*]|\d+\.)\s+(.*)$/.exec(line);
-      if (fence) {
+      const heading = /^\s{0,3}#{1,6}\s+(.*)$/.exec(line);
+      if (heading) {
+        endParagraph(); state.list = null;
+        root.append(h("h4", {}, inline(heading[1])));
+      } else if (fence) {
         endParagraph(); state.list = null;
         const body = [];
         for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++) { body.push(lines[i]); }
@@ -382,7 +409,7 @@
     return root;
   };
 
-  const paste = (label, value) => {
+  const copyButton = (value) => {
     const button = h("button", { type: "button", class: "copy" }, "Copy");
     button.addEventListener("click", async (event) => {
       event.preventDefault();
@@ -391,6 +418,14 @@
       button.classList.toggle("done", ok);
       setTimeout(() => { button.textContent = "Copy"; button.classList.remove("done"); }, 1600);
     });
+    return button;
+  };
+
+  const pasteBar = (label, ...actions) => h("div", { class: "bar" }, h("span", { class: "label" }, label), h("span", { class: "actions" }, actions));
+
+  // A peek clips long text to its first lines until Show all; Copy always copies the whole raw text.
+  const PEEK_LINES = 8;
+  const paste = (label, value, peek = false) => {
     const toggle = h("button", { type: "button", class: "preview" }, "Raw");
     const raw = h("pre", { hidden: true }, value);
     const rendered = markdownView(value);
@@ -401,14 +436,32 @@
       rendered.hidden = showingRaw;
       toggle.textContent = showingRaw ? "Preview" : "Raw";
     });
-    return h("div", { class: "paste" }, h("div", { class: "bar" }, h("span", { class: "label" }, label), h("span", { class: "actions" }, toggle, button)), raw, rendered);
+    const clipped = peek && String(value).split("\n").length > PEEK_LINES;
+    const clip = clipped ? h("div", { class: "clip" }, raw, rendered) : null;
+    const more = clipped ? h("button", { type: "button", class: "preview more" }, "Show all") : null;
+    more?.addEventListener("click", (event) => {
+      event.preventDefault();
+      more.textContent = clip.classList.toggle("open") ? "Show less" : "Show all";
+    });
+    return h("div", { class: "paste" }, pasteBar(label, more, toggle, copyButton(value)), clip || [raw, rendered]);
   };
+
+  const copyLine = (label, value) => h("div", { class: "paste" }, pasteBar(label, copyButton(value)), h("pre", {}, value));
 
   const pill = (cls, text) => h("span", { class: `pill ${cls}` }, text);
   const field = (key, value) => (value ? h("p", { class: "field" }, h("span", { class: "k" }, key), value) : null);
 
+  // A Handled tick beside a fold, kept in this browser under its key.
+  const tickRow = (key, label, card, attrs) => {
+    const box = h("input", { type: "checkbox", title: "Handled", "aria-label": label });
+    const row = h("div", attrs, box, card);
+    const set = (done) => { row.classList.toggle("handled", done); box.checked = done; if (done) { card.open = false; } };
+    set(stored(key));
+    box.addEventListener("change", () => { store(key, box.checked); set(box.checked); refresh(); });
+    return row;
+  };
+
   const owedCard = (owed) => {
-    const box = h("input", { type: "checkbox", title: "Handled", "aria-label": `Mark ${owed.who}'s comment handled` });
     const card = h("details", { class: `item${owed.kind === "bot" ? " bot" : ""}${owed.new ? " isnew" : ""}` },
       h("summary", {},
         h("span", { class: "who" }, owed.who),
@@ -424,11 +477,23 @@
         owed.reply ? paste("Reply", owed.reply) : null,
         field("Action", owed.action),
         field("Note", owed.note)));
-    const row = h("div", { class: "owed", "data-id": owed.id, "data-who": owed.who, "data-kind": owed.kind, "data-new": owed.new ? "1" : "0" }, box, card);
-    const set = (done) => { row.classList.toggle("handled", done); box.checked = done; if (done) { card.open = false; } };
-    set(stored(owed.id));
-    box.addEventListener("change", () => { store(owed.id, box.checked); set(box.checked); refresh(); });
-    return row;
+    return tickRow(owed.id, `Mark ${owed.who}'s comment handled`, card,
+      { class: "tick owed", "data-id": owed.id, "data-who": owed.who, "data-kind": owed.kind, "data-new": owed.new ? "1" : "0" });
+  };
+
+  // The tick is keyed on the draft too, so a rewritten description comes back unticked.
+  const descCard = (entry) => {
+    const key = `desc:${entry.ref}:${shortHash(`${entry.title}\n${entry.body}`)}`;
+    const card = h("details", { class: "item desc" },
+      h("summary", {},
+        link(entry.url, entry.ref),
+        entry.kind === "open" ? pill("cool", `open PR → ${entry.base}`) : pill("", "update"),
+        h("span", { class: "point" }, entry.title),
+        h("span", { class: "why" }, entry.why)),
+      h("div", { class: "body" },
+        copyLine("Title", entry.title),
+        paste("Body", entry.body, true)));
+    return tickRow(key, `Mark ${entry.ref}'s description handled`, card, { class: "tick desc", "data-ref": entry.ref });
   };
 
   const owedList = (owed) => list(owed).map(owedCard);
@@ -565,20 +630,22 @@
   const fill = h("div", { class: "fill" });
   const progressText = h("span", {});
 
-  const visibleOwed = (row) =>
-    (filters.person === "all" || row.dataset.who === filters.person) &&
-    (!filters.people || row.dataset.kind === "person") &&
-    (!filters.fresh || row.dataset.new === "1") &&
-    (!filters.hideHandled || !row.classList.contains("handled"));
+  // Who, people only and new only narrow comments; a description is the operator's own, so only hide handled reaches it.
+  const visibleRow = (row) =>
+    (!filters.hideHandled || !row.classList.contains("handled")) &&
+    (!row.classList.contains("owed") ||
+      ((filters.person === "all" || row.dataset.who === filters.person) &&
+        (!filters.people || row.dataset.kind === "person") &&
+        (!filters.fresh || row.dataset.new === "1")));
 
   const filtering = () => filters.person !== "all" || filters.people || filters.fresh || filters.hideHandled;
 
   // Counts show what's left (unhandled) under each fold; a filtered view hides folds with nothing left to show.
   function refresh() {
-    const rows = [...document.querySelectorAll(".owed")];
-    rows.forEach((row) => row.classList.toggle("hidden", !visibleOwed(row)));
+    const rows = [...document.querySelectorAll(".tick")];
+    rows.forEach((row) => row.classList.toggle("hidden", !visibleRow(row)));
     document.querySelectorAll("details.grp, details.sec").forEach((fold) => {
-      const inside = [...fold.querySelectorAll(".owed")];
+      const inside = [...fold.querySelectorAll(".tick")];
       const left = inside.filter((row) => !row.classList.contains("handled")).length;
       const shown = inside.filter((row) => !row.classList.contains("hidden")).length;
       const pillNode = fold.querySelector(":scope > summary > [data-count]");
@@ -595,6 +662,8 @@
   const PROMISE_ORDER = { wrong: 0, open: 1, superseded: 2, done: 3 };
   const promises = list(DATA.promises).slice().sort((left, right) => (PROMISE_ORDER[left.status] ?? 9) - (PROMISE_ORDER[right.status] ?? 9));
   const promiseHint = ["wrong", "open", "superseded", "done"].map((status) => [status, promises.filter((row) => row.status === status).length]).filter(([, n]) => n).map(([status, n]) => `${n} ${status}`).join(" · ") || "none";
+  const descriptions = list(DATA.descriptions);
+  const descHint = [["update", "to update"], ["open", "to open"]].map(([kind, label]) => [descriptions.filter((entry) => entry.kind === kind).length, label]).filter(([n]) => n).map(([n, label]) => `${n} ${label}`).join(" · ");
   const page = [
     h("header", { class: "page" },
       h("div", { class: "eyebrow" }, `GitHub sweep · ${DATA.repo} · @${DATA.login}`),
@@ -620,6 +689,7 @@
       list(DATA.firstMoves).length
         ? h("ol", { class: "moves" }, list(DATA.firstMoves).map((move) => h("li", {}, h("div", {}, h("span", { class: "ref" }, jumpRefs(move.ref)), move.what, move.why ? h("div", { class: "why" }, move.why) : null))))
         : h("p", { class: "empty" }, "Nothing urgent.")),
+    descriptions.length ? section("descriptions", "PR descriptions", `${descHint}; paste the title and body on GitHub`, true, true, descriptions.map(descCard)) : null,
     promises.length ? section("promises", "My promises", promiseHint, promises.some((row) => row.status === "open" || row.status === "wrong"), false,
       table(["Status", "Where", "Promise", "To", "Evidence"], promises.map((row) => [
         h("span", { class: `pill ${PROMISE_TONE[row.status] || ""}` }, row.status),

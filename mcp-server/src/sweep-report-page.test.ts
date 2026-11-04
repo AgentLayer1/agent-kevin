@@ -54,6 +54,7 @@ describe('sweep page', () => {
     expect(errors).toEqual([]);
     expect([...document.querySelectorAll('details.sec')].map((node) => node.id)).toEqual([
       'first-moves',
+      'descriptions',
       'promises',
       'needs-code',
       'conflicts',
@@ -85,7 +86,7 @@ describe('sweep page', () => {
     box.checked = true;
     box.dispatchEvent(new first.page.window.Event('change'));
     expect(box.closest('.owed')?.classList.contains('handled')).toBe(true);
-    expect(first.document.querySelector('.progress span')?.textContent).toBe('1 of 3 handled');
+    expect(first.document.querySelector('.progress span')?.textContent).toBe('1 of 5 handled');
     expect(first.document.querySelector('#pr-42 > summary [data-count]')?.textContent).toBe('1 of 2 left');
     const second = open(renderPage(TEMPLATE, sample()), first.page);
     expect(second.document.querySelector('.owed[data-id="discussion_r7001"]')?.classList.contains('handled')).toBe(
@@ -140,6 +141,56 @@ describe('sweep page', () => {
     copy.dispatchEvent(new page.window.MouseEvent('click'));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(copied[0]).toStartWith('Lowercasing fixes case but not accents');
+  });
+
+  test('a description folds under its PR link with the kind, and copies the exact title and raw body', async () => {
+    const { document, page } = open(renderPage(TEMPLATE, sample()));
+    const copied: string[] = [];
+    Object.defineProperty(page.window.navigator, 'clipboard', {
+      value: { writeText: async (value: string) => void copied.push(value) }
+    });
+    const [update, opened] = [...document.querySelectorAll('#descriptions .tick.desc')];
+    const link = update?.querySelector('summary a');
+    expect(link?.getAttribute('href')).toBe('https://github.com/acme/app/pull/42');
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(update?.querySelector('summary')?.textContent).toContain('update');
+    expect(opened?.querySelector('summary')?.textContent).toContain('open PR → main');
+    const [title, body] = [...(update?.querySelectorAll('.paste') ?? [])];
+    title?.querySelector('button.copy')?.dispatchEvent(new page.window.MouseEvent('click'));
+    body?.querySelector('button.copy')?.dispatchEvent(new page.window.MouseEvent('click'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const pr = (sample().descriptions as Data[])[0];
+    expect(copied).toEqual([String(pr?.title), String(pr?.body)]);
+    expect(body?.querySelector('.md h4')?.textContent).toBe('Summary');
+  });
+
+  test('a long body peeks until Show all; a short one shows whole', () => {
+    const { document, page } = open(renderPage(TEMPLATE, sample()));
+    const [update, opened] = [...document.querySelectorAll('#descriptions .tick.desc')];
+    const clip = update?.querySelector('.clip');
+    const more = update?.querySelector('button.more');
+    expect(clip?.classList.contains('open')).toBe(false);
+    more?.dispatchEvent(new page.window.MouseEvent('click'));
+    expect(clip?.classList.contains('open')).toBe(true);
+    expect(more?.textContent).toBe('Show less');
+    expect(opened?.querySelector('.clip')).toBeNull();
+  });
+
+  test('a description tick survives a reload of the same draft and clears on a new one', () => {
+    const first = open(renderPage(TEMPLATE, sample()));
+    const box = first.document.querySelector('.desc[data-ref="#42"] input') as HTMLInputElement;
+    box.checked = true;
+    box.dispatchEvent(new first.page.window.Event('change'));
+    expect(first.document.querySelector('#descriptions > summary [data-count]')?.textContent).toBe('1 of 2 left');
+    const same = open(renderPage(TEMPLATE, sample()), first.page);
+    expect(same.document.querySelector('.desc[data-ref="#42"]')?.classList.contains('handled')).toBe(true);
+    const data = sample();
+    const redrafted = (data.descriptions as Data[]).map((entry) => ({
+      ...entry,
+      body: `${String(entry.body)}\n\nMore.`
+    }));
+    const next = open(renderPage(TEMPLATE, { ...data, descriptions: redrafted }), first.page);
+    expect(next.document.querySelector('.desc[data-ref="#42"]')?.classList.contains('handled')).toBe(false);
   });
 
   test('comment text renders as text, never as markup', () => {
