@@ -493,6 +493,11 @@
   .wt-stage [data-wt] { transition: opacity .35s, filter .35s; }
   .walkthrough.playing .wt-stage [data-wt].wt-dim { opacity: .2; }
   .walkthrough.playing .wt-stage [data-wt].wt-on { filter: drop-shadow(0 0 7px var(--brand-glow)); }
+  .walkthrough.playing .wt-stage [data-wt].wt-on > rect:first-child { stroke: var(--brand); }
+  .wt-stage [marker-end] { transition: stroke .35s; }
+  .walkthrough.playing .wt-stage [data-wt].wt-on [marker-end], .walkthrough.playing .wt-stage [data-wt][marker-end].wt-on { stroke: var(--brand-bright); stroke-width: 2.6; stroke-dasharray: 7 5; animation: wt-flow .9s linear infinite; }
+  .walkthrough.playing .wt-stage [data-wt].wt-on:has(> [marker-end]) text { fill: var(--brand-bright); font-weight: 600; }
+  @keyframes wt-flow { to { stroke-dashoffset: -12; } }
   .wt-stage [data-wt-token] { opacity: 0; pointer-events: none; transition: transform .6s cubic-bezier(.4, 0, .2, 1), opacity .3s; }
   .walkthrough.playing .wt-stage [data-wt-token] { opacity: 1; }
   .wt-progress { height: 3px; margin: 10px 0 14px; overflow: hidden; border-radius: 3px; background: var(--line-soft); }
@@ -515,7 +520,7 @@
   .tag.in { color: var(--cool); }
   .tag.out { color: var(--brand-bright); }
   @media (max-width: 760px) { .wt-body { grid-template-columns: 1fr; } }
-  @media (prefers-reduced-motion: reduce) { .wt-stage [data-wt], .wt-stage [data-wt-token], .wt-progress > span { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .wt-stage [data-wt], .wt-stage [data-wt-token], .wt-progress > span { transition: none; } .wt-stage [marker-end] { animation: none !important; } }
 
   .mock {
     --m-bg: #18181b; --m-side: #131316; --m-raise: #1f1f23; --m-ink: #f4f4f5; --m-dim: #a1a1aa; --m-line: #2d2d33; --m-soft: #27272c;
@@ -902,6 +907,7 @@
     const prev = button("◀", "Previous step (←)");
     const play = button("Play", "Play or pause (space)");
     const next = button("▶", "Next step (→)");
+    const reset = button("↺", "Start over (Home)");
     const count = make("span", { className: "wt-count" });
     const tabs = make("div", { className: "wt-tabs", role: "tablist" });
     const summary = make("p", { className: "wt-summary" });
@@ -911,7 +917,24 @@
     const detail = make("div", { className: "wt-detail" });
     svg.replaceWith(stage);
     stage.append(svg);
-    root.prepend(make("div", { className: "wt-bar" }, tabs, prev, play, next, count), summary);
+    // The shell draws every arrowhead, one marker at rest and one lit, so a lit arrow's head turns with its line in every
+    // browser; fill="context-stroke" isn't supported everywhere and falls back to black.
+    const headId = (state) => `wt-head-${rootIndex}-${state}`;
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    [["rest", "var(--ink-2)"], ["on", "var(--brand-bright)"]].forEach(([state, colour]) => {
+      const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+      Object.entries({ id: headId(state), viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }).forEach(([name, value]) => marker.setAttribute(name, value));
+      const head = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      head.setAttribute("d", "M0,0 L10,5 L0,10 z");
+      head.style.fill = colour;
+      marker.append(head);
+      defs.append(marker);
+    });
+    svg.prepend(defs);
+    const arrows = [...svg.querySelectorAll("[marker-end]")];
+    const paintHeads = () => arrows.forEach((arrow) => arrow.setAttribute("marker-end", `url(#${headId(root.classList.contains("playing") && arrow.closest(".wt-on") ? "on" : "rest")})`));
+    paintHeads();
+    root.prepend(make("div", { className: "wt-bar" }, tabs, reset, prev, play, next, count), summary);
     root.append(make("div", { className: "wt-progress" }, fill), make("div", { className: "wt-body" }, list, detail));
     list.style.position = "relative";
 
@@ -961,6 +984,7 @@
       fill.style.width = item ? `${((step + 1) / steps().length) * 100}%` : "0";
       if (!item) {
         parts.forEach((part) => part.classList.remove("wt-on", "wt-dim"));
+        paintHeads();
         detail.replaceChildren(make("p", { className: "wt-hint" }, "Press Play, or pick a step. The arrow keys step through it."));
         return;
       }
@@ -969,6 +993,7 @@
         part.classList.toggle("wt-on", lit.has(part.dataset.wt));
         part.classList.toggle("wt-dim", !lit.has(part.dataset.wt));
       });
+      paintHeads();
       const target = item.at ? svg.querySelector(`[data-wt="${CSS.escape(item.at)}"]`) : null;
       if (token && target) {
         const box = target.getBBox();
@@ -986,6 +1011,11 @@
       tab.addEventListener("click", () => { stop(); show(index, 0, true); });
       return tab;
     }));
+    reset.addEventListener("click", () => {
+      stop();
+      show(scenario, -1, false);
+      if (rootIndex === 0 && location.hash.startsWith("#wt=")) { history.replaceState(null, "", location.pathname + location.search); }
+    });
     prev.addEventListener("click", () => { stop(); show(scenario, Math.max(0, step - 1), true); });
     next.addEventListener("click", () => { stop(); show(scenario, Math.min(steps().length - 1, step + 1), true); });
     play.addEventListener("click", () => {
@@ -998,6 +1028,7 @@
     root.addEventListener("keydown", (event) => {
       if (event.key === "ArrowRight") { event.preventDefault(); next.click(); }
       if (event.key === "ArrowLeft") { event.preventDefault(); prev.click(); }
+      if (event.key === "Home") { event.preventDefault(); reset.click(); }
       if (event.key === " " && event.target === root) { event.preventDefault(); play.click(); }
     });
     const linked = rootIndex === 0 ? /^#wt=(\d+)\.(\d+)$/.exec(location.hash) : null;
