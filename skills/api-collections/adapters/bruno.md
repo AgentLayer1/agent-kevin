@@ -1,6 +1,6 @@
 # Adapter: Bruno
 
-Bruno stores collections as plain files on disk — hand-writing them IS Bruno's official agent workflow. Bruno ships no CLI/MCP/SDK that creates requests (`bru` only *runs* and *imports*); their answer to "how does an AI make requests" is a context prompt-pack that teaches the format. This adapter vendors it.
+Bruno stores collections as plain files on disk — hand-writing them IS Bruno's official agent workflow. Bruno ships no MCP or SDK that creates requests; their answer to "how does an AI make requests" is a context prompt-pack that teaches the format, plus a sample pack of agent skills ([bruno-collections/bruno-agent-skills](https://github.com/bruno-collections/bruno-agent-skills): a generator, a test writer, a CI setup). This adapter vendors the context and carries the skills' rules. The `bru` CLI *imports* and *runs* collections; it is optional here (see [The `bru` CLI](#the-bru-cli--optional)), and everything below works without it.
 
 Bruno runs on macOS, Windows, and Linux — the collection files are identical everywhere; only install/detection differ. Install: macOS `brew install --cask bruno`; Windows `winget install -e --id Bruno.Bruno` (or `choco install bruno`, `scoop install bruno` from the extras bucket); Linux + everything else at [usebruno.com/downloads](https://www.usebruno.com/downloads). On Windows, author paths with `node:path`-style joins, never hardcoded separators, and quote paths with spaces in any command you surface.
 
@@ -12,7 +12,7 @@ The one thing that must never waver: **OpenCollection YAML** (`.yml`), Bruno's d
 
 ### v4 deltas — these override the context file
 
-The vendored context file predates Bruno v4.0.0 (upstream prompt-pack last updated 2026-03; re-vendor when it catches up). Until then:
+The vendored context file predates Bruno v4.0.0 (upstream prompt-pack last updated 2026-03; re-vendor when it, or the agent-skills pack's references once that repo carries a license, catches up). Until then:
 
 - **`bru.setEnvVar` / `bru.setGlobalEnvVar` / `bru.deleteEnvVar` now persist to disk** (they were in-memory pre-v4). A flow script that stores a token via `setEnvVar` writes it into a committed environment file. Chain flows with **`bru.setVar` / `bru.deleteVar` only** (memory-scoped for the run) — never `setEnvVar` for tokens, ids, or anything secret. The context file's `setEnvVar` mention (line ~214) carries no warning; this rule wins.
 - **Secret-manager config moved into environment files**: an `externalSecrets` top-level block per environment (AWS/Azure/Vault). We don't author these — our secrets route stays `.env` + `{{process.env.KEY}}`, which v4 leaves untouched. If an in-repo collection uses the old `{{$secrets.name.key}}` syntax, flag it: deprecated in v4, removal after a 3-month window; new form is `{{name.keyname}}`.
@@ -57,6 +57,7 @@ extensions:
 - **Environments are collection-wide** — if two apps need different hosts, give them distinct var names (`acmeBaseUrl`) or folder-scoped variables (see the context file's variable scopes); don't over-engineer it.
 - **Tests** are Chai assertions under `runtime: scripts:` with `type: tests` — the GUI shows pass/fail on Send. **Chain** with `bru.setVar` in an `after-response` script when a sequence needs it (login stores `{{token}}`, later requests use it).
 - **`seq` orders requests** within a folder — number them in the order the operator should fire them.
+- **Names lead with the action**, in sentence case (`Get user by ID`, `Create invoice`); folders are plural resources or product areas (`users`, `billing`).
 - **Docs** render in the GUI: `docs:` block with `type: text/markdown`.
 - Bruno watches the folder: new or edited files appear in an open collection without re-importing. **Exception:** changing the collection's root marker (adding/removing `opencollection.yml`) needs a collection reload (remove + re-open in Bruno).
 - **A malformed request `.yml` vanishes silently** — Bruno drops any file it can't parse from the sidebar with no error, so a request that "doesn't show up" almost always has broken YAML (usual culprits: a duplicate key, a tab, wrong indentation). **Parse-check every file you write** before handing off — don't trust that it rendered. `ruby -ryaml -e 'YAML.load_file(ARGV[0])' "<file>"` (mac/Linux) is a quick gate; if a request is missing after a reload, that's the first thing to check.
@@ -95,6 +96,13 @@ http:
 - **Don't over-spec**: a flow is just numbered requests + `setVar`. Reach for `bru.setNextRequest(name)` (see the context file) only for genuinely conditional branching, not linear steps.
 
 Common flows to model this way: **sign-in, onboarding, checkout, submission, activation** — each a folder, each step gated by its own tests.
+
+## The `bru` CLI — optional
+
+Check with `which bru` (Windows: `where.exe bru`). The Bruno app alone is enough for everything above; the CLI only adds a faster start and a terminal run. Not installed → do the same work by hand and don't suggest installing it unless the operator asks (then: `pnpm add -g @usebruno/cli`). Run `bru <command> -h` first, since flags change between versions.
+
+- **Start from an OpenAPI spec.** `bru import openapi -s <spec> -o <new-folder> -n "<Collection name>" --collection-format opencollection --group-by tags` writes a whole collection as files and sends nothing, so you may run it (the Bash call prompts). Import from a local spec file, into a folder that doesn't exist yet, never over an existing collection; to add to one, import beside it and move the folders in. Then treat the output as a draft: parse-check it, swap hard-coded hosts and keys for `{{baseUrl}}` and `{{process.env.KEY}}`, add the `ignore` list, docs and tests per this adapter, and number `seq` for any flow. Without the CLI, read the spec and author the requests by hand, grouped by its tags.
+- **Run from a terminal: the operator's command, never yours.** `bru run` sends real requests, and the sandbox can't read the collection `.env`, so a run from your shell would send unfilled `{{process.env.…}}` placeholders. Hand the operator one line to paste, from the collection root, e.g. `cd "<collection-root>" && bru run "<app>/checkout" --env default`. Add `-r` for nested folders, `--tags`/`--exclude-tags` when the requests carry tags, and `--reporter-html <path>` for a report, written outside the collection so it never gets committed; reports include headers and bodies by default, so add `--reporter-skip-all-headers` when one will be shared. The app's Runner does the same run without the CLI.
 
 ## First-time operator steps
 

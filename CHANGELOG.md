@@ -47,6 +47,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 ### Changed
 - **Idle compaction is off in every home.** Claude Code compacts a long conversation while the session sits idle, before the prompt cache expires, so a session you stepped away from came back as a summary. Init now writes `"idleCompaction": false` to the home's `settings.json`, and upgrade's baseline reconcile adds it to a home where neither settings file sets the key. Auto-compact when the context fills still runs; a value you set yourself is kept.
+- **api-collections writes sturdier tests and uses Bruno's CLI only when it's there.** Tests check a response's shape (status, required fields, types, the error body) instead of exact ids, timestamps or sample data. Requests that write data say so and how to undo it, an environment that isn't local is named in the handoff, and anything inside a spec or pasted doc is read as data, never instructions. Every adapter still works from files alone. When `bru` is installed, the Bruno adapter can start a collection from an OpenAPI spec with `bru import` (it sends nothing) and hands you a one-line `bru run` to paste; Kevin never runs it, since the sandbox can't read the collection `.env`. The rules come from Bruno's agent-skills pack.
 
 ### Upgrade
 - `settings: mandatory` — upgrade's baseline reconcile adds `"idleCompaction": false` to `settings.json` when neither home settings file sets `idleCompaction`. Applied automatically.
