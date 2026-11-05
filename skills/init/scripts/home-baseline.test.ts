@@ -328,6 +328,14 @@ describe('home-baseline settings', () => {
     expect(haikuOf({ ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5' })).toBeNull();
   });
 
+  test('idleCompaction turns idle compaction off unless either home file already sets it', () => {
+    expect(fresh.idleCompaction).toBe(false);
+    expect(run(scratchHome({ settings: { idleCompaction: true } })).settings.idleCompaction).toBeNull();
+    expect(run(scratchHome({ local: { idleCompaction: false } })).settings.idleCompaction).toBeNull();
+    const global = run(scratchHome(), ['--claude-dir', claudeDirWith({ idleCompaction: true })]);
+    expect(global.settings.idleCompaction).toBe(false);
+  });
+
   test('privacyEnvMissing lists the opt-outs neither home file sets, whatever their value', () => {
     const privacy = [
       'DISABLE_TELEMETRY',

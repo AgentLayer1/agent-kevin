@@ -557,7 +557,7 @@ auto mode in a home that keeps `rm -rf` in `permissions.ask`, which init does.
 
 **Reconcile the init baseline outside the templates (built-in invariant, every run).** Init
 writes a home's `.gitignore`, its `permissions.allow` / `permissions.ask` / `permissions.deny`
-entries, its sandbox, its `plansDirectory` and its Haiku-tier model once, and no template merge
+entries, its sandbox, its `plansDirectory`, its `idleCompaction` and its Haiku-tier model once, and no template merge
 touches them, so a home
 that missed one stays behind forever. The `.gitignore` gap loses data: without `!.state/knowledge.json` the compile
 cursor never enters history, and a restored home's next compile re-ingests everything. Reconcile
@@ -594,6 +594,8 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
   `replacement` entries in the same `list` (a prefix rule keeps itself and gains the successors it
   no longer reaches), and drop a successor from `allow` when it also sits in `ask` or `deny`. The retired names live in `RETIRED_SKILLS` and `RETIRED_TOOLS` in `mcp-server/src/shared/retired-skills.ts`.
 - **`settings.plansDirectory`** is the value to set, `null` when the home already has one or when the reports root sits outside the home (Claude Code ignores a plans folder outside the project).
+- **`settings.idleCompaction`** is the value to set (`false`), `null` when either home file already
+  sets the key, whatever its value.
 - **`settings.haikuModel`** is the value to set in `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`, when the
   home has none or one an earlier release wrote; `null` when it is current or the operator's own.
 - **`settings.privacyEnvMissing`** lists init's privacy opt-outs that neither home file sets: add
@@ -606,7 +608,7 @@ bun "$PLUGIN_ROOT/skills/init/scripts/home-baseline.ts" --home "$HOME_DIR" --wri
 
 The script reads both home settings files as the one view Claude Code acts on, so an entry kept in
 `settings.local.json` is never reported missing. Read `$HOME_DIR/.claude/settings.json` once, union
-every list above and set `plansDirectory`, the Haiku-tier model and the privacy opt-outs in one
+every list above and set `plansDirectory`, `idleCompaction`, the Haiku-tier model and the privacy opt-outs in one
 in-memory merge, and write it with the Write tool, same as Step 7 does; no `jq`. The traffic-kill
 deletion is the one edit that can reach `settings.local.json`, the same way. Never remove or
 reorder an operator's entry; a retired grant is the plugin's, not theirs.
@@ -691,7 +693,7 @@ One concise summary:
   CHANGELOG or the generated report, never paraphrased: a note the operator cannot act on
   by copy-paste is a note that gets skipped
 - the baseline reconcile, when it changed anything (stay silent when it didn't): the
-  `.gitignore` lines added or rewritten, `plansDirectory` if set, and every `allow` and `ask`
+  `.gitignore` lines added or rewritten, `plansDirectory` and `idleCompaction` if set, and every `allow` and `ask`
   entry backfilled, named one by one (an operator who deleted a grant on purpose moves it to
   `ask` to keep it out), each privacy opt-out added, and the traffic kill removed from which file,
   with `/design`, artifacts and Remote Control back from the next session

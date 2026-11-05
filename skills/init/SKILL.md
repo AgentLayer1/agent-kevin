@@ -826,6 +826,8 @@ Write project settings so the plugin auto-loads on subsequent launches AND the *
 
 **`bashEditDiffEnabled` — see what Bash edited.** Under auto mode Claude Code routes file edits through the Bash tool, which hides the diff the Edit tool would have shown. This setting (Claude Code 2.1.269+) attaches a diff of the files a Bash command changed to that command's result, so a scripted edit stays reviewable in the transcript. Written when the operator's user-global settings don't set it.
 
+**`idleCompaction` — always written, never gap-filled.** Claude Code compacts a long conversation while the session sits idle, before the prompt cache expires, so a session you step away from comes back as a summary instead of its full transcript. `idleCompaction` = `false` turns that off; auto-compact when the context fills still runs. It goes in `settings.json` whatever the global settings say, and an existing value in either home file is the operator's and is kept. Upgrade reconciles the key on every run through `home-baseline.ts`, which reads the value from this paragraph.
+
 **Fill hardening gaps the operator's user-global settings don't cover.** Kevin ships a baseline of security + quality defaults (denies, sandbox, retention, render). Most operators won't have these in their user-global `~/.claude/settings.json` — for them, init must write the baseline into project settings so the protection is actually in effect. Operators who *do* already have these globally shouldn't get the same keys duplicated into the project — global already covers them, and re-writing them in project is redundant churn.
 
 **Logic: gap-fill, not mirror.** Before writing the scaffold, `Read` `~/.claude/settings.json` (treat as empty `{}` if absent). For each baseline key below, check whether the operator already has it globally. If global covers it, **omit the key from the project scaffold** — inheritance handles it. If global does not cover it, **write the baseline value into the project scaffold**. Each `env.*` key is gap-filled independently. Upgrade re-runs the test for `permissions.deny` and `sandbox` on every run (`home-baseline.ts`), so a home whose global coverage later disappears gets the baseline back.
@@ -1142,7 +1144,7 @@ When `CODE_ROOT` is non-empty, add both to the `settings.local.json` write below
 
 **Critical — never overwrite an existing project `settings.json`.** If `$HOME_DIR/.claude/settings.json` already exists (re-init, or the home was a pre-existing project), `Read` it first and **deep-merge** the scaffold into it. The merged JSON is what gets written back. Rules:
 
-- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `bashEditDiffEnabled`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exceptions: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run); `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` — an earlier release's default is replaced (see above).
+- **Scalars** (`effortLevel`, `cleanupPeriodDays`, `plansDirectory`, `bashEditDiffEnabled`, `idleCompaction`, `$schema`, `env.*` string values): existing project value wins. Skip the key when merging — don't replace. Exceptions: `model` — the Step 6c answer wins even over an existing project value (the operator just chose it this run); `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` — an earlier release's default is replaced (see above).
 - **Arrays** (`permissions.allow`, `permissions.deny`, `permissions.ask`, `permissions.additionalDirectories`, `sandbox.network.allowedDomains`, any `allowWrite`/`denyRead` arrays): union with the operator's existing entries + dedupe. `sandbox.credentials.files` is an object-array — union + dedupe by `path`. Don't reorder or remove anything they already had.
 - **Objects** (`permissions`, `sandbox`, `sandbox.network`, `env`, `hooks`): recurse with the same rules.
 - **`hooks`**: never touch — operator-owned end-to-end. The scaffold doesn't author any hooks block.
@@ -1155,6 +1157,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
   "plansDirectory": "<\"./reports/plans\" (or \"./<path>/plans\" when the reports root sits elsewhere in the home) if no existing value; omit when the reports root is outside the home or a value exists>",
   "cleanupPeriodDays": "<99999 if global doesn't set it, else omit>",
   "bashEditDiffEnabled": "<true if global doesn't set it, else omit>",
+  "idleCompaction": "<false — always written; an existing project value is kept>",
   "model": "<the Step 6c answer: \"opus\" or \"fable\" — always written>",
   "effortLevel": "<\"high\" — always written; an existing project value is kept>",
   "env": {

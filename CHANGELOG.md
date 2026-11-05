@@ -43,6 +43,14 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [Unreleased]
+
+### Changed
+- **Idle compaction is off in every home.** Claude Code compacts a long conversation while the session sits idle, before the prompt cache expires, so a session you stepped away from came back as a summary. Init now writes `"idleCompaction": false` to the home's `settings.json`, and upgrade's baseline reconcile adds it to a home where neither settings file sets the key. Auto-compact when the context fills still runs; a value you set yourself is kept.
+
+### Upgrade
+- `settings: mandatory` — upgrade's baseline reconcile adds `"idleCompaction": false` to `settings.json` when neither home settings file sets `idleCompaction`. Applied automatically.
+
 ## [0.9.1] - 2026-11-02
 
 ### Added
