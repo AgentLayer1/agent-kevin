@@ -989,7 +989,6 @@ Baseline `permissions.ask` — **always written** (unioned with whatever the ope
   "Bash(gh pr merge *)",
   "Bash(gh release create *)",
   "mcp__plugin_agent-kevin_kevin__curl_run",
-  "mcp__plugin_agent-kevin_kevin__gate_install",
   "mcp__plugin_agent-kevin_kevin__github_pr_create",
   "mcp__plugin_agent-kevin_kevin__seed_import"
 ]
@@ -1002,8 +1001,6 @@ The list is deliberately short. Every entry is an action that publishes somethin
 `curl_run` is the one sanctioned execution path in the `api-collections` skill and is deliberately never granted into `permissions.allow` by any pack walk, precisely so it always prompts. The `ask` entry is what keeps that promise once auto mode is deciding — without it, the classifier can approve an outbound request on its own.
 
 `github_pr_create` follows the same rule: no pack walk grants it, so opening a pull request always waits for the operator. It also takes over from `Bash(gh pr create *)`, which never fires in a home with the GitHub pack, since the pack denies `gh` in the shell; the Bash entry stays for homes without the pack.
-
-`gate_install` installs a checkout's dependencies with the internet open, so third-party install scripts run; its sibling `gate_run` (the repo's own scripts with the network closed to all but the run's throwaway Postgres) stays in `allow`, and a dependency change is the moment the operator should look anyway.
 
 `seed_import` is the one entry that doesn't publish anything — it's here because it overwrites identity files (SOUL.md, IDENTITY.md) and merges permission grants and MCP server registrations into this home from a foreign bundle. A confirm per call is the right cost for that; its read-only siblings `seed_scan`/`seed_export` stay in `allow`.
 
@@ -1199,7 +1196,6 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
       "mcp__plugin_agent-kevin_kevin__compile_write",
       "mcp__plugin_agent-kevin_kevin__dashboard",
       "mcp__plugin_agent-kevin_kevin__attention_write",
-      "mcp__plugin_agent-kevin_kevin__gate_run",
       "mcp__plugin_agent-kevin_kevin__home_history",
       "mcp__plugin_agent-kevin_kevin__knowledge_lint",
       "mcp__plugin_agent-kevin_kevin__links_rewrite",
@@ -1258,7 +1254,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 **Why no `extraKnownMarketplaces` entry?** The marketplace registration was already saved to the user's global `~/.claude/settings.json` when they first ran `/plugin marketplace add` (Option A) or were prompted to trust the marketplace (Option B). Duplicating it in the home is redundant — only `enabledPlugins` is needed to opt this specific home into agent-kevin, and it goes in `settings.local.json` (below), since the marketplace it names differs between a clone and a marketplace install.
 
-**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `attention_write`, `home_history`, `gate_run`, `setup_worktree`, `video_frames`, `media_transcribe`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
+**Why only the always-on core is granted here.** Plugin-bundled MCP tools register into the session regardless of permissions — `permissions.allow` only controls whether tool calls trigger a confirm prompt. The "always-on core" (`ping`, `capture`, `compile_*`, `knowledge_lint`, `task_*`, `links_rewrite`, `memory_prune`, `report_write`, `dashboard`, `attention_write`, `home_history`, `setup_worktree`, `video_frames`, `media_transcribe`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export`) needs no external config; the pack-gated tools need API keys or OAuth that only get set when the user opts into the matching pack. Granting them at init time would mean `settings.json` advertises packs the user never configured. Conditional grants keep `settings.json` an accurate audit trail.
 
 **`remove_worktree` is deliberately not granted.** It deletes a worktree (a destructive filesystem action), so it's left off the allow list on purpose — every call surfaces a confirm prompt the operator has to approve. Don't "fix" the asymmetry with `setup_worktree` by adding it here; the prompt is the safeguard.
 
@@ -1266,7 +1262,7 @@ Concrete approach: `Read` the existing file (treat as `{}` if absent), build the
 
 | Bucket | Tools | Granted when |
 |---|---|---|
-| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `attention_write`, `home_history`, `gate_run`, `setup_worktree`, `video_frames`, `media_transcribe`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export` | `/init` (above) |
+| Always-on core | `ping`, `capture`, `compile_*`, `memory_prune`, `task_*`, `links_rewrite`, `report_write`, `dashboard`, `attention_write`, `home_history`, `setup_worktree`, `video_frames`, `media_transcribe`, `run_upgrade`, `codex_setup`, `seed_scan`, `seed_export` | `/init` (above) |
 | SEO-gated | `serpapi_search`, `open_page_rank`, `gsc_*`, `page_speed_*`, `google_auth` | configure-skills A.2a (SEO walk) |
 | Browser-gated | `web_search`, `browser_*` | configure-skills A.2b (Browser walk) |
 | Database-gated | `database_list`, `database_query`, `database_schema`, `database_fork` | configure-skills A.2c (Database walk) |

@@ -83,7 +83,7 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 | [Platform](https://agentlayer.one/docs/platform) | The agent home · The brain · Capture · Sync · History · Self-evolution · Seed bundles · Multiple agents |
 | [Agent](https://agentlayer.one/docs/agent) | Hosts · Claude Code · Codex · Hooks · Configuration · Tasks · Daily rhythm · Architecture |
 | [Modules](https://agentlayer.one/docs/modules) | Plan and run · Build and ship · Reach and see · Brain and memory · Skills · MCP tools · Second-model review · Browser · SEO · Accounts |
-| [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Worktrees · Specs and plans · Coding rules · Verification · The gate · API collections · Releases |
+| [Engineering](https://agentlayer.one/docs/engineering) | The engineer skill · Principles · Design and review · Pull requests · Worktrees · Specs and plans · Coding rules · Verification · API collections · Releases |
 | [Reference](https://agentlayer.one/docs/reference/cli) | CLI · Upgrades · Naming · Changelog |
 | [Workstation](https://agentlayer.one/docs/workstation) | The rig: Ghostty · cmux · editor and tools |
 | [About](https://agentlayer.one/docs/about/privacy) | Privacy · Platforms · FAQ · History · Contributing |
@@ -103,7 +103,6 @@ This README is the short version. Everything lives at **[agentlayer.one/docs](ht
 - **Every change can be undone.** The `history` skill turns on local version history for the home in one question, no git knowledge needed; sync saves a snapshot each run. A home in iCloud, Dropbox or OneDrive keeps its history in `~/.local/state` (`%LOCALAPPDATA%` on Windows), where syncing can't damage it. → [History](https://agentlayer.one/docs/platform/history)
 - **A mission-control page** regenerated on every sync, self-contained, zero external requests. → [Dashboard](https://agentlayer.one/docs/dashboard)
 - **Engineering by playbook.** The `engineer` skill routes code work to a playbook (bug fix, feature, refactor, performance, forensics, prototype, and more) backed by 23 named principles, proves the result on the running artifact, and strips comments before you see the diff. → [Engineering](https://agentlayer.one/docs/engineering)
-- **Builds and migrations it runs itself.** `gate_run` runs a repo's own scripts (build, tests, lint, migrations against a throwaway Postgres) from outside the sandbox, each step under its own tighter one: no secrets, no internet, no Docker, writes to the checkout only. → [The gate](https://agentlayer.one/docs/engineering/gate)
 - **Pull requests, three ways.** Review a teammate's PR with verified findings and paste-ready comments, prep to present your own, or brief a second model on your branch and have its findings verified, fixed, and committed on one dossier. → [Pull requests](https://agentlayer.one/docs/engineering/pull-requests)
 - **Multiple homes, multiple personas.** One plugin install, separate brains, told apart by the launch folder. → [Multiple agents](https://agentlayer.one/docs/platform/multiple-agents)
 - **Hand an agent to a teammate.** A seed bundle carries persona, curated knowledge, and setup with fork semantics; credentials travel as names only. → [Seed bundles](https://agentlayer.one/docs/platform/seed-bundles)
