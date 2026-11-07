@@ -123,6 +123,7 @@ describe('stepEnv', () => {
 
     expect(env.pnpm_config_store_dir).toBe('/store/v11');
     expect(env.pnpm_config_verify_deps_before_run).toBe('error');
+    expect(env.pnpm_config_confirm_modules_purge).toBe('false');
     expect(stepEnv({ ...base, pm: 'bun' }).pnpm_config_verify_deps_before_run).toBeUndefined();
   });
 

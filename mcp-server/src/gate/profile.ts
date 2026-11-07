@@ -16,9 +16,9 @@ interface ProfileInput {
 
 /**
  * A Seatbelt profile no wider than the Bash sandbox: writes only to the checkout, a scratch dir and `extraWritable`,
- * no secrets, no signals outside itself, no Apple Events. Network is loopback only, and never to a service that
- * was already listening unless it is one of the run's own: one allow rule that requires-not each refused port, since
- * Seatbelt lets a broad allow beat a narrower deny. An install adds HTTPS and DNS.
+ * no secrets, no signals outside itself, no Apple Events. Network is allow-listed, since Seatbelt lets a broad allow
+ * beat a narrower deny and ignores a require-not inside one: the run's own services and the free ephemeral ports a step's own workers bind (Turbopack's pool),
+ * never a service already listening; an install adds HTTPS and DNS.
  */
 export const sandboxProfile = ({
   checkout,
@@ -42,7 +42,7 @@ export const sandboxProfile = ({
     '(allow file-read* (regex #"/\\.env\\.example$"))',
     '',
     '(deny network-outbound)',
-    loopbackExcept(listening.filter((port) => !allowedPorts.includes(port))),
+    ...allowPorts([...new Set([...allowedPorts, ...freeEphemeralPorts(listening)])]),
     ...(network === 'open'
       ? [
           '(allow network-outbound (remote ip "*:443") (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))'
@@ -91,9 +91,32 @@ const quote = (path: string): string => `"${path.replaceAll('\\', '\\\\').replac
 const subpath = (path: string): string => `(subpath ${quote(path)})`;
 const literal = (path: string): string => `(literal ${quote(path)})`;
 
-// Listing each allowed port instead (all ~16k free ephemeral ones) compiled in ~4.7 s per step.
-const loopbackExcept = (refused: number[]): string =>
-  `(allow network-outbound (require-all (remote ip "localhost:*")${refused.map((port) => ` (require-not (remote ip "localhost:${port}"))`).join('')}))`;
+/**
+ * Ports in macOS's ephemeral range (where a bind to port 0 lands) that nothing was listening on when the step started.
+ */
+const freeEphemeralPorts = (listening: number[]): number[] => {
+  const taken = new Set(listening);
+  return Array.from({ length: EPHEMERAL_LAST - EPHEMERAL_FIRST + 1 }, (_, index) => EPHEMERAL_FIRST + index).filter(
+    (port) => !taken.has(port)
+  );
+};
+
+// One rule naming all ~16k ports fails to compile ("profile compilation failed"). Split, it compiles, in ~4.7 s whatever the split.
+const allowPorts = (ports: number[]): string[] =>
+  Array.from(
+    { length: Math.ceil(ports.length / PORTS_PER_RULE) },
+    (_, index) =>
+      `(allow network-outbound ${ports
+        .slice(index * PORTS_PER_RULE, (index + 1) * PORTS_PER_RULE)
+        .map((port) => `(remote ip "localhost:${port}")`)
+        .join(' ')})`
+  );
+
+const PORTS_PER_RULE = 64;
+
+// net.inet.ip.portrange.first / .last on macOS.
+const EPHEMERAL_FIRST = 49152;
+const EPHEMERAL_LAST = 65535;
 
 const DEVICE_WRITES = [
   literal('/dev/null'),

@@ -119,7 +119,9 @@ export const stepEnv = ({
     // The sandbox can't read ~/.npmrc, so pnpm is told the store the last install used; another store makes it recreate node_modules.
     ...(storeDir && { pnpm_config_store_dir: storeDir }),
     // A script run must never turn into an install: stale dependencies fail the step and point at gate_install.
-    pnpm_config_verify_deps_before_run: 'error'
+    pnpm_config_verify_deps_before_run: 'error',
+    // With no TTY, an install that has to rebuild node_modules aborts unless told it may.
+    pnpm_config_confirm_modules_purge: 'false'
   }),
   ...extra
 });
