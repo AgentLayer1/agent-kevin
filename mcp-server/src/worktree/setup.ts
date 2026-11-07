@@ -157,7 +157,7 @@ const runCapture = async (
   try {
     const result = await runGroup([command, ...args], { cwd, timeoutMs, signal, shell });
     const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
-    const stopped = result.timedOut ? `\nstopped after ${timeoutMs / 1_000} s` : result.cancelled ? '\ncancelled' : '';
+    const stopped = result.stopped === 'timeout' ? `\nstopped after ${timeoutMs / 1_000} s` : result.stopped === 'cancel' ? '\ncancelled' : '';
     return { ok: result.exitCode === 0 && !stopped, output: `${output}${stopped}` };
   } catch (error) {
     return { ok: false, output: (error as Error).message };

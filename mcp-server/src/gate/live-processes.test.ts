@@ -30,7 +30,11 @@ const lsofCwd = [
 ].join('\n');
 
 describe('busyFrom', () => {
-  const busy = busyFrom({ checkout, candidates: devToolCandidates(ps, new Set([500]), 1), lsofCwd });
+  const busy = busyFrom({
+    checkout,
+    candidates: devToolCandidates(ps, new Set([500]), 1, ['scenario.cjs', 'scenario.mjs']),
+    lsofCwd
+  });
 
   test('finds dev tooling by cwd (pnpm dev) and by a path in its arguments (turbo, a scenario run on either entry point)', () => {
     expect(busy.map((item) => item.pid).sort()).toEqual([101, 102, 107, 108, 109]);
@@ -47,6 +51,10 @@ describe('busyFrom', () => {
 
   test("ignores an agent session's MCP server, a bun process, even when it sits in the checkout", () => {
     expect(busy.map((item) => item.pid)).not.toContain(110);
+  });
+
+  test("a repo's own entry point counts only when the plugin names it", () => {
+    expect(devToolCandidates(ps, new Set([500]), 1).map((item) => item.pid)).not.toContain(107);
   });
 
   test("ignores this gate's own process groups", () => {

@@ -2,6 +2,7 @@
  * The Bash sandbox can't open a port, reach Postgres or write a tool's cache, so the gate runs from the MCP server,
  * each step under its own tighter sandbox profile.
  */
+import { callSignal } from '@/shared/call-signal';
 import { configuredRepoPaths, FOLDERS } from '@/config';
 import { checkoutsCarrying, pickCheckout } from '@/shared/checkouts';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -9,7 +10,8 @@ import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 import { throwawayPostgres } from '../gate/postgres';
 import { type GateRequest, runGate } from '../gate/run';
-import { readGateSettings } from '../gate/settings';
+import { readCiDefaults } from '../gate/ci';
+import { type GateSettings, type PostgresSettings, readGateSettings } from '../gate/settings';
 import type { StepSpec } from '../gate/steps';
 
 const DEFAULT_TIMEOUT_SECONDS = 1_200;
@@ -42,33 +44,41 @@ const resolveCheckout = (name?: string): { checkout: string; repo: string } => {
   return { checkout, repo };
 };
 
-const gateRequest = ({
-  name,
-  steps,
-  timeoutSeconds,
-  signal,
-  withServices
-}: {
-  name: string | undefined;
-  steps: StepSpec[];
-  timeoutSeconds: number;
-  signal: AbortSignal;
-  withServices: boolean;
-}): GateRequest => {
+interface ResolvedGate {
+  checkout: string;
+  repo: string;
+  settings: GateSettings;
+  env: Record<string, string>;
+  postgres?: PostgresSettings;
+  usesPostgres: (script: string) => boolean;
+}
+
+const resolveGate = (name: string | undefined): ResolvedGate => {
   const { checkout, repo } = resolveCheckout(name);
   const settings = readGateSettings(basename(repo));
+  const ci = settings.ci ? readCiDefaults(checkout, settings.ci) : { env: {} };
+  const postgres = settings.postgres ?? ci.postgres;
   return {
     checkout,
-    steps,
-    logsRoot: join(FOLDERS.LOGS, 'gate', basename(checkout)),
-    timeoutMs: timeoutSeconds * 1_000,
-    signal,
-    env: settings.env,
-    writable: settings.writable,
-    ...(withServices && settings.postgres && { services: throwawayPostgres(settings.postgres, checkout) }),
-    storeFallbacks: [repo]
+    repo,
+    settings,
+    env: { ...ci.env, ...settings.env },
+    ...(postgres && { postgres }),
+    usesPostgres: (script: string) => postgres !== undefined && (settings.postgresSteps?.includes(script) ?? true)
   };
 };
+
+const gateRequest = (gate: ResolvedGate, steps: StepSpec[], timeoutSeconds: number): GateRequest => ({
+  checkout: gate.checkout,
+  steps,
+  logsRoot: join(FOLDERS.LOGS, 'gate', basename(gate.checkout)),
+  timeoutMs: timeoutSeconds * 1_000,
+  signal: callSignal(),
+  env: gate.env,
+  writable: gate.settings.writable,
+  ...(gate.postgres && { services: throwawayPostgres(gate.postgres, gate.checkout) }),
+  storeFallbacks: [gate.repo]
+});
 
 export const tools: ToolDef[] = [
   defineTool({
@@ -87,21 +97,22 @@ export const tools: ToolDef[] = [
         .describe('Run every step in one workspace package (pnpm/bun --filter, npm --workspace), e.g. "@acme/utils".'),
       timeoutSeconds: timeoutSchema
     },
-    handler: async ({ steps, checkout, filter, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }, { signal }) =>
-      runGate(
-        gateRequest({
-          name: checkout,
-          steps: steps.map(
-            (name): StepSpec =>
-              name === 'selftest'
-                ? { kind: 'selftest', name }
-                : { kind: 'script', name, script: name, ...(filter !== undefined && { filter }) }
-          ),
-          timeoutSeconds,
-          signal,
-          withServices: true
-        })
-      )
+    handler: async ({ steps, checkout, filter, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }) => {
+      const gate = resolveGate(checkout);
+      const specs = steps.map(
+        (name): StepSpec =>
+          name === 'selftest'
+            ? { kind: 'selftest', name, needsServices: gate.postgres !== undefined }
+            : {
+                kind: 'script',
+                name,
+                script: name,
+                ...(filter !== undefined && { filter }),
+                needsServices: gate.usesPostgres(name)
+              }
+      );
+      return runGate(gateRequest(gate, specs, timeoutSeconds));
+    }
   }),
 
   defineTool({
@@ -113,15 +124,7 @@ export const tools: ToolDef[] = [
       checkout: checkoutSchema,
       timeoutSeconds: timeoutSchema
     },
-    handler: async ({ checkout, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }, { signal }) =>
-      runGate(
-        gateRequest({
-          name: checkout,
-          steps: [{ kind: 'install', name: 'install' }],
-          timeoutSeconds,
-          signal,
-          withServices: false
-        })
-      )
+    handler: async ({ checkout, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }) =>
+      runGate(gateRequest(resolveGate(checkout), [{ kind: 'install', name: 'install' }], timeoutSeconds))
   })
 ];

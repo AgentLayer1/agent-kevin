@@ -18,19 +18,19 @@
     },
     {
       "path": "mcp-server/src/gate/live-processes.ts",
-      "sha256": "2fc8f39a2108a45cfb918cc084f804f0388d4a8f8d6a9cca47a22d8d6fa9646f"
+      "sha256": "a7d11461219bd94c8b231a9ddb656ab850c6b58692a4378dc03da4ea996bfc1e"
     },
     {
       "path": "mcp-server/src/gate/live-processes.test.ts",
-      "sha256": "48ee746e665f5943e861daf37fa7d475c5bca2e7cf63817aa174530603dc0085"
+      "sha256": "a9ddfbd97806a2064fe49dd708f48322db350ecf06ecb9920a561d41a1b8a031"
     },
     {
       "path": "mcp-server/src/gate/profile.ts",
-      "sha256": "225dc27294059d78cdd1507949e0a6dd68e21fab865291070e29ec4551a9ab2d"
+      "sha256": "d46659f0de08f2e22c80605f36c95d77de8933a2dfb5c57c6a48dc957f6c90ad"
     },
     {
       "path": "mcp-server/src/gate/profile.test.ts",
-      "sha256": "1ee61efee0dc4056765ab2eaad9f6cfd4af22fc4e27765d6db93d8a512b8f0c8"
+      "sha256": "37e4beeaece82681ece576f686d855c2d8c5d1e751a4902794052e9359d32b2b"
     },
     {
       "path": "mcp-server/src/gate/selftest.ts",
@@ -42,7 +42,7 @@
     },
     {
       "path": "mcp-server/src/gate/steps.ts",
-      "sha256": "146c8ec9b17a3949d66b0d2adcd49cf4127795c4d05086de4f0e29f1fbcb9803"
+      "sha256": "b6062f169eb59de597a92d1a42b613c2e76becbc555cebc1799e0270d447aa91"
     },
     {
       "path": "mcp-server/src/gate/steps.test.ts",
@@ -54,7 +54,7 @@
     },
     {
       "path": "mcp-server/src/gate/run.ts",
-      "sha256": "b020166163aadbeaafb11106c4c7043c3ceb53c73fbb78bab1e38eb9f0ed535e"
+      "sha256": "b75748ce0df6bcb8f403c1f1de99303b3e8506db2864598907c31ab842cec0a8"
     },
     {
       "path": "mcp-server/src/gate/shared.test.ts",
@@ -66,11 +66,11 @@
     },
     {
       "path": "mcp-server/src/shared/process-group.ts",
-      "sha256": "c86a704a070ebaa5694a1cd2ca78e2d67e4a079b9f6cc8012eb5014cb17cae79"
+      "sha256": "3af35bda58d603d07b10ff9caa196abf7be3b7cdbfe2bfd56c9d705713cd271a"
     },
     {
       "path": "mcp-server/src/shared/process-group.test.ts",
-      "sha256": "2e88ba6d0f2499625eb7eb64c3df1d8ec527313fc2805263e9d5977465ebac50"
+      "sha256": "500ad596a566cc7a933a498585e5c942f7cf1c517908ddfb83f5263620bc3f8d"
     },
     {
       "path": "scripts/sync-gate.ts",
@@ -87,6 +87,10 @@
     {
       "path": "mcp-server/src/shared/text.ts",
       "sha256": "0533798d7c6d07b1fcfce5e23a9eb09394e5f4e2722a8749a9a7e575559b6e2e"
+    },
+    {
+      "path": "mcp-server/src/gate/docker.ts",
+      "sha256": "6ddd16b83823454b304af0a62e8daf8c77879045825c51dc74aeba5c244df13e"
     }
   ]
 }

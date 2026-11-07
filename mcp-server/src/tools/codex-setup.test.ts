@@ -28,7 +28,7 @@ describe('codex_setup tool', () => {
   test('runs the generator against this home and returns its report', async () => {
     const [tool] = tools;
     expect(tool.name).toBe('codex_setup');
-    const result = (await tool.handler({}, { signal: new AbortController().signal })) as {
+    const result = (await tool.handler({})) as {
       ok: boolean;
       report?: { entries: number; hooks: { path: string } };
     };

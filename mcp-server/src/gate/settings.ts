@@ -7,25 +7,30 @@ import { z } from 'zod';
 
 const ENV_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
+export const postgresSchema = z
+  .object({
+    image: z.string().regex(/^[\w./-]+(:[\w.-]+)?$/),
+    user: z.string().regex(/^\w+$/),
+    password: z.string().regex(/^\w+$/),
+    database: z.string().regex(/^\w+$/),
+    urlEnv: z.array(z.string().regex(ENV_NAME)).min(1)
+  })
+  .strict();
+
 const settingsSchema = z
   .object({
+    /** The repo's CI workflow to read placeholder env and the Postgres service from. */
+    ci: z.object({ workflow: z.string(), job: z.string().optional() }).strict().optional(),
     env: z.record(z.string().regex(ENV_NAME), z.string()).default({}),
-    postgres: z
-      .object({
-        image: z.string().regex(/^[\w./-]+(:[\w.-]+)?$/),
-        user: z.string().regex(/^\w+$/),
-        password: z.string().regex(/^\w+$/),
-        database: z.string().regex(/^\w+$/),
-        urlEnv: z.array(z.string().regex(ENV_NAME)).min(1)
-      })
-      .strict()
-      .optional(),
+    postgres: postgresSchema.optional(),
+    /** The scripts that reach the database (and the selftest); without it, every script step does. */
+    postgresSteps: z.array(z.string()).optional(),
     writable: z.array(z.string()).default([])
   })
   .strict();
 
 export type GateSettings = z.infer<typeof settingsSchema>;
-export type PostgresSettings = NonNullable<GateSettings['postgres']>;
+export type PostgresSettings = z.infer<typeof postgresSchema>;
 
 /**
  * The gate settings for a configured repo, from `<HOME>/scripts/gate/<repo folder>.json`, shared by its sibling

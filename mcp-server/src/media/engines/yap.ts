@@ -39,8 +39,8 @@ export const yap: TranscribeEngine = async ({ file, language, signal }) => {
         : `yap failed: ${error.message}`
     );
   });
-  if (run.cancelled || run.timedOut) {
-    throw new Error(run.cancelled ? 'yap was cancelled.' : `yap stopped after ${YAP_TIMEOUT_MS / 60_000} minutes.`);
+  if (run.stopped) {
+    throw new Error(run.stopped === 'cancel' ? 'yap was cancelled.' : `yap stopped after ${YAP_TIMEOUT_MS / 60_000} minutes.`);
   }
   if (run.exitCode !== 0) {
     throw new Error(`yap failed: ${run.stderr.trim() || `exit ${run.exitCode}`}`);

@@ -26,9 +26,11 @@ export type StepSpec =
       /** Prefix of the argument that tells the script where to write a JSON report (`--report=`). */
       reportArg?: string;
       summarize?: (log: string, report: string | undefined) => StepSummary;
+      /** Reach the run's services (a database): started before the first such step, their ports and env go only to these steps. */
+      needsServices?: boolean;
     }
   | { kind: 'install'; name: string }
-  | { kind: 'selftest'; name: string }
+  | { kind: 'selftest'; name: string; needsServices?: boolean }
   | { kind: 'action'; name: string; run: () => Promise<string> };
 
 export const stepCommand = (

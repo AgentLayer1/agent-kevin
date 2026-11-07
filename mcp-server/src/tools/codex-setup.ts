@@ -32,7 +32,7 @@ export const runCodexSetup = async (): Promise<SetupResult> => {
       timeoutMs: SCRIPT_TIMEOUT_MS
     }
   );
-  const exitCode = proc.timedOut ? -1 : (proc.exitCode ?? -1);
+  const exitCode = proc.stopped ? -1 : (proc.exitCode ?? -1);
   const stdout = proc.stdout.trim();
   let report: unknown;
   try {
@@ -48,7 +48,7 @@ export const runCodexSetup = async (): Promise<SetupResult> => {
     message:
       exitCode === 0
         ? 'Codex wiring written.'
-        : proc.timedOut
+        : proc.stopped
           ? `Codex wiring timed out after ${SCRIPT_TIMEOUT_MS / 1_000} s and may be half-written; run codex_setup again.`
           : `Codex wiring failed (exit ${exitCode}); nothing was changed.`
   };

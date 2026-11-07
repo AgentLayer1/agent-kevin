@@ -94,9 +94,9 @@ async function spawnFfmpeg(args: string[], cwd: string, signal?: AbortSignal): P
       );
     }
   );
-  if (run.cancelled || run.timedOut) {
+  if (run.stopped) {
     throw new Error(
-      run.cancelled ? 'ffmpeg was cancelled.' : `ffmpeg stopped after ${FFMPEG_TIMEOUT_MS / 60_000} minutes.`
+      run.stopped === 'cancel' ? 'ffmpeg was cancelled.' : `ffmpeg stopped after ${FFMPEG_TIMEOUT_MS / 60_000} minutes.`
     );
   }
   if (run.exitCode !== 0) {

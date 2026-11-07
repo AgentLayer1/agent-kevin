@@ -7,7 +7,7 @@ import { secretsReadBlocked } from '@/shared/sandbox-probe';
 import { installDeps, installRoot, tools } from '@/tools/upgrade';
 
 const runUpgrade = (version: string) =>
-  tools[0].handler({ version }, { signal: new AbortController().signal }) as Promise<Record<string, unknown>>;
+  tools[0].handler({ version }) as Promise<Record<string, unknown>>;
 
 const home = mkdtempSync(join(tmpdir(), 'run-upgrade-'));
 const PRELOAD_HOME = process.env.AGENT_HOME;
@@ -46,18 +46,18 @@ describe('run_upgrade', () => {
 
   test('takes a version or install, never both and never neither', async () => {
     expect(
-      await tools[0].handler({ version: '0.7.2', install: true }, { signal: new AbortController().signal })
+      await tools[0].handler({ version: '0.7.2', install: true })
     ).toMatchObject({ ok: false });
-    expect(await tools[0].handler({}, { signal: new AbortController().signal })).toMatchObject({ ok: false });
+    expect(await tools[0].handler({})).toMatchObject({ ok: false });
   });
 
   test('install needs a pluginRoot it accepts', async () => {
-    expect(await tools[0].handler({ install: true }, { signal: new AbortController().signal })).toMatchObject({
+    expect(await tools[0].handler({ install: true })).toMatchObject({
       ok: false,
       exitCode: -1
     });
     expect(
-      await tools[0].handler({ install: true, pluginRoot: tmpdir() }, { signal: new AbortController().signal })
+      await tools[0].handler({ install: true, pluginRoot: tmpdir() })
     ).toMatchObject({ ok: false, exitCode: -1 });
   });
 
@@ -158,8 +158,7 @@ describe('run_upgrade', () => {
     Object.assign(process.env, { AGENT_HOME: home, SHELL: '/bin/zsh', ZDOTDIR: zdot });
     try {
       const result = await tools[0].handler(
-        { version: '0.9.0', options: { installLauncher: true } },
-        { signal: new AbortController().signal }
+        { version: '0.9.0', options: { installLauncher: true } }
       );
       expect(result).toMatchObject({ ok: true, report: { token: 'present', launcher: { appended: true } } });
       expect(readFileSync(join(zdot, '.zshrc'), 'utf-8')).toContain('agent()');

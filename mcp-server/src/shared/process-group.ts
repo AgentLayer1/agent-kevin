@@ -31,7 +31,7 @@ export const runGroup = async (
     throw new Error('runGroup needs a command');
   }
   if (signal?.aborted) {
-    return { exitCode: null, timedOut: false, cancelled: true, seconds: 0, stdout: '', stderr: '' };
+    return { exitCode: null, stopped: 'cancel', seconds: 0, stdout: '', stderr: '' };
   }
 
   const started = performance.now();
@@ -81,8 +81,7 @@ export const runGroup = async (
     await closed;
     return {
       exitCode,
-      timedOut: stoppedBy === 'timeout',
-      cancelled: stoppedBy === 'cancel',
+      ...(stoppedBy && { stopped: stoppedBy }),
       seconds: Math.round((performance.now() - started) / 100) / 10,
       stdout: Buffer.concat(chunks.stdout).toString(),
       stderr: Buffer.concat(chunks.stderr).toString()
@@ -152,8 +151,7 @@ const trackGroup = (pgid: number): void => {
 
 export interface GroupResult {
   exitCode: number | null;
-  timedOut: boolean;
-  cancelled: boolean;
+  stopped?: 'timeout' | 'cancel';
   seconds: number;
   stdout: string;
   stderr: string;

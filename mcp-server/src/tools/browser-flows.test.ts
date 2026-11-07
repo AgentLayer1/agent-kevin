@@ -1,3 +1,4 @@
+import { withCallSignal } from '@/shared/call-signal';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,13 +45,13 @@ describe('browser_flows tool', () => {
   test('cancelling the call stops the flow and every process it started', async () => {
     const pidFile = resolve(HOME, 'child.pid');
     const controller = new AbortController();
-    const call = tools[0].handler({ flow: 'hang', params: { pidfile: pidFile } }, { signal: controller.signal });
+    const call = withCallSignal(controller.signal, () => tools[0].handler({ flow: 'hang', params: { pidfile: pidFile } }));
 
     expect(await until(() => existsSync(pidFile) && readFileSync(pidFile, 'utf8') !== '')).toBe(true);
     const childPid = Number(readFileSync(pidFile, 'utf8'));
     controller.abort();
 
-    expect(await call).toMatchObject({ flow: 'hang', cancelled: true });
+    expect(await call).toMatchObject({ flow: 'hang', stopped: 'cancel' });
     expect(await until(() => !isAlive(childPid))).toBe(true);
   });
 });

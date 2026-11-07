@@ -18,6 +18,7 @@
  * (NODE_PATH/AGENT_HOME/…) always win over both. The reader refuses the data-dir secret store by construction.
  */
 
+import { callSignal } from '@/shared/call-signal';
 import { BROWSER, FOLDERS } from '@/config';
 import { readEnvFile } from '@/shared/env';
 import { runGroup } from '@/shared/process-group';
@@ -79,7 +80,8 @@ export const tools: ToolDef[] = [
         .default({})
         .describe('Flow args, mapped to --key value (e.g. { env: "web", count: 10 })')
     },
-    handler: async ({ flow, params }, { signal }) => {
+    handler: async ({ flow, params }) => {
+      const signal = callSignal();
       if (!/^[a-z0-9-]+$/.test(flow)) {
         throw new Error(`Invalid flow name "${flow}". Use lowercase letters, digits, and hyphens.`);
       }
@@ -94,7 +96,7 @@ export const tools: ToolDef[] = [
       // Flow secrets: always from HOME (never the distributed plugin repo), scoped to this flow's
       // child. Flow env overrides inherited values; the harness vars below win over the flow env.
       const flowEnv = readEnvFile(resolve(FOLDERS.HOME_FLOWS, flow, '.env'));
-      const { exitCode, timedOut, cancelled, stdout, stderr } = await runGroup(
+      const { exitCode, stopped, stdout, stderr } = await runGroup(
         ['bun', 'run', resolve(flowRoot, flow, 'index.ts'), ...toFlags(params)],
         {
           cwd: FOLDERS.ROOT,
@@ -113,8 +115,7 @@ export const tools: ToolDef[] = [
       return {
         flow,
         exitCode,
-        ...(timedOut && { timedOut }),
-        ...(cancelled && { cancelled }),
+        ...(stopped && { stopped }),
         envKeys: Object.keys(flowEnv), // names only — the injected secret values never leave the child
         guidance: readGuidance(resolve(flowRoot, flow)),
         output: tail(`${stdout}${stderr}`.trim(), MAX_OUTPUT_CHARS)

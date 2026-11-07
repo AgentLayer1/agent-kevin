@@ -24,7 +24,7 @@ describe('runGroup', () => {
       }
     });
 
-    expect(result.timedOut).toBe(true);
+    expect(result.stopped).toBe('timeout');
     expect(pgid).toBeGreaterThan(0);
     expect(await groupGone(pgid)).toBe(true);
   });
@@ -53,7 +53,7 @@ describe('runGroup', () => {
       signal: controller.signal
     });
 
-    expect(result.cancelled).toBe(true);
+    expect(result.stopped).toBe('cancel');
   });
 
   test('a call cancelled before it starts stops the group at once', async () => {
@@ -65,7 +65,7 @@ describe('runGroup', () => {
       signal: controller.signal
     });
 
-    expect(result.cancelled).toBe(true);
+    expect(result.stopped).toBe('cancel');
     expect(result.seconds).toBeLessThan(5);
   });
 

@@ -15,6 +15,7 @@
  * `install: true` runs `bun install` from the same seat, because a sandboxed shell can't write
  * bun's cache.
  */
+import { callSignal } from '@/shared/call-signal';
 import { FOLDERS, PLUGIN_NAME } from '@/config';
 import { runGroup } from '@/shared/process-group';
 import { defineTool, type ToolDef } from '@/shared/types';
@@ -67,16 +68,16 @@ interface InstallResult {
  */
 export const installDeps = async (dir: string, signal?: AbortSignal): Promise<InstallResult> => {
   const result = await runGroup([process.execPath, 'install'], { cwd: dir, timeoutMs: INSTALL_TIMEOUT_MS, signal });
-  const ok = result.exitCode === 0 && !result.timedOut && !result.cancelled;
+  const ok = result.exitCode === 0 && !result.stopped;
   return {
     ok,
     dir,
     exitCode: result.exitCode ?? -1,
     stdout: result.stdout.slice(-OUTPUT_TAIL),
     stderr: result.stderr.slice(-OUTPUT_TAIL),
-    message: result.timedOut
+    message: result.stopped === 'timeout'
       ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
-      : result.cancelled
+      : result.stopped === 'cancel'
         ? 'bun install was cancelled.'
         : ok
           ? 'bun install completed.'
@@ -147,7 +148,7 @@ export const tools: ToolDef[] = [
           "Choices the operator made for this migration, read by the script from AGENT_UPGRADE_OPTIONS (JSON). Only pass what the upgrade skill's step for that version names."
         )
     },
-    handler: async ({ version, install, pluginRoot, options }, { signal }): Promise<RunResult | InstallResult> => {
+    handler: async ({ version, install, pluginRoot, options }): Promise<RunResult | InstallResult> => {
       if (install) {
         if (version !== undefined) {
           return { ok: false, found: false, version, message: 'Pass install or version, not both.' };
@@ -163,7 +164,7 @@ export const tools: ToolDef[] = [
             message: `Install refused: pluginRoot must be this server's plugin root (${FOLDERS.ROOT}) or a sibling version folder of it.`
           };
         }
-        return installDeps(join(root, 'mcp-server'), signal);
+        return installDeps(join(root, 'mcp-server'), callSignal());
       }
       if (version === undefined) {
         return { ok: false, found: false, version: '', message: 'Pass a version, or install: true with pluginRoot.' };
@@ -201,7 +202,7 @@ export const tools: ToolDef[] = [
       const stdout = proc.stdout;
       const stderr = proc.stderr.slice(-OUTPUT_TAIL);
       const exitCode = proc.exitCode ?? -1;
-      const ok = exitCode === 0 && !proc.timedOut;
+      const ok = exitCode === 0 && !proc.stopped;
       return {
         ok,
         found: true,
@@ -212,7 +213,7 @@ export const tools: ToolDef[] = [
         stderr,
         message: ok
           ? `Migration ${version} completed.`
-          : proc.timedOut
+          : proc.stopped
             ? `Migration ${version} timed out after ${SCRIPT_TIMEOUT_MS / 1_000} s.`
             : `Migration ${version} failed (exit ${exitCode}).`
       };

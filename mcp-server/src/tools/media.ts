@@ -8,6 +8,7 @@
  * The module owns the extraction logic; this file just declares the tool.
  */
 
+import { callSignal } from '@/shared/call-signal';
 import { extractFrames } from '@/media/frames';
 import { transcribe } from '@/media/transcribe';
 import { log as baseLog } from '@/shared/log';
@@ -41,7 +42,8 @@ export const tools: ToolDef[] = [
           "Existing folder under reports/captures (e.g. media_transcribe's `dir`); frames go in a new subfolder of its frames/."
         )
     },
-    handler: async (args, { signal }) => {
+    handler: async (args) => {
+      const signal = callSignal();
       const result = await extractFrames({ ...args, signal });
       log.info(`${result.mode} → ${result.count} frames in ${result.dir}`);
       return result;
@@ -64,7 +66,8 @@ export const tools: ToolDef[] = [
         ),
       name: z.string().optional().describe('Output folder name hint.')
     },
-    handler: async (args, { signal }) => {
+    handler: async (args) => {
+      const signal = callSignal();
       const result = await transcribe({ ...args, signal });
       log.info(`${result.engine} ${result.language} → ${result.segmentCount} segments in ${result.dir}`);
       return result;

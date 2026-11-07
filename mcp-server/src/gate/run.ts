@@ -36,6 +36,8 @@ export interface GateRequest {
   services?: GateServices;
   /** Checkouts whose pnpm install names the store, when this one (a fresh worktree) has none yet. */
   storeFallbacks?: string[];
+  /** Entry points beyond the usual dev tools that mean the checkout is busy (a repo's own test harness). */
+  devTools?: string[];
 }
 
 /**
@@ -70,7 +72,7 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
     mkdirSync(scratch);
 
     if (steps.some(touchesCheckout)) {
-      const busy = describeBusy(realCheckout);
+      const busy = describeBusy(realCheckout, request.devTools);
       if (busy) {
         throw new Error(
           `Dev tooling is running in ${checkout}, and a gate would rebuild underneath it:\n${busy}\nStop it, or gate a worktree instead.`
@@ -81,21 +83,23 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
 
     const toolchain = resolveToolchain(realCheckout, pkg);
     const storeDir = toolchain.pm === 'pnpm' ? installedStoreDir(realCheckout, request.storeFallbacks) : undefined;
-    servicesStarted = request.services !== undefined;
-    const services = (await request.services?.start(runId, signal)) ?? { ports: [], env: {}, summary: '' };
-    const env = stepEnv({
-      path: toolchain.path,
-      tmp: scratch,
-      runId,
-      pm: toolchain.pm,
-      storeDir,
-      extra: { ...request.env, ...services.env }
-    });
+    const envWith = (services: StartedServices) =>
+      stepEnv({
+        path: toolchain.path,
+        tmp: scratch,
+        runId,
+        pm: toolchain.pm,
+        storeDir,
+        extra: { ...request.env, ...services.env }
+      });
     // An install writes the store it links from and pnpm's metadata cache; nothing else in the home.
     const installWritable = storeDir ? [storeDir, join(homedir(), 'Library', 'Caches', 'pnpm')] : [];
     const profile = join(base, 'profile.sb');
 
-    const run: Run = (command, { logFile, install = false, listening = listeningPorts() } = {}) => {
+    const run: Run = (
+      command,
+      { logFile, install = false, listening = listeningPorts(), services = NO_SERVICES } = {}
+    ) => {
       writeFileSync(
         profile,
         sandboxProfile({
@@ -109,7 +113,7 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
       );
       return runGroup([SANDBOX_EXEC, '-f', profile, '/usr/bin/nice', '-n', '10', ...command], {
         cwd: realCheckout,
-        env,
+        env: envWith(services),
         logFile,
         timeoutMs: Math.max(deadline - Date.now(), 1_000),
         signal,
@@ -117,38 +121,67 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
       });
     };
 
-    const context: StepContext = { realCheckout, base, scratch, logs, toolchain, allowedPorts: services.ports, run };
-    const results = await steps.reduce<Promise<StepResult[]>>(async (previous, step) => {
-      const done = await previous;
-      const halted = done.some((result) => !result.ok && result.stopsRun) || signal?.aborted || Date.now() >= deadline;
-      const busy = !halted && touchesCheckout(step) && done.length ? describeBusy(realCheckout) : '';
+    const context = { realCheckout, base, scratch, logs, toolchain, run };
+    const startServices = async (): Promise<StartedServices> => {
+      servicesStarted = true;
+      return (await request.services?.start(runId, signal)) ?? NO_SERVICES;
+    };
+    const { results, services } = await steps.reduce<Promise<Progress>>(
+      async (previous, step) => {
+        const done = await previous;
+        const halted =
+          done.results.some((result) => !result.ok && result.stopsRun) || signal?.aborted || Date.now() >= deadline;
+        const busy =
+          !halted && touchesCheckout(step) && done.results.length ? describeBusy(realCheckout, request.devTools) : '';
 
-      if (halted || busy) {
-        const summary = busy
-          ? `not run: dev tooling started in this checkout during the gate:\n${busy}`
-          : 'not run: an earlier step failed, the call was cancelled, or time ran out';
-        return [...done, { step: step.name, ok: false, skipped: true, stopsRun: false, summary, failures: [] }];
-      }
+        if (halted || busy) {
+          const summary = busy
+            ? `not run: dev tooling started in this checkout during the gate:\n${busy}`
+            : 'not run: an earlier step failed, the call was cancelled, or time ran out';
+          const skipped: StepResult = {
+            step: step.name,
+            ok: false,
+            skipped: true,
+            stopsRun: false,
+            summary,
+            failures: []
+          };
+          return { ...done, results: [...done.results, skipped] };
+        }
 
-      const before = gitStatus(realCheckout);
-      const result = await runStep(step, context).catch(
-        (error: unknown): StepResult => ({
+        const before = done.lastStatus ?? gitStatus(realCheckout);
+        const failed = (error: unknown): StepResult => ({
           step: step.name,
           ok: false,
           stopsRun: step.kind === 'install' || (step.kind === 'script' && step.stopsRun !== false),
           summary: error instanceof Error ? error.message : String(error),
           failures: []
-        })
-      );
-      const changedFiles = [...gitStatus(realCheckout)].filter((line) => !before.has(line));
-      return [...done, changedFiles.length ? { ...result, changedFiles } : result];
-    }, Promise.resolve([]));
+        });
+        const start: { services?: StartedServices; failure?: StepResult } =
+          !done.services && needsServices(step)
+            ? await startServices().then(
+                (services) => ({ services }),
+                (error: unknown) => ({ failure: failed(error) })
+              )
+            : { services: done.services };
+        const stepServices = start.services && needsServices(step) ? start.services : NO_SERVICES;
+        const result = start.failure ?? (await runStep(step, { ...context, services: stepServices }).catch(failed));
+        const after = gitStatus(realCheckout);
+        const changedFiles = [...after].filter((line) => !before.has(line));
+        return {
+          results: [...done.results, changedFiles.length ? { ...result, changedFiles } : result],
+          lastStatus: after,
+          services: start.services
+        };
+      },
+      Promise.resolve({ results: [] })
+    );
 
     return {
       checkout: realCheckout,
       runId,
       logs,
-      ...(services.summary && { services: services.summary }),
+      ...(services?.summary && { services: services.summary }),
       ...(lock.notice && { notice: lock.notice }),
       ok: results.every((result) => result.ok),
       steps: results
@@ -166,7 +199,7 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
 };
 
 const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult> => {
-  const { realCheckout, base, scratch, logs, toolchain, allowedPorts, run } = context;
+  const { realCheckout, base, scratch, logs, toolchain, services, run } = context;
   const slug = step.name.replace(/[^\w.-]/g, '-');
   const logFile = join(logs, `${slug}.log`);
   const started = Date.now();
@@ -190,9 +223,9 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
         scratch,
         serverPid: process.pid,
         listening,
-        allowedPorts
+        allowedPorts: services.ports
       });
-      const result = await run([nodeBin, script, JSON.stringify(probes)], { listening });
+      const result = await run([nodeBin, script, JSON.stringify(probes)], { listening, services });
       const judged = judgeSelftest(probes, result.stdout);
       const failed = judged.filter((probe) => !probe.ok);
       return {
@@ -213,7 +246,11 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
     case 'install':
     case 'script': {
       const reportFile = step.kind === 'script' && step.reportArg ? join(logs, `${slug}.json`) : undefined;
-      const result = await run(stepCommand(step, toolchain, reportFile), { logFile, install: step.kind === 'install' });
+      const result = await run(stepCommand(step, toolchain, reportFile), {
+        logFile,
+        install: step.kind === 'install',
+        services
+      });
       const log = readTextIfExists(logFile);
       const summarize = step.kind === 'script' ? step.summarize : undefined;
       const parsed =
@@ -224,12 +261,11 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
             : turboSummary(realCheckout, started);
       return {
         step: step.name,
-        ok: result.exitCode === 0 && !result.timedOut && !result.cancelled,
+        ok: result.exitCode === 0 && !result.stopped,
         stopsRun: step.kind === 'install' || step.stopsRun !== false,
         exitCode: result.exitCode,
         seconds: result.seconds,
-        ...(result.timedOut && { timedOut: true }),
-        ...(result.cancelled && { cancelled: true }),
+        ...(result.stopped && { stopped: result.stopped }),
         summary: parsed?.summary || (result.exitCode === 0 ? 'passed' : `exited ${result.exitCode}`),
         failures: parsed?.failures ?? [],
         log: logFile,
@@ -252,8 +288,8 @@ const lockfileDiff = (checkout: string): string =>
 
 const touchesCheckout = (step: StepSpec): boolean => step.kind === 'script' || step.kind === 'install';
 
-const describeBusy = (checkout: string): string =>
-  busyProcesses(checkout, activeGroups)
+const describeBusy = (checkout: string, devTools?: string[]): string =>
+  busyProcesses(checkout, activeGroups, devTools)
     .map((item) => `  pid ${item.pid}: ${item.command.slice(0, 160)}`)
     .join('\n');
 
@@ -286,9 +322,22 @@ const tail = (text: string, limit = 3_000): string =>
 const SANDBOX_EXEC = '/usr/bin/sandbox-exec';
 const RUN_ID = /^\d{8}T\d{6}-[0-9a-f]{6}$/;
 
+type StartedServices = Awaited<ReturnType<GateServices['start']>>;
+
+const NO_SERVICES: StartedServices = { ports: [], env: {}, summary: '' };
+
+const needsServices = (step: StepSpec): boolean =>
+  (step.kind === 'script' || step.kind === 'selftest') && step.needsServices === true;
+
+interface Progress {
+  results: StepResult[];
+  lastStatus?: Set<string>;
+  services?: StartedServices;
+}
+
 type Run = (
   command: string[],
-  options?: { logFile?: string; install?: boolean; listening?: number[] }
+  options?: { logFile?: string; install?: boolean; listening?: number[]; services?: StartedServices }
 ) => Promise<GroupResult>;
 
 interface StepContext {
@@ -297,7 +346,7 @@ interface StepContext {
   scratch: string;
   logs: string;
   toolchain: ReturnType<typeof resolveToolchain>;
-  allowedPorts: number[];
+  services: StartedServices;
   run: Run;
 }
 
@@ -309,8 +358,7 @@ interface StepResult {
   skipped?: true;
   exitCode?: number | null;
   seconds?: number;
-  timedOut?: true;
-  cancelled?: true;
+  stopped?: 'timeout' | 'cancel';
   summary: string;
   failures: string[];
   log?: string;

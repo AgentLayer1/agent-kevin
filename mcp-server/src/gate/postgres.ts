@@ -1,11 +1,7 @@
-import { type GroupResult, runGroup } from '@/shared/process-group';
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { type Docker, dockerClient } from './docker';
 import type { GateServices } from './run';
 import type { PostgresSettings } from './settings';
-import { SYSTEM_PATH } from './toolchain';
 
 /**
  * A Postgres container for one gate run: loopback-only on a port Docker picks, data on tmpfs, removed when the
@@ -17,7 +13,7 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
 
   return {
     start: async (runId, signal) => {
-      const docker = await dockerClient();
+      const docker = await dockerClient('the gate runs its throwaway Postgres there');
       state.docker = docker;
       const leftovers = (await docker(['ps', '-aq', '--filter', `label=${checkoutLabel}`], 15_000)).stdout
         .split('\n')
@@ -48,9 +44,9 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
           settings.image
         ],
         300_000,
-        signal
+        { signal }
       );
-      if (started.cancelled) {
+      if (started.stopped === 'cancel') {
         throw new Error(`Starting ${settings.image} was cancelled.`);
       }
       if (started.exitCode !== 0) {
@@ -82,8 +78,6 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
   };
 };
 
-type Docker = (args: string[], timeoutMs: number, signal?: AbortSignal) => Promise<GroupResult>;
-
 // Over TCP: the image's first-boot init server listens on the socket only, so a TCP answer is the real server.
 const waitReady = async (
   docker: Docker,
@@ -110,29 +104,3 @@ const waitReady = async (
     await Bun.sleep(500);
   }
 };
-
-const dockerClient = async (): Promise<Docker> => {
-  const docker = DOCKER_CANDIDATES.find((candidate) => existsSync(candidate)) ?? Bun.which('docker');
-  if (!docker) {
-    throw new Error(
-      'No docker CLI found. Install and start OrbStack (or Docker Desktop); the gate runs its throwaway Postgres there.'
-    );
-  }
-  // The docker CLI finds its plugins and credential helpers on PATH.
-  const env = { HOME: homedir(), PATH: [dirname(docker), ...SYSTEM_PATH].join(':') };
-  const run: Docker = (args, timeoutMs, signal) =>
-    runGroup([docker, ...args], { cwd: tmpdir(), env, timeoutMs, signal });
-  if ((await run(['info', '--format', '{{.ServerVersion}}'], 15_000)).exitCode !== 0) {
-    throw new Error(
-      'Docker is installed but not running. Start OrbStack (or Docker Desktop), then run the gate again.'
-    );
-  }
-  return run;
-};
-
-const DOCKER_CANDIDATES = [
-  join(homedir(), '.orbstack', 'bin', 'docker'),
-  '/opt/homebrew/bin/docker',
-  '/usr/local/bin/docker',
-  '/Applications/Docker.app/Contents/Resources/bin/docker'
-];

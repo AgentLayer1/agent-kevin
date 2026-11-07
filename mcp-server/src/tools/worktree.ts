@@ -7,6 +7,7 @@
  * WHICH repo (it knows the operator's layout) and passes the main checkout path; this tool
  * does the mechanical create + bootstrap. The same logic backs the `kevin worktree` CLI.
  */
+import { callSignal } from '@/shared/call-signal';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { listWorktrees, removeWorktree, setupWorktree } from '@/worktree/setup';
 import { z } from 'zod';
@@ -44,7 +45,7 @@ export const tools: ToolDef[] = [
           'Relative subdirs with their own lockfile to `install` after the main bootstrap (e.g. ["packages/standalone-cli"]). Must be relative, no "..".'
         )
     },
-    handler: async (args, { signal }) => setupWorktree({ ...args, signal })
+    handler: async (args) => setupWorktree({ ...args, signal: callSignal() })
   }),
   defineTool({
     name: 'list_worktrees',
@@ -82,6 +83,6 @@ export const tools: ToolDef[] = [
           'Pre-check only: report the status (`removable` / `blocked-*`) without running the clean script, removing the worktree, or deleting the branch. Use it before unwiring the VS Code workspace.'
         )
     },
-    handler: async (args, { signal }) => removeWorktree({ ...args, signal })
+    handler: async (args) => removeWorktree({ ...args, signal: callSignal() })
   })
 ];

@@ -10,43 +10,32 @@ const base = {
 const lines = (profile: string) => profile.split('\n');
 
 describe('sandboxProfile', () => {
-  test("network is allow-listed: the run's own services and free ephemeral ports, never a port already listening", () => {
+  test("network is one loopback rule that refuses every port already listening except the run's own services", () => {
     const profile = sandboxProfile({
       ...base,
       network: 'loopback',
       listening: [5432, 6379, 50000, 55432],
       allowedPorts: [55432]
     });
-    const allow = lines(profile)
-      .filter((line) => line.startsWith('(allow network-outbound'))
-      .join('\n');
+    const allow = lines(profile).filter((line) => line.startsWith('(allow network-outbound'));
 
     expect(lines(profile)).toContain('(deny network-outbound)');
-    expect(allow).toContain('(remote ip "localhost:55432")');
-    expect(allow).toContain('(remote ip "localhost:49152")');
-    expect(allow).toContain('(remote ip "localhost:65535")');
-    expect(allow).not.toContain('localhost:50000"');
-    expect(allow).not.toContain('localhost:5432"');
-    expect(allow).not.toContain('localhost:6379"');
-    expect(profile).not.toContain('localhost:*');
+    expect(allow).toEqual([
+      '(allow network-outbound (require-all (remote ip "localhost:*") (require-not (remote ip "localhost:5432")) (require-not (remote ip "localhost:6379")) (require-not (remote ip "localhost:50000"))))'
+    ]);
     expect(lines(profile)).not.toContain('(allow network-outbound)');
   });
 
   test('with no services, a port already listening stays refused, whichever it is', () => {
-    const allow = lines(sandboxProfile({ ...base, network: 'loopback', listening: [55432] }))
-      .filter((line) => line.startsWith('(allow network-outbound'))
-      .join('\n');
-
-    expect(allow).not.toContain('localhost:55432"');
-  });
-
-  test('the ports are split across rules small enough for Seatbelt to compile', () => {
-    const rules = lines(sandboxProfile({ ...base, network: 'loopback' })).filter((line) =>
+    const allow = lines(sandboxProfile({ ...base, network: 'loopback', listening: [55432] })).filter((line) =>
       line.startsWith('(allow network-outbound')
     );
 
-    expect(rules.length).toBeGreaterThan(200);
-    expect(rules.every((rule) => (rule.match(/remote ip/g) ?? []).length <= 64)).toBe(true);
+    expect(allow.join('\n')).toContain('(require-not (remote ip "localhost:55432"))');
+  });
+
+  test('the profile stays small whatever is listening, so it compiles fast', () => {
+    expect(sandboxProfile({ ...base, network: 'loopback' }).length).toBeLessThan(5_000);
   });
 
   test('an install adds HTTPS and DNS, never an unfiltered allow that would beat every deny', () => {
