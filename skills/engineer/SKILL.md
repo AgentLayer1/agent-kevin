@@ -30,6 +30,8 @@ allowed-tools:
   - mcp__plugin_agent-kevin_kevin__list_worktrees
   - mcp__plugin_agent-kevin_kevin__remove_worktree
   - mcp__plugin_agent-kevin_kevin__database_query
+  - mcp__plugin_agent-kevin_kevin__gate_run
+  - mcp__plugin_agent-kevin_kevin__gate_install
   - mcp__plugin_agent-kevin_kevin__video_frames
   - mcp__plugin_agent-kevin_kevin__report_write
   - mcp__plugin_agent-kevin_kevin__attention_write
@@ -114,6 +116,7 @@ Most changes need none of the heavy tools. A rough ladder:
 - Ground in the source before building: a framework's or tool's own agent guidance and current default formats come before hand-rolling. A limit that looks like a default is a configuration question first (settings, docs, schemas, `--help`; say which you checked). A capability that looks missing gets the docs, then a temporary probe, and only then a caveat.
 - Before repurposing a file or convention, search its consumers. Before writing to a house convention, read a sibling module that already follows it.
 - A broken skill or check you hit mid-task gets fixed as its own change. Don't block on it and don't silently work around it.
+- A repo's build, tests, lint, typecheck and migrations run through `gate_run` on the checkout or worktree you changed, never as a `!` command handed to the operator. A dependency change goes through `gate_install` first, which asks. A gate refused because dev tooling is running there, or another gate holds the checkout, is reported, not worked around.
 
 ## Delegation
 
