@@ -18,8 +18,9 @@
  * (NODE_PATH/AGENT_HOME/…) always win over both. The reader refuses the data-dir secret store by construction.
  */
 
-import { FOLDERS } from '@/config';
+import { BROWSER, FOLDERS } from '@/config';
 import { readEnvFile } from '@/shared/env';
+import { runGroup } from '@/shared/process-group';
 import { readTextIfExists } from '@/shared/text';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync, readdirSync } from 'node:fs';
@@ -78,7 +79,7 @@ export const tools: ToolDef[] = [
         .default({})
         .describe('Flow args, mapped to --key value (e.g. { env: "web", count: 10 })')
     },
-    handler: async ({ flow, params }) => {
+    handler: async ({ flow, params }, { signal }) => {
       if (!/^[a-z0-9-]+$/.test(flow)) {
         throw new Error(`Invalid flow name "${flow}". Use lowercase letters, digits, and hyphens.`);
       }
@@ -93,25 +94,27 @@ export const tools: ToolDef[] = [
       // Flow secrets: always from HOME (never the distributed plugin repo), scoped to this flow's
       // child. Flow env overrides inherited values; the harness vars below win over the flow env.
       const flowEnv = readEnvFile(resolve(FOLDERS.HOME_FLOWS, flow, '.env'));
-      const proc = Bun.spawn(['bun', 'run', resolve(flowRoot, flow, 'index.ts'), ...toFlags(params)], {
-        cwd: FOLDERS.ROOT,
-        env: {
-          ...process.env,
-          ...flowEnv,
-          NODE_PATH: nodePath,
-          PLAYWRIGHT_BROWSERS_PATH: '0',
-          AGENT_HOME: FOLDERS.HOME
-        },
-        stdout: 'pipe',
-        stderr: 'pipe'
-      });
-
-      const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-      const exitCode = await proc.exited;
+      const { exitCode, timedOut, cancelled, stdout, stderr } = await runGroup(
+        ['bun', 'run', resolve(flowRoot, flow, 'index.ts'), ...toFlags(params)],
+        {
+          cwd: FOLDERS.ROOT,
+          env: {
+            ...process.env,
+            ...flowEnv,
+            NODE_PATH: nodePath,
+            PLAYWRIGHT_BROWSERS_PATH: '0',
+            AGENT_HOME: FOLDERS.HOME
+          },
+          timeoutMs: BROWSER.FLOW_TIMEOUT_MS,
+          signal
+        }
+      );
 
       return {
         flow,
         exitCode,
+        ...(timedOut && { timedOut }),
+        ...(cancelled && { cancelled }),
         envKeys: Object.keys(flowEnv), // names only — the injected secret values never leave the child
         guidance: readGuidance(resolve(flowRoot, flow)),
         output: tail(`${stdout}${stderr}`.trim(), MAX_OUTPUT_CHARS)

@@ -182,7 +182,8 @@ export const BROWSER = {
   INTERACTIVE_ARGS: ['--window-size=1280,900', '--window-position=120,80'] as readonly string[],
   PDF_FORMAT: 'A4',
   RENDER_TIMEOUT_MS: 15_000,
-  LOGIN_WAIT_MS: 300_000
+  LOGIN_WAIT_MS: 300_000,
+  FLOW_TIMEOUT_MS: 900_000
 } as const;
 
 /** Extra git repos surfaced in the SessionStart context alongside the knowledge
