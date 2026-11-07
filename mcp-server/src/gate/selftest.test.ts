@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { judgeSelftest, selftestProbes } from './selftest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { envFile, judgeSelftest, selftestProbes } from './selftest';
 
 const probes = selftestProbes({
   checkout: '/dev/acme',
@@ -57,5 +60,22 @@ describe('judgeSelftest', () => {
 
   test('no output from the script fails every probe rather than passing silently', () => {
     expect(judgeSelftest(probes, '').some((probe) => probe.ok)).toBe(false);
+  });
+});
+
+describe('envFile', () => {
+  test("probes a workspace app's .env when the root has none, so the probe reads a real file", () => {
+    const checkout = mkdtempSync(join(tmpdir(), 'gate-env-probe-'));
+    mkdirSync(join(checkout, 'apps', 'web'), { recursive: true });
+    writeFileSync(join(checkout, 'apps', 'web', '.env.local'), 'API_KEY=x\n');
+
+    expect(envFile(checkout)).toBe(join(checkout, 'apps', 'web', '.env.local'));
+    writeFileSync(join(checkout, '.env'), 'API_KEY=y\n');
+    expect(envFile(checkout)).toBe(join(checkout, '.env'));
+    rmSync(checkout, { recursive: true, force: true });
+  });
+
+  test('with no .env anywhere, the root .env is probed (and reported as skipped)', () => {
+    expect(envFile('/dev/acme')).toBe('/dev/acme/.env');
   });
 });

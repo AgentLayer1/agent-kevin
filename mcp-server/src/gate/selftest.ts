@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -50,7 +50,7 @@ export const selftestProbes = ({
     target: join(gitDir(checkout), 'agent-gate-selftest')
   },
   { name: 'read ~/.ssh', expect: 'blocked', kind: 'read', target: join(home, '.ssh') },
-  { name: "read the checkout's .env", expect: 'blocked', kind: 'read', target: join(checkout, '.env') },
+  { name: "read the checkout's .env", expect: 'blocked', kind: 'read', target: envFile(checkout) },
   ...allowedPorts.map(
     (port): Probe => ({
       name: `connect to port ${port}, a service this run started (control)`,
@@ -98,6 +98,25 @@ const dockerSockets = (home: string): string[] => [
 /**
  * A worktree's `.git` is a file pointing at its git dir inside the main checkout's `.git/worktrees/`.
  */
+/**
+ * The checkout's own `.env` or `.env.local`, at the root or in a workspace app or package, so the probe reads a
+ * file that exists; the root `.env` when there is none.
+ */
+export const envFile = (checkout: string): string => {
+  const workspaces = ['apps', 'packages'].flatMap((group) => {
+    try {
+      return readdirSync(join(checkout, group)).map((name) => join(checkout, group, name));
+    } catch {
+      return [];
+    }
+  });
+  return (
+    [checkout, ...workspaces]
+      .flatMap((dir) => ['.env', '.env.local'].map((name) => join(dir, name)))
+      .find((file) => existsSync(file)) ?? join(checkout, '.env')
+  );
+};
+
 const gitDir = (checkout: string): string => {
   const dotGit = join(checkout, '.git');
   try {

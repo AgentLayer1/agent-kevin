@@ -34,11 +34,11 @@
     },
     {
       "path": "mcp-server/src/gate/selftest.ts",
-      "sha256": "174f3c05471a9d5ff4c49e999e8854c56a7d062ee824a1874ee53c363009bcfa"
+      "sha256": "cfd8efd9322f4e6a2a6f569d81df346b026fbc0c6840e2d1d01c6e6f68a6327b"
     },
     {
       "path": "mcp-server/src/gate/selftest.test.ts",
-      "sha256": "5cae7ce1590e344138fa607c3023f104adf2a73724437218785ae4d2284e9861"
+      "sha256": "ca0234f0760ac187cd3b9466e2327b0533cadf1d57226e3ce96fecd01a8ba13c"
     },
     {
       "path": "mcp-server/src/gate/steps.ts",
