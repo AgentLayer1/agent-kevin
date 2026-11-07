@@ -12,7 +12,7 @@ interface LiveProcess {
  * a gate that rebuilds underneath it breaks it. Matched by cwd or by a path in its arguments.
  */
 export const busyProcesses = (checkout: string, ownGroups: ReadonlySet<number>): LiveProcess[] => {
-  const ps = Bun.spawnSync(['/bin/ps', '-axww', '-o', 'pid=,pgid=,command=']);
+  const ps = Bun.spawnSync(['/bin/ps', '-axww', '-o', 'pid=,pgid=,command='], { timeout: 15_000 });
   if (ps.exitCode !== 0) {
     throw new Error(
       `Can't list processes to check ${checkout} is idle (ps exited ${ps.exitCode}); refusing to gate blind.`
@@ -21,16 +21,10 @@ export const busyProcesses = (checkout: string, ownGroups: ReadonlySet<number>):
   const candidates = devToolCandidates(ps.stdout.toString(), ownGroups, process.pid);
   // lsof over every process takes about a second; only the dev-tool candidates need their cwd read, often none.
   const lsofCwd = candidates.length
-    ? Bun.spawnSync([
-        '/usr/sbin/lsof',
-        '-a',
-        '-nP',
-        '-d',
-        'cwd',
-        '-p',
-        candidates.map(({ pid }) => pid).join(','),
-        '-Fpn'
-      ]).stdout.toString()
+    ? Bun.spawnSync(
+        ['/usr/sbin/lsof', '-a', '-nP', '-d', 'cwd', '-p', candidates.map(({ pid }) => pid).join(','), '-Fpn'],
+        { timeout: 15_000 }
+      ).stdout.toString()
     : '';
   return busyFrom({ checkout, candidates, lsofCwd });
 };

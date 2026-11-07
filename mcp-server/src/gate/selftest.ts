@@ -96,9 +96,6 @@ const dockerSockets = (home: string): string[] => [
 ];
 
 /**
- * A worktree's `.git` is a file pointing at its git dir inside the main checkout's `.git/worktrees/`.
- */
-/**
  * The checkout's own `.env` or `.env.local`, at the root or in a workspace app or package, so the probe reads a
  * file that exists; the root `.env` when there is none.
  */

@@ -194,14 +194,14 @@ export const tools: ToolDef[] = [
           AGENT_PLUGIN_ROOT: FOLDERS.ROOT,
           AGENT_UPGRADE_OPTIONS: JSON.stringify(options ?? {})
         },
-        timeoutMs: SCRIPT_TIMEOUT_MS,
-        signal
+        // No cancel: a migration stopped halfway leaves the home half-migrated.
+        timeoutMs: SCRIPT_TIMEOUT_MS
       });
 
       const stdout = proc.stdout;
       const stderr = proc.stderr.slice(-OUTPUT_TAIL);
       const exitCode = proc.exitCode ?? -1;
-      const ok = exitCode === 0 && !proc.timedOut && !proc.cancelled;
+      const ok = exitCode === 0 && !proc.timedOut;
       return {
         ok,
         found: true,
@@ -210,7 +210,11 @@ export const tools: ToolDef[] = [
         report: parseReport(stdout),
         stdout: stdout.slice(-OUTPUT_TAIL),
         stderr,
-        message: ok ? `Migration ${version} completed.` : `Migration ${version} failed (exit ${exitCode}).`
+        message: ok
+          ? `Migration ${version} completed.`
+          : proc.timedOut
+            ? `Migration ${version} timed out after ${SCRIPT_TIMEOUT_MS / 1_000} s.`
+            : `Migration ${version} failed (exit ${exitCode}).`
       };
     }
   })

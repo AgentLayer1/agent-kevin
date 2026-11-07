@@ -1,6 +1,6 @@
 /** Every TCP port something on this machine is listening on, whoever owns it. */
 export const listeningPorts = (): number[] => {
-  const netstat = Bun.spawnSync(['/usr/sbin/netstat', '-an', '-p', 'tcp']);
+  const netstat = Bun.spawnSync(['/usr/sbin/netstat', '-an', '-p', 'tcp'], { timeout: 15_000 });
   // netstat exits 0 with an empty table when it can't read the socket list, which would block nothing.
   const stderr = netstat.stderr.toString().trim();
   if (netstat.exitCode !== 0 || stderr) {

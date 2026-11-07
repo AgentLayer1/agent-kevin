@@ -51,6 +51,14 @@ describe('readGateSettings', () => {
     });
   });
 
+  test('a file that is not JSON is refused, naming the file', () => {
+    const file = gateSettingsFile('acme');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, '{ "env": ');
+
+    expect(() => readGateSettings('acme')).toThrow(`${file} is not valid JSON`);
+  });
+
   test('an unknown key is refused rather than silently ignored', () => {
     write({ network: 'open' });
 

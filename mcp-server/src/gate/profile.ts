@@ -16,8 +16,7 @@ interface ProfileInput {
 
 /**
  * A Seatbelt profile no wider than the Bash sandbox: writes only to the checkout, a scratch dir and `extraWritable`,
- * no secrets, no
- * signals outside itself, no Apple Events. Network is allow-listed, since Seatbelt lets a wildcard allow beat a
+ * no secrets, no signals outside itself, no Apple Events. Network is allow-listed, since Seatbelt lets a wildcard allow beat a
  * narrower deny: the run's own services and the free ephemeral ports a step's own workers bind (Turbopack's pool),
  * never a service already listening; an install adds HTTPS and DNS.
  */
@@ -102,7 +101,7 @@ const freeEphemeralPorts = (listening: number[]): number[] => {
   );
 };
 
-// One rule naming all ~16k ports fails to compile ("profile compilation failed"); 64 per rule compiles in ~4.7 s.
+// One rule naming all ~16k ports fails to compile ("profile compilation failed"). Split, it compiles, in ~4.7 s whatever the split.
 const allowPorts = (ports: number[]): string[] =>
   Array.from(
     { length: Math.ceil(ports.length / PORTS_PER_RULE) },

@@ -22,17 +22,17 @@ interface SetupResult {
   message: string;
 }
 
-export const runCodexSetup = async (signal?: AbortSignal): Promise<SetupResult> => {
+export const runCodexSetup = async (): Promise<SetupResult> => {
   const script = resolve(FOLDERS.ROOT, 'skills', 'init', 'scripts', 'codex-setup.ts');
   const proc = await runGroup(
     [process.execPath, script, '--home', FOLDERS.HOME, '--plugin-root', FOLDERS.ROOT, '--write'],
     {
       cwd: FOLDERS.HOME,
-      timeoutMs: SCRIPT_TIMEOUT_MS,
-      signal
+      // No cancel: the generator writes several files, and stopped halfway it would leave them out of step.
+      timeoutMs: SCRIPT_TIMEOUT_MS
     }
   );
-  const exitCode = proc.timedOut || proc.cancelled ? -1 : (proc.exitCode ?? -1);
+  const exitCode = proc.timedOut ? -1 : (proc.exitCode ?? -1);
   const stdout = proc.stdout.trim();
   let report: unknown;
   try {
@@ -45,7 +45,12 @@ export const runCodexSetup = async (signal?: AbortSignal): Promise<SetupResult> 
     exitCode,
     report,
     stderr: proc.stderr.slice(-2000),
-    message: exitCode === 0 ? 'Codex wiring written.' : `Codex wiring failed (exit ${exitCode}); nothing was changed.`
+    message:
+      exitCode === 0
+        ? 'Codex wiring written.'
+        : proc.timedOut
+          ? `Codex wiring timed out after ${SCRIPT_TIMEOUT_MS / 1_000} s and may be half-written; run codex_setup again.`
+          : `Codex wiring failed (exit ${exitCode}); nothing was changed.`
   };
 };
 
@@ -55,6 +60,6 @@ export const tools: ToolDef[] = [
     description:
       "Generate or regenerate this home's Codex wiring (.codex/hooks.json, the MCP registration and permission profile in .codex/config.toml, and .codex/rules/<agent>.rules) from the plugin checkout, the home's Claude settings, and the pack servers in its .mcp.json (the Xcode pack's xcode). Runs outside the Bash sandbox, which is what lets it write .codex/ from a Codex session. Called by init, upgrade, and the pack walks; returns the generator's report, whose hooks.changed means the operator must re-trust the hook entries in /hooks.",
     inputSchema: {},
-    handler: async (_args, { signal }): Promise<SetupResult> => runCodexSetup(signal)
+    handler: async (): Promise<SetupResult> => runCodexSetup()
   })
 ];

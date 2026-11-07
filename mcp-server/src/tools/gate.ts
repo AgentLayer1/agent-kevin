@@ -32,21 +32,29 @@ const timeoutSchema = z
 
 const resolveCheckout = (name?: string): { checkout: string; repo: string } => {
   const checkout = pickCheckout(checkoutsCarrying(['package.json']), 'a package.json', name);
+  const configured = configuredRepoPaths();
   const repo =
-    configuredRepoPaths().find(
-      (configured) =>
-        checkout === configured ||
-        (dirname(checkout) === dirname(configured) && basename(checkout).startsWith(`${basename(configured)}-`))
-    ) ?? checkout;
+    configured.find((path) => path === checkout) ??
+    configured.find(
+      (path) => dirname(checkout) === dirname(path) && basename(checkout).startsWith(`${basename(path)}-`)
+    ) ??
+    checkout;
   return { checkout, repo };
 };
 
-const gateRequest = (
-  name: string | undefined,
-  steps: StepSpec[],
-  timeoutSeconds: number,
-  signal: AbortSignal
-): GateRequest => {
+const gateRequest = ({
+  name,
+  steps,
+  timeoutSeconds,
+  signal,
+  withServices
+}: {
+  name: string | undefined;
+  steps: StepSpec[];
+  timeoutSeconds: number;
+  signal: AbortSignal;
+  withServices: boolean;
+}): GateRequest => {
   const { checkout, repo } = resolveCheckout(name);
   const settings = readGateSettings(basename(repo));
   return {
@@ -57,8 +65,8 @@ const gateRequest = (
     signal,
     env: settings.env,
     writable: settings.writable,
-    ...(settings.postgres && { services: throwawayPostgres(settings.postgres, checkout) }),
-    storeFallbacks: repo === checkout ? [] : [repo]
+    ...(withServices && settings.postgres && { services: throwawayPostgres(settings.postgres, checkout) }),
+    storeFallbacks: [repo]
   };
 };
 
@@ -81,17 +89,18 @@ export const tools: ToolDef[] = [
     },
     handler: async ({ steps, checkout, filter, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }, { signal }) =>
       runGate(
-        gateRequest(
-          checkout,
-          steps.map(
+        gateRequest({
+          name: checkout,
+          steps: steps.map(
             (name): StepSpec =>
               name === 'selftest'
                 ? { kind: 'selftest', name }
                 : { kind: 'script', name, script: name, ...(filter !== undefined && { filter }) }
           ),
           timeoutSeconds,
-          signal
-        )
+          signal,
+          withServices: true
+        })
       )
   }),
 
@@ -105,9 +114,14 @@ export const tools: ToolDef[] = [
       timeoutSeconds: timeoutSchema
     },
     handler: async ({ checkout, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS }, { signal }) =>
-      runGate({
-        ...gateRequest(checkout, [{ kind: 'install', name: 'install' }], timeoutSeconds, signal),
-        services: undefined
-      })
+      runGate(
+        gateRequest({
+          name: checkout,
+          steps: [{ kind: 'install', name: 'install' }],
+          timeoutSeconds,
+          signal,
+          withServices: false
+        })
+      )
   })
 ];

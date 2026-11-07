@@ -23,9 +23,10 @@
  * `.mcp.json`) that the seatbelt denies under the Bash tool. Invoked via the CLI from a
  * sandboxed Bash, those same writes are still blocked — the CLI is the terminal/automation path.
  */
+import { detectPackageManager, readPkg } from '@/shared/package-manager';
 import { runGroup } from '@/shared/process-group';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 /** Build artifacts and VCS internals — never scanned or copied. */
@@ -34,14 +35,6 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.t
 const LOCAL_DIR_NAMES = new Set(['.cmux']);
 /** Local config files/dirs copied when present at the repo root only. */
 const LOCAL_PATHS = ['.cursor', '.cursorignore'];
-/** Lockfile → package manager. First match wins, so order by specificity. */
-const LOCKFILES = [
-  { file: 'bun.lock', pm: 'bun' },
-  { file: 'bun.lockb', pm: 'bun' },
-  { file: 'pnpm-lock.yaml', pm: 'pnpm' },
-  { file: 'yarn.lock', pm: 'yarn' },
-  { file: 'package-lock.json', pm: 'npm' }
-] as const;
 /** Build scripts to look for in package.json, in preference order — full `build` first. */
 const BUILD_SCRIPTS = ['build', 'build:packages', 'build:libs'];
 
@@ -56,12 +49,6 @@ const isBaseBranch = (branch: string | null): boolean => branch !== null && BASE
 /** These strings become git / path arguments — keep them to safe charsets. */
 const BRANCH_RE = /^[A-Za-z0-9._/-]+$/;
 const SLUG_RE = /^[A-Za-z0-9._-]+$/;
-
-export interface PackageJson {
-  packageManager?: string;
-  scripts?: Record<string, string>;
-  engines?: { node?: string };
-}
 
 export interface StepResult {
   step: string;
@@ -165,10 +152,10 @@ const runCapture = async (
   command: string,
   args: string[],
   cwd: string,
-  { timeoutMs, signal }: { timeoutMs: number; signal?: AbortSignal }
+  { timeoutMs, signal, shell }: { timeoutMs: number; signal?: AbortSignal; shell?: boolean }
 ): Promise<{ ok: boolean; output: string }> => {
   try {
-    const result = await runGroup([command, ...args], { cwd, timeoutMs, signal, shell: process.platform === 'win32' });
+    const result = await runGroup([command, ...args], { cwd, timeoutMs, signal, shell });
     const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
     const stopped = result.timedOut ? `\nstopped after ${timeoutMs / 1_000} s` : result.cancelled ? '\ncancelled' : '';
     return { ok: result.exitCode === 0 && !stopped, output: `${output}${stopped}` };
@@ -179,6 +166,8 @@ const runCapture = async (
 
 const INSTALL_TIMEOUT_MS = 1_200_000;
 const GIT_TIMEOUT_MS = 120_000;
+// The package managers' Windows shims are .cmd files, which start only through a shell.
+const PM_SHELL = process.platform === 'win32';
 
 const tail = (text: string, lines = 20) => text.split('\n').slice(-lines).join('\n');
 
@@ -198,19 +187,6 @@ const findLocalEntries = (dir: string, root: string): string[] =>
     return isLocalConfigFile(dir, entry.name) ? [relative(root, fullPath)] : [];
   });
 
-export const readPkg = (root: string): PackageJson =>
-  JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
-
-/** Detect the target repo's package manager: packageManager field → lockfile → bun. */
-export const detectPackageManager = (root: string, pkg: PackageJson) => {
-  const declared = pkg.packageManager?.split('@')[0]?.trim();
-  if (declared) {
-    return declared;
-  }
-  const match = LOCKFILES.find(({ file }) => existsSync(join(root, file)));
-  return match?.pm ?? 'bun';
-};
-
 /** Install (and optionally build) a directory that has a package.json. */
 const installAndBuild = async (
   dir: string,
@@ -221,7 +197,11 @@ const installAndBuild = async (
   const packageManager = detectPackageManager(dir, pkg);
   const steps: StepResult[] = [];
 
-  const install = await runCapture(packageManager, ['install'], dir, { timeoutMs: INSTALL_TIMEOUT_MS, signal });
+  const install = await runCapture(packageManager, ['install'], dir, {
+    timeoutMs: INSTALL_TIMEOUT_MS,
+    signal,
+    shell: PM_SHELL
+  });
   steps.push({ step: `${packageManager} install`, ok: install.ok, output: tail(install.output) });
 
   let built = false;
@@ -230,7 +210,8 @@ const installAndBuild = async (
     if (buildScript) {
       const build = await runCapture(packageManager, ['run', buildScript], dir, {
         timeoutMs: INSTALL_TIMEOUT_MS,
-        signal
+        signal,
+        shell: PM_SHELL
       });
       built = build.ok;
       steps.push({ step: `${packageManager} run ${buildScript}`, ok: build.ok, output: tail(build.output) });
@@ -570,18 +551,28 @@ export const removeWorktree = async ({
       const packageManager = detectPackageManager(resolvedWorktree, pkg);
       const result = await runCapture(packageManager, ['run', 'clean'], resolvedWorktree, {
         timeoutMs: INSTALL_TIMEOUT_MS,
-        signal
+        signal,
+        shell: PM_SHELL
       });
       cleaned = `${packageManager} run clean`;
       steps.push({ step: cleaned, ok: result.ok, output: tail(result.output) });
     }
   }
+  if (signal?.aborted) {
+    return {
+      ...base,
+      status: 'failed',
+      removed: false,
+      cleaned,
+      steps: [...steps, { step: 'git worktree remove', ok: false, output: 'not run: the call was cancelled' }]
+    };
+  }
 
   // No `--force`, ever: let git apply its own dirty/lock safety check. Careful-and-failing beats an
   // incorrect forced delete.
+  // No cancel past this point: a git removal or branch deletion stopped halfway is worse than either outcome.
   const removal = await runCapture('git', ['worktree', 'remove', resolvedWorktree], mainCheckout, {
-    timeoutMs: GIT_TIMEOUT_MS,
-    signal
+    timeoutMs: GIT_TIMEOUT_MS
   });
   steps.push({ step: 'git worktree remove', ok: removal.ok, output: tail(removal.output) });
 
@@ -609,8 +600,7 @@ export const removeWorktree = async ({
   let branchDeleteError: string | undefined;
   if (deleteBranch && branch) {
     const deletion = await runCapture('git', ['branch', force ? '-D' : '-d', branch], mainCheckout, {
-      timeoutMs: GIT_TIMEOUT_MS,
-      signal
+      timeoutMs: GIT_TIMEOUT_MS
     });
     branchDeleted = deletion.ok;
     steps.push({ step: `git branch ${force ? '-D' : '-d'} ${branch}`, ok: deletion.ok, output: tail(deletion.output) });

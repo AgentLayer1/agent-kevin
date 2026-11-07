@@ -84,7 +84,7 @@ export const acquireCheckoutLock = (
 
 const processStartedAt = (pid: number): string => {
   try {
-    const result = Bun.spawnSync(['/bin/ps', '-o', 'lstart=', '-p', String(pid)]);
+    const result = Bun.spawnSync(['/bin/ps', '-o', 'lstart=', '-p', String(pid)], { timeout: 5_000 });
     return result.exitCode === 0 ? result.stdout.toString().trim() : '';
   } catch {
     return '';
@@ -93,7 +93,7 @@ const processStartedAt = (pid: number): string => {
 
 const isGateGroup = (pgid: number, runId: string): boolean => {
   try {
-    const result = Bun.spawnSync(['/bin/ps', '-E', '-ww', '-o', 'command=', '-g', String(pgid)]);
+    const result = Bun.spawnSync(['/bin/ps', '-E', '-ww', '-o', 'command=', '-g', String(pgid)], { timeout: 5_000 });
     return result.exitCode === 0 && result.stdout.toString().includes(`AGENT_GATE_RUN=${runId}`);
   } catch {
     return false;

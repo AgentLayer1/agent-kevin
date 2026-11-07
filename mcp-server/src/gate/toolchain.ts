@@ -1,4 +1,4 @@
-import { detectPackageManager, readPkg } from '@/worktree/setup';
+import { detectPackageManager, type PackageJson } from '@/shared/package-manager';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -15,11 +15,10 @@ interface Toolchain {
 }
 
 /**
- * The package manager the checkout declares, run from the Node it pins (found through fnm, not the server's PATH,
- * which the session launched with). Fails loud when fnm, the pinned Node or the package manager is missing.
+ * The checkout's package manager: bun runs as the server's own bun, the others from the Node the checkout pins
+ * (found through fnm, not the server's PATH). Fails loud when that Node, fnm or the package manager is missing.
  */
-export const resolveToolchain = (checkout: string): Toolchain => {
-  const pkg = readPkg(checkout);
+export const resolveToolchain = (checkout: string, pkg: PackageJson): Toolchain => {
   const pm = detectPackageManager(checkout, pkg);
   if (!isPackageManager(pm)) {
     throw new Error(
@@ -40,9 +39,9 @@ export const resolveToolchain = (checkout: string): Toolchain => {
 
 const isPackageManager = (name: string): name is PackageManager => PACKAGE_MANAGERS.some((known) => known === name);
 
-const pinnedNodeBin = (checkout: string, engines: string | undefined): string => {
+const pinnedNodeBin = (checkout: string, enginesNode: string | undefined): string => {
   const pinFile = ['.nvmrc', '.node-version'].map((name) => join(checkout, name)).find((file) => existsSync(file));
-  const using = pinFile ?? engines?.match(/\d+(\.\d+){0,2}/)?.[0];
+  const using = pinFile ?? enginesNode?.match(/\d+(\.\d+){0,2}/)?.[0];
   if (!using) {
     throw new Error(
       `${checkout} pins no Node (.nvmrc, .node-version or engines.node), so the gate can't tell which Node to run.`
@@ -55,7 +54,10 @@ const pinnedNodeBin = (checkout: string, engines: string | undefined): string =>
     );
   }
 
-  const result = Bun.spawnSync([fnm, 'exec', `--using=${using}`, 'node', '-p', 'process.execPath'], { cwd: checkout });
+  const result = Bun.spawnSync([fnm, 'exec', `--using=${using}`, 'node', '-p', 'process.execPath'], {
+    cwd: checkout,
+    timeout: 30_000
+  });
   const node = result.stdout.toString().trim();
   if (result.exitCode !== 0 || !node) {
     throw new Error(

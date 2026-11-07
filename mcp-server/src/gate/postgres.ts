@@ -1,4 +1,4 @@
-import { runGroup } from '@/shared/process-group';
+import { type GroupResult, runGroup } from '@/shared/process-group';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -16,7 +16,7 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
   const state: { container?: string; docker?: Docker } = {};
 
   return {
-    start: async (runId) => {
+    start: async (runId, signal) => {
       const docker = await dockerClient();
       state.docker = docker;
       const leftovers = (await docker(['ps', '-aq', '--filter', `label=${checkoutLabel}`], 15_000)).stdout
@@ -47,8 +47,12 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
           '/var/lib/postgresql/data',
           settings.image
         ],
-        300_000
+        300_000,
+        signal
       );
+      if (started.cancelled) {
+        throw new Error(`Starting ${settings.image} was cancelled.`);
+      }
       if (started.exitCode !== 0) {
         throw new Error(`Couldn't start ${settings.image}: ${started.stderr.trim().slice(-800)}`);
       }
@@ -60,7 +64,7 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
       if (!mapped) {
         throw new Error(`${settings.image} started, but Docker reported no loopback port for it.`);
       }
-      await waitReady(docker, state.container, settings);
+      await waitReady(docker, state.container, settings, signal);
 
       const port = Number(mapped);
       const url = `postgresql://${settings.user}:${settings.password}@127.0.0.1:${port}/${settings.database}`;
@@ -78,13 +82,14 @@ export const throwawayPostgres = (settings: PostgresSettings, checkout: string):
   };
 };
 
-type Docker = (args: string[], timeoutMs: number) => ReturnType<typeof runGroup>;
+type Docker = (args: string[], timeoutMs: number, signal?: AbortSignal) => Promise<GroupResult>;
 
 // Over TCP: the image's first-boot init server listens on the socket only, so a TCP answer is the real server.
 const waitReady = async (
   docker: Docker,
   container: string,
   settings: PostgresSettings,
+  signal?: AbortSignal,
   timeoutMs = 60_000
 ): Promise<void> => {
   const deadline = Date.now() + timeoutMs;
@@ -96,6 +101,9 @@ const waitReady = async (
       )
     ).exitCode === 0;
   while (!(await ready())) {
+    if (signal?.aborted) {
+      throw new Error(`Waiting for ${settings.image} was cancelled.`);
+    }
     if (Date.now() >= deadline) {
       throw new Error(`${settings.image} didn't accept connections within ${timeoutMs / 1_000} s.`);
     }
@@ -112,7 +120,8 @@ const dockerClient = async (): Promise<Docker> => {
   }
   // The docker CLI finds its plugins and credential helpers on PATH.
   const env = { HOME: homedir(), PATH: [dirname(docker), ...SYSTEM_PATH].join(':') };
-  const run: Docker = (args, timeoutMs) => runGroup([docker, ...args], { cwd: tmpdir(), env, timeoutMs });
+  const run: Docker = (args, timeoutMs, signal) =>
+    runGroup([docker, ...args], { cwd: tmpdir(), env, timeoutMs, signal });
   if ((await run(['info', '--format', '{{.ServerVersion}}'], 15_000)).exitCode !== 0) {
     throw new Error(
       'Docker is installed but not running. Start OrbStack (or Docker Desktop), then run the gate again.'

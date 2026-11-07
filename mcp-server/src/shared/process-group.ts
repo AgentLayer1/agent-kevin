@@ -30,6 +30,9 @@ export const runGroup = async (
   if (!command) {
     throw new Error('runGroup needs a command');
   }
+  if (signal?.aborted) {
+    return { exitCode: null, timedOut: false, cancelled: true, seconds: 0, stdout: '', stderr: '' };
+  }
 
   const started = performance.now();
   const logFd = logFile ? openSync(logFile, 'a') : undefined;
@@ -62,9 +65,6 @@ export const runGroup = async (
     trackGroup(pgid);
     onStart?.(pgid);
   }
-  if (signal?.aborted) {
-    onAbort();
-  }
 
   const closed = new Promise<void>((resolveClose) => child.once('close', () => resolveClose()));
 
@@ -73,6 +73,7 @@ export const runGroup = async (
       child.once('error', rejectExit);
       child.once('exit', (code) => resolveExit(code));
     });
+    clearTimeout(timer);
     if (pgid) {
       // The leader is gone; anything it left behind in its group goes with it, which also lets the pipes drain.
       signalGroup(pgid, 'SIGKILL');
@@ -101,10 +102,7 @@ export const runGroup = async (
 /**
  * SIGTERM to the whole group, then SIGKILL to whatever is still there after a grace period.
  */
-export const stopGroup = (pgid: number | undefined, graceMs = 10_000): void => {
-  if (!pgid) {
-    return;
-  }
+export const stopGroup = (pgid: number, graceMs = 10_000): void => {
   signalGroup(pgid, 'SIGTERM');
   setTimeout(() => signalGroup(pgid, 'SIGKILL'), graceMs).unref();
 };
@@ -152,7 +150,7 @@ const trackGroup = (pgid: number): void => {
   );
 };
 
-interface GroupResult {
+export interface GroupResult {
   exitCode: number | null;
   timedOut: boolean;
   cancelled: boolean;

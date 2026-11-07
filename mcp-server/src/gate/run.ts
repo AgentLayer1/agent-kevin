@@ -1,6 +1,6 @@
-import { activeGroups, runGroup } from '@/shared/process-group';
+import { LOCKFILES, readPkg } from '@/shared/package-manager';
+import { activeGroups, type GroupResult, runGroup } from '@/shared/process-group';
 import { readTextIfExists } from '@/shared/text';
-import { readPkg } from '@/worktree/setup';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -15,7 +15,10 @@ import { resolveToolchain } from './toolchain';
 
 /** Services the gate starts for one run (a throwaway database): the only listening ports its steps may reach. */
 export interface GateServices {
-  start: (runId: string) => Promise<{ ports: number[]; env: Record<string, string>; summary: string }>;
+  start: (
+    runId: string,
+    signal?: AbortSignal
+  ) => Promise<{ ports: number[]; env: Record<string, string>; summary: string }>;
   stop: () => Promise<void>;
 }
 
@@ -52,7 +55,8 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
 
   const { checkout, steps, signal } = request;
   const realCheckout = realpathSync(checkout);
-  checkScripts(steps, readPkg(realCheckout).scripts ?? {});
+  const pkg = readPkg(realCheckout);
+  checkScripts(steps, pkg.scripts ?? {});
   const runId = `${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(3).toString('hex')}`;
   const lock = acquireCheckoutLock(realCheckout, runId);
   const logs = join(request.logsRoot, runId);
@@ -64,7 +68,6 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
     base = realpathSync(mkdtempSync(join(tmpdir(), 'agent-gate-')));
     const scratch = join(base, 'tmp');
     mkdirSync(scratch);
-    mkdirSync(logs, { recursive: true });
 
     if (steps.some(touchesCheckout)) {
       const busy = describeBusy(realCheckout);
@@ -74,11 +77,12 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
         );
       }
     }
+    mkdirSync(logs, { recursive: true });
 
-    const toolchain = resolveToolchain(realCheckout);
+    const toolchain = resolveToolchain(realCheckout, pkg);
     const storeDir = toolchain.pm === 'pnpm' ? installedStoreDir(realCheckout, request.storeFallbacks) : undefined;
     servicesStarted = request.services !== undefined;
-    const services = (await request.services?.start(runId)) ?? { ports: [], env: {}, summary: '' };
+    const services = (await request.services?.start(runId, signal)) ?? { ports: [], env: {}, summary: '' };
     const env = stepEnv({
       path: toolchain.path,
       tmp: scratch,
@@ -87,23 +91,20 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
       storeDir,
       extra: { ...request.env, ...services.env }
     });
-    const network = steps.some((step) => step.kind === 'install') ? 'open' : 'loopback';
     // An install writes the store it links from and pnpm's metadata cache; nothing else in the home.
-    const installWritable =
-      network === 'open' && storeDir ? [storeDir, join(homedir(), 'Library', 'Caches', 'pnpm')] : [];
-    const extraWritable = [...(request.writable ?? []), ...installWritable];
+    const installWritable = storeDir ? [storeDir, join(homedir(), 'Library', 'Caches', 'pnpm')] : [];
     const profile = join(base, 'profile.sb');
 
-    const run = (command: string[], logFile?: string) => {
+    const run: Run = (command, { logFile, install = false, listening = listeningPorts() } = {}) => {
       writeFileSync(
         profile,
         sandboxProfile({
           checkout: realCheckout,
           scratch,
-          network,
-          listening: listeningPorts(),
+          network: install ? 'open' : 'loopback',
+          listening,
           allowedPorts: services.ports,
-          extraWritable
+          extraWritable: [...(request.writable ?? []), ...(install ? installWritable : [])]
         })
       );
       return runGroup([SANDBOX_EXEC, '-f', profile, '/usr/bin/nice', '-n', '10', ...command], {
@@ -119,8 +120,8 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
     const context: StepContext = { realCheckout, base, scratch, logs, toolchain, allowedPorts: services.ports, run };
     const results = await steps.reduce<Promise<StepResult[]>>(async (previous, step) => {
       const done = await previous;
-      const busy = touchesCheckout(step) && done.length ? describeBusy(realCheckout) : '';
       const halted = done.some((result) => !result.ok && result.stopsRun) || signal?.aborted || Date.now() >= deadline;
+      const busy = !halted && touchesCheckout(step) && done.length ? describeBusy(realCheckout) : '';
 
       if (halted || busy) {
         const summary = busy
@@ -130,7 +131,15 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
       }
 
       const before = gitStatus(realCheckout);
-      const result = await runStep(step, context);
+      const result = await runStep(step, context).catch(
+        (error: unknown): StepResult => ({
+          step: step.name,
+          ok: false,
+          stopsRun: step.kind === 'install' || (step.kind === 'script' && step.stopsRun !== false),
+          summary: error instanceof Error ? error.message : String(error),
+          failures: []
+        })
+      );
       const changedFiles = [...gitStatus(realCheckout)].filter((line) => !before.has(line));
       return [...done, changedFiles.length ? { ...result, changedFiles } : result];
     }, Promise.resolve([]));
@@ -158,7 +167,8 @@ export const runGate = async (request: GateRequest): Promise<GateReport> => {
 
 const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult> => {
   const { realCheckout, base, scratch, logs, toolchain, allowedPorts, run } = context;
-  const logFile = join(logs, `${step.name.replace(/[^\w.-]/g, '-')}.log`);
+  const slug = step.name.replace(/[^\w.-]/g, '-');
+  const logFile = join(logs, `${slug}.log`);
   const started = Date.now();
 
   switch (step.kind) {
@@ -174,14 +184,15 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
       }
       const script = join(base, 'selftest.cjs');
       writeFileSync(script, SELFTEST_SCRIPT);
+      const listening = listeningPorts();
       const probes = selftestProbes({
         checkout: realCheckout,
         scratch,
         serverPid: process.pid,
-        listening: listeningPorts(),
+        listening,
         allowedPorts
       });
-      const result = await run([nodeBin, script, JSON.stringify(probes)]);
+      const result = await run([nodeBin, script, JSON.stringify(probes)], { listening });
       const judged = judgeSelftest(probes, result.stdout);
       const failed = judged.filter((probe) => !probe.ok);
       return {
@@ -201,16 +212,16 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
 
     case 'install':
     case 'script': {
-      const reportFile =
-        step.kind === 'script' && step.reportArg ? join(logs, `${step.name.replace(/[^\w.-]/g, '-')}.json`) : undefined;
-      const result = await run(stepCommand(step, toolchain, reportFile), logFile);
+      const reportFile = step.kind === 'script' && step.reportArg ? join(logs, `${slug}.json`) : undefined;
+      const result = await run(stepCommand(step, toolchain, reportFile), { logFile, install: step.kind === 'install' });
       const log = readTextIfExists(logFile);
+      const summarize = step.kind === 'script' ? step.summarize : undefined;
       const parsed =
-        step.kind === 'script' && step.summarize
-          ? step.summarize(log, reportFile && readTextIfExists(reportFile))
-          : step.kind === 'script'
-            ? turboSummary(realCheckout, started)
-            : undefined;
+        step.kind !== 'script'
+          ? undefined
+          : summarize
+            ? summarize(log, reportFile && readTextIfExists(reportFile))
+            : turboSummary(realCheckout, started);
       return {
         step: step.name,
         ok: result.exitCode === 0 && !result.timedOut && !result.cancelled,
@@ -229,11 +240,15 @@ const runStep = async (step: StepSpec, context: StepContext): Promise<StepResult
   }
 };
 
-const LOCKFILES = ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock'];
-
 const lockfileDiff = (checkout: string): string =>
-  git(checkout, ['diff', '--no-ext-diff', '--no-textconv', '--stat', '--', ...LOCKFILES]).trim() ||
-  'lockfile unchanged';
+  git(checkout, [
+    'diff',
+    '--no-ext-diff',
+    '--no-textconv',
+    '--stat',
+    '--',
+    ...LOCKFILES.map(({ file }) => file)
+  ]).trim() || 'lockfile unchanged';
 
 const touchesCheckout = (step: StepSpec): boolean => step.kind === 'script' || step.kind === 'install';
 
@@ -249,16 +264,9 @@ const gitStatus = (checkout: string): Set<string> =>
  * Git run outside the sandbox with hooks and fsmonitor off; a step can't write `.git` to add any other command.
  */
 const git = (checkout: string, args: string[]): string =>
-  Bun.spawnSync([
-    'git',
-    '-C',
-    checkout,
-    '-c',
-    'core.fsmonitor=false',
-    '-c',
-    'core.hooksPath=/dev/null',
-    ...args
-  ]).stdout.toString();
+  Bun.spawnSync(['git', '-C', checkout, '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', ...args], {
+    timeout: 60_000
+  }).stdout.toString();
 
 const pruneRuns = (logsRoot: string, keep = 10): void => {
   if (!existsSync(logsRoot)) {
@@ -278,6 +286,11 @@ const tail = (text: string, limit = 3_000): string =>
 const SANDBOX_EXEC = '/usr/bin/sandbox-exec';
 const RUN_ID = /^\d{8}T\d{6}-[0-9a-f]{6}$/;
 
+type Run = (
+  command: string[],
+  options?: { logFile?: string; install?: boolean; listening?: number[] }
+) => Promise<GroupResult>;
+
 interface StepContext {
   realCheckout: string;
   base: string;
@@ -285,7 +298,7 @@ interface StepContext {
   logs: string;
   toolchain: ReturnType<typeof resolveToolchain>;
   allowedPorts: number[];
-  run: (command: string[], logFile?: string) => ReturnType<typeof runGroup>;
+  run: Run;
 }
 
 interface StepResult {

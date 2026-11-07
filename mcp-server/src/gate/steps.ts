@@ -73,6 +73,8 @@ export const checkScripts = (steps: StepSpec[], scripts: Record<string, string>)
   }
 };
 
+const user = userInfo().username;
+
 /**
  * The whole environment a step sees: nothing from the server's own (which holds the home's secrets), and no `CI`,
  * which changes how pnpm installs and how Next builds, so a gate matches the operator's own runs. `extra` (the
@@ -95,8 +97,8 @@ export const stepEnv = ({
 }): Record<string, string> => ({
   PATH: path,
   HOME: homedir(),
-  USER: userInfo().username,
-  LOGNAME: userInfo().username,
+  USER: user,
+  LOGNAME: user,
   LANG: 'en_US.UTF-8',
   TMPDIR: tmp,
   TERM: 'dumb',
@@ -175,7 +177,7 @@ export const parseTurboSummary = (json: string): StepSummary | undefined => {
   }
 };
 
-const checkedPackage = (name: string): string => {
+export const checkedPackage = (name: string): string => {
   if (!/^@?\w[\w.-]*(\/\w[\w.-]*)?$/.test(name)) {
     throw new Error(`"${name}" is not a package name (e.g. @acme/utils).`);
   }

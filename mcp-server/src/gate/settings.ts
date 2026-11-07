@@ -1,7 +1,8 @@
 import { FOLDERS } from '@/config';
+import { expandTilde, isInside } from '@/shared/paths';
 import { readTextIfExists } from '@/shared/text';
 import { homedir } from 'node:os';
-import { isAbsolute, join, normalize, relative, resolve } from 'node:path';
+import { isAbsolute, join, normalize, resolve } from 'node:path';
 import { z } from 'zod';
 
 const ENV_NAME = /^[A-Z_][A-Z0-9_]*$/;
@@ -32,11 +33,7 @@ export type PostgresSettings = NonNullable<GateSettings['postgres']>;
  */
 export const readGateSettings = (repoFolder: string): GateSettings => {
   const file = gateSettingsFile(repoFolder);
-  const text = readTextIfExists(file);
-  if (!text.trim()) {
-    return { env: {}, writable: [] };
-  }
-  const parsed = settingsSchema.safeParse(JSON.parse(text));
+  const parsed = settingsSchema.safeParse(parseJson(readTextIfExists(file), file));
   if (!parsed.success) {
     throw new Error(
       `${file} is not valid gate settings: ${parsed.error.issues.map((issue) => `${issue.path.join('.') || '(root)'} ${issue.message}`).join('; ')}`
@@ -47,11 +44,18 @@ export const readGateSettings = (repoFolder: string): GateSettings => {
 
 export const gateSettingsFile = (repoFolder: string): string => join(FOLDERS.SCRIPTS, 'gate', `${repoFolder}.json`);
 
+const parseJson = (text: string, file: string): unknown => {
+  try {
+    return text.trim() ? JSON.parse(text) : {};
+  } catch (error) {
+    throw new Error(`${file} is not valid JSON: ${(error as Error).message}`);
+  }
+};
+
 const cachePath = (path: string, file: string): string => {
-  const absolute = normalize(path.startsWith('~/') ? join(homedir(), path.slice(2)) : path);
+  const absolute = normalize(expandTilde(path));
   const cache = join(homedir(), '.cache');
-  const inside = relative(cache, absolute);
-  if (!isAbsolute(absolute) || !inside || inside.startsWith('..') || isAbsolute(inside)) {
+  if (!isAbsolute(absolute) || absolute === cache || !isInside(absolute, cache)) {
     throw new Error(
       `${file}: writable "${path}" must be a folder under ~/.cache/ (a tool's cache), not ${resolve(absolute)}.`
     );
