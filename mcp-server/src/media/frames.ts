@@ -59,12 +59,13 @@ export interface FrameExtraction {
 }
 
 const FFMPEG_TIMEOUT_MS = 600_000;
+const PROBE_TIMEOUT_MS = 30_000;
 
 /** Parse the source duration in seconds from ffmpeg's `-i` banner (no ffprobe needed). */
 async function probeDuration(videoPath: string, signal?: AbortSignal): Promise<number | null> {
   const out = await runGroup(['ffmpeg', '-hide_banner', '-i', videoPath], {
     cwd: dirname(videoPath),
-    timeoutMs: 30_000,
+    timeoutMs: PROBE_TIMEOUT_MS,
     signal
   }).catch(() => undefined);
   const match = DURATION_RE.exec(out?.stderr ?? '');

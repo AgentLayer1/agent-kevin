@@ -18,8 +18,8 @@
  * (NODE_PATH/AGENT_HOME/…) always win over both. The reader refuses the data-dir secret store by construction.
  */
 
-import { callSignal } from '@/shared/call-signal';
 import { BROWSER, FOLDERS } from '@/config';
+import { callSignal } from '@/shared/call-signal';
 import { readEnvFile } from '@/shared/env';
 import { runGroup } from '@/shared/process-group';
 import { readTextIfExists } from '@/shared/text';
@@ -81,7 +81,6 @@ export const tools: ToolDef[] = [
         .describe('Flow args, mapped to --key value (e.g. { env: "web", count: 10 })')
     },
     handler: async ({ flow, params }) => {
-      const signal = callSignal();
       if (!/^[a-z0-9-]+$/.test(flow)) {
         throw new Error(`Invalid flow name "${flow}". Use lowercase letters, digits, and hyphens.`);
       }
@@ -108,7 +107,7 @@ export const tools: ToolDef[] = [
             AGENT_HOME: FOLDERS.HOME
           },
           timeoutMs: BROWSER.FLOW_TIMEOUT_MS,
-          signal
+          signal: callSignal()
         }
       );
 

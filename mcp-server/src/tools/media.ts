@@ -8,9 +8,9 @@
  * The module owns the extraction logic; this file just declares the tool.
  */
 
-import { callSignal } from '@/shared/call-signal';
 import { extractFrames } from '@/media/frames';
 import { transcribe } from '@/media/transcribe';
+import { callSignal } from '@/shared/call-signal';
 import { log as baseLog } from '@/shared/log';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { z } from 'zod';
@@ -43,8 +43,7 @@ export const tools: ToolDef[] = [
         )
     },
     handler: async (args) => {
-      const signal = callSignal();
-      const result = await extractFrames({ ...args, signal });
+      const result = await extractFrames({ ...args, signal: callSignal() });
       log.info(`${result.mode} → ${result.count} frames in ${result.dir}`);
       return result;
     }
@@ -67,8 +66,7 @@ export const tools: ToolDef[] = [
       name: z.string().optional().describe('Output folder name hint.')
     },
     handler: async (args) => {
-      const signal = callSignal();
-      const result = await transcribe({ ...args, signal });
+      const result = await transcribe({ ...args, signal: callSignal() });
       log.info(`${result.engine} ${result.language} → ${result.segmentCount} segments in ${result.dir}`);
       return result;
     }

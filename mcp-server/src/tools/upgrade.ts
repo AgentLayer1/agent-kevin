@@ -15,8 +15,8 @@
  * `install: true` runs `bun install` from the same seat, because a sandboxed shell can't write
  * bun's cache.
  */
-import { callSignal } from '@/shared/call-signal';
 import { FOLDERS, PLUGIN_NAME } from '@/config';
+import { callSignal } from '@/shared/call-signal';
 import { runGroup } from '@/shared/process-group';
 import { defineTool, type ToolDef } from '@/shared/types';
 import { existsSync, realpathSync } from 'node:fs';
@@ -75,13 +75,14 @@ export const installDeps = async (dir: string, signal?: AbortSignal): Promise<In
     exitCode: result.exitCode ?? -1,
     stdout: result.stdout.slice(-OUTPUT_TAIL),
     stderr: result.stderr.slice(-OUTPUT_TAIL),
-    message: result.stopped === 'timeout'
-      ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
-      : result.stopped === 'cancel'
-        ? 'bun install was cancelled.'
-        : ok
-          ? 'bun install completed.'
-          : `bun install failed (exit ${result.exitCode}).`
+    message:
+      result.stopped === 'timeout'
+        ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
+        : result.stopped === 'cancel'
+          ? 'bun install was cancelled.'
+          : ok
+            ? 'bun install completed.'
+            : `bun install failed (exit ${result.exitCode}).`
   };
 };
 

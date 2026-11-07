@@ -17,7 +17,8 @@
  * the worktree, clears the pnpm-junction husk git leaves behind (see deleteHusk). Orphan sweep across
  * stale worktrees is still out of scope.
  *
- * Runs git via execFileSync and the package manager through runGroup (argv arrays). When invoked through
+ * Runs commands as argv arrays: the package manager and the removal's git calls through runGroup, so each has a
+ * timeout, and the rest of git through execFileSync. When invoked through
  * the MCP server this executes OUTSIDE the Bash command sandbox, so `git worktree add` can
  * write the main repo's `.git/config` and the checked-out config files (`.vscode/settings.json`,
  * `.mcp.json`) that the seatbelt denies under the Bash tool. Invoked via the CLI from a
@@ -157,8 +158,13 @@ const runCapture = async (
   try {
     const result = await runGroup([command, ...args], { cwd, timeoutMs, signal, shell });
     const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
-    const stopped = result.stopped === 'timeout' ? `\nstopped after ${timeoutMs / 1_000} s` : result.stopped === 'cancel' ? '\ncancelled' : '';
-    return { ok: result.exitCode === 0 && !stopped, output: `${output}${stopped}` };
+    const note =
+      result.stopped === 'timeout'
+        ? `\nstopped after ${timeoutMs / 1_000} s`
+        : result.stopped === 'cancel'
+          ? '\ncancelled'
+          : '';
+    return { ok: result.exitCode === 0 && !result.stopped, output: `${output}${note}` };
   } catch (error) {
     return { ok: false, output: (error as Error).message };
   }
