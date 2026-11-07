@@ -30,8 +30,8 @@ const PROBE = `
 const net = require('node:net');
 const connect = (port) => new Promise((resolve) => {
   const socket = net.connect({ host: '127.0.0.1', port });
-  socket.once('connect', () => { socket.destroy(); resolve('reached'); });
-  socket.once('error', (error) => resolve(error.code === 'EPERM' || error.code === 'EACCES' ? 'blocked' : 'reached'));
+  socket.once('connect', () => { socket.destroy(); resolve('connected'); });
+  socket.once('error', (error) => resolve(error.code || String(error)));
 });
 (async () => {
   const own = net.createServer((socket) => socket.destroy());
@@ -42,33 +42,44 @@ const connect = (port) => new Promise((resolve) => {
 })();
 `;
 
+// Steps run node and bun alike (a bun repo, or a bun script in a pnpm one), so both are held to the profile.
+const RUNTIMES = [Bun.which('node'), process.execPath].flatMap((runtime) => (runtime ? [runtime] : []));
+
 describe.skipIf(!canSandbox)('the profile under the real Seatbelt', () => {
-  test("a port already listening is refused, while the run's own service and a port the step opens itself are reached", async () => {
-    const taken = await listening();
-    const allowed = await listening();
-    const profile = join(dir, 'profile.sb');
-    writeFileSync(
-      profile,
-      sandboxProfile({
-        checkout: dir,
-        scratch: dir,
-        network: 'loopback',
-        listening: [taken, allowed],
-        allowedPorts: [allowed]
-      })
-    );
+  test.each(RUNTIMES)(
+    "under %s, a port already listening is refused, while the run's own service and a port the step opens itself are reached",
+    async (runtime) => {
+      const taken = await listening();
+      const allowed = await listening();
+      const profile = join(dir, 'profile.sb');
+      writeFileSync(
+        profile,
+        sandboxProfile({
+          checkout: dir,
+          scratch: dir,
+          network: 'loopback',
+          listening: [taken, allowed],
+          allowedPorts: [allowed]
+        })
+      );
 
-    const run = Bun.spawnSync(
-      ['/usr/bin/sandbox-exec', '-f', profile, process.execPath, '-e', PROBE, String(taken), String(allowed)],
-      {
-        cwd: dir,
-        env: { PATH: '/usr/bin:/bin', HOME: dir, TMPDIR: dir },
-        timeout: 60_000
-      }
-    );
+      const run = Bun.spawnSync(
+        ['/usr/bin/sandbox-exec', '-f', profile, runtime, '-e', PROBE, String(taken), String(allowed)],
+        {
+          cwd: dir,
+          env: { PATH: '/usr/bin:/bin', HOME: dir, TMPDIR: dir },
+          timeout: 60_000
+        }
+      );
+      const seen = JSON.parse(run.stdout.toString().trim() || '{}') as Record<string, string>;
+      const report = `${runtime}: ${JSON.stringify(seen)} ${run.stderr.toString()}`;
 
-    expect(run.stdout.toString().trim(), run.stderr.toString()).toBe(
-      JSON.stringify({ taken: 'blocked', allowed: 'reached', own: 'reached' })
-    );
-  }, 120_000);
+      // Both ports have a live listener, so only the sandbox can stop a connect. Node reports that as EPERM,
+      // bun as ECONNREFUSED; what matters is that the refused port never connects while the allowed one does.
+      expect(seen.allowed, report).toBe('connected');
+      expect(seen.own, report).toBe('connected');
+      expect(seen.taken, report).not.toBe('connected');
+    },
+    120_000
+  );
 });
