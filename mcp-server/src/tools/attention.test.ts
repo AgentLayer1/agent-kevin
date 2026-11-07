@@ -14,7 +14,7 @@ const call = async (args: Record<string, unknown>): Promise<Record<string, unkno
     throw new Error('attention_write is not registered');
   }
   const parsed = z.object(attentionWrite.inputSchema).parse(args);
-  const result = await attentionWrite.handler(parsed);
+  const result = await attentionWrite.handler(parsed, { signal: new AbortController().signal });
   return z.record(z.string(), z.unknown()).parse(result);
 };
 

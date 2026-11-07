@@ -133,7 +133,7 @@ describe('SupportCandy assignment', () => {
   test('helpdesk_assign fails when the read-back shows someone else', async () => {
     const assign = tools.find((tool) => tool.name === 'helpdesk_assign');
     readBack.current = ['6'];
-    await expect(assign?.handler({ id: '318', assignee: '5' })).rejects.toThrow('reads back assigned to Kit, not teammate 5');
+    await expect(assign?.handler({ id: '318', assignee: '5' }, { signal: new AbortController().signal })).rejects.toThrow('reads back assigned to Kit, not teammate 5');
   });
 });
 

@@ -36,12 +36,12 @@ afterAll(() => {
 describe('home_history tool', () => {
   test('status puts back a .git link a synced folder deleted, then reports', async () => {
     rmSync(resolve(HOME, '.git'));
-    expect(await tools[0].handler({ action: 'status' })).toMatchObject({ restored: true, state: 'on' });
+    expect(await tools[0].handler({ action: 'status' }, { signal: new AbortController().signal })).toMatchObject({ restored: true, state: 'on' });
     expect(readFileSync(resolve(HOME, '.git'), 'utf-8')).toBe(`gitdir: ${GIT_DIR}\n`);
   });
 
   test('setup regenerates the Codex wiring only on a Codex-wired home whose grants it just recorded', async () => {
-    const setup = () => tools[0].handler({ action: 'setup', name: 'Ada' }) as Promise<Record<string, unknown>>;
+    const setup = () => tools[0].handler({ action: 'setup', name: 'Ada' }, { signal: new AbortController().signal }) as Promise<Record<string, unknown>>;
     const withoutCodex = await setup();
     expect(withoutCodex).toMatchObject({ settingsChanged: true, codexWired: false });
     expect(withoutCodex.codex).toBeUndefined();

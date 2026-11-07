@@ -189,6 +189,11 @@ export class PostWriteDriftError extends Error {
 
 // ── MCP tool definition ─────────────────────────────────────────────
 
+/** Per-call request context; `signal` aborts when the client cancels the call. */
+export interface ToolContext {
+  signal: AbortSignal;
+}
+
 /**
  * MCP tool definition. `inputSchema` is a Zod raw shape (object of zod types,
  * NOT a wrapped `z.object`). The SDK converts it to JSON Schema for clients
@@ -205,7 +210,7 @@ export interface ToolDef<Shape extends z.ZodRawShape = z.ZodRawShape> {
    * `permissions.ask` lacks the tool, since auto mode would otherwise approve it unseen.
    */
   askOnly?: true;
-  handler: (args: z.infer<z.ZodObject<Shape>>) => Promise<unknown>;
+  handler: (args: z.infer<z.ZodObject<Shape>>, context: ToolContext) => Promise<unknown>;
 }
 
 /** Helper to declare a typed tool while preserving the shape's inference. */

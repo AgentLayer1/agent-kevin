@@ -50,7 +50,7 @@ for (const tool of TOOLS) {
   server.registerTool(
     tool.name,
     { description: tool.description, inputSchema: z.object(tool.inputSchema), _meta: tool.meta },
-    async (args) => {
+    async (args, ctx) => {
       toolLog.debug('dispatch', args);
       try {
         if (!HOMELESS_OK.has(tool.name) && !isInitialized()) {
@@ -85,7 +85,7 @@ for (const tool of TOOLS) {
             `${tool.name} runs only behind an approval prompt, and this home's settings don't have one. Run /${PLUGIN_NAME}:upgrade (it adds "${rule}" to permissions.ask in .claude/settings.json), then try again.`
           );
         }
-        const result = await tool.handler(args);
+        const result = await tool.handler(args, { signal: ctx.mcpReq.signal });
         return {
           content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) }]
         };
