@@ -41,8 +41,8 @@ export const tools: ToolDef[] = [
           "Existing folder under reports/captures (e.g. media_transcribe's `dir`); frames go in a new subfolder of its frames/."
         )
     },
-    handler: async (args) => {
-      const result = extractFrames(args);
+    handler: async (args, { signal }) => {
+      const result = await extractFrames({ ...args, signal });
       log.info(`${result.mode} → ${result.count} frames in ${result.dir}`);
       return result;
     }
@@ -64,8 +64,8 @@ export const tools: ToolDef[] = [
         ),
       name: z.string().optional().describe('Output folder name hint.')
     },
-    handler: async (args) => {
-      const result = await transcribe(args);
+    handler: async (args, { signal }) => {
+      const result = await transcribe({ ...args, signal });
       log.info(`${result.engine} ${result.language} → ${result.segmentCount} segments in ${result.dir}`);
       return result;
     }

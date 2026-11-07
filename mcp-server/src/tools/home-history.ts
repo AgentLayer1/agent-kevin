@@ -26,12 +26,12 @@ export const tools: ToolDef[] = [
         .optional()
         .describe('setup: when the saved history is gone (history-missing), start a new one; only after the operator agreed.')
     },
-    handler: async ({ action, name, startOver }) => {
+    handler: async ({ action, name, startOver }, { signal }) => {
       if (action === 'setup') {
         const result = setupHistory(FOLDERS.HOME, { name, startOver });
         const wired = codexWired();
         // Codex derives its writable roots from the grants setup just wrote, so a stale profile can't reach the history folder.
-        return { ...result, codexWired: wired, ...(wired && result.settingsChanged ? { codex: runCodexSetup() } : {}) };
+        return { ...result, codexWired: wired, ...(wired && result.settingsChanged ? { codex: await runCodexSetup(signal) } : {}) };
       }
       const restored = restorePointer(FOLDERS.HOME);
       return { ...historyStatus(FOLDERS.HOME), restored, codexWired: codexWired() };

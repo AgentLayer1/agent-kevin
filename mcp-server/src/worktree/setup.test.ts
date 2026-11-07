@@ -142,9 +142,11 @@ describe('listWorktrees', () => {
     expect(entry.verdict).toBe('base');
   });
 
-  test('remove_worktree refuses a base-branch worktree and leaves it and its branch in place', () => {
+  test('remove_worktree refuses a base-branch worktree and leaves it and its branch in place', async () => {
     const path = join(root, 'repo-master');
-    expect(() => removeWorktree({ worktreePath: path, deleteBranch: true, force: true })).toThrow(/master base branch/);
+    await expect(removeWorktree({ worktreePath: path, deleteBranch: true, force: true })).rejects.toThrow(
+      /master base branch/
+    );
     expect(existsSync(path)).toBe(true);
     expect(run(repo, ['branch', '--list', 'master'])).toContain('master');
   });
@@ -167,7 +169,7 @@ describe('setupWorktree', () => {
 
   afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-  test('copies gitignored local files, never a file the branch tracks', () => {
+  test('copies gitignored local files, never a file the branch tracks', async () => {
     root = mkdtempSync(join(tmpdir(), 'kevin-worktree-setup-'));
     const repo = join(root, 'repo');
     const run = (args: string[]) =>
@@ -184,10 +186,44 @@ describe('setupWorktree', () => {
     writeFileSync(join(repo, '.env'), 'API_KEY=local\n');
     writeFileSync(join(repo, '.env.example'), 'API_KEY=edited-in-main\n');
 
-    const result = setupWorktree({ repoPath: repo, branch: 'test/copy-locals', slug: 'copy' });
+    const result = await setupWorktree({ repoPath: repo, branch: 'test/copy-locals', slug: 'copy' });
 
     expect(result.copied).toEqual(['.env']);
     expect(readFileSync(join(result.worktreePath, '.env'), 'utf8')).toBe('API_KEY=local\n');
     expect(readFileSync(join(result.worktreePath, '.env.example'), 'utf8')).toBe('API_KEY=\n');
+  });
+
+  test('a cancelled call stops a hung install at once instead of blocking the server', async () => {
+    const repo = join(root, 'hung');
+    const bin = join(root, 'bin');
+    const run = (args: string[]) =>
+      execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    mkdirSync(repo);
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'hangpm'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+    run(['init', '-q', '-b', 'main']);
+    run(['config', 'user.email', 'ada@example.com']);
+    run(['config', 'user.name', 'Ada']);
+    writeFileSync(join(repo, 'package.json'), JSON.stringify({ name: 'hung', packageManager: 'hangpm@1.0.0' }));
+    run(['add', '.']);
+    run(['commit', '-m', 'initial']);
+
+    const path = process.env.PATH;
+    process.env.PATH = `${bin}:${path}`;
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 300);
+    const started = Date.now();
+    const result = await setupWorktree({
+      repoPath: repo,
+      branch: 'test/hung',
+      slug: 'hung',
+      signal: controller.signal
+    });
+    process.env.PATH = path;
+
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(result.steps).toContainEqual(
+      expect.objectContaining({ step: 'hangpm install', ok: false, output: expect.stringContaining('cancelled') })
+    );
   });
 });

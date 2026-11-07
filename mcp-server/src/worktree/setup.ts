@@ -17,12 +17,13 @@
  * the worktree, clears the pnpm-junction husk git leaves behind (see deleteHusk). Orphan sweep across
  * stale worktrees is still out of scope.
  *
- * Runs git/package-manager via execFileSync (argv arrays, no shell). When invoked through
+ * Runs git via execFileSync and the package manager through runGroup (argv arrays). When invoked through
  * the MCP server this executes OUTSIDE the Bash command sandbox, so `git worktree add` can
  * write the main repo's `.git/config` and the checked-out config files (`.vscode/settings.json`,
  * `.mcp.json`) that the seatbelt denies under the Bash tool. Invoked via the CLI from a
  * sandboxed Bash, those same writes are still blocked — the CLI is the terminal/automation path.
  */
+import { runGroup } from '@/shared/process-group';
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -56,9 +57,10 @@ const isBaseBranch = (branch: string | null): boolean => branch !== null && BASE
 const BRANCH_RE = /^[A-Za-z0-9._/-]+$/;
 const SLUG_RE = /^[A-Za-z0-9._-]+$/;
 
-interface PackageJson {
+export interface PackageJson {
   packageManager?: string;
   scripts?: Record<string, string>;
+  engines?: { node?: string };
 }
 
 export interface StepResult {
@@ -78,6 +80,7 @@ export interface SetupWorktreeOptions {
   baseBranch?: string;
   /** Folder suffix for the worktree dir (<repo>-<slug>); defaults to the branch's last segment. */
   slug?: string;
+  signal?: AbortSignal;
   /** Relative subdirs with their own lockfile to install after the main bootstrap. */
   extraInstalls?: string[];
 }
@@ -155,24 +158,27 @@ const branchNamespace = (cwd: string): string | null => {
 };
 
 /**
- * Run a package-manager command, capturing output. NEVER inherit stdio — under the MCP server
+ * Run a package-manager or git command, capturing output. NEVER inherit stdio — under the MCP server
  * this process's stdout is the stdio transport, so child output on it would corrupt the protocol.
  */
-const runCapture = (command: string, args: string[], cwd: string): { ok: boolean; output: string } => {
+const runCapture = async (
+  command: string,
+  args: string[],
+  cwd: string,
+  { timeoutMs, signal }: { timeoutMs: number; signal?: AbortSignal }
+): Promise<{ ok: boolean; output: string }> => {
   try {
-    const output = execFileSync(command, args, {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: process.platform === 'win32'
-    });
-    return { ok: true, output };
+    const result = await runGroup([command, ...args], { cwd, timeoutMs, signal, shell: process.platform === 'win32' });
+    const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
+    const stopped = result.timedOut ? `\nstopped after ${timeoutMs / 1_000} s` : result.cancelled ? '\ncancelled' : '';
+    return { ok: result.exitCode === 0 && !stopped, output: `${output}${stopped}` };
   } catch (error) {
-    const failure = error as { stdout?: string; stderr?: string; message?: string };
-    const output = [failure.stdout, failure.stderr].filter(Boolean).join('\n') || failure.message || String(error);
-    return { ok: false, output };
+    return { ok: false, output: (error as Error).message };
   }
 };
+
+const INSTALL_TIMEOUT_MS = 1_200_000;
+const GIT_TIMEOUT_MS = 120_000;
 
 const tail = (text: string, lines = 20) => text.split('\n').slice(-lines).join('\n');
 
@@ -192,11 +198,11 @@ const findLocalEntries = (dir: string, root: string): string[] =>
     return isLocalConfigFile(dir, entry.name) ? [relative(root, fullPath)] : [];
   });
 
-const readPkg = (root: string): PackageJson =>
+export const readPkg = (root: string): PackageJson =>
   JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
 
 /** Detect the target repo's package manager: packageManager field → lockfile → bun. */
-const detectPackageManager = (root: string, pkg: PackageJson) => {
+export const detectPackageManager = (root: string, pkg: PackageJson) => {
   const declared = pkg.packageManager?.split('@')[0]?.trim();
   if (declared) {
     return declared;
@@ -206,22 +212,26 @@ const detectPackageManager = (root: string, pkg: PackageJson) => {
 };
 
 /** Install (and optionally build) a directory that has a package.json. */
-const installAndBuild = (
+const installAndBuild = async (
   dir: string,
-  withBuild: boolean
-): { packageManager: string; built: boolean; steps: StepResult[] } => {
+  withBuild: boolean,
+  signal?: AbortSignal
+): Promise<{ packageManager: string; built: boolean; steps: StepResult[] }> => {
   const pkg = readPkg(dir);
   const packageManager = detectPackageManager(dir, pkg);
   const steps: StepResult[] = [];
 
-  const install = runCapture(packageManager, ['install'], dir);
+  const install = await runCapture(packageManager, ['install'], dir, { timeoutMs: INSTALL_TIMEOUT_MS, signal });
   steps.push({ step: `${packageManager} install`, ok: install.ok, output: tail(install.output) });
 
   let built = false;
   if (install.ok && withBuild) {
     const buildScript = BUILD_SCRIPTS.find((name) => pkg.scripts?.[name]);
     if (buildScript) {
-      const build = runCapture(packageManager, ['run', buildScript], dir);
+      const build = await runCapture(packageManager, ['run', buildScript], dir, {
+        timeoutMs: INSTALL_TIMEOUT_MS,
+        signal
+      });
       built = build.ok;
       steps.push({ step: `${packageManager} run ${buildScript}`, ok: build.ok, output: tail(build.output) });
     }
@@ -229,13 +239,14 @@ const installAndBuild = (
   return { packageManager, built, steps };
 };
 
-export const setupWorktree = ({
+export const setupWorktree = async ({
   repoPath,
   branch,
   baseBranch: baseBranchOverride,
   slug,
-  extraInstalls
-}: SetupWorktreeOptions): SetupWorktreeResult => {
+  extraInstalls,
+  signal
+}: SetupWorktreeOptions): Promise<SetupWorktreeResult> => {
   if (!BRANCH_RE.test(branch)) {
     throw new Error(`Invalid branch name: ${branch}`);
   }
@@ -324,7 +335,7 @@ export const setupWorktree = ({
   let built = false;
 
   if (existsSync(join(worktreePath, 'package.json'))) {
-    const result = installAndBuild(worktreePath, true);
+    const result = await installAndBuild(worktreePath, true, signal);
     packageManager = result.packageManager;
     built = result.built;
     steps.push(...result.steps);
@@ -340,7 +351,7 @@ export const setupWorktree = ({
       steps.push({ step: `extra:${sub}`, ok: false, output: 'no package.json — skipped' });
       continue;
     }
-    const result = installAndBuild(subDir, false);
+    const result = await installAndBuild(subDir, false, signal);
     steps.push(...result.steps.map((entry) => ({ ...entry, step: `extra:${sub} ${entry.step}` })));
     if (result.steps.every((entry) => entry.ok)) {
       extraInstalled.push(sub);
@@ -371,6 +382,7 @@ export interface RemoveWorktreeOptions {
   /** Report what would happen (the `status`) WITHOUT cleaning or removing anything. The pre-check the
    *  skill runs to decide whether to unwire the VS Code workspace before committing to the removal. */
   dryRun?: boolean;
+  signal?: AbortSignal;
 }
 
 /**
@@ -489,12 +501,13 @@ const deleteHusk = (dir: string): StepResult[] => {
   return steps;
 };
 
-export const removeWorktree = ({
+export const removeWorktree = async ({
   worktreePath,
   deleteBranch,
   force,
-  dryRun
-}: RemoveWorktreeOptions): RemoveWorktreeResult => {
+  dryRun,
+  signal
+}: RemoveWorktreeOptions): Promise<RemoveWorktreeResult> => {
   const resolvedInput = resolve(worktreePath);
   if (!existsSync(resolvedInput) || !statSync(resolvedInput).isDirectory()) {
     throw new Error(`worktreePath does not exist or is not a directory: ${resolvedInput}`);
@@ -555,7 +568,10 @@ export const removeWorktree = ({
     const pkg = readPkg(resolvedWorktree);
     if (pkg.scripts?.clean) {
       const packageManager = detectPackageManager(resolvedWorktree, pkg);
-      const result = runCapture(packageManager, ['run', 'clean'], resolvedWorktree);
+      const result = await runCapture(packageManager, ['run', 'clean'], resolvedWorktree, {
+        timeoutMs: INSTALL_TIMEOUT_MS,
+        signal
+      });
       cleaned = `${packageManager} run clean`;
       steps.push({ step: cleaned, ok: result.ok, output: tail(result.output) });
     }
@@ -563,7 +579,10 @@ export const removeWorktree = ({
 
   // No `--force`, ever: let git apply its own dirty/lock safety check. Careful-and-failing beats an
   // incorrect forced delete.
-  const removal = runCapture('git', ['worktree', 'remove', resolvedWorktree], mainCheckout);
+  const removal = await runCapture('git', ['worktree', 'remove', resolvedWorktree], mainCheckout, {
+    timeoutMs: GIT_TIMEOUT_MS,
+    signal
+  });
   steps.push({ step: 'git worktree remove', ok: removal.ok, output: tail(removal.output) });
 
   // Whether git DEREGISTERED the worktree — not the exit code — is the real "git approved this"
@@ -589,7 +608,10 @@ export const removeWorktree = ({
   let branchDeleted = false;
   let branchDeleteError: string | undefined;
   if (deleteBranch && branch) {
-    const deletion = runCapture('git', ['branch', force ? '-D' : '-d', branch], mainCheckout);
+    const deletion = await runCapture('git', ['branch', force ? '-D' : '-d', branch], mainCheckout, {
+      timeoutMs: GIT_TIMEOUT_MS,
+      signal
+    });
     branchDeleted = deletion.ok;
     steps.push({ step: `git branch ${force ? '-D' : '-d'} ${branch}`, ok: deletion.ok, output: tail(deletion.output) });
     if (!deletion.ok) {

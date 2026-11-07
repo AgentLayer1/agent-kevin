@@ -119,6 +119,21 @@ describe('run_upgrade', () => {
     }
   });
 
+  test('a cancelled install stops and says so, never reporting a pass', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'run-upgrade-install-'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.0.0' }));
+    const controller = new AbortController();
+    controller.abort();
+    try {
+      expect(await installDeps(dir, controller.signal)).toMatchObject({
+        ok: false,
+        message: 'bun install was cancelled.'
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('install reports a failing bun install with its exit code and stderr', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'run-upgrade-install-'));
     writeFileSync(join(dir, 'package.json'), '{ not json');

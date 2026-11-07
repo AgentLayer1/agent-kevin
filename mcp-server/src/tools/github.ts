@@ -22,6 +22,7 @@
  * GitHub responses cross a trust boundary, so every payload is wrapped with `untrusted()`.
  */
 import { configuredRepoPaths, PLUGIN_NAME } from '@/config';
+import { callSignal } from '@/shared/call-signal';
 import { RUNTIME_DIR } from '@/shared/naming';
 import { env, GITHUB_TOKEN_KEY, githubTokenKeyFor, githubTokenKeys, isGitHubTokenKey } from '@/shared/env';
 import { log } from '@/shared/log';
@@ -35,6 +36,8 @@ import { promisify } from 'node:util';
 import { z } from 'zod';
 
 const execFileAsync = promisify(execFile);
+const GH_TIMEOUT_MS = 120_000;
+const GIT_TIMEOUT_MS = 300_000;
 
 const REPO_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
@@ -102,7 +105,12 @@ export const runGh = async (target: string, args: string[], { allowNonZero = fal
   const owner = ownerOf(target);
   const credential = tokenFor(owner);
   try {
-    const { stdout } = await execFileAsync('gh', args, { env: childEnv(credential?.value), maxBuffer: 64 * 1024 * 1024 });
+    const { stdout } = await execFileAsync('gh', args, {
+      env: childEnv(credential?.value),
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: GH_TIMEOUT_MS,
+      signal: callSignal()
+    });
     log.info(`gh ${args.slice(0, 3).join(' ')} → ${stdout.length}b`);
     return stdout;
   } catch (error) {
@@ -269,7 +277,9 @@ const runGit = async (cwd: string, args: readonly string[], extraEnv: NodeJS.Pro
     const { stdout, stderr } = await execFileAsync('git', ['-C', cwd, ...args], {
       encoding: 'utf8',
       env: { ...envWithoutGitHubTokens(), ...extraEnv },
-      maxBuffer: 8 * 1024 * 1024
+      maxBuffer: 8 * 1024 * 1024,
+      timeout: GIT_TIMEOUT_MS,
+      signal: callSignal()
     });
     return { code: 0, stdout, stderr };
   } catch (error) {

@@ -16,9 +16,9 @@
 
 import { BROWSER } from '@/config';
 import { insideCaptures, label, resolveMediaPath, stampedPath } from '@/media/files';
-import { spawnSync } from 'node:child_process';
+import { runGroup } from '@/shared/process-group';
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const DURATION_RE = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/;
 const PTS_TIME_RE = /pts_time:([0-9.]+)/g;
@@ -47,6 +47,7 @@ export interface ExtractFramesOptions {
   name?: string;
   /** Existing folder under the captures dir (e.g. from media_transcribe); each call adds a subfolder of its `frames/`. */
   dir?: string;
+  signal?: AbortSignal;
 }
 
 export interface FrameExtraction {
@@ -57,51 +58,67 @@ export interface FrameExtraction {
   frames: ExtractedFrame[];
 }
 
+const FFMPEG_TIMEOUT_MS = 600_000;
+
 /** Parse the source duration in seconds from ffmpeg's `-i` banner (no ffprobe needed). */
-function probeDuration(videoPath: string): number | null {
-  const out = spawnSync('ffmpeg', ['-hide_banner', '-i', videoPath], { encoding: 'utf8' });
-  const match = DURATION_RE.exec(out.stderr ?? '');
+async function probeDuration(videoPath: string, signal?: AbortSignal): Promise<number | null> {
+  const out = await runGroup(['ffmpeg', '-hide_banner', '-i', videoPath], {
+    cwd: dirname(videoPath),
+    timeoutMs: 30_000,
+    signal
+  }).catch(() => undefined);
+  const match = DURATION_RE.exec(out?.stderr ?? '');
   if (!match) return null;
   const [, hh, mm, ss] = match;
   return Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
 }
 
 /** Even spread of `n` frames across the whole video; needs duration to space them. */
-function evenSpread(videoPath: string, n: number): { filter: string; note?: string } {
-  const duration = probeDuration(videoPath);
+async function evenSpread(
+  videoPath: string,
+  n: number,
+  signal?: AbortSignal
+): Promise<{ filter: string; note?: string }> {
+  const duration = await probeDuration(videoPath, signal);
   if (!duration) return { filter: 'fps=1/5', note: 'duration unknown; sampled every 5s' };
   return { filter: `fps=1/${Math.max(duration / n, 0.1)}` };
 }
 
-function spawnFfmpeg(args: string[]): string {
-  const run = spawnSync('ffmpeg', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (run.error) {
-    const { code } = run.error as NodeJS.ErrnoException;
+async function spawnFfmpeg(args: string[], cwd: string, signal?: AbortSignal): Promise<string> {
+  const run = await runGroup(['ffmpeg', ...args], { cwd, timeoutMs: FFMPEG_TIMEOUT_MS, signal }).catch(
+    (error: NodeJS.ErrnoException) => {
+      throw new Error(
+        error.code === 'ENOENT'
+          ? 'ffmpeg not found. Install it with `brew install ffmpeg` (macOS) from a normal terminal, then retry.'
+          : `ffmpeg could not run: ${error.message}`
+      );
+    }
+  );
+  if (run.cancelled || run.timedOut) {
     throw new Error(
-      code === 'ENOENT'
-        ? 'ffmpeg not found. Install it with `brew install ffmpeg` (macOS) from a normal terminal, then retry.'
-        : `ffmpeg could not run: ${run.error.message}`
+      run.cancelled ? 'ffmpeg was cancelled.' : `ffmpeg stopped after ${FFMPEG_TIMEOUT_MS / 60_000} minutes.`
     );
   }
-  if (run.status !== 0) {
-    throw new Error(`ffmpeg failed: ${(run.stderr ?? '').trim().split('\n').slice(-3).join(' ')}`);
+  if (run.exitCode !== 0) {
+    throw new Error(`ffmpeg failed: ${run.stderr.trim().split('\n').slice(-3).join(' ')}`);
   }
-  return run.stderr ?? '';
+  return run.stderr;
 }
 
 /** Run one ffmpeg extraction pass; returns frames with parsed timestamps, ordered. */
-function runFfmpeg(videoPath: string, filter: string, width: number, outDir: string): ExtractedFrame[] {
+async function runFfmpeg(
+  videoPath: string,
+  filter: string,
+  width: number,
+  outDir: string,
+  signal?: AbortSignal
+): Promise<ExtractedFrame[]> {
   const vf = `${filter},scale='min(${width},iw)':-2,showinfo`;
-  const stderr = spawnFfmpeg([
-    '-hide_banner',
-    '-i',
-    videoPath,
-    '-vf',
-    vf,
-    '-vsync',
-    'vfr',
-    resolve(outDir, 'frame_%04d.png')
-  ]);
+  const stderr = await spawnFfmpeg(
+    ['-hide_banner', '-i', videoPath, '-vf', vf, '-vsync', 'vfr', resolve(outDir, 'frame_%04d.png')],
+    outDir,
+    signal
+  );
 
   const times: number[] = [];
   for (const m of stderr.matchAll(PTS_TIME_RE)) {
@@ -128,44 +145,44 @@ const distinctTenths = (times: number[]): number[] =>
   [...new Set(times.map((t) => Math.round(t * 10) / 10))].sort((a, b) => a - b);
 
 /** One frame per requested second, seeking straight to each; times past the end yield none. */
-function runAt(videoPath: string, times: number[], width: number, outDir: string): ExtractedFrame[] {
-  return times
-    .map((t) => {
-      const path = resolve(outDir, `at-${t.toFixed(1)}s.png`);
-      spawnFfmpeg([
-        '-hide_banner',
-        '-ss',
-        String(t),
-        '-i',
-        videoPath,
-        '-frames:v',
-        '1',
-        '-vf',
-        `scale='min(${width},iw)':-2`,
-        path
-      ]);
-      return { path, t, label: label(t) };
-    })
-    .filter((frame) => existsSync(frame.path));
+async function runAt(
+  videoPath: string,
+  times: number[],
+  width: number,
+  outDir: string,
+  signal?: AbortSignal
+): Promise<ExtractedFrame[]> {
+  const grabbed = await times.reduce<Promise<ExtractedFrame[]>>(async (previous, t) => {
+    const done = await previous;
+    const path = resolve(outDir, `at-${t.toFixed(1)}s.png`);
+    await spawnFfmpeg(
+      ['-hide_banner', '-ss', String(t), '-i', videoPath, '-frames:v', '1', '-vf', `scale='min(${width},iw)':-2`, path],
+      outDir,
+      signal
+    );
+    return [...done, { path, t, label: label(t) }];
+  }, Promise.resolve([]));
+  return grabbed.filter((frame) => existsSync(frame.path));
 }
 
-function samplePasses(
+async function samplePasses(
   videoPath: string,
   options: ExtractFramesOptions,
   width: number,
   outDir: string
-): { frames: ExtractedFrame[]; note?: string } {
+): Promise<{ frames: ExtractedFrame[]; note?: string }> {
+  const { signal } = options;
   const mode = options.mode ?? 'scene';
   const chosen =
     mode === 'scene'
       ? { filter: `select='gt(scene,${options.threshold ?? 0.3})'` }
       : mode === 'interval'
         ? { filter: `fps=1/${options.everySeconds ?? 5}` }
-        : evenSpread(videoPath, options.count ?? 12);
-  const frames = runFfmpeg(videoPath, chosen.filter, width, outDir);
+        : await evenSpread(videoPath, options.count ?? 12, signal);
+  const frames = await runFfmpeg(videoPath, chosen.filter, width, outDir, signal);
   if (mode === 'scene' && frames.length < 2) {
     return {
-      frames: runFfmpeg(videoPath, evenSpread(videoPath, 12).filter, width, outDir),
+      frames: await runFfmpeg(videoPath, (await evenSpread(videoPath, 12, signal)).filter, width, outDir, signal),
       note: 'scene detection found no cuts; fell back to 12 evenly-spaced frames'
     };
   }
@@ -173,7 +190,7 @@ function samplePasses(
 }
 
 /** Extract analysable still frames from a local video. Throws on missing ffmpeg or file. */
-export function extractFrames(options: ExtractFramesOptions): FrameExtraction {
+export async function extractFrames(options: ExtractFramesOptions): Promise<FrameExtraction> {
   const videoPath = resolveMediaPath(options.video);
   if (!existsSync(videoPath)) {
     throw new Error(`Video not found: ${videoPath}`);
@@ -192,8 +209,17 @@ export function extractFrames(options: ExtractFramesOptions): FrameExtraction {
 
   const { frames, note } =
     mode === 'at'
-      ? { frames: runAt(videoPath, spread(distinctTenths(options.times ?? []), max), width, outDir), note: undefined }
-      : samplePasses(videoPath, options, width, outDir);
+      ? {
+          frames: await runAt(
+            videoPath,
+            spread(distinctTenths(options.times ?? []), max),
+            width,
+            outDir,
+            options.signal
+          ),
+          note: undefined
+        }
+      : await samplePasses(videoPath, options, width, outDir);
   const kept = spread(frames, max);
   frames.filter((frame) => !kept.includes(frame)).forEach((frame) => rmSync(frame.path, { force: true }));
   return { dir: outDir, mode, count: kept.length, ...(note ? { note } : {}), frames: kept };

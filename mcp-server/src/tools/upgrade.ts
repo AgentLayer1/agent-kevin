@@ -16,19 +16,16 @@
  * bun's cache.
  */
 import { FOLDERS, PLUGIN_NAME } from '@/config';
+import { runGroup } from '@/shared/process-group';
 import { defineTool, type ToolDef } from '@/shared/types';
-import { execFile, spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 import { z } from 'zod';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const SCRIPT_TIMEOUT_MS = 120_000;
 const INSTALL_TIMEOUT_MS = 600_000;
 const OUTPUT_TAIL = 2000;
-
-const execFileAsync = promisify(execFile);
 
 const realpathOrNull = (path: string): string | null => {
   try {
@@ -68,41 +65,23 @@ interface InstallResult {
  * Uses the bun running this server. Async, so the server keeps answering while the
  * postinstall downloads Chromium.
  */
-export const installDeps = async (dir: string): Promise<InstallResult> => {
-  try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, ['install'], {
-      cwd: dir,
-      timeout: INSTALL_TIMEOUT_MS,
-      maxBuffer: 16 * 1024 * 1024
-    });
-    return {
-      ok: true,
-      dir,
-      exitCode: 0,
-      stdout: stdout.slice(-OUTPUT_TAIL),
-      stderr: stderr.slice(-OUTPUT_TAIL),
-      message: 'bun install completed.'
-    };
-  } catch (error) {
-    const failure = error as {
-      code?: number | string;
-      killed?: boolean;
-      stdout?: string;
-      stderr?: string;
-      message?: string;
-    };
-    const exitCode = typeof failure.code === 'number' ? failure.code : -1;
-    return {
-      ok: false,
-      dir,
-      exitCode,
-      stdout: (failure.stdout ?? '').slice(-OUTPUT_TAIL),
-      stderr: (failure.stderr || failure.message || String(error)).slice(-OUTPUT_TAIL),
-      message: failure.killed
-        ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
-        : `bun install failed (exit ${exitCode}).`
-    };
-  }
+export const installDeps = async (dir: string, signal?: AbortSignal): Promise<InstallResult> => {
+  const result = await runGroup([process.execPath, 'install'], { cwd: dir, timeoutMs: INSTALL_TIMEOUT_MS, signal });
+  const ok = result.exitCode === 0 && !result.timedOut && !result.cancelled;
+  return {
+    ok,
+    dir,
+    exitCode: result.exitCode ?? -1,
+    stdout: result.stdout.slice(-OUTPUT_TAIL),
+    stderr: result.stderr.slice(-OUTPUT_TAIL),
+    message: result.timedOut
+      ? `bun install timed out after ${INSTALL_TIMEOUT_MS / 60_000} minutes.`
+      : result.cancelled
+        ? 'bun install was cancelled.'
+        : ok
+          ? 'bun install completed.'
+          : `bun install failed (exit ${result.exitCode}).`
+  };
 };
 
 /**
@@ -168,7 +147,7 @@ export const tools: ToolDef[] = [
           "Choices the operator made for this migration, read by the script from AGENT_UPGRADE_OPTIONS (JSON). Only pass what the upgrade skill's step for that version names."
         )
     },
-    handler: async ({ version, install, pluginRoot, options }): Promise<RunResult | InstallResult> => {
+    handler: async ({ version, install, pluginRoot, options }, { signal }): Promise<RunResult | InstallResult> => {
       if (install) {
         if (version !== undefined) {
           return { ok: false, found: false, version, message: 'Pass install or version, not both.' };
@@ -184,7 +163,7 @@ export const tools: ToolDef[] = [
             message: `Install refused: pluginRoot must be this server's plugin root (${FOLDERS.ROOT}) or a sibling version folder of it.`
           };
         }
-        return installDeps(join(root, 'mcp-server'));
+        return installDeps(join(root, 'mcp-server'), signal);
       }
       if (version === undefined) {
         return { ok: false, found: false, version: '', message: 'Pass a version, or install: true with pluginRoot.' };
@@ -207,7 +186,7 @@ export const tools: ToolDef[] = [
         };
       }
 
-      const proc = spawnSync(process.execPath, [scriptPath], {
+      const proc = await runGroup([process.execPath, scriptPath], {
         cwd: FOLDERS.HOME,
         env: {
           ...process.env,
@@ -215,14 +194,14 @@ export const tools: ToolDef[] = [
           AGENT_PLUGIN_ROOT: FOLDERS.ROOT,
           AGENT_UPGRADE_OPTIONS: JSON.stringify(options ?? {})
         },
-        encoding: 'utf-8',
-        timeout: SCRIPT_TIMEOUT_MS
+        timeoutMs: SCRIPT_TIMEOUT_MS,
+        signal
       });
 
-      const stdout = proc.stdout ?? '';
-      const stderr = (proc.stderr ?? '').slice(-OUTPUT_TAIL);
-      const exitCode = proc.status ?? -1;
-      const ok = exitCode === 0;
+      const stdout = proc.stdout;
+      const stderr = proc.stderr.slice(-OUTPUT_TAIL);
+      const exitCode = proc.exitCode ?? -1;
+      const ok = exitCode === 0 && !proc.timedOut && !proc.cancelled;
       return {
         ok,
         found: true,

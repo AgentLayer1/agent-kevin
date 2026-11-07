@@ -25,13 +25,14 @@ export interface Transcript {
   segments: TranscriptSegment[];
 }
 
-export type TranscribeEngine = (input: { file: string; language: string }) => Promise<Transcript>;
+export type TranscribeEngine = (input: { file: string; language: string; signal?: AbortSignal }) => Promise<Transcript>;
 
 export interface TranscribeOptions {
   file: string;
   /** BCP-47 language spoken in the media (default `en-US`); the engine decides what it supports. */
   language?: string;
   name?: string;
+  signal?: AbortSignal;
 }
 
 export interface TranscriptResult extends Omit<Transcript, 'segments'> {
@@ -61,7 +62,11 @@ export const transcribe = async (options: TranscribeOptions): Promise<Transcript
   if (!existsSync(file)) {
     throw new Error(`Media not found: ${file}`);
   }
-  const transcript = await engineFor(process.platform)({ file, language: options.language ?? 'en-US' });
+  const transcript = await engineFor(process.platform)({
+    file,
+    language: options.language ?? 'en-US',
+    signal: options.signal
+  });
 
   const dir = stampedPath(BROWSER.CAPTURES_DIR, options.name ?? 'media');
   mkdirSync(dir, { recursive: true });

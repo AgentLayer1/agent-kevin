@@ -44,7 +44,7 @@ export const tools: ToolDef[] = [
           'Relative subdirs with their own lockfile to `install` after the main bootstrap (e.g. ["packages/standalone-cli"]). Must be relative, no "..".'
         )
     },
-    handler: async (args) => setupWorktree(args)
+    handler: async (args, { signal }) => setupWorktree({ ...args, signal })
   }),
   defineTool({
     name: 'list_worktrees',
@@ -82,6 +82,6 @@ export const tools: ToolDef[] = [
           'Pre-check only: report the status (`removable` / `blocked-*`) without running the clean script, removing the worktree, or deleting the branch. Use it before unwiring the VS Code workspace.'
         )
     },
-    handler: async (args) => removeWorktree(args)
+    handler: async (args, { signal }) => removeWorktree({ ...args, signal })
   })
 ];

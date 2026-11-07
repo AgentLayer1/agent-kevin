@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
 import { constants } from 'node:os';
 
+const WINDOWS = process.platform === 'win32';
+
 interface GroupOptions {
   cwd: string;
   /** The child's whole environment; omitted, it inherits the server's. */
@@ -10,6 +12,9 @@ interface GroupOptions {
   logFile?: string;
   timeoutMs: number;
   signal?: AbortSignal;
+  /** Run through the shell, for a Windows `.cmd` shim (`pnpm.cmd`); never with an argument that isn't ours. */
+  shell?: boolean;
+  /** Called with the group id as soon as the leader starts (never on Windows, which has no groups). */
   onStart?: (pgid: number) => void;
 }
 
@@ -19,7 +24,7 @@ interface GroupOptions {
  */
 export const runGroup = async (
   argv: string[],
-  { cwd, env, logFile, timeoutMs, signal, onStart }: GroupOptions
+  { cwd, env, logFile, timeoutMs, signal, shell, onStart }: GroupOptions
 ): Promise<GroupResult> => {
   const [command, ...args] = argv;
   if (!command) {
@@ -31,18 +36,24 @@ export const runGroup = async (
   const child = spawn(command, args, {
     cwd,
     env,
-    detached: true,
+    shell,
+    detached: !WINDOWS,
     stdio: ['ignore', logFd ?? 'pipe', logFd ?? 'pipe']
   });
 
   const chunks: { stdout: Buffer[]; stderr: Buffer[] } = { stdout: [], stderr: [] };
   child.stdout?.on('data', (chunk: Buffer) => chunks.stdout.push(chunk));
   child.stderr?.on('data', (chunk: Buffer) => chunks.stderr.push(chunk));
-  const pgid = child.pid;
+  // TODO(windows): no process groups there, so a timeout or cancel stops the direct child only.
+  const pgid = WINDOWS ? undefined : child.pid;
   let stoppedBy: 'timeout' | 'cancel' | undefined;
   const stopFor = (reason: 'timeout' | 'cancel') => () => {
     stoppedBy ??= reason;
-    stopGroup(pgid);
+    if (pgid) {
+      stopGroup(pgid);
+    } else {
+      child.kill();
+    }
   };
   const timer = setTimeout(stopFor('timeout'), timeoutMs);
   const onAbort = stopFor('cancel');
@@ -87,6 +98,9 @@ export const runGroup = async (
   }
 };
 
+/**
+ * SIGTERM to the whole group, then SIGKILL to whatever is still there after a grace period.
+ */
 export const stopGroup = (pgid: number | undefined, graceMs = 10_000): void => {
   if (!pgid) {
     return;

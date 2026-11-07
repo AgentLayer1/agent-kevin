@@ -5,11 +5,11 @@
  */
 
 import type { TranscribeEngine, Transcript } from '@/media/transcribe';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { runGroup } from '@/shared/process-group';
+import { dirname } from 'node:path';
 import { z } from 'zod';
 
-const execFileAsync = promisify(execFile);
+const YAP_TIMEOUT_MS = 1_800_000;
 
 const YapOutput = z.object({
   metadata: z.object({ duration: z.number().optional(), language: z.string().optional() }),
@@ -27,19 +27,23 @@ export const parseYap = (raw: string, language: string): Transcript => {
 };
 
 // yap silences its progress output when stdout is piped, so stdout is the JSON alone.
-export const yap: TranscribeEngine = async ({ file, language }) => {
-  try {
-    const { stdout } = await execFileAsync('yap', ['transcribe', `--locale=${language}`, '--json', '-m', '200', file], {
-      maxBuffer: 64 * 1024 * 1024
-    });
-    return parseYap(stdout, language);
-  } catch (error) {
-    const failure = error as { code?: string; stderr?: string; message?: string };
-    if (failure.code === 'ENOENT') {
-      throw new Error(
-        'yap not found. Install it with `brew install yap` (macOS 26+) from a normal terminal, then retry.'
-      );
-    }
-    throw new Error(`yap failed: ${(failure.stderr || failure.message || String(error)).trim()}`);
+export const yap: TranscribeEngine = async ({ file, language, signal }) => {
+  const run = await runGroup(['yap', 'transcribe', `--locale=${language}`, '--json', '-m', '200', file], {
+    cwd: dirname(file),
+    timeoutMs: YAP_TIMEOUT_MS,
+    signal
+  }).catch((error: NodeJS.ErrnoException) => {
+    throw new Error(
+      error.code === 'ENOENT'
+        ? 'yap not found. Install it with `brew install yap` (macOS 26+) from a normal terminal, then retry.'
+        : `yap failed: ${error.message}`
+    );
+  });
+  if (run.cancelled || run.timedOut) {
+    throw new Error(run.cancelled ? 'yap was cancelled.' : `yap stopped after ${YAP_TIMEOUT_MS / 60_000} minutes.`);
   }
+  if (run.exitCode !== 0) {
+    throw new Error(`yap failed: ${run.stderr.trim() || `exit ${run.exitCode}`}`);
+  }
+  return parseYap(run.stdout, language);
 };
