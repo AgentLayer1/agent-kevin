@@ -4,6 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { groupAlive, runGroup } from './process-group';
 
+// A killed process stays a zombie until launchd reaps it, so the group can outlive the kill for a moment.
+const groupGone = async (pgid: number, timeoutMs = 2_000): Promise<boolean> => {
+  const deadline = Date.now() + timeoutMs;
+  while (groupAlive(pgid) && Date.now() < deadline) {
+    await Bun.sleep(20);
+  }
+  return !groupAlive(pgid);
+};
+
 describe('runGroup', () => {
   test('a timeout takes down the whole group, grandchildren included', async () => {
     let pgid = 0;
@@ -17,7 +26,7 @@ describe('runGroup', () => {
 
     expect(result.timedOut).toBe(true);
     expect(pgid).toBeGreaterThan(0);
-    expect(groupAlive(pgid)).toBe(false);
+    expect(await groupGone(pgid)).toBe(true);
   });
 
   test('a leader that exits normally leaves no background child behind', async () => {
@@ -32,7 +41,7 @@ describe('runGroup', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe('started');
-    expect(groupAlive(pgid)).toBe(false);
+    expect(await groupGone(pgid)).toBe(true);
   });
 
   test('cancelling the call stops the group', async () => {
