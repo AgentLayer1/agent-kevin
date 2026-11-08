@@ -38,7 +38,8 @@ Ask in plain words, or name the playbook: `/engineer <playbook> <target>`. It re
 | "architect the import pipeline" | **architect** | Usage first, designed twice, red flags checked, a rationale |
 | "try three approaches and pick one" | **arena** | Parallel attempts, a rubric, a cross-judged winner |
 | "check every endpoint for X" | **swarm** | Workers over slices, one merged report |
-| "interrogate this branch" | **interrogate** | Several reviewers, findings sorted into act, consider, noted, dismissed |
+| "interrogate this branch" | **interrogate** | The PR review's lanes, gates and verifiers on your branch with no PR needed; verified defects fixed uncommitted, the rest sorted into consider, noted, dismissed |
+| "simplify and interrogate this branch", "get this ready for a PR" | **simplify → interrogate** | Cleaned up, then reviewed like a PR, with commit messages and a PR description drafted in chat |
 
 A second model on your own work, code or not, is the `adversarial-review` skill.
 

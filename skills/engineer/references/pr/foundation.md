@@ -17,7 +17,7 @@ Nothing is posted without the operator. Every output is a report the operator pa
 
 ## Step 0: Resolve the target and the playbook
 
-Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (the current branch of the repo checkout: `github_pr_list` open PRs, match `headRefName`; none matching means stop and ask for a number). Flags shared by every PR playbook:
+Parse the argument. Accepted: a PR number, a PR URL, a branch name, or nothing (the current branch of the repo checkout: `github_pr_list` open PRs, match `headRefName`; none matching means stop, ask for a number, and offer [interrogate](../interrogate.md), the same lanes on a branch with no PR). Flags shared by every PR playbook:
 
 | Flag | Effect |
 |---|---|

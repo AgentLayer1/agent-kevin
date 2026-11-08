@@ -4,13 +4,12 @@ description: >
   Engineering rigor for code work in a repository: fix a bug, build or change a feature, refactor
   or simplify, chase a slowdown or hillclimb a metric, prototype a choice, explain how code works
   or why it is shaped that way, check a change's blast radius, architect a design, run an arena or
-  swarm, interrogate a branch, or drive a long run to a finish line. Pull requests too, read-only
+  swarm, get a branch ready for its PR, or drive a long run to a finish line. Pull requests too, read-only
   against GitHub: review a teammate's PR with verified findings and paste-ready comments, answer
   the review on your own PR (fixes uncommitted, replies drafted), or prep your own PR for standup
-  and its test video. Picks the playbook, applies 23 engineering principles (laziness protocol,
-  prove it works, fix root causes…), and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor", "simplify", "why is this slow", "how
-  does X work", "why is X like this", "architect this", "blast radius", "interrogate", "review PR
-  123", "reply to the comments on my PR", "walk me through my PR", "github sweep", "engineer help".
+  and its test video. Picks the playbook, applies 23 engineering principles, and runs a comment pass before a diff is shown. Triggers on "fix", "build", "refactor", "simplify", "why is this slow", "how
+  does X work", "why is X like this", "architect this", "blast radius", "interrogate", "get this ready for a
+  PR", "review PR 123", "reply to the comments on my PR", "walk me through my PR", "github sweep", "engineer help".
 allowed-tools:
   - Agent
   - AskUserQuestion
@@ -60,6 +59,8 @@ The working method for code: a playbook per kind of task, principles the playboo
 | A defect to reproduce, root-cause, and fix | [bug fix](references/playbooks/bug-fix.md) |
 | New or changed behavior | [feature](references/playbooks/feature.md) |
 | Simplify, clean up, double-check, "simplify and review", "review the changes", "is this over-engineered?", `/engineer simplify [target]` (no target: this session's changes) | [simplify](references/playbooks/simplify.md) |
+| Get a branch ready for its PR: "simplify and interrogate this branch", "get this ready for a PR", "review my branch before I open a PR" | [simplify](references/playbooks/simplify.md), then [interrogate](references/interrogate.md) on the result |
+| The PR review's lanes on a branch with no PR, verified defects fixed uncommitted: "interrogate this branch", `/engineer interrogate [base]` | [interrogate](references/interrogate.md) |
 | Same behavior, better structure: a refactor or reshape | [refactoring](references/playbooks/refactoring.md) |
 | A measured slowness | [performance](references/playbooks/perf.md) |
 | Push one metric toward a target | [hillclimb](references/playbooks/hillclimb.md) |
@@ -89,7 +90,7 @@ Cross-cutting references:
 
 - Code that crosses a function boundary, or a shape that isn't obvious: [architect](references/architect.md).
 - N competing attempts, then pick and graft: [arena](references/arena.md). N workers over slices or a race: [swarm](references/swarm.md).
-- Several reviewers attacking your own change before it's a PR: [interrogate](references/interrogate.md). A second model on your work, code or not: the adversarial-review skill. Someone else's PR: [pr review](references/playbooks/pr-review.md).
+- Your own change before it's a PR: [interrogate](references/interrogate.md), the PR review's lanes, gates and verifiers without the PR. A second model on your work, code or not: the adversarial-review skill. Someone else's PR: [pr review](references/playbooks/pr-review.md).
 - Before any diff is presented: [comment pass](references/comment-pass.md).
 - An explanation that earns a page (architecture, research, a subsystem's how): [explainer](references/explainer.md), never a hand-written HTML file.
 - Commit messages, PR descriptions, and opening the PR (`github_pr_create`, always asks): [handoff](references/handoff.md) and [technical writing](references/technical-writing.md).
@@ -99,7 +100,8 @@ Cross-cutting references:
 
 Most changes need none of the heavy tools. A rough ladder:
 
-- A small, finished change you're unsure about: [interrogate](references/interrogate.md) or [blast radius](references/playbooks/blast-radius.md) alone.
+- A small, finished change you're unsure about: [blast radius](references/playbooks/blast-radius.md) alone.
+- A branch about to become a PR: [simplify](references/playbooks/simplify.md), then [interrogate](references/interrogate.md).
 - A change that crosses function boundaries or moves ownership: [architect](references/architect.md), which brings an [arena](references/arena.md).
 - A standalone decision where independent attempts help (a name, a format, an algorithm): an [arena](references/arena.md) directly.
 - A coverage matrix, parallel checks, or a race with declared arms: a [swarm](references/swarm.md).
