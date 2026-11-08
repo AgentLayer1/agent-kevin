@@ -13,7 +13,8 @@ const groupGone = async (pgid: number, timeoutMs = 2_000): Promise<boolean> => {
   return !groupAlive(pgid);
 };
 
-describe('runGroup', () => {
+// Shell scripts and process groups, which Windows has neither of.
+describe.skipIf(process.platform === 'win32')('runGroup', () => {
   test('a timeout takes down the whole group, grandchildren included', async () => {
     let pgid = 0;
     const result = await runGroup(['/bin/sh', '-c', 'sleep 30 & sleep 30 & wait'], {

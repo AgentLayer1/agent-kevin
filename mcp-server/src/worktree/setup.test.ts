@@ -193,37 +193,41 @@ describe('setupWorktree', () => {
     expect(readFileSync(join(result.worktreePath, '.env.example'), 'utf8')).toBe('API_KEY=\n');
   });
 
-  test('a cancelled call stops a hung install at once instead of blocking the server', async () => {
-    const repo = join(root, 'hung');
-    const bin = join(root, 'bin');
-    const run = (args: string[]) =>
-      execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    mkdirSync(repo);
-    mkdirSync(bin);
-    writeFileSync(join(bin, 'hangpm'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
-    run(['init', '-q', '-b', 'main']);
-    run(['config', 'user.email', 'ada@example.com']);
-    run(['config', 'user.name', 'Ada']);
-    writeFileSync(join(repo, 'package.json'), JSON.stringify({ name: 'hung', packageManager: 'hangpm@1.0.0' }));
-    run(['add', '.']);
-    run(['commit', '-m', 'initial']);
+  // The hung package manager is a shell script, which Windows can't run.
+  test.skipIf(process.platform === 'win32')(
+    'a cancelled call stops a hung install at once instead of blocking the server',
+    async () => {
+      const repo = join(root, 'hung');
+      const bin = join(root, 'bin');
+      const run = (args: string[]) =>
+        execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      mkdirSync(repo);
+      mkdirSync(bin);
+      writeFileSync(join(bin, 'hangpm'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+      run(['init', '-q', '-b', 'main']);
+      run(['config', 'user.email', 'ada@example.com']);
+      run(['config', 'user.name', 'Ada']);
+      writeFileSync(join(repo, 'package.json'), JSON.stringify({ name: 'hung', packageManager: 'hangpm@1.0.0' }));
+      run(['add', '.']);
+      run(['commit', '-m', 'initial']);
 
-    const path = process.env.PATH;
-    process.env.PATH = `${bin}:${path}`;
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 300);
-    const started = Date.now();
-    const result = await setupWorktree({
-      repoPath: repo,
-      branch: 'test/hung',
-      slug: 'hung',
-      signal: controller.signal
-    });
-    process.env.PATH = path;
+      const path = process.env.PATH;
+      process.env.PATH = `${bin}:${path}`;
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 300);
+      const started = Date.now();
+      const result = await setupWorktree({
+        repoPath: repo,
+        branch: 'test/hung',
+        slug: 'hung',
+        signal: controller.signal
+      });
+      process.env.PATH = path;
 
-    expect(Date.now() - started).toBeLessThan(5_000);
-    expect(result.steps).toContainEqual(
-      expect.objectContaining({ step: 'hangpm install', ok: false, output: expect.stringContaining('cancelled') })
-    );
-  });
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(result.steps).toContainEqual(
+        expect.objectContaining({ step: 'hangpm install', ok: false, output: expect.stringContaining('cancelled') })
+      );
+    }
+  );
 });

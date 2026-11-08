@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { log } from '@/shared/log';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
 import { constants } from 'node:os';
 
@@ -47,7 +48,6 @@ export const runGroup = async (
   const chunks: { stdout: Buffer[]; stderr: Buffer[] } = { stdout: [], stderr: [] };
   child.stdout?.on('data', (chunk: Buffer) => chunks.stdout.push(chunk));
   child.stderr?.on('data', (chunk: Buffer) => chunks.stderr.push(chunk));
-  // TODO(windows): no process groups there, so a timeout or cancel stops the direct child only.
   const pgid = WINDOWS ? undefined : child.pid;
   let stoppedBy: 'timeout' | 'cancel' | undefined;
   const stopFor = (reason: 'timeout' | 'cancel') => () => {
@@ -55,7 +55,7 @@ export const runGroup = async (
     if (pgid) {
       stopGroup(pgid);
     } else {
-      child.kill();
+      stopTree(child);
     }
   };
   const timer = setTimeout(stopFor('timeout'), timeoutMs);
@@ -104,6 +104,30 @@ export const runGroup = async (
 export const stopGroup = (pgid: number, graceMs = 10_000): void => {
   signalGroup(pgid, 'SIGTERM');
   setTimeout(() => signalGroup(pgid, 'SIGKILL'), graceMs).unref();
+};
+
+/**
+ * Windows has no process groups, so taskkill stops the child and everything it started (the package manager behind
+ * a `.cmd` shim's shell); if taskkill can't, the child alone, and the log says so.
+ */
+// TODO(windows): unverified on a real box (lo-045), and children still outlive a server that exits.
+const stopTree = (child: ChildProcess): void => {
+  if (child.pid === undefined) {
+    return;
+  }
+  const fallback = (why: string) => {
+    log.warn(
+      `taskkill couldn't stop pid ${child.pid} (${why}); stopping it alone, so what it started may keep running`
+    );
+    child.kill();
+  };
+  spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+    .once('error', (error) => fallback(error.message))
+    .once('exit', (code) => {
+      if (code !== 0) {
+        fallback(`exit ${code}`);
+      }
+    });
 };
 
 /**

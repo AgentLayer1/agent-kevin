@@ -27,7 +27,8 @@ const cancelSoon = (): AbortSignal => {
   return controller.signal;
 };
 
-describe('a cancelled media call', () => {
+// The hung tools are shell scripts, which Windows can't run.
+describe.skipIf(process.platform === 'win32')('a cancelled media call', () => {
   test('stops a hung ffmpeg instead of waiting it out', async () => {
     const started = Date.now();
 
