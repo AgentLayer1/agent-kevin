@@ -43,7 +43,7 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
-## [Unreleased]
+## [0.9.3] - 2026-11-09
 
 ### Changed
 - **The shell guard refuses any cd that moves the session, not only one that leaves the home.** Under Claude Code a top-level `cd` into a folder inside the home, or to a target the shell computes (`cd "$DIR"`, `cd -`, `popd`), carried over to every later command and slipped past the guard. It's now refused, and the refusal hands back the same command wrapped in a subshell, ready to run. A `cd` back to the home and a `cd` inside `( … )` still pass.
@@ -53,7 +53,7 @@ and prompts per optional one. The new template files are the source of truth for
 - **The manual is stricter about evidence and shell commands.** A safety verdict (harmless, unused, ready, validated) names the input that would break it and how far the check reached, or goes out as a question. A claim carried in from a plan, an earlier report or another doc is re-read at its source before it goes anywhere shared. A command handed over holds no `<placeholder>` and names a zsh-shadowed tool by its full path, a gate is never piped through `tail` or `grep` either, and a pass needs a positive count of what it proves.
 
 ### Upgrade
-- `template/AGENTS.md: optional` — Workflow's repo-state and verify-before-claim bullets and Platform's shell-commands paragraph gain the rules above.
+- `template/AGENTS.md: mandatory` — Workflow's repo-state and verify-before-claim bullets and Platform's shell-commands paragraph gain the rules above.
 
 ## [0.9.2] - 2026-11-08
 
