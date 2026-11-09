@@ -50,9 +50,10 @@ and prompts per optional one. The new template files are the source of truth for
 - **The guard refuses git that rewrites or hides history:** `commit --amend`, a merge with the `ours` strategy or strategy option, and `stash --keep-index`, on Claude Code and Codex. The one exception the manual allows, scrubbing a confidentiality leak from an unpushed commit, is the operator's to run with `!`.
 - **The guard refuses a commit, merge or push its gate can't stop.** When a test, lint, typecheck, build or format step comes earlier in the same command, every step from it to the git command must be joined with `&&`; a `;`, a new line, `||`, `&`, or the gate piped into another command without `set -o pipefail` is refused.
 - **Sync's self-review nudge names both halves.** When only the rules pass is due, the question says when the brain pass last ran beside it, so a review that ran the night before no longer reads as one that never did.
+- **The manual is stricter about evidence and shell commands.** A safety verdict (harmless, unused, ready, validated) names the input that would break it and how far the check reached, or goes out as a question. A claim carried in from a plan, an earlier report or another doc is re-read at its source before it goes anywhere shared. A command handed over holds no `<placeholder>` and names a zsh-shadowed tool by its full path, a gate is never piped through `tail` or `grep` either, and a pass needs a positive count of what it proves.
 
 ### Upgrade
-None — code-only, no bun install or HOME changes.
+- `template/AGENTS.md: optional` — Workflow's repo-state and verify-before-claim bullets and Platform's shell-commands paragraph gain the rules above.
 
 ## [0.9.2] - 2026-11-08
 
