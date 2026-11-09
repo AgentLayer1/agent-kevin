@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { homeRelativeLeak, shellGuard } from './bash-guard';
 
@@ -108,11 +108,19 @@ describe('shellGuard: directory drift', () => {
     expect(claude('cd')).toContain('Blocked');
   });
 
-  test('lets a computed target through, and catches it on the next command if it left the home', () => {
-    expect(claude('cd "$HOME_DIR" && ls')).toBeUndefined();
-    expect(claude('cd - && ls')).toBeUndefined();
-    expect(claude('popd')).toBeUndefined();
+  test('refuses a computed target, since the session could land anywhere', () => {
+    expect(claude('cd "$HOME_DIR" && ls')).toContain('a directory the shell computes');
+    expect(claude('cd - && ls')).toContain('Blocked');
+    expect(claude('popd')).toContain('Blocked');
     expect(claude('make', repo)).toContain('because an earlier cd moved it');
+  });
+
+  test('refuses a top-level cd into a folder inside the home, and hands back the subshell form', () => {
+    expect(claude('cd projects && ls')).toContain('( cd projects && ls\n)');
+    expect(claude(`cd ${home}/knowledge && grep -rn x .`)).toContain(`working directory to ${home}/knowledge`);
+    expect(claude(`cd projects && echo ${'x'.repeat(2000)}`)).not.toContain('x'.repeat(2000));
+    expect(claude(`cd ${home}`)).toBeUndefined();
+    expect(claude(`cd ${home} && ls`)).toBeUndefined();
   });
 
   test('refuses any command while the session has already drifted, until it returns', () => {
@@ -126,24 +134,23 @@ describe('shellGuard: directory drift', () => {
     expect(claude(`(cd ${repo} && make)`)).toBeUndefined();
     expect(claude(`ROOT=$(cd ${repo} && pwd) && echo "$ROOT"`)).toBeUndefined();
     expect(claude(`cd ${repo} && make && cd ${home}`)).toBeUndefined();
-    expect(claude('cd projects && ls')).toBeUndefined();
     expect(claude(`echo "cd ${repo}"`)).toBeUndefined();
     expect(claude(`cat > notes.md <<'EOF'\ncd ${repo}\nEOF`)).toBeUndefined();
   });
 
   test('a folder inside the home whose name starts with .. is still inside', () => {
-    expect(claude('cd ..cache && ls')).toBeUndefined();
+    expect(claude('ls', join(home, '..cache'))).toBeUndefined();
   });
 
   test('prints a quoted cd back to the home', () => {
     expect(claude('git status', repo)).toContain(`Run cd "${home}" first`);
   });
 
-  test('expands $HOME like ~, and treats ~user as computed', () => {
-    expect(claude('cd $HOME && ls')).toContain('Blocked');
+  test('expands $HOME like ~, and treats ~user and a quoted $HOME as unknown', () => {
+    expect(claude('cd $HOME && ls')).toContain(`working directory at ${homedir()}`);
     expect(claude('cd ${HOME}/x')).toContain('Blocked');
-    expect(claude('cd ~root')).toBeUndefined();
-    expect(claude("cd '$HOME'")).toBeUndefined();
+    expect(claude('cd ~root')).toContain('a directory the shell computes');
+    expect(claude("cd '$HOME'")).toContain('a directory the shell computes');
   });
 
   test('reads a symlinked spelling of the home as the home', () => {
@@ -213,6 +220,65 @@ describe('shellGuard: shared temp dir', () => {
   });
 });
 
+describe('shellGuard: forward-only git', () => {
+  test('refuses rewriting a commit, a merge that drops the other side, and a stash that keeps the index', () => {
+    expect(claude('git commit --amend -m x')).toContain('forward-only');
+    expect(claude(`git -C ${repo} commit --amend --no-edit`)).toContain('commit --amend');
+    expect(claude('git merge -s ours feature')).toContain('Blocked');
+    expect(claude('git merge -sours feature')).toContain('Blocked');
+    expect(claude('git merge --strategy=ours feature')).toContain('Blocked');
+    expect(claude('git merge -X ours feature')).toContain('Blocked');
+    expect(claude('git merge --strategy-option ours feature')).toContain('Blocked');
+    expect(claude('git stash push --keep-index')).toContain('Blocked');
+    expect(claude('git stash -k')).toContain('Blocked');
+    expect(claude('git -c core.pager=cat stash push -uk -m wip')).toContain('Blocked');
+  });
+
+  test('allows the forward-only forms', () => {
+    expect(claude('git commit -F msg.txt')).toBeUndefined();
+    expect(claude('git merge --ff-only feature')).toBeUndefined();
+    expect(claude('git merge -X theirs feature')).toBeUndefined();
+    expect(claude('git stash push -m "-k note"')).toBeUndefined();
+    expect(claude('git log --format=%s -- amend.md')).toBeUndefined();
+    expect(claude('echo "git commit --amend"')).toBeUndefined();
+  });
+
+  test('applies under Codex too', () => {
+    expect(shellGuard('git commit --amend', home, home, 'codex')).toContain('Blocked');
+  });
+});
+
+describe('shellGuard: gates', () => {
+  test("refuses a commit, merge or push the gate before it can't stop", () => {
+    expect(claude('( pnpm lint ); git commit -F m')).toContain('&&');
+    expect(claude('bun test; git commit -F m')).toContain('Blocked');
+    expect(claude('bun run lint:check\ngit push')).toContain('Blocked');
+    expect(claude('pnpm typecheck | tail -5 && git commit -F m')).toContain('pipe');
+    expect(claude('bun test || true && git commit -F m')).toContain('Blocked');
+    expect(claude('( pnpm lint; echo done ) && git merge --ff-only b')).toContain('Blocked');
+    expect(claude('npx prettier --check . & git commit -F m')).toContain('Blocked');
+    expect(claude('pnpm lint | grep "$(date)" && git commit -F m')).toContain('pipe');
+    expect(claude('npm test; (git commit -m x)')).toContain('Blocked');
+    expect(claude('npm test; ( echo a && git commit -F m )')).toContain('Blocked');
+  });
+
+  test('allows a gate joined with &&, a pipefail pipe, and a commit with no gate before it', () => {
+    expect(claude('pnpm lint && git commit -F m')).toBeUndefined();
+    expect(claude('M=$(mktemp) && bun test && git add -A && git commit -F "$M"')).toBeUndefined();
+    expect(claude('set -o pipefail; pnpm typecheck | tail -5 && git commit -F m')).toBeUndefined();
+    expect(claude('bun test 2>&1 && git commit -F m')).toBeUndefined();
+    expect(claude('echo x; git commit -F m')).toBeUndefined();
+    expect(claude('bun test; git status')).toBeUndefined();
+    expect(claude('bun test && git commit -m "$(printf a; echo b)"')).toBeUndefined();
+    expect(claude('bun test && ( git add -A; git commit -F m )')).toBeUndefined();
+    expect(claude('( pnpm lint ) && ( make a; make b ) && git commit -F m')).toBeUndefined();
+  });
+
+  test('applies under Codex too', () => {
+    expect(shellGuard('bun test; git commit -F m', home, home, 'codex')).toContain('Blocked');
+  });
+});
+
 describe('shellGuard on native Windows', () => {
   const winHome = 'C:\\Users\\acme\\Documents\\Agents\\Scout';
   const winRepo = 'C:\\Users\\acme\\Developer\\shop';
@@ -223,7 +289,7 @@ describe('shellGuard on native Windows', () => {
     expect(onWindows('cd /c/Users/acme/Developer/shop && git status')).toContain('Blocked');
     expect(onWindows('cd /cygdrive/c/Users/acme/Developer/shop')).toContain('Blocked');
     expect(onWindows('cd /c/Users/acme/Documents/Agents/Scout', winRepo)).toBeUndefined();
-    expect(onWindows('cd /c/Users/acme/Documents/Agents/Scout/projects && ls')).toBeUndefined();
+    expect(onWindows('cd /c/Users/acme/Documents/Agents/Scout/projects && ls')).toContain('Blocked');
   });
 
   test('takes drive-letter paths with either slash, in any case', () => {

@@ -84,6 +84,17 @@ describe('scanShell', () => {
     ]);
     expect(texts('grep x <<< "cd /y"')).toEqual([{ depth: 0, words: ['grep', 'x', '<<<', 'cd /y'] }]);
   });
+
+  test('records the separator before each command, and the shell it was written in', () => {
+    const joiners = (script: string) => scanShell(script).map((command) => command.joiner?.separator);
+    expect(scanShell('a && ( b; c ) ; d').map((command) => command.joiner?.shell)).toEqual([undefined, 0, 1, 0]);
+    expect(joiners('a && b; c | d || e & f\ng')).toEqual([undefined, '&&', ';', '|', '||', '&', '\n']);
+    expect(joiners('a && ( b; c ) ; d')).toEqual([undefined, '&&', ';', ';']);
+    expect(joiners('x=$(m) && y')).toEqual([undefined, undefined, '&&']);
+    expect(joiners('a &&\n  b')).toEqual([undefined, '&&']);
+    expect(joiners('a |& b')).toEqual([undefined, '|']);
+    expect(joiners('make 2>&1 && ls')).toEqual([undefined, '&&']);
+  });
 });
 
 describe('commandWords', () => {

@@ -9,11 +9,28 @@ export interface ShellWord {
   operator: boolean;
 }
 
+export type ShellJoiner = '&&' | '||' | ';' | '|' | '&' | '\n';
+
 export interface ShellCommand {
   words: ShellWord[];
   /** The shells it runs in, outermost first: `[0]` is the session's shell, each subshell or substitution adds an id. */
   shells: number[];
+  /**
+   * The separator before it and the shell it was written in. A subshell's first command carries the
+   * one before the `(`, which belongs to the enclosing shell; a substitution's first has none.
+   */
+  joiner?: { separator: ShellJoiner; shell: number };
 }
+
+const joined = (pending: ShellJoiner | undefined, separator: ';' | '|' | '&' | '\n'): ShellJoiner => {
+  if (separator === '\n') {
+    return pending ?? '\n';
+  }
+  if (pending === '|') {
+    return separator === '|' ? '||' : separator === '&' ? '|' : separator;
+  }
+  return pending === '&' && separator === '&' ? '&&' : separator;
+};
 
 const HEREDOC = /(?<!<)<<-?\s*(["']?)([\w.-]+)\1/;
 const REDIRECT = /^(?:&>>?|>\||[<>]+&?(?:\d+-?|-)?)/;
@@ -45,8 +62,14 @@ export function scanShell(script: string): ShellCommand[] {
   const commands: ShellCommand[] = [];
   let lastShell = 0;
 
-  const scan = (start: number, shells: number[], closer: string | undefined): number => {
+  const scan = (
+    start: number,
+    shells: number[],
+    closer: string | undefined,
+    before?: ShellCommand['joiner']
+  ): number => {
     let words: ShellWord[] = [];
+    let pending = before;
     let text = '';
     let globbed = false;
     let expands = false;
@@ -64,7 +87,8 @@ export function scanShell(script: string): ShellCommand[] {
     const endCommand = (): void => {
       endWord();
       if (words.length) {
-        commands.push({ words, shells });
+        commands.push({ words, shells, joiner: pending });
+        pending = undefined;
       }
       words = [];
     };
@@ -109,7 +133,8 @@ export function scanShell(script: string): ShellCommand[] {
         i = stop + 1;
       } else if (ch === '(' && !inWord) {
         endCommand();
-        i = scan(i + 1, [...shells, ++lastShell], ')');
+        i = scan(i + 1, [...shells, ++lastShell], ')', pending);
+        pending = undefined;
       } else if (ch === '#' && !inWord) {
         const end = source.indexOf('\n', i);
         i = end < 0 ? source.length : end;
@@ -125,6 +150,7 @@ export function scanShell(script: string): ShellCommand[] {
         i += operator.length;
       } else if (ch === '\n' || ch === ';' || ch === '|' || ch === '&') {
         endCommand();
+        pending = { separator: joined(pending?.separator, ch), shell: shells.at(-1) ?? 0 };
         i += 1;
       } else if (ch === ' ' || ch === '\t') {
         endWord();

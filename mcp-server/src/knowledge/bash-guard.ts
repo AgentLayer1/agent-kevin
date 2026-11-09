@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
 import { existingTarget } from '../shared/paths';
-import { commandWords, scanShell, type ShellCommand } from './shell-scan';
+import { commandWords, scanShell, type ShellCommand, type ShellJoiner } from './shell-scan';
 
 /** One platform's path rules, with the home and the starting cwd already in that platform's form. */
 interface Paths {
@@ -44,7 +44,7 @@ const resolveCd = (dir: string | undefined, command: ShellCommand, { api, native
   if (name.text === 'popd' || (name.text === 'pushd' && !target)) {
     return undefined;
   }
-  // `$HOME` in single quotes is a folder named $HOME, which the computed check below lets through.
+  // `$HOME` in single quotes is a folder named $HOME; its literal `$` still reads as computed below.
   const raw =
     target === undefined
       ? homedir()
@@ -64,7 +64,7 @@ interface Step {
 /**
  * Each command with the directory it runs in, and where the session's shell ends up. A subshell
  * starts where its parent stands and its cd stays inside it. A cd target the shell computes leaves
- * that shell's directory unknown, and unknown means allow.
+ * that shell's directory unknown.
  */
 const walk = (commands: ShellCommand[], paths: Paths): { steps: Step[]; end: string | undefined } => {
   const dirs = new Map<number, string | undefined>([[0, paths.start]]);
@@ -192,6 +192,159 @@ const driftMessage = (end: string | undefined, paths: Paths): string | undefined
   );
 };
 
+const samePlace = (dir: string, target: string, api: typeof posix): boolean =>
+  api.relative(target, dir) === '' || api.relative(existingTarget(target), existingTarget(dir)) === '';
+
+const ECHO_LIMIT = 1500;
+
+/**
+ * The block message when the session's shell ends anywhere but where it started or the home: a
+ * top-level cd into a folder inside the home, or to a target the shell computes.
+ */
+const moveMessage = (command: string, end: string | undefined, paths: Paths): string | undefined => {
+  if (end !== undefined && (samePlace(end, paths.start, paths.api) || samePlace(end, paths.home, paths.api))) {
+    return undefined;
+  }
+  const subshell = command.length <= ECHO_LIMIT ? `( ${command}\n)` : '( cd <dir> && … )';
+  return (
+    `Blocked: this command moves the session's working directory to ${end ?? 'a directory the shell computes'}, and a cd carries over to every later command. ` +
+    `Name the folder with absolute paths or git -C <repo>, or run the same command in a subshell:\n${subshell}`
+  );
+};
+
+/** Global options that take the next word as their value, so it isn't the subcommand. */
+const GIT_VALUE_OPTIONS = new Set([
+  '-C',
+  '-c',
+  '--git-dir',
+  '--work-tree',
+  '--namespace',
+  '--config-env',
+  '--super-prefix'
+]);
+
+const subcommandAt = (texts: string[], index: number): number =>
+  texts[index]?.startsWith('-')
+    ? subcommandAt(texts, index + (GIT_VALUE_OPTIONS.has(texts[index] ?? '') ? 2 : 1))
+    : index;
+
+/** The command's words from its name on, redirections and their targets dropped. */
+const plainTexts = (command: ShellCommand): string[] => {
+  const words = commandWords(command);
+  return words.filter((word, index) => !word.operator && !words[index - 1]?.operator).map((word) => word.text);
+};
+
+const gitParts = (command: ShellCommand): { sub: string | undefined; args: string[] } => {
+  const texts = plainTexts(command);
+  if (texts[0] !== 'git') {
+    return { sub: undefined, args: [] };
+  }
+  const at = subcommandAt(texts, 1);
+  return { sub: texts[at], args: texts.slice(at + 1) };
+};
+
+const OURS_PAIR = /^(?:-s|-X|--strategy|--strategy-option)$/;
+const OURS_WORD = /^(?:-sours|-Xours|--strategy=ours|--strategy-option=ours)$/;
+const KEEP_INDEX = /^(?:--keep-index|-[a-zA-Z]*k[a-zA-Z]*)$/;
+const MESSAGE_FLAG = /^(?:-m|--message)$/;
+
+const rewriteOf = ({ sub, args }: { sub: string | undefined; args: string[] }): string | undefined => {
+  if (sub === 'commit' && args.includes('--amend')) {
+    return 'commit --amend';
+  }
+  if (
+    sub === 'merge' &&
+    args.some((arg, index) => OURS_WORD.test(arg) || (OURS_PAIR.test(arg) && args[index + 1] === 'ours'))
+  ) {
+    return 'merge with the ours strategy';
+  }
+  const stashes =
+    sub === 'stash' && (args[0] === undefined || args[0] === 'push' || args[0] === 'save' || args[0].startsWith('-'));
+  return stashes && args.some((arg, index) => KEEP_INDEX.test(arg) && !MESSAGE_FLAG.test(args[index - 1] ?? ''))
+    ? 'stash --keep-index'
+    : undefined;
+};
+
+const rewriteMessage = (commands: ShellCommand[]): string | undefined => {
+  const rewrite = commands.map((command) => rewriteOf(gitParts(command))).find(Boolean);
+  return (
+    rewrite &&
+    `Blocked: git ${rewrite} rewrites or hides history, and git here is forward-only (AGENTS.md, Workflow): ` +
+      `fix a commit with a new commit on top, merge without discarding the other side, stage exactly what the commit needs instead of stashing around the index. ` +
+      `The one exception, scrubbing a confidentiality leak from an unpushed commit, is the operator's to run with !.`
+  );
+};
+
+const GATE_TOOLS = new Set(['tsc', 'eslint', 'prettier', 'swiftlint', 'biome', 'vitest', 'jest']);
+const RUNNERS = new Set([
+  'pnpm',
+  'npm',
+  'npx',
+  'bun',
+  'bunx',
+  'yarn',
+  'make',
+  'turbo',
+  'cargo',
+  'go',
+  'swift',
+  'uv',
+  'deno'
+]);
+const GATE_WORD = /^(?:test|tests|lint|typecheck|type-check|check|build|gate|format|verify)(?::[\w:-]+)?$/;
+const PUBLISHES = new Set(['commit', 'merge', 'push']);
+const UNJOINED = new Set<ShellJoiner>(['||', ';', '\n', '&']);
+
+const isGate = (command: ShellCommand): boolean => {
+  const [name = '', ...rest] = commandWords(command).map((word) => word.text);
+  return (
+    GATE_TOOLS.has(name) || (RUNNERS.has(name) && rest.some((word) => GATE_TOOLS.has(word) || GATE_WORD.test(word)))
+  );
+};
+
+const setsPipefail = (command: ShellCommand): boolean => {
+  const [name, ...rest] = commandWords(command).map((word) => word.text);
+  return name === 'set' && rest.some((word) => word.includes('pipefail'));
+};
+
+const spoken = (command: ShellCommand): string => plainTexts(command).join(' ').slice(0, 80);
+
+/**
+ * Why a gate earlier in the command can't stop the commit, merge or push after it: a separator
+ * other than && between them, or the gate piped into another command without pipefail. Only a
+ * separator written in the gate's own shell or one enclosing it counts, so a `;` inside a sibling
+ * subshell or a substitution in the commit's arguments is not between them.
+ */
+const gateMessage = (commands: ShellCommand[]): string | undefined =>
+  commands
+    .map((command, index) => {
+      const { sub } = gitParts(command);
+      const gate = sub && PUBLISHES.has(sub) ? commands.slice(0, index).findLastIndex(isGate) : -1;
+      if (gate < 0) {
+        return undefined;
+      }
+      const gateCommand = commands[gate];
+      const between = commands
+        .slice(gate + 1, index + 1)
+        .flatMap((step) =>
+          step.joiner && gateCommand.shells.includes(step.joiner.shell) ? [{ step, joiner: step.joiner }] : []
+        );
+      const [next] = between;
+      if (next?.joiner.separator === '|' && !commands.slice(0, gate).some(setsPipefail)) {
+        return (
+          `Blocked: "${spoken(gateCommand)}" is piped into ${plainTexts(next.step)[0]}, so the pipe reports that command's status and git ${sub} runs even when the gate fails. ` +
+          `Drop the pipe, or put set -o pipefail first.`
+        );
+      }
+      const loose = between.find(({ joiner }) => UNJOINED.has(joiner.separator))?.joiner.separator;
+      return (
+        loose &&
+        `Blocked: git ${sub} runs even when "${spoken(gateCommand)}" fails, because a ${loose === '\n' ? 'new line' : `'${loose}'`} sits between them. ` +
+          `Join every step from the gate to the git command with && so a failing gate stops it.`
+      );
+    })
+    .find(Boolean);
+
 interface GuardOptions {
   platform?: NodeJS.Platform;
   /** The folder the session was launched from; drift is checked only for a session launched in the home. */
@@ -199,8 +352,9 @@ interface GuardOptions {
 }
 
 /**
- * The first reason to refuse a shell command, or undefined to let it run. Codex starts every
- * command in the workspace, so a cd never carries over there and drift is checked on Claude only,
+ * The first reason to refuse a shell command, or undefined to let it run. History-rewriting git
+ * and an unjoined gate are refused on both hosts. Codex starts every command in the workspace,
+ * so a cd never carries over there and drift is checked on Claude only,
  * and only for a session launched in the home (a pinned home also reaches sessions started in a
  * repo). On native Windows Codex runs PowerShell, so only the home-tree check, whose redirects
  * read the same there, applies; the temp-dir and drift checks judge Claude Code's Git Bash.
@@ -228,6 +382,8 @@ export function shellGuard(
   const launchedHome = launch === undefined || insideHome(paths.api.resolve(paths.native(launch)), paths);
   return (
     commands.map(scratchProblem).find(Boolean) ??
-    (host === 'claude' && launchedHome ? driftMessage(end, paths) : undefined)
+    rewriteMessage(commands) ??
+    gateMessage(commands) ??
+    (host === 'claude' && launchedHome ? (driftMessage(end, paths) ?? moveMessage(command, end, paths)) : undefined)
   );
 }
