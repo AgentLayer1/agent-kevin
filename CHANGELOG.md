@@ -49,6 +49,7 @@ and prompts per optional one. The new template files are the source of truth for
 - **The shell guard refuses any cd that moves the session, not only one that leaves the home.** Under Claude Code a top-level `cd` into a folder inside the home, or to a target the shell computes (`cd "$DIR"`, `cd -`, `popd`), carried over to every later command and slipped past the guard. It's now refused, and the refusal hands back the same command wrapped in a subshell, ready to run. A `cd` back to the home and a `cd` inside `( … )` still pass.
 - **The guard refuses git that rewrites or hides history:** `commit --amend`, a merge with the `ours` strategy or strategy option, and `stash --keep-index`, on Claude Code and Codex. The one exception the manual allows, scrubbing a confidentiality leak from an unpushed commit, is the operator's to run with `!`.
 - **The guard refuses a commit, merge or push its gate can't stop.** When a test, lint, typecheck, build or format step comes earlier in the same command, every step from it to the git command must be joined with `&&`; a `;`, a new line, `||`, `&`, or the gate piped into another command without `set -o pipefail` is refused.
+- **Sync's self-review nudge names both halves.** When only the rules pass is due, the question says when the brain pass last ran beside it, so a review that ran the night before no longer reads as one that never did.
 
 ### Upgrade
 None — code-only, no bun install or HOME changes.
