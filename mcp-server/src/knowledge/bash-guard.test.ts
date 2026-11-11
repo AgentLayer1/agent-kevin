@@ -221,7 +221,7 @@ describe('shellGuard: shared temp dir', () => {
 });
 
 describe('shellGuard: forward-only git', () => {
-  test('refuses rewriting a commit, a merge that drops the other side, and a stash that keeps the index', () => {
+  test('refuses rewriting a commit and a merge that drops the other side', () => {
     expect(claude('git commit --amend -m x')).toContain('forward-only');
     expect(claude(`git -C ${repo} commit --amend --no-edit`)).toContain('commit --amend');
     expect(claude('git merge -s ours feature')).toContain('Blocked');
@@ -229,8 +229,13 @@ describe('shellGuard: forward-only git', () => {
     expect(claude('git merge --strategy=ours feature')).toContain('Blocked');
     expect(claude('git merge -X ours feature')).toContain('Blocked');
     expect(claude('git merge --strategy-option ours feature')).toContain('Blocked');
-    expect(claude('git stash push --keep-index')).toContain('Blocked');
-    expect(claude('git stash -k')).toContain('Blocked');
+  });
+
+  test('refuses every stash that changes the shared list', () => {
+    expect(claude('git stash')).toContain('shared by every worktree');
+    expect(claude('git stash pop')).toContain('Blocked');
+    expect(claude('git stash clear')).toContain('Blocked');
+    expect(claude(`git -C ${repo} stash drop stash@{0}`)).toContain('Blocked');
     expect(claude('git -c core.pager=cat stash push -uk -m wip')).toContain('Blocked');
   });
 
@@ -238,7 +243,8 @@ describe('shellGuard: forward-only git', () => {
     expect(claude('git commit -F msg.txt')).toBeUndefined();
     expect(claude('git merge --ff-only feature')).toBeUndefined();
     expect(claude('git merge -X theirs feature')).toBeUndefined();
-    expect(claude('git stash push -m "-k note"')).toBeUndefined();
+    expect(claude('git stash list')).toBeUndefined();
+    expect(claude('git stash show -p stash@{0}')).toBeUndefined();
     expect(claude('git log --format=%s -- amend.md')).toBeUndefined();
     expect(claude('echo "git commit --amend"')).toBeUndefined();
   });

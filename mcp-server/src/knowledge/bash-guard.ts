@@ -245,32 +245,34 @@ const gitParts = (command: ShellCommand): { sub: string | undefined; args: strin
 
 const OURS_PAIR = /^(?:-s|-X|--strategy|--strategy-option)$/;
 const OURS_WORD = /^(?:-sours|-Xours|--strategy=ours|--strategy-option=ours)$/;
-const KEEP_INDEX = /^(?:--keep-index|-[a-zA-Z]*k[a-zA-Z]*)$/;
-const MESSAGE_FLAG = /^(?:-m|--message)$/;
 
 const rewriteOf = ({ sub, args }: { sub: string | undefined; args: string[] }): string | undefined => {
   if (sub === 'commit' && args.includes('--amend')) {
     return 'commit --amend';
   }
-  if (
-    sub === 'merge' &&
+  return sub === 'merge' &&
     args.some((arg, index) => OURS_WORD.test(arg) || (OURS_PAIR.test(arg) && args[index + 1] === 'ours'))
-  ) {
-    return 'merge with the ours strategy';
-  }
-  const stashes =
-    sub === 'stash' && (args[0] === undefined || args[0] === 'push' || args[0] === 'save' || args[0].startsWith('-'));
-  return stashes && args.some((arg, index) => KEEP_INDEX.test(arg) && !MESSAGE_FLAG.test(args[index - 1] ?? ''))
-    ? 'stash --keep-index'
+    ? 'merge with the ours strategy'
     : undefined;
 };
+
+const READ_ONLY_STASH = new Set(['list', 'show']);
+
+const stashMessage = (commands: ShellCommand[]): string | undefined =>
+  commands.some((command) => {
+    const { sub, args } = gitParts(command);
+    return sub === 'stash' && !READ_ONLY_STASH.has(args[0] ?? '');
+  })
+    ? 'Blocked: git stash is shared by every worktree and session on this repo, so an agent only reads it (stash list, stash show). ' +
+      'Stage exactly what the commit needs instead of stashing around the index, and set work aside on a temp branch or a scratch copy.'
+    : undefined;
 
 const rewriteMessage = (commands: ShellCommand[]): string | undefined => {
   const rewrite = commands.map((command) => rewriteOf(gitParts(command))).find(Boolean);
   return (
     rewrite &&
     `Blocked: git ${rewrite} rewrites or hides history, and git here is forward-only (AGENTS.md, Workflow): ` +
-      `fix a commit with a new commit on top, merge without discarding the other side, stage exactly what the commit needs instead of stashing around the index. ` +
+      `fix a commit with a new commit on top, and merge without discarding the other side. ` +
       `The one exception, scrubbing a confidentiality leak from an unpushed commit, is the operator's to run with !.`
   );
 };
@@ -383,6 +385,7 @@ export function shellGuard(
   return (
     commands.map(scratchProblem).find(Boolean) ??
     rewriteMessage(commands) ??
+    stashMessage(commands) ??
     gateMessage(commands) ??
     (host === 'claude' && launchedHome ? (driftMessage(end, paths) ?? moveMessage(command, end, paths)) : undefined)
   );
