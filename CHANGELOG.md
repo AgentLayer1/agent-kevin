@@ -43,6 +43,15 @@ and prompts per optional one. The new template files are the source of truth for
 
 <!-- Add new releases below this line, newest first. -->
 
+## [0.9.4] - 2026-11-13
+
+### Changed
+- **An agent only reads git stash.** The stash list belongs to the repo and is shared by every worktree and session on it, so an agent's push, pop, apply, drop or clear could bury or lose another session's work. The guard now refuses every `git stash` except `list` and `show` (before, it refused only `--keep-index`), on Claude Code and Codex, and points at staging exactly what the commit needs, a temp branch or a scratch copy instead. Your own terminal is unaffected: the guard sees only agent commands.
+- **The sweep page opens with My promises folded.** The section used to open whenever a promise was open or wrong, ahead of the PRs that need a reply; it now starts collapsed like the other reference sections, and its hint still counts each status.
+
+### Upgrade
+None — code-only, no bun install or HOME changes.
+
 ## [0.9.3] - 2026-11-09
 
 ### Changed
